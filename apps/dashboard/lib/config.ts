@@ -7,6 +7,11 @@ export const config = {
 			sshPassword: requireEnv('RECALBOX_SSH_PASSWORD'),
 		}
 	},
+	get mqtt() {
+		return {
+			brokerUrl: process.env.MQTT_BROKER_URL ?? 'mqtt://recalbox.local:1883',
+		}
+	},
 }
 
 function requireEnv(key: string): string {
