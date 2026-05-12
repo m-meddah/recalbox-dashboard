@@ -86,7 +86,10 @@ GET /api/media?path=/recalbox/share/...
   → decode → return with Cache-Control: public, max-age=3600
 ```
 
-Paths are whitelisted to `/recalbox/share/` to prevent path traversal.
+Paths are whitelisted to `/recalbox/share/` to prevent path traversal. The path is
+shell-quoted before execution to handle filenames with apostrophes or special characters.
+A `test -f` check is performed first so that images referenced in `gamelist.xml` but
+missing on disk return a clean 404 instead of a broken image.
 
 ## Roadmap
 
@@ -128,9 +131,32 @@ Liste paginée de jeux.
 | `page` | number | Page (défaut: 1) |
 | `pageSize` | number | Taille (max: 200, défaut: 50) |
 
+### `GET /api/collection/regions`
+
+Retourne les régions disponibles dans la collection (utile pour les boutons de filtre).
+
+| Query param | Description |
+| ----------- | ----------- |
+| `system` | Restreindre aux régions d'un système |
+
+### Données utilisateur (`gamelist-userdata.ini`)
+
+Recalbox stocke les préférences utilisateur (favoris, jeux cachés, statistiques de jeu)
+dans un fichier `gamelist-userdata.ini` distinct du `gamelist.xml` scrappé. La sync lit
+les deux fichiers et fusionne les données — les valeurs du `.ini` ont priorité sur le XML.
+
+Format du fichier :
+
+```text
+relative/path/to/rom.ext:key1=val1,key2=val2,...
+```
+
+Clés gérées : `favorite`, `hidden`, `playcount`, `lastplayed`.
+
 ### Chemins des disques durs
 
-Les gamelist.xml sont lus via SSH. Les disques USB sont détectés automatiquement sous `/recalbox/share/externals/usb*/recalbox/roms/`.
+Les gamelist.xml sont lus via SSH. Les disques USB sont détectés automatiquement sous
+`/recalbox/share/externals/usb*/recalbox/roms/`.
 
 ## License
 
