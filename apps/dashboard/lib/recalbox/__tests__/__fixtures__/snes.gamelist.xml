@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<gameList>
+	<folder source="Recalbox" timestamp="0">
+		<name>0-9</name>
+		<path>0-9</path>
+	</folder>
+	<folder source="Recalbox" timestamp="0">
+		<name>A</name>
+		<path>A</path>
+	</folder>
+	<game source="Recalbox" timestamp="1777428949">
+		<hash>71120F9B</hash>
+		<region>jp</region>
+		<players>1-2</players>
+		<genreid>1538</genreid>
+		<genre>Sport / Football,Sport</genre>
+		<publisher>Magical Company</publisher>
+		<developer>Magical Company</developer>
+		<releasedate>19960322T000000</releasedate>
+		<video>media/videos/96 Zenkoku Koukou Soccer Senshuken.mp4</video>
+		<image>media/images/96 Zenkoku Koukou Soccer Senshuken.png</image>
+		<desc>Un jeu de football académique japonaise.</desc>
+		<rating>0.75</rating>
+		<aliases>'96 Zenkoku(ss)</aliases>
+		<name>'96 Zenkoku Koukou Soccer Senshuken</name>
+		<path>0-9/'96 Zenkoku Koukou Soccer Senshuken (Japan).7z</path>
+	</game>
+	<game source="Recalbox" timestamp="1777428420">
+		<hash>26F7B02B</hash>
+		<region>jp</region>
+		<players>1-2</players>
+		<genre>Sport / Baseball,Sport</genre>
+		<publisher>SNK</publisher>
+		<developer>SNK</developer>
+		<releasedate>19930312T000000</releasedate>
+		<video>media/videos/Super Baseball 2020.mp4</video>
+		<image>media/images/Super Baseball 2020.png</image>
+		<desc>Super Baseball 2020 sur Super Nintendo est un jeu de sport futuriste.</desc>
+		<rating>0.90</rating>
+		<name>2020 Super Baseball</name>
+		<path>0-9/2020 Super Baseball (Japan).7z</path>
+		<favorite>true</favorite>
+		<playcount>5</playcount>
+		<lastplayed>20260315T204512</lastplayed>
+	</game>
+	<game source="Recalbox" timestamp="1777430324">
+		<hash>49A6CAE5</hash>
+		<region>us</region>
+		<players>1-2</players>
+		<genre>Plateforme</genre>
+		<publisher>Sony Imagesoft</publisher>
+		<developer>Malibu Games</developer>
+		<releasedate>19941101T000000</releasedate>
+		<video>media/videos/3 Ninjas Kick Back.mp4</video>
+		<image>media/images/3 Ninjas Kick Back.png</image>
+		<desc>3 Ninjas Kick Back est un jeu de plates-formes.</desc>
+		<rating>0.50</rating>
+		<name>3 Ninjas Kick Back</name>
+		<path>0-9/3 Ninjas Kick Back (USA).7z</path>
+		<hidden>true</hidden>
+	</game>
+</gameList>

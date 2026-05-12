@@ -92,7 +92,45 @@ Paths are whitelisted to `/recalbox/share/` to prevent path traversal.
 
 - [x] Ticket 1 — SSH system stats with live chart
 - [x] Ticket 2 — Now Playing via MQTT + SSE
-- [ ] Ticket 3 — Game collection from gamelist.xml
+- [x] Ticket 3 — Game collection from gamelist.xml
+
+## Collection API
+
+### `POST /api/collection/sync`
+
+Import complet depuis les `gamelist.xml` via SSH. Retourne un flux NDJSON de progression.
+
+| Query param | Description |
+| ----------- | ----------- |
+| `system` | Sync un seul système (ex: `?system=snes`) |
+
+Événements NDJSON :
+
+```json
+{ "type": "start", "totalSystems": 84 }
+{ "type": "system", "system": "snes", "status": "done", "count": 1247 }
+{ "type": "done", "totalGames": 9832, "durationMs": 4120 }
+```
+
+### `GET /api/collection`
+
+Liste paginée de jeux.
+
+| Query param | Type | Description |
+| ----------- | ---- | ----------- |
+| `system` | string | Filtrer par système |
+| `favoritesOnly` | boolean | Favoris uniquement |
+| `neverPlayed` | boolean | Jamais joués |
+| `developer` | string | Filtrer par développeur |
+| `search` | string | Recherche dans le nom |
+| `sortBy` | `name\|rating\|lastPlayed\|releaseDate` | Tri |
+| `sortDir` | `asc\|desc` | Direction du tri |
+| `page` | number | Page (défaut: 1) |
+| `pageSize` | number | Taille (max: 200, défaut: 50) |
+
+### Chemins des disques durs
+
+Les gamelist.xml sont lus via SSH. Les disques USB sont détectés automatiquement sous `/recalbox/share/externals/usb*/recalbox/roms/`.
 
 ## License
 

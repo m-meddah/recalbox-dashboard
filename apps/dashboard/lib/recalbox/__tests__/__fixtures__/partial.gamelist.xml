@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<gameList>
+	<game>
+		<path>./valid_game.sfc</path>
+		<name>Valid Game</name>
+		<rating>0.80</rating>
+	</game>
+	<game>
+		<name>Missing Path Game</name>
+		<rating>0.60</rating>
+	</game>
+	<game>
+		<path>./missing_name_game.sfc</path>
+	</game>
+	<game>
+		<path>./another_valid.sfc</path>
+		<name>Another Valid Game</name>
+		<favorite>true</favorite>
+		<hidden>false</hidden>
+		<playcount>3</playcount>
+		<lastplayed>20251225T120000</lastplayed>
+	</game>
+</gameList>

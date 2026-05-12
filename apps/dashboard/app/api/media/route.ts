@@ -1,4 +1,5 @@
 import { sshClient } from '@/lib/recalbox/ssh-client'
+import { shellQuote } from '@/lib/recalbox/shell'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -37,9 +38,17 @@ export async function GET(request: Request) {
 	const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream'
 
 	try {
+		// Verify file exists before fetching — avoids noisy base64 errors for missing scraper images
+		const exists = await sshClient.exec(`test -f ${shellQuote(filePath)} && echo yes || echo no`)
+		if (exists !== 'yes') {
+			return new Response('Image not found', { status: 404 })
+		}
+
 		// Fetch image binary via SSH as base64 to safely handle binary over text channel
-		const b64 = await sshClient.exec(`base64 -w 0 "${filePath}"`)
+		const b64 = await sshClient.exec(`base64 -w 0 ${shellQuote(filePath)}`, 15_000)
+		if (!b64) return new Response('Image not found', { status: 404 })
 		const buffer = Buffer.from(b64, 'base64')
+		if (buffer.byteLength === 0) return new Response('Image not found', { status: 404 })
 
 		return new Response(buffer, {
 			headers: {

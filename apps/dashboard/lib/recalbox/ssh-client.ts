@@ -20,13 +20,13 @@ class SshClient {
 	}
 
 	/** Execute a command over SSH and return trimmed stdout. */
-	async exec(command: string): Promise<string> {
+	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
 		if (!this.connected || !this.ssh.isConnected()) {
 			await this.connect()
 		}
 
 		const timeoutPromise = new Promise<never>((_, reject) =>
-			setTimeout(() => reject(new Error(`SSH command timed out: ${command}`)), EXEC_TIMEOUT_MS),
+			setTimeout(() => reject(new Error(`SSH command timed out: ${command}`)), timeoutMs),
 		)
 
 		const execPromise = this.ssh.execCommand(command).then((result) => {
