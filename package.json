@@ -1,0 +1,22 @@
+{
+  "name": "recalbox-dashboard-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "dev": "pnpm --filter @recalbox/dashboard dev",
+    "build": "pnpm -r build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "pnpm -r test",
+    "scrobbler:dev": "pnpm --filter @recalbox/dashboard scrobbler:dev"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
