@@ -1,27 +1,22 @@
 'use client'
 
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { Star, Clock, SortAsc, SortDesc } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Clock, SortAsc, SortDesc, Star } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 
 type SortField = 'name' | 'rating' | 'lastPlayed' | 'releaseDate'
 
+const ALLOWED_REGIONS = ['fr', 'eu', 'us', 'jp', 'world'] as const
+
 const REGION_LABELS: Record<string, string> = {
+	fr: 'FR',
 	eu: 'EU',
 	us: 'US',
 	jp: 'JP',
-	world: 'World',
-	fr: 'FR',
-	de: 'DE',
-	es: 'ES',
-	it: 'IT',
-	uk: 'UK',
-	au: 'AU',
-	kr: 'KR',
-	cn: 'CN',
+	world: 'WOR',
 }
 
 export function CollectionFilters({ system }: { system?: string }) {
@@ -33,12 +28,20 @@ export function CollectionFilters({ system }: { system?: string }) {
 	const get = (key: string) => searchParams.get(key) ?? ''
 
 	useEffect(() => {
-		const url = system
-			? `/api/collection/regions?system=${system}`
-			: '/api/collection/regions'
+		const url = system ? `/api/collection/regions?system=${system}` : '/api/collection/regions'
 		fetch(url)
 			.then((r) => r.json())
-			.then((data: { regions: string[] }) => setRegions(data.regions))
+			.then((data: { regions: string[] }) =>
+				setRegions(
+					data.regions
+						.filter((r) => (ALLOWED_REGIONS as readonly string[]).includes(r))
+						.sort(
+							(a, b) =>
+								(ALLOWED_REGIONS as readonly string[]).indexOf(a) -
+								(ALLOWED_REGIONS as readonly string[]).indexOf(b),
+						),
+				),
+			)
 			.catch(() => {})
 	}, [system])
 
@@ -55,8 +58,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 		[router, pathname, searchParams],
 	)
 
-	const toggleBool = (key: string) =>
-		update({ [key]: get(key) === 'true' ? null : 'true' })
+	const toggleBool = (key: string) => update({ [key]: get(key) === 'true' ? null : 'true' })
 
 	const toggleSort = (field: SortField) => {
 		const cur = get('sortBy')
@@ -65,7 +67,8 @@ export function CollectionFilters({ system }: { system?: string }) {
 		else update({ sortBy: field, sortDir: 'asc' })
 	}
 
-	const sortActive = (field: SortField) => get('sortBy') === field || (field === 'name' && !get('sortBy'))
+	const sortActive = (field: SortField) =>
+		get('sortBy') === field || (field === 'name' && !get('sortBy'))
 	const sortDir = get('sortDir') || 'asc'
 
 	return (
