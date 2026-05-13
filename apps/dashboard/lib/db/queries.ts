@@ -317,8 +317,8 @@ export async function listSessions(
 	const conditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
 	if (system) conditions.push(sql`${sessions.system} = ${system}`)
 	if (romPath) conditions.push(sql`${sessions.romPath} = ${romPath}`)
-	if (fromDate) conditions.push(sql`${sessions.startedAt} >= ${fromDate}`)
-	if (toDate) conditions.push(sql`${sessions.startedAt} <= ${toDate}`)
+	if (fromDate) conditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
+	if (toDate) conditions.push(sql`${sessions.startedAt} <= ${Math.floor(toDate.getTime() / 1000)}`)
 	if (autoClosed !== undefined) conditions.push(sql`${sessions.autoClosed} = ${autoClosed ? 1 : 0}`)
 
 	const where = sql.join(conditions, sql` AND `)
@@ -341,8 +341,8 @@ export async function getSessionStats(opts: {
 	const { fromDate, toDate, topGamesLimit = 10 } = opts
 
 	const baseConditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
-	if (fromDate) baseConditions.push(sql`${sessions.startedAt} >= ${fromDate}`)
-	if (toDate) baseConditions.push(sql`${sessions.startedAt} <= ${toDate}`)
+	if (fromDate) baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
+	if (toDate) baseConditions.push(sql`${sessions.startedAt} <= ${Math.floor(toDate.getTime() / 1000)}`)
 	const where = sql.join(baseConditions, sql` AND `)
 
 	const [totalsRows, byDayRows, bySystemRows, topGamesRows] = await Promise.all([

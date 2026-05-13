@@ -25,6 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 							<Link href="/collection" className="text-sm text-muted-foreground hover:text-foreground">
 								Collection
 							</Link>
+							<Link href="/stats" className="text-sm text-muted-foreground hover:text-foreground">
+								Stats
+							</Link>
 						</nav>
 					</header>
 					{children}

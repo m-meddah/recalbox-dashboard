@@ -132,6 +132,35 @@ Both processes share the same SQLite database (WAL mode is active, concurrent ac
 - [x] Ticket 2 — Now Playing via MQTT + SSE
 - [x] Ticket 3 — Game collection from gamelist.xml
 - [x] Ticket 4 — Scrobble daemon (session tracking)
+- [x] Ticket 5 — Stats page with heatmap, charts and streaks
+
+## Stats (`/stats/[period]`)
+
+Dashboard de statistiques de jeu inspiré de Last.fm + GitHub contributions.
+
+| Period | URL |
+| ------ | --- |
+| Cette semaine | `/stats/week` |
+| Ce mois | `/stats/month` |
+| Cette année | `/stats/year` |
+| Tout | `/stats/all` |
+
+**Composants :**
+
+- KPI cards (temps de jeu, jeux, sessions, série actuelle) avec delta vs période précédente
+- Heatmap GitHub-style (365 jours, CSS grid, intensité 0–4)
+- Courbe temps de jeu par jour (Recharts AreaChart, groupé par semaine pour year/all)
+- Top 10 jeux (progress bars, "Voir plus" → 50)
+- Répartition par système (donut chart, clic → `/collection/<system>`)
+- Carte Série de jours consécutifs (record inclus)
+- Timeline des 20 dernières sessions (ScrollArea)
+
+**Seed de données de test :**
+
+```bash
+pnpm seed:dev              # Génère 200 sessions sur 90 jours
+pnpm seed:dev -- --clear   # Supprime les données de seed
+```
 
 ## Collection API
 
