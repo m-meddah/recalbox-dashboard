@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import './globals.css'
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
+import { Geist } from 'next/font/google'
 import { RecalboxEventsProvider } from './recalbox-events-provider'
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
 	title: 'Recalbox Dashboard',
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en" className={cn("font-sans", geist.variable)}>
+		<html lang="en" className={cn('font-sans', geist.variable)}>
 			<body>
 				<RecalboxEventsProvider>
 					<header className="border-b px-6 py-3">
@@ -22,11 +22,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 							<Link href="/" className="text-sm font-semibold hover:text-primary">
 								🕹️ Recalbox
 							</Link>
-							<Link href="/collection" className="text-sm text-muted-foreground hover:text-foreground">
+							<Link
+								href="/collection"
+								className="text-sm text-muted-foreground hover:text-foreground"
+							>
 								Collection
 							</Link>
 							<Link href="/stats" className="text-sm text-muted-foreground hover:text-foreground">
 								Stats
+							</Link>
+							<Link
+								href="/settings"
+								className="text-sm text-muted-foreground hover:text-foreground"
+							>
+								Settings
 							</Link>
 						</nav>
 					</header>

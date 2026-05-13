@@ -50,6 +50,12 @@ export const games = sqliteTable('games', {
 	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
 })
 
+export const settings = sqliteTable('settings', {
+	key: text('key').primaryKey(),
+	value: text('value').notNull(),
+	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
 export const systemSnapshots = sqliteTable('system_snapshots', {
 	id: int('id').primaryKey({ autoIncrement: true }),
 	capturedAt: int('captured_at', { mode: 'timestamp' }).notNull(),

@@ -1,7 +1,7 @@
-import mqtt from 'mqtt'
 import { EventEmitter } from 'node:events'
-import { config } from '@/lib/config'
+import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
+import mqtt from 'mqtt'
 import { parseRecalboxMessage } from './events'
 import type { GameStartEvent, GameStopEvent, SystemChangeEvent, SystemInfoEvent } from './events'
 
@@ -9,7 +9,7 @@ const ES_EVENT_TOPIC = 'Recalbox/WebAPI/EmulationStation/Event'
 const SYSTEM_INFO_TOPIC = 'Recalbox/WebAPI/SystemInfo'
 
 // Bump this whenever subscriptions or public API change — forces globalThis recreation
-const SINGLETON_VERSION = 5
+const SINGLETON_VERSION = 6
 
 const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000]
 
@@ -46,7 +46,8 @@ class RecalboxMqttClient extends EventEmitter {
 	}
 
 	private createConnection(): void {
-		const { brokerUrl } = config.mqtt
+		const { host, mqttPort } = configStore.get().recalbox
+		const brokerUrl = `mqtt://${host}:${mqttPort}`
 		logger.info(`MQTT connecting to ${brokerUrl}`)
 
 		this.client = mqtt.connect(brokerUrl, {
@@ -120,6 +121,13 @@ class RecalboxMqttClient extends EventEmitter {
 		this.client = null
 		this.isConnected = false
 	}
+
+	reconnect(): void {
+		logger.info('MQTT: reconnecting with new config')
+		this.disconnect()
+		this.reconnectAttempt = 0
+		this.createConnection()
+	}
 }
 
 const g = globalThis as typeof globalThis & {
@@ -133,6 +141,10 @@ export function getMqttClient(): RecalboxMqttClient {
 		g.__recalboxMqtt = new RecalboxMqttClient()
 		g.__recalboxMqtt.connect()
 		g.__recalboxMqttVersion = SINGLETON_VERSION
+
+		configStore.on('changed:recalbox', () => {
+			g.__recalboxMqtt?.reconnect()
+		})
 	}
 	return g.__recalboxMqtt
 }

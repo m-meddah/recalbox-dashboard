@@ -1,27 +1,34 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "6",
-      "when": 1778617767133,
-      "tag": "0000_whole_otto_octavius",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1778624493026,
-      "tag": "0001_shocking_cloak",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1778651648558,
-      "tag": "0002_milky_scarlet_spider",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "sqlite",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "6",
+			"when": 1778617767133,
+			"tag": "0000_whole_otto_octavius",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1778624493026,
+			"tag": "0001_shocking_cloak",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1778651648558,
+			"tag": "0002_milky_scarlet_spider",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "6",
+			"when": 1778699154183,
+			"tag": "0003_brief_devos",
+			"breakpoints": true
+		}
+	]
 }

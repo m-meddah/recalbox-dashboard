@@ -1,6 +1,6 @@
-import { NodeSSH } from 'node-ssh'
-import { config } from '@/lib/config'
+import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
+import { NodeSSH } from 'node-ssh'
 
 const EXEC_TIMEOUT_MS = 5000
 
@@ -9,14 +9,16 @@ class SshClient {
 	private connected = false
 
 	private async connect(): Promise<void> {
+		const { host, sshUser, sshPassword, sshPort } = configStore.get().recalbox
 		await this.ssh.connect({
-			host: config.recalbox.host,
-			username: config.recalbox.sshUser,
-			password: config.recalbox.sshPassword,
+			host,
+			username: sshUser,
+			password: sshPassword,
+			port: sshPort,
 			readyTimeout: EXEC_TIMEOUT_MS,
 		})
 		this.connected = true
-		logger.info(`SSH connected to ${config.recalbox.host}`)
+		logger.info(`SSH connected to ${host}`)
 	}
 
 	/** Execute a command over SSH and return trimmed stdout. */
@@ -45,12 +47,16 @@ class SshClient {
 		}
 	}
 
-	/** Gracefully close the SSH connection. */
-	dispose(): void {
+	/** Disconnect and mark as not connected — next exec() will reconnect with current config. */
+	disconnect(): void {
 		this.ssh.dispose()
 		this.connected = false
 	}
 }
 
-// Singleton — one connection shared across all server-side calls
 export const sshClient = new SshClient()
+
+configStore.on('changed:recalbox', () => {
+	logger.info('SSH: config changed, disconnecting (will reconnect on next request)')
+	sshClient.disconnect()
+})

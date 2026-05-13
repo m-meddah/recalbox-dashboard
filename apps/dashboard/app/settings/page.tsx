@@ -1,0 +1,594 @@
+'use client'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+import { Toaster } from '@/components/ui/sonner'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { AppConfig } from '@/lib/settings/schemas'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import { z } from 'zod'
+
+// ─── Schemas ────────────────────────────────────────────────────────────────
+
+const recalboxFormSchema = z.object({
+	host: z
+		.string()
+		.min(1)
+		.regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname'),
+	sshUser: z.string().min(1).max(32),
+	sshPassword: z.string().min(1).max(128),
+	sshPort: z.number().int().min(1).max(65535),
+	mqttPort: z.number().int().min(1).max(65535),
+})
+type RecalboxForm = z.infer<typeof recalboxFormSchema>
+
+const scrobbleFormSchema = z.object({
+	minDurationSec: z.number().int().min(0),
+	maxDurationHours: z.number().min(0),
+	orphanRecoveryHours: z.number().min(0),
+})
+type ScrobbleForm = z.infer<typeof scrobbleFormSchema>
+
+const uiFormSchema = z.object({
+	locale: z.string().min(2).max(10),
+	theme: z.enum(['light', 'dark', 'system']),
+	weekStartsOn: z.union([z.literal(0), z.literal(1)]),
+})
+type UiForm = z.infer<typeof uiFormSchema>
+
+// ─── Test connection result type ─────────────────────────────────────────────
+
+type TestResult = {
+	ssh: { success: boolean; latencyMs: number; error?: string }
+	mqtt: { success: boolean; latencyMs: number; messagesReceived: number; error?: string }
+	overall: 'ok' | 'partial' | 'failed'
+}
+
+// ─── Recalbox tab ────────────────────────────────────────────────────────────
+
+function RecalboxTab({ config }: { config: AppConfig }) {
+	const [showPassword, setShowPassword] = useState(false)
+	const [testing, setTesting] = useState(false)
+	const [testResult, setTestResult] = useState<TestResult | null>(null)
+
+	const form = useForm<RecalboxForm>({
+		resolver: zodResolver(recalboxFormSchema),
+		defaultValues: {
+			host: config.recalbox.host,
+			sshUser: config.recalbox.sshUser,
+			sshPassword: '',
+			sshPort: config.recalbox.sshPort,
+			mqttPort: config.recalbox.mqttPort,
+		},
+	})
+
+	const isDirty = form.formState.isDirty
+
+	useEffect(() => {
+		const handleUnload = (e: BeforeUnloadEvent) => {
+			if (isDirty) e.preventDefault()
+		}
+		window.addEventListener('beforeunload', handleUnload)
+		return () => window.removeEventListener('beforeunload', handleUnload)
+	}, [isDirty])
+
+	async function onSave(values: RecalboxForm) {
+		const body = { recalbox: values }
+		// Keep password if empty (user didn't modify it)
+		if (!values.sshPassword) {
+			body.recalbox = { ...values, sshPassword: '***' }
+		}
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			})
+			if (!res.ok) throw new Error()
+			const updated: AppConfig = await res.json()
+			form.reset({
+				host: updated.recalbox.host,
+				sshUser: updated.recalbox.sshUser,
+				sshPassword: '',
+				sshPort: updated.recalbox.sshPort,
+				mqttPort: updated.recalbox.mqttPort,
+			})
+			toast.success('Recalbox settings saved')
+		} catch {
+			toast.error('Failed to save settings')
+		}
+	}
+
+	async function onTest() {
+		const values = form.getValues()
+		setTesting(true)
+		setTestResult(null)
+		try {
+			const res = await fetch('/api/settings/test-connection', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					...values,
+					sshPassword: values.sshPassword || '***',
+				}),
+			})
+			setTestResult(await res.json())
+		} catch {
+			toast.error('Connection test failed')
+		} finally {
+			setTesting(false)
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+				<Alert>
+					<AlertDescription>
+						SSH password is stored in plaintext. This dashboard is designed for trusted local
+						networks only.
+					</AlertDescription>
+				</Alert>
+
+				<FormField
+					control={form.control}
+					name="host"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Host / IP address</FormLabel>
+							<FormControl>
+								<Input placeholder="recalbox.local" {...field} />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<div className="grid grid-cols-2 gap-4">
+					<FormField
+						control={form.control}
+						name="sshUser"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>SSH user</FormLabel>
+								<FormControl>
+									<Input placeholder="root" {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="sshPassword"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>SSH password</FormLabel>
+								<FormControl>
+									<div className="relative">
+										<Input
+											type={showPassword ? 'text' : 'password'}
+											placeholder="Leave blank to keep current"
+											{...field}
+										/>
+										<button
+											type="button"
+											onClick={() => setShowPassword((v) => !v)}
+											className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+										>
+											{showPassword ? 'Hide' : 'Show'}
+										</button>
+									</div>
+								</FormControl>
+								<FormDescription>Leave blank to keep the current password</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				<div className="grid grid-cols-2 gap-4">
+					<FormField
+						control={form.control}
+						name="sshPort"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>SSH port</FormLabel>
+								<FormControl>
+									<Input
+										type="number"
+										{...field}
+										onChange={(e) => field.onChange(e.target.valueAsNumber)}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="mqttPort"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>MQTT port</FormLabel>
+								<FormControl>
+									<Input
+										type="number"
+										{...field}
+										onChange={(e) => field.onChange(e.target.valueAsNumber)}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				{/* Test connection */}
+				<div className="space-y-3">
+					<Button type="button" variant="outline" onClick={onTest} disabled={testing}>
+						{testing ? 'Testing...' : 'Test Connection'}
+					</Button>
+					{testResult && (
+						<div className="space-y-2">
+							<TestResultRow
+								label="SSH"
+								success={testResult.ssh.success}
+								latency={testResult.ssh.latencyMs}
+								error={testResult.ssh.error}
+							/>
+							<TestResultRow
+								label="MQTT"
+								success={testResult.mqtt.success}
+								latency={testResult.mqtt.latencyMs}
+								error={testResult.mqtt.error}
+							/>
+						</div>
+					)}
+				</div>
+
+				<div className="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() =>
+							form.reset({
+								host: config.recalbox.host,
+								sshUser: config.recalbox.sshUser,
+								sshPassword: '',
+								sshPort: config.recalbox.sshPort,
+								mqttPort: config.recalbox.mqttPort,
+							})
+						}
+						disabled={!isDirty}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						Save
+					</Button>
+				</div>
+			</form>
+		</Form>
+	)
+}
+
+// ─── Scrobble tab ────────────────────────────────────────────────────────────
+
+function ScrobbleTab({ config }: { config: AppConfig }) {
+	const form = useForm<ScrobbleForm>({
+		resolver: zodResolver(scrobbleFormSchema),
+		defaultValues: {
+			minDurationSec: config.scrobble.minDurationSec,
+			maxDurationHours: config.scrobble.maxDurationHours,
+			orphanRecoveryHours: config.scrobble.orphanRecoveryHours,
+		},
+	})
+	const isDirty = form.formState.isDirty
+
+	async function onSave(values: ScrobbleForm) {
+		try {
+			await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ scrobble: values }),
+			})
+			form.reset(values)
+			toast.success('Scrobble settings saved')
+		} catch {
+			toast.error('Failed to save settings')
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+				<FormField
+					control={form.control}
+					name="minDurationSec"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Minimum session duration (seconds)</FormLabel>
+							<FormControl>
+								<Input
+									type="number"
+									{...field}
+									onChange={(e) => field.onChange(e.target.valueAsNumber)}
+								/>
+							</FormControl>
+							<FormDescription>Sessions shorter than this are discarded</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="maxDurationHours"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Maximum session duration (hours)</FormLabel>
+							<FormControl>
+								<Input
+									type="number"
+									step="0.1"
+									{...field}
+									onChange={(e) => field.onChange(e.target.valueAsNumber)}
+								/>
+							</FormControl>
+							<FormDescription>Orphan sessions are capped at this duration</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="orphanRecoveryHours"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Orphan recovery threshold (hours)</FormLabel>
+							<FormControl>
+								<Input
+									type="number"
+									step="0.5"
+									{...field}
+									onChange={(e) => field.onChange(e.target.valueAsNumber)}
+								/>
+							</FormControl>
+							<FormDescription>
+								Sessions older than this without an end event are considered orphans
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<div className="flex gap-2">
+					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						Save
+					</Button>
+				</div>
+			</form>
+		</Form>
+	)
+}
+
+// ─── UI tab ──────────────────────────────────────────────────────────────────
+
+function UiTab({ config }: { config: AppConfig }) {
+	const form = useForm<UiForm>({
+		resolver: zodResolver(uiFormSchema),
+		defaultValues: {
+			locale: config.ui.locale,
+			theme: config.ui.theme,
+			weekStartsOn: config.ui.weekStartsOn,
+		},
+	})
+	const isDirty = form.formState.isDirty
+
+	async function onSave(values: UiForm) {
+		try {
+			await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ui: values }),
+			})
+			form.reset(values)
+			toast.success('Interface settings saved')
+		} catch {
+			toast.error('Failed to save settings')
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+				<FormField
+					control={form.control}
+					name="locale"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Locale</FormLabel>
+							<FormControl>
+								<Input placeholder="en" {...field} />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="theme"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Theme</FormLabel>
+							<FormControl>
+								<Select onValueChange={(v) => v && field.onChange(v)} defaultValue={field.value}>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="system">System</SelectItem>
+										<SelectItem value="light">Light</SelectItem>
+										<SelectItem value="dark">Dark</SelectItem>
+									</SelectContent>
+								</Select>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="weekStartsOn"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Week starts on</FormLabel>
+							<FormControl>
+								<Select
+									onValueChange={(v) => field.onChange(Number.parseInt(v ?? '1', 10))}
+									defaultValue={String(field.value)}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="1">Monday</SelectItem>
+										<SelectItem value="0">Sunday</SelectItem>
+									</SelectContent>
+								</Select>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<div className="flex gap-2">
+					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						Save
+					</Button>
+				</div>
+			</form>
+		</Form>
+	)
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
+
+export default function SettingsPage() {
+	const [config, setConfig] = useState<AppConfig | null>(null)
+	const [loading, setLoading] = useState(true)
+
+	useEffect(() => {
+		fetch('/api/settings')
+			.then((r) => r.json())
+			.then((data: AppConfig) => {
+				setConfig(data)
+				setLoading(false)
+			})
+			.catch(() => setLoading(false))
+	}, [])
+
+	if (loading) {
+		return <div className="p-8 text-muted-foreground text-sm">Loading settings...</div>
+	}
+
+	if (!config) {
+		return <div className="p-8 text-destructive text-sm">Failed to load settings.</div>
+	}
+
+	return (
+		<div className="container max-w-2xl mx-auto p-6 space-y-6">
+			<Toaster />
+			<div>
+				<h1 className="text-2xl font-bold">Settings</h1>
+				<p className="text-muted-foreground text-sm">Configure your Recalbox Dashboard</p>
+			</div>
+			<Tabs defaultValue="recalbox">
+				<TabsList className="grid w-full grid-cols-3">
+					<TabsTrigger value="recalbox">Recalbox</TabsTrigger>
+					<TabsTrigger value="scrobble">Scrobble</TabsTrigger>
+					<TabsTrigger value="interface">Interface</TabsTrigger>
+				</TabsList>
+				<TabsContent value="recalbox" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Recalbox Connection</CardTitle>
+							<CardDescription>SSH and MQTT connectivity settings</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<RecalboxTab config={config} />
+						</CardContent>
+					</Card>
+				</TabsContent>
+				<TabsContent value="scrobble" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Session Tracking</CardTitle>
+							<CardDescription>Control how game sessions are recorded</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<ScrobbleTab config={config} />
+						</CardContent>
+					</Card>
+				</TabsContent>
+				<TabsContent value="interface" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Interface</CardTitle>
+							<CardDescription>Display and localization preferences</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<UiTab config={config} />
+						</CardContent>
+					</Card>
+				</TabsContent>
+			</Tabs>
+		</div>
+	)
+}
+
+function TestResultRow({
+	label,
+	success,
+	latency,
+	error,
+}: {
+	label: string
+	success: boolean
+	latency: number
+	error?: string
+}) {
+	return (
+		<div className="flex items-center gap-3 rounded-md border p-2 text-sm">
+			<span className={success ? 'text-green-500' : 'text-red-500'}>{success ? '✓' : '✗'}</span>
+			<span className="font-medium w-12">{label}</span>
+			<span className="text-muted-foreground flex-1">{error ?? 'OK'}</span>
+			<span className="text-muted-foreground">{latency}ms</span>
+		</div>
+	)
+}

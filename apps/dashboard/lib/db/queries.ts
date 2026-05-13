@@ -1,8 +1,53 @@
-import { asc, count, desc, eq, gte, isNull, like, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db/index'
-import { games, sessions, systemSnapshots } from '@/lib/db/schema'
+import { games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
+import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
+import { asc, count, desc, eq, gte, isNull, like, lte, max, sql } from 'drizzle-orm'
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export function getAllSettings(): Record<string, string> {
+	const rows = db.select().from(settings).all()
+	return Object.fromEntries(rows.map((r) => [r.key, r.value]))
+}
+
+export function upsertSetting(key: string, value: string): void {
+	db.insert(settings)
+		.values({ key, value, updatedAt: new Date() })
+		.onConflictDoUpdate({
+			target: settings.key,
+			set: { value, updatedAt: new Date() },
+		})
+		.run()
+}
+
+export function deleteSetting(key: string): void {
+	db.delete(settings).where(eq(settings.key, key)).run()
+}
+
+export function deleteSettingsByPrefix(prefix: string): void {
+	const rows = db.select({ key: settings.key }).from(settings).all()
+	for (const row of rows) {
+		if (row.key.startsWith(prefix)) {
+			db.delete(settings).where(eq(settings.key, row.key)).run()
+		}
+	}
+}
+
+export function getLatestSettingUpdatedAt(): number {
+	const row = db
+		.select({ latest: max(settings.updatedAt) })
+		.from(settings)
+		.get()
+	if (!row?.latest) return 0
+	return row.latest instanceof Date ? row.latest.getTime() : Number(row.latest)
+}
+
+export function isSetupComplete(): boolean {
+	const row = db.select().from(settings).where(eq(settings.key, SETUP_COMPLETED_KEY)).get()
+	return row?.value === 'true'
+}
 
 // ─── System snapshots ────────────────────────────────────────────────────────
 
@@ -317,7 +362,8 @@ export async function listSessions(
 	const conditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
 	if (system) conditions.push(sql`${sessions.system} = ${system}`)
 	if (romPath) conditions.push(sql`${sessions.romPath} = ${romPath}`)
-	if (fromDate) conditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
+	if (fromDate)
+		conditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
 	if (toDate) conditions.push(sql`${sessions.startedAt} <= ${Math.floor(toDate.getTime() / 1000)}`)
 	if (autoClosed !== undefined) conditions.push(sql`${sessions.autoClosed} = ${autoClosed ? 1 : 0}`)
 
@@ -325,7 +371,13 @@ export async function listSessions(
 	const offset = (page - 1) * pageSize
 
 	const [rows, countRows] = await Promise.all([
-		db.select().from(sessions).where(where).orderBy(desc(sessions.startedAt)).limit(pageSize).offset(offset),
+		db
+			.select()
+			.from(sessions)
+			.where(where)
+			.orderBy(desc(sessions.startedAt))
+			.limit(pageSize)
+			.offset(offset),
 		db.select({ value: count() }).from(sessions).where(where),
 	])
 
@@ -333,16 +385,20 @@ export async function listSessions(
 }
 
 /** Aggregate session stats over an optional date range. */
-export async function getSessionStats(opts: {
-	fromDate?: Date
-	toDate?: Date
-	topGamesLimit?: number
-} = {}): Promise<SessionStats> {
+export async function getSessionStats(
+	opts: {
+		fromDate?: Date
+		toDate?: Date
+		topGamesLimit?: number
+	} = {},
+): Promise<SessionStats> {
 	const { fromDate, toDate, topGamesLimit = 10 } = opts
 
 	const baseConditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
-	if (fromDate) baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
-	if (toDate) baseConditions.push(sql`${sessions.startedAt} <= ${Math.floor(toDate.getTime() / 1000)}`)
+	if (fromDate)
+		baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
+	if (toDate)
+		baseConditions.push(sql`${sessions.startedAt} <= ${Math.floor(toDate.getTime() / 1000)}`)
 	const where = sql.join(baseConditions, sql` AND `)
 
 	const [totalsRows, byDayRows, bySystemRows, topGamesRows] = await Promise.all([
@@ -392,7 +448,12 @@ export async function getSessionStats(opts: {
 			.limit(topGamesLimit),
 	])
 
-	const totals = totalsRows[0] ?? { totalPlaytimeSec: 0, totalSessions: 0, uniqueGames: 0, avgSessionSec: 0 }
+	const totals = totalsRows[0] ?? {
+		totalPlaytimeSec: 0,
+		totalSessions: 0,
+		uniqueGames: 0,
+		avgSessionSec: 0,
+	}
 
 	return {
 		totalPlaytimeSec: totals.totalPlaytimeSec,

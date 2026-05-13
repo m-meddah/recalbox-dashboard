@@ -1,21 +1,13 @@
-/** Typed application configuration sourced from environment variables (lazy — read on access). */
+import { configStore } from '@/lib/config-store'
+
+/** Typed application configuration — reads from DB (with .env fallbacks). */
 export const config = {
 	get recalbox() {
-		return {
-			host: requireEnv('RECALBOX_HOST'),
-			sshUser: requireEnv('RECALBOX_SSH_USER'),
-			sshPassword: requireEnv('RECALBOX_SSH_PASSWORD'),
-		}
+		const { host, sshUser, sshPassword, sshPort } = configStore.get().recalbox
+		return { host, sshUser, sshPassword, sshPort }
 	},
 	get mqtt() {
-		return {
-			brokerUrl: process.env.MQTT_BROKER_URL ?? 'mqtt://recalbox.local:1883',
-		}
+		const { host, mqttPort } = configStore.get().recalbox
+		return { brokerUrl: `mqtt://${host}:${mqttPort}` }
 	},
-}
-
-function requireEnv(key: string): string {
-	const value = process.env[key]
-	if (!value) throw new Error(`Missing required environment variable: ${key}`)
-	return value
 }
