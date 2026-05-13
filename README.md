@@ -91,11 +91,47 @@ shell-quoted before execution to handle filenames with apostrophes or special ch
 A `test -f` check is performed first so that images referenced in `gamelist.xml` but
 missing on disk return a clean 404 instead of a broken image.
 
+## Running the scrobbler
+
+The scrobbler is a separate daemon that listens to MQTT events and records every game
+session to SQLite. It runs independently of the dashboard web process and keeps logging
+even when no browser has the dashboard open.
+
+### Development (two terminals)
+
+```bash
+pnpm dev              # Dashboard — http://localhost:3000
+pnpm scrobbler:dev    # Scrobbler with auto-reload on file changes
+```
+
+### Production (PM2)
+
+```bash
+pm2 start npm --name "recalbox-dashboard" -- start
+pm2 start npx --name "recalbox-scrobbler" -- tsx apps/dashboard/scripts/start-scrobbler.ts
+pm2 save && pm2 startup
+```
+
+### Production (systemd)
+
+A ready-to-use unit file is provided at
+`apps/dashboard/docs/systemd-examples/recalbox-scrobbler.service`.
+
+```bash
+sudo cp apps/dashboard/docs/systemd-examples/recalbox-scrobbler.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now recalbox-scrobbler
+sudo journalctl -u recalbox-scrobbler -f
+```
+
+Both processes share the same SQLite database (WAL mode is active, concurrent access is safe).
+
 ## Roadmap
 
 - [x] Ticket 1 — SSH system stats with live chart
 - [x] Ticket 2 — Now Playing via MQTT + SSE
 - [x] Ticket 3 — Game collection from gamelist.xml
+- [x] Ticket 4 — Scrobble daemon (session tracking)
 
 ## Collection API
 

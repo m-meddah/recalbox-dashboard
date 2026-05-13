@@ -1,14 +1,24 @@
-import { int, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, int, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-export const sessions = sqliteTable('sessions', {
-	id: int('id').primaryKey({ autoIncrement: true }),
-	gameId: int('game_id').notNull(),
-	startedAt: int('started_at', { mode: 'timestamp' }).notNull(),
-	endedAt: int('ended_at', { mode: 'timestamp' }),
-	durationSeconds: int('duration_seconds'),
-	system: text('system').notNull(),
-	romPath: text('rom_path').notNull(),
-})
+export const sessions = sqliteTable(
+	'sessions',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		gameId: int('game_id'),
+		startedAt: int('started_at', { mode: 'timestamp' }).notNull(),
+		endedAt: int('ended_at', { mode: 'timestamp' }),
+		durationSeconds: int('duration_seconds'),
+		system: text('system').notNull(),
+		romPath: text('rom_path').notNull(),
+		autoClosed: int('auto_closed', { mode: 'boolean' }).default(false),
+		closedReason: text('closed_reason'),
+	},
+	(t) => ({
+		romPathIdx: index('idx_sessions_rom_path').on(t.romPath),
+		startedAtIdx: index('idx_sessions_started_at').on(t.startedAt),
+		endedAtIdx: index('idx_sessions_ended_at').on(t.endedAt),
+	}),
+)
 
 export const games = sqliteTable('games', {
 	id: int('id').primaryKey({ autoIncrement: true }),

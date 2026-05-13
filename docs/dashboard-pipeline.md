@@ -1192,6 +1192,25 @@ Démarre.
 
 ## Ticket 5 — Page Stats avec graphiques et heatmap
 
+> **Points d'attention issus du Ticket 4**
+>
+> - **`gameId` est nullable** dans la table `sessions` : le scrobbler enregistre
+>   sans avoir besoin que le jeu soit présent dans la collection. La page Stats
+>   doit gérer le cas où `gameId` est null — utiliser `gameName` via LEFT JOIN
+>   sur `games.romPath`, comme c'est déjà fait dans `getSessionStats()`.
+> - **`pnpm test` à la racine échoue** sur `scraper-core` (aucun fichier de test
+>   — problème pré-existant). Lancer les tests avec
+>   `pnpm --filter @recalbox/dashboard test` pour voir le vrai résultat (50/50).
+> - **Migration 0002 corrigée manuellement** : Drizzle-kit avait généré un
+>   `INSERT … SELECT` qui référençait `auto_closed`/`closed_reason` depuis
+>   l'ancienne table. Corrigé avec des littéraux `0, NULL`. Si une future
+>   migration ajoute des colonnes à `sessions`, vérifier le SQL généré avant
+>   de commiter.
+> - **Architecture dual-process** : dashboard et scrobbler partagent
+>   `recalbox.db` via WAL (safe). En dev, les deux process créent chacun leur
+>   propre singleton MQTT — les logs `game:start`/`game:stop` apparaissent dans
+>   les deux terminaux, c'est normal.
+
 ```markdown
 # Ticket 5 : Page Stats avec graphiques et heatmap
 

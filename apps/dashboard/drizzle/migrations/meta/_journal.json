@@ -15,6 +15,13 @@
       "when": 1778624493026,
       "tag": "0001_shocking_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778651648558,
+      "tag": "0002_milky_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

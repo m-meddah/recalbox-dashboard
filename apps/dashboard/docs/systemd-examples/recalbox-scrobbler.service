@@ -1,0 +1,22 @@
+[Unit]
+Description=Recalbox Dashboard Scrobbler Daemon
+Documentation=https://github.com/your-org/recalbox-dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/recalbox-dashboard/apps/dashboard
+ExecStart=/usr/bin/npx tsx scripts/start-scrobbler.ts
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=recalbox-scrobbler
+
+# Environment overrides (create /etc/recalbox-dashboard.env for secrets)
+EnvironmentFile=-/etc/recalbox-dashboard.env
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

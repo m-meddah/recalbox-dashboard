@@ -1,6 +1,6 @@
-import { asc, count, desc, eq, gte, ilike, like, sql } from 'drizzle-orm'
+import { asc, count, desc, eq, gte, isNull, like, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db/index'
-import { games, systemSnapshots } from '@/lib/db/schema'
+import { games, sessions, systemSnapshots } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 
@@ -226,4 +226,188 @@ export async function listRegions(system?: string): Promise<string[]> {
 		.orderBy(asc(games.region))
 
 	return rows.map((r) => r.region).filter((r): r is string => r !== null)
+}
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+export type Session = typeof sessions.$inferSelect
+
+export type SessionFilters = {
+	system?: string
+	romPath?: string
+	fromDate?: Date
+	toDate?: Date
+	autoClosed?: boolean
+	page?: number
+	pageSize?: number
+}
+
+export type SessionStats = {
+	totalPlaytimeSec: number
+	totalSessions: number
+	uniqueGames: number
+	avgSessionSec: number
+	byDay: Array<{ date: string; playtimeSec: number; sessionCount: number }>
+	bySystem: Array<{ system: string; playtimeSec: number; sessionCount: number }>
+	topGames: Array<{
+		romPath: string
+		gameName: string
+		system: string
+		playtimeSec: number
+		sessionCount: number
+		lastPlayed: Date
+	}>
+}
+
+/** Insert a new open session record. Returns the inserted session id. */
+export async function openSession(opts: {
+	gameId?: number
+	startedAt: Date
+	system: string
+	romPath: string
+}): Promise<number> {
+	const result = await db
+		.insert(sessions)
+		.values({
+			gameId: opts.gameId ?? null,
+			startedAt: opts.startedAt,
+			system: opts.system,
+			romPath: opts.romPath,
+		})
+		.returning({ id: sessions.id })
+	const row = result[0]
+	if (!row) throw new Error('Failed to insert session')
+	return row.id
+}
+
+/** Close an open session by id, setting endedAt and durationSeconds. */
+export async function closeSession(
+	id: number,
+	endedAt: Date,
+	durationSeconds: number,
+	opts?: { autoClosed?: boolean; closedReason?: string },
+): Promise<void> {
+	await db
+		.update(sessions)
+		.set({
+			endedAt,
+			durationSeconds,
+			autoClosed: opts?.autoClosed ?? false,
+			closedReason: opts?.closedReason ?? null,
+		})
+		.where(eq(sessions.id, id))
+}
+
+/** Delete a session by id (used for sub-minimum-duration cleanup). */
+export async function deleteSession(id: number): Promise<void> {
+	await db.delete(sessions).where(eq(sessions.id, id))
+}
+
+/** Return all sessions that have no endedAt (still open). */
+export async function getOpenSessions(): Promise<Session[]> {
+	return db.select().from(sessions).where(isNull(sessions.endedAt))
+}
+
+/** List closed sessions with optional filters and pagination. */
+export async function listSessions(
+	filters: SessionFilters = {},
+): Promise<{ sessions: Session[]; total: number }> {
+	const { system, romPath, fromDate, toDate, autoClosed, page = 1, pageSize = 50 } = filters
+
+	const conditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
+	if (system) conditions.push(sql`${sessions.system} = ${system}`)
+	if (romPath) conditions.push(sql`${sessions.romPath} = ${romPath}`)
+	if (fromDate) conditions.push(sql`${sessions.startedAt} >= ${fromDate}`)
+	if (toDate) conditions.push(sql`${sessions.startedAt} <= ${toDate}`)
+	if (autoClosed !== undefined) conditions.push(sql`${sessions.autoClosed} = ${autoClosed ? 1 : 0}`)
+
+	const where = sql.join(conditions, sql` AND `)
+	const offset = (page - 1) * pageSize
+
+	const [rows, countRows] = await Promise.all([
+		db.select().from(sessions).where(where).orderBy(desc(sessions.startedAt)).limit(pageSize).offset(offset),
+		db.select({ value: count() }).from(sessions).where(where),
+	])
+
+	return { sessions: rows, total: countRows[0]?.value ?? 0 }
+}
+
+/** Aggregate session stats over an optional date range. */
+export async function getSessionStats(opts: {
+	fromDate?: Date
+	toDate?: Date
+	topGamesLimit?: number
+} = {}): Promise<SessionStats> {
+	const { fromDate, toDate, topGamesLimit = 10 } = opts
+
+	const baseConditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
+	if (fromDate) baseConditions.push(sql`${sessions.startedAt} >= ${fromDate}`)
+	if (toDate) baseConditions.push(sql`${sessions.startedAt} <= ${toDate}`)
+	const where = sql.join(baseConditions, sql` AND `)
+
+	const [totalsRows, byDayRows, bySystemRows, topGamesRows] = await Promise.all([
+		db
+			.select({
+				totalPlaytimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
+				totalSessions: count(),
+				uniqueGames: sql<number>`COUNT(DISTINCT ${sessions.romPath})`,
+				avgSessionSec: sql<number>`COALESCE(AVG(${sessions.durationSeconds}), 0)`,
+			})
+			.from(sessions)
+			.where(where),
+		db
+			.select({
+				date: sql<string>`DATE(${sessions.startedAt}, 'unixepoch')`,
+				playtimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
+				sessionCount: count(),
+			})
+			.from(sessions)
+			.where(where)
+			.groupBy(sql`DATE(${sessions.startedAt}, 'unixepoch')`)
+			.orderBy(sql`DATE(${sessions.startedAt}, 'unixepoch')`),
+		db
+			.select({
+				system: sessions.system,
+				playtimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
+				sessionCount: count(),
+			})
+			.from(sessions)
+			.where(where)
+			.groupBy(sessions.system)
+			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`)),
+		db
+			.select({
+				romPath: sessions.romPath,
+				gameName: sql<string>`COALESCE(${games.name}, ${sessions.romPath})`,
+				system: sessions.system,
+				playtimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
+				sessionCount: count(),
+				lastPlayed: sql<number>`MAX(${sessions.startedAt})`,
+			})
+			.from(sessions)
+			.leftJoin(games, eq(sessions.romPath, games.romPath))
+			.where(where)
+			.groupBy(sessions.romPath)
+			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
+			.limit(topGamesLimit),
+	])
+
+	const totals = totalsRows[0] ?? { totalPlaytimeSec: 0, totalSessions: 0, uniqueGames: 0, avgSessionSec: 0 }
+
+	return {
+		totalPlaytimeSec: totals.totalPlaytimeSec,
+		totalSessions: totals.totalSessions,
+		uniqueGames: totals.uniqueGames,
+		avgSessionSec: Math.round(totals.avgSessionSec),
+		byDay: byDayRows,
+		bySystem: bySystemRows,
+		topGames: topGamesRows.map((r) => ({
+			romPath: r.romPath,
+			gameName: r.gameName,
+			system: r.system,
+			playtimeSec: r.playtimeSec,
+			sessionCount: r.sessionCount,
+			lastPlayed: new Date(r.lastPlayed * 1000),
+		})),
+	}
 }
