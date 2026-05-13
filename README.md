@@ -136,43 +136,43 @@ Both processes share the same SQLite database (WAL mode is active, concurrent ac
 
 ## Stats (`/stats/[period]`)
 
-Dashboard de statistiques de jeu inspiré de Last.fm + GitHub contributions.
+Gaming stats dashboard inspired by Last.fm + GitHub contributions.
 
 | Period | URL |
 | ------ | --- |
-| Cette semaine | `/stats/week` |
-| Ce mois | `/stats/month` |
-| Cette année | `/stats/year` |
-| Tout | `/stats/all` |
+| This week | `/stats/week` |
+| This month | `/stats/month` |
+| This year | `/stats/year` |
+| All time | `/stats/all` |
 
-**Composants :**
+**Components:**
 
-- KPI cards (temps de jeu, jeux, sessions, série actuelle) avec delta vs période précédente
-- Heatmap GitHub-style (365 jours, CSS grid, intensité 0–4)
-- Courbe temps de jeu par jour (Recharts AreaChart, groupé par semaine pour year/all)
-- Top 10 jeux (progress bars, "Voir plus" → 50)
-- Répartition par système (donut chart, clic → `/collection/<system>`)
-- Carte Série de jours consécutifs (record inclus)
-- Timeline des 20 dernières sessions (ScrollArea)
+- KPI cards (playtime, games, sessions, current streak) with delta vs previous period
+- GitHub-style heatmap (365 days, CSS grid, intensity 0–4)
+- Daily playtime curve (Recharts AreaChart, grouped by week for year/all)
+- Top 10 games (progress bars, "Show more" → 50)
+- Breakdown by system (donut chart, click → `/collection/<system>`)
+- Consecutive days streak card (including all-time record)
+- Last 20 sessions timeline (ScrollArea)
 
-**Seed de données de test :**
+**Test data seed:**
 
 ```bash
-pnpm seed:dev              # Génère 200 sessions sur 90 jours
-pnpm seed:dev -- --clear   # Supprime les données de seed
+pnpm seed:dev              # Generate 200 sessions over 90 days
+pnpm seed:dev -- --clear   # Delete seeded data
 ```
 
 ## Collection API
 
 ### `POST /api/collection/sync`
 
-Import complet depuis les `gamelist.xml` via SSH. Retourne un flux NDJSON de progression.
+Full import from `gamelist.xml` files via SSH. Returns an NDJSON progress stream.
 
 | Query param | Description |
 | ----------- | ----------- |
-| `system` | Sync un seul système (ex: `?system=snes`) |
+| `system` | Sync a single system (e.g. `?system=snes`) |
 
-Événements NDJSON :
+NDJSON events:
 
 ```json
 { "type": "start", "totalSystems": 84 }
@@ -182,45 +182,45 @@ Import complet depuis les `gamelist.xml` via SSH. Retourne un flux NDJSON de pro
 
 ### `GET /api/collection`
 
-Liste paginée de jeux.
+Paginated list of games.
 
 | Query param | Type | Description |
 | ----------- | ---- | ----------- |
-| `system` | string | Filtrer par système |
-| `favoritesOnly` | boolean | Favoris uniquement |
-| `neverPlayed` | boolean | Jamais joués |
-| `developer` | string | Filtrer par développeur |
-| `search` | string | Recherche dans le nom |
-| `sortBy` | `name\|rating\|lastPlayed\|releaseDate` | Tri |
-| `sortDir` | `asc\|desc` | Direction du tri |
-| `page` | number | Page (défaut: 1) |
-| `pageSize` | number | Taille (max: 200, défaut: 50) |
+| `system` | string | Filter by system |
+| `favoritesOnly` | boolean | Favorites only |
+| `neverPlayed` | boolean | Never played |
+| `developer` | string | Filter by developer |
+| `search` | string | Search by name |
+| `sortBy` | `name\|rating\|lastPlayed\|releaseDate` | Sort field |
+| `sortDir` | `asc\|desc` | Sort direction |
+| `page` | number | Page (default: 1) |
+| `pageSize` | number | Size (max: 200, default: 50) |
 
 ### `GET /api/collection/regions`
 
-Retourne les régions disponibles dans la collection (utile pour les boutons de filtre).
+Returns the regions available in the collection (useful for filter buttons).
 
 | Query param | Description |
 | ----------- | ----------- |
-| `system` | Restreindre aux régions d'un système |
+| `system` | Restrict to regions of a single system |
 
-### Données utilisateur (`gamelist-userdata.ini`)
+### User data (`gamelist-userdata.ini`)
 
-Recalbox stocke les préférences utilisateur (favoris, jeux cachés, statistiques de jeu)
-dans un fichier `gamelist-userdata.ini` distinct du `gamelist.xml` scrappé. La sync lit
-les deux fichiers et fusionne les données — les valeurs du `.ini` ont priorité sur le XML.
+Recalbox stores user preferences (favorites, hidden games, play statistics) in a
+`gamelist-userdata.ini` file separate from the scraped `gamelist.xml`. The sync reads
+both files and merges the data — `.ini` values take priority over the XML.
 
-Format du fichier :
+File format:
 
 ```text
 relative/path/to/rom.ext:key1=val1,key2=val2,...
 ```
 
-Clés gérées : `favorite`, `hidden`, `playcount`, `lastplayed`.
+Handled keys: `favorite`, `hidden`, `playcount`, `lastplayed`.
 
-### Chemins des disques durs
+### Drive paths
 
-Les gamelist.xml sont lus via SSH. Les disques USB sont détectés automatiquement sous
+`gamelist.xml` files are read via SSH. USB drives are detected automatically under
 `/recalbox/share/externals/usb*/recalbox/roms/`.
 
 ## License
