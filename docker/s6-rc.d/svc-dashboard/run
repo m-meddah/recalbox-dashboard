@@ -1,0 +1,9 @@
+#!/command/with-contenv sh
+set -e
+# Next.js standalone server.js location varies by monorepo structure
+if [ -f /app/server.js ]; then
+  SERVER=/app/server.js
+else
+  SERVER=/app/apps/dashboard/server.js
+fi
+exec s6-setuidgid dashboard node "$SERVER"

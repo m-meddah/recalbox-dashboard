@@ -3,6 +3,40 @@
 Self-hostable dashboard for your Recalbox retrogaming console. Runs on a machine on the
 same local network as the Recalbox (Pi 5), **not** on the Recalbox itself.
 
+## Installation
+
+### With Docker (recommended)
+
+```bash
+curl -O https://raw.githubusercontent.com/m-meddah/recalbox-dashboard/main/docker-compose.yml
+# Edit RECALBOX_HOST if your Recalbox has a different hostname
+nano docker-compose.yml
+docker compose up -d
+```
+
+Open [http://localhost:3000](http://localhost:3000) and follow the setup wizard.
+
+Works on: **x86_64**, **ARM64** (Raspberry Pi 4/5, Apple Silicon, ARM NAS).
+
+#### Updating
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+#### Backup
+
+```bash
+docker run --rm -v recalbox-data:/data -v $(pwd):/backup alpine \
+  tar czf /backup/backup-$(date +%Y%m%d).tar.gz /data
+```
+
+### From source
+
+See [Getting started](#getting-started) below.
+
+---
+
 ## Monorepo structure
 
 ```text
@@ -133,6 +167,8 @@ Both processes share the same SQLite database (WAL mode is active, concurrent ac
 - [x] Ticket 3 — Game collection from gamelist.xml
 - [x] Ticket 4 — Scrobble daemon (session tracking)
 - [x] Ticket 5 — Stats page with heatmap, charts and streaks
+- [x] Ticket 6 — Runtime settings UI with hot-reload
+- [x] Ticket 7 — Docker Compose self-hosting with s6 + multi-arch CI
 
 ## Stats (`/stats/[period]`)
 

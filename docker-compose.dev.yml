@@ -1,0 +1,23 @@
+services:
+  recalbox-dashboard-dev:
+    build:
+      context: .
+      target: builder
+    container_name: recalbox-dashboard-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/dashboard/node_modules
+      - /app/apps/dashboard/.next
+    environment:
+      RECALBOX_HOST: recalbox.local
+      RECALBOX_SSH_USER: root
+      RECALBOX_SSH_PASSWORD: recalboxroot
+      RECALBOX_SSH_PORT: 22
+      RECALBOX_MQTT_PORT: 1883
+      DATABASE_PATH: /app/apps/dashboard/recalbox.db
+      TZ: Europe/Paris
+    working_dir: /app
+    command: pnpm dev
