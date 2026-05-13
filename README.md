@@ -1,7 +1,7 @@
 # Recalbox Dashboard
 
 Self-hostable dashboard for your Recalbox retrogaming console. Runs on a machine on the
-same local network as the Recalbox (Pi 5), **not** on the Recalbox itself.
+same local network as your Recalbox — **not** on the Recalbox itself.
 
 ## Installation
 
@@ -9,12 +9,11 @@ same local network as the Recalbox (Pi 5), **not** on the Recalbox itself.
 
 ```bash
 curl -O https://raw.githubusercontent.com/m-meddah/recalbox-dashboard/main/docker-compose.yml
-# Edit RECALBOX_HOST if your Recalbox has a different hostname
-nano docker-compose.yml
+nano docker-compose.yml   # set RECALBOX_HOST to your Recalbox IP or hostname
 docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and follow the setup wizard.
+Open [http://localhost:3000](http://localhost:3000). Go to **Settings** to adjust the connection parameters if needed.
 
 Works on: **x86_64**, **ARM64** (Raspberry Pi 4/5, Apple Silicon, ARM NAS).
 
@@ -31,6 +30,8 @@ docker run --rm -v recalbox-data:/data -v $(pwd):/backup alpine \
   tar czf /backup/backup-$(date +%Y%m%d).tar.gz /data
 ```
 
+See [docs/deployment.md](docs/deployment.md) for Synology, Unraid, Traefik, and Raspberry Pi guides.
+
 ### From source
 
 See [Getting started](#getting-started) below.
@@ -43,8 +44,9 @@ See [Getting started](#getting-started) below.
 recalbox-dashboard/
 ├── apps/
 │   └── dashboard/       # @recalbox/dashboard — Next.js 16 web app
-└── packages/
-    └── scraper-core/    # @recalbox/scraper-core — shared scraping lib (stub)
+├── packages/
+│   └── scraper-core/    # @recalbox/scraper-core — shared scraping lib (stub)
+└── docker/              # s6-overlay service definitions and migration script
 ```
 
 ## Prerequisites
@@ -57,6 +59,7 @@ recalbox-dashboard/
 ```bash
 pnpm install
 cp apps/dashboard/.env.example apps/dashboard/.env.local
+# Edit .env.local: set RECALBOX_HOST, RECALBOX_SSH_USER, RECALBOX_SSH_PASSWORD
 pnpm dev          # http://localhost:3000
 ```
 
@@ -70,6 +73,7 @@ pnpm dev          # http://localhost:3000
 | `pnpm format` | Biome format (write) |
 | `pnpm test` | Run all tests |
 | `pnpm scrobbler:dev` | Start MQTT scrobbler in watch mode |
+| `pnpm seed:dev` | Generate 200 fake sessions over 90 days |
 
 ## Connections
 
@@ -77,7 +81,6 @@ pnpm dev          # http://localhost:3000
 | -------- | ---- | ------- |
 | MQTT | 1883 | Real-time game events |
 | SSH | 22 | System stats snapshots + image proxy |
-| SMB/Network | — | gamelist.xml collection data |
 
 ## Stack
 
@@ -88,19 +91,16 @@ pnpm dev          # http://localhost:3000
 
 ## Architecture
 
+### Two processes, one database
+
+The dashboard runs as two independent processes sharing the same SQLite database (WAL mode, concurrent access safe):
+
+1. **Next.js app** — serves the UI and REST/SSE API routes
+2. **Scrobbler daemon** — listens to MQTT events and writes sessions to SQLite, even when no browser is open
+
+In Docker, both are managed by [s6-overlay](https://github.com/just-containers/s6-overlay) inside a single container.
+
 ### Real-time events
-
-Recalbox 10 publishes EmulationStation events on its local MQTT broker (mosquitto, port 1883).
-
-**Relevant topic:** `Recalbox/WebAPI/EmulationStation/Event`
-
-| `event` value | Mapped to |
-| --- | --- |
-| `rungame` | `game:start` |
-| `endgame` | `game:stop` |
-| `gamebrowsing` | `system:change` (deduplicated) |
-
-The event pipeline is:
 
 ```text
 Recalbox MQTT broker
@@ -110,9 +110,15 @@ Recalbox MQTT broker
   → components/now-playing.tsx   (EventSource, no polling)
 ```
 
-### Media proxy
+**Relevant topic:** `Recalbox/WebAPI/EmulationStation/Event`
 
-Game cover images live on the Recalbox filesystem. The dashboard proxies them via SSH:
+| `event` value | Mapped to |
+| --- | --- |
+| `rungame` | `game:start` |
+| `endgame` | `game:stop` |
+| `gamebrowsing` | `system:change` (deduplicated) |
+
+### Media proxy
 
 ```text
 GET /api/media?path=/recalbox/share/...
@@ -120,16 +126,10 @@ GET /api/media?path=/recalbox/share/...
   → decode → return with Cache-Control: public, max-age=3600
 ```
 
-Paths are whitelisted to `/recalbox/share/` to prevent path traversal. The path is
-shell-quoted before execution to handle filenames with apostrophes or special characters.
-A `test -f` check is performed first so that images referenced in `gamelist.xml` but
-missing on disk return a clean 404 instead of a broken image.
+Paths are whitelisted to `/recalbox/share/` to prevent path traversal.
+A `test -f` check is performed first so that images missing on disk return a clean 404.
 
 ## Running the scrobbler
-
-The scrobbler is a separate daemon that listens to MQTT events and records every game
-session to SQLite. It runs independently of the dashboard web process and keeps logging
-even when no browser has the dashboard open.
 
 ### Development (two terminals)
 
@@ -138,7 +138,7 @@ pnpm dev              # Dashboard — http://localhost:3000
 pnpm scrobbler:dev    # Scrobbler with auto-reload on file changes
 ```
 
-### Production (PM2)
+### Production without Docker (PM2)
 
 ```bash
 pm2 start npm --name "recalbox-dashboard" -- start
@@ -146,33 +146,25 @@ pm2 start npx --name "recalbox-scrobbler" -- tsx apps/dashboard/scripts/start-sc
 pm2 save && pm2 startup
 ```
 
-### Production (systemd)
-
-A ready-to-use unit file is provided at
-`apps/dashboard/docs/systemd-examples/recalbox-scrobbler.service`.
+### Production without Docker (systemd)
 
 ```bash
 sudo cp apps/dashboard/docs/systemd-examples/recalbox-scrobbler.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now recalbox-scrobbler
-sudo journalctl -u recalbox-scrobbler -f
 ```
-
-Both processes share the same SQLite database (WAL mode is active, concurrent access is safe).
 
 ## Roadmap
 
 - [x] Ticket 1 — SSH system stats with live chart
 - [x] Ticket 2 — Now Playing via MQTT + SSE
 - [x] Ticket 3 — Game collection from gamelist.xml
-- [x] Ticket 4 — Scrobble daemon (session tracking)
+- [x] Ticket 4 — Scrobbler daemon (session tracking)
 - [x] Ticket 5 — Stats page with heatmap, charts and streaks
 - [x] Ticket 6 — Runtime settings UI with hot-reload
 - [x] Ticket 7 — Docker Compose self-hosting with s6 + multi-arch CI
 
 ## Stats (`/stats/[period]`)
-
-Gaming stats dashboard inspired by Last.fm + GitHub contributions.
 
 | Period | URL |
 | ------ | --- |
@@ -181,17 +173,9 @@ Gaming stats dashboard inspired by Last.fm + GitHub contributions.
 | This year | `/stats/year` |
 | All time | `/stats/all` |
 
-**Components:**
+**Components:** KPI cards (playtime, games, sessions, streak) · GitHub-style heatmap · daily playtime chart · top 10 games · system distribution · last 20 sessions timeline
 
-- KPI cards (playtime, games, sessions, current streak) with delta vs previous period
-- GitHub-style heatmap (365 days, CSS grid, intensity 0–4)
-- Daily playtime curve (Recharts AreaChart, grouped by week for year/all)
-- Top 10 games (progress bars, "Show more" → 50)
-- Breakdown by system (donut chart, click → `/collection/<system>`)
-- Consecutive days streak card (including all-time record)
-- Last 20 sessions timeline (ScrollArea)
-
-**Test data seed:**
+**Test data:**
 
 ```bash
 pnpm seed:dev              # Generate 200 sessions over 90 days
@@ -208,24 +192,13 @@ Full import from `gamelist.xml` files via SSH. Returns an NDJSON progress stream
 | ----------- | ----------- |
 | `system` | Sync a single system (e.g. `?system=snes`) |
 
-NDJSON events:
-
-```json
-{ "type": "start", "totalSystems": 84 }
-{ "type": "system", "system": "snes", "status": "done", "count": 1247 }
-{ "type": "done", "totalGames": 9832, "durationMs": 4120 }
-```
-
 ### `GET /api/collection`
-
-Paginated list of games.
 
 | Query param | Type | Description |
 | ----------- | ---- | ----------- |
 | `system` | string | Filter by system |
 | `favoritesOnly` | boolean | Favorites only |
 | `neverPlayed` | boolean | Never played |
-| `developer` | string | Filter by developer |
 | `search` | string | Search by name |
 | `sortBy` | `name\|rating\|lastPlayed\|releaseDate` | Sort field |
 | `sortDir` | `asc\|desc` | Sort direction |
@@ -234,30 +207,16 @@ Paginated list of games.
 
 ### `GET /api/collection/regions`
 
-Returns the regions available in the collection (useful for filter buttons).
-
-| Query param | Description |
-| ----------- | ----------- |
-| `system` | Restrict to regions of a single system |
+Returns regions available in the collection, optionally filtered by `?system=`.
 
 ### User data (`gamelist-userdata.ini`)
 
-Recalbox stores user preferences (favorites, hidden games, play statistics) in a
-`gamelist-userdata.ini` file separate from the scraped `gamelist.xml`. The sync reads
-both files and merges the data — `.ini` values take priority over the XML.
+Recalbox stores user preferences (favorites, hidden, play stats) in a separate `.ini` file.
+The sync reads both files and merges them — `.ini` values take priority over XML.
 
-File format:
+## Contributing
 
-```text
-relative/path/to/rom.ext:key1=val1,key2=val2,...
-```
-
-Handled keys: `favorite`, `hidden`, `playcount`, `lastplayed`.
-
-### Drive paths
-
-`gamelist.xml` files are read via SSH. USB drives are detected automatically under
-`/recalbox/share/externals/usb*/recalbox/roms/`.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
