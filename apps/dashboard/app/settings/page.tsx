@@ -37,7 +37,7 @@ const recalboxFormSchema = z.object({
 		.min(1)
 		.regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname'),
 	sshUser: z.string().min(1).max(32),
-	sshPassword: z.string().min(1).max(128),
+	sshPassword: z.string().max(128),
 	sshPort: z.number().int().min(1).max(65535),
 	mqttPort: z.number().int().min(1).max(65535),
 })
