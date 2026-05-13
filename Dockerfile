@@ -29,14 +29,7 @@ ENV NODE_ENV=production
 RUN pnpm --filter @recalbox/dashboard build
 
 # Compile scrobbler TypeScript → JS (no tsx required at runtime)
-RUN pnpm --filter @recalbox/dashboard exec esbuild \
-      scripts/start-scrobbler.ts \
-      --bundle \
-      --platform=node \
-      --target=node22 \
-      --packages=external \
-      --tsconfig=tsconfig.json \
-      --outfile=.next/standalone/scrobbler.js
+RUN pnpm --filter @recalbox/dashboard run build:scrobbler
 
 # ─── Stage 2: Production runner ───────────────────────────────────────────────
 FROM node:22-alpine AS runner

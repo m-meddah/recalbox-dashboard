@@ -9,7 +9,8 @@
 		"scrobbler": "tsx scripts/start-scrobbler.ts",
 		"scrobbler:dev": "tsx watch scripts/start-scrobbler.ts",
 		"test": "vitest run",
-		"seed:dev": "tsx scripts/seed-fake-sessions.ts"
+		"seed:dev": "tsx scripts/seed-fake-sessions.ts",
+		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.4.1",
@@ -42,6 +43,7 @@
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
 		"drizzle-kit": "^0.27.0",
+		"esbuild": "^0.25.0",
 		"tailwindcss": "^4.0.0",
 		"tsx": "^4.0.0",
 		"vitest": "^2.0.0"
