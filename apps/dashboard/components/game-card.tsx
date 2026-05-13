@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
-import { Star, Play } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
 import type { Game } from '@/lib/db/queries'
+import { cn } from '@/lib/utils'
+import { Play, Star } from 'lucide-react'
+import Image from 'next/image'
 import { useState } from 'react'
 
 type Props = {
@@ -24,9 +24,7 @@ function formatDate(d: Date | null): string {
 export function GameCard({ game }: Props) {
 	const [imgError, setImgError] = useState(false)
 	const coverSrc =
-		game.imagePath && !imgError
-			? `/api/media?path=${encodeURIComponent(game.imagePath)}`
-			: null
+		game.imagePath && !imgError ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
 
 	return (
 		<Card className="group relative overflow-hidden transition-shadow hover:shadow-lg">
@@ -38,7 +36,7 @@ export function GameCard({ game }: Props) {
 						alt={game.name}
 						fill
 						sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-						className="object-cover transition-transform duration-300 group-hover:scale-105"
+						className="object-contain transition-transform duration-300 group-hover:scale-105"
 						unoptimized
 						onError={() => setImgError(true)}
 					/>
@@ -69,9 +67,7 @@ export function GameCard({ game }: Props) {
 				</p>
 
 				<div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-					{game.releaseDate && (
-						<span>{formatDate(game.releaseDate as unknown as Date)}</span>
-					)}
+					{game.releaseDate && <span>{formatDate(game.releaseDate as unknown as Date)}</span>}
 					{game.genre && (
 						<>
 							<span>·</span>
