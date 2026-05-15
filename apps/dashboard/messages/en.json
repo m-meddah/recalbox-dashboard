@@ -269,5 +269,15 @@
       "minutes": "{minutes}m",
       "hoursMinutes": "{hours}h{minutes}"
     }
+  },
+  "power": {
+    "shutdown": "Shut down",
+    "reboot": "Reboot",
+    "confirmShutdownTitle": "Shut down Recalbox?",
+    "confirmShutdownDescription": "The console will power off. You will need to turn it back on manually.",
+    "confirmRebootTitle": "Reboot Recalbox?",
+    "confirmRebootDescription": "The console will restart. This will interrupt any ongoing session.",
+    "shutdownToast": "Shutting down…",
+    "rebootToast": "Rebooting…"
   }
 }
