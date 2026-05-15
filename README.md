@@ -186,6 +186,50 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 6 — Runtime settings UI with hot-reload
 - [x] Ticket 7 — Docker Compose self-hosting with s6 + multi-arch CI
 - [x] Ticket 8 — Internationalisation FR/EN (next-intl, locale prefix routing)
+- [x] Ticket 9 — RetroAchievements integration with auto-username detection
+
+## RetroAchievements integration
+
+The dashboard integrates with [RetroAchievements](https://retroachievements.org) to track achievement progress across your game library.
+
+### Setup
+
+1. Go to **Settings → RetroAchievements**
+2. Enable the integration
+3. Your **username** is auto-detected from `recalbox.conf` via SSH (click 🔄 to refresh)
+4. Generate a **Web API Key** at [retroachievements.org/controlpanel.php](https://retroachievements.org/controlpanel.php) and paste it in
+5. Click **Test Connection** to verify
+6. Save — background sync starts automatically
+
+### Features
+
+| Feature | Description |
+| ------- | ----------- |
+| `/achievements` | Profile header, unlock heatmap (365 days), recent unlocks, top games by completion |
+| Game badges | Trophy icon on game covers that have unlocked achievements |
+| Background sync | Configurable interval (default 30 min), runs in the scrobbler daemon |
+| ROM matching | Fuzzy title matching (≥80% similarity) to link local ROMs to RA games |
+| Manual linking | `POST /api/retroachievements/match` to link any ROM manually |
+
+### API routes
+
+| Route | Description |
+| ----- | ----------- |
+| `GET /api/retroachievements/profile` | User profile (points, motto, avatar) |
+| `GET /api/retroachievements/recent?count=20` | Recent achievement unlocks |
+| `GET /api/retroachievements/progress` | All game progress from DB |
+| `GET /api/retroachievements/game/:id` | Single game progress |
+| `POST /api/retroachievements/sync` | Force a sync |
+| `POST /api/retroachievements/test-connection` | Test API credentials |
+| `GET /api/retroachievements/match?romPath=&system=` | Find RA game for a ROM |
+| `POST /api/retroachievements/match` | Set manual ROM → RA game mapping |
+| `GET /api/recalbox/conf?key=global.retroachievements.username` | Read whitelisted keys from `recalbox.conf` |
+
+### Security
+
+- API key masked (`***`) in all `GET /api/settings` responses
+- `recalbox.conf` read uses a strict whitelist — password keys are never accessible
+- API key is never logged
 
 ## Stats (`/stats/[period]`)
 

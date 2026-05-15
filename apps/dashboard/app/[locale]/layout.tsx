@@ -63,6 +63,12 @@ export default async function LocaleLayout({ children, params }: Props) {
 									{t('stats')}
 								</Link>
 								<Link
+									href="/achievements"
+									className="text-sm text-muted-foreground hover:text-foreground"
+								>
+									{t('achievements')}
+								</Link>
+								<Link
 									href="/settings"
 									className="text-sm text-muted-foreground hover:text-foreground"
 								>

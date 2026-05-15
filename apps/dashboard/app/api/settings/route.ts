@@ -44,6 +44,14 @@ const putBodySchema = z.object({
 			weekStartsOn: z.union([z.literal(0), z.literal(1)]).optional(),
 		})
 		.optional(),
+	retroachievements: z
+		.object({
+			enabled: z.boolean().optional(),
+			username: z.string().max(64).optional(),
+			apiKey: z.string().max(256).optional(),
+			autoSyncMinutes: z.number().int().min(1).max(1440).optional(),
+		})
+		.optional(),
 })
 
 export async function PUT(req: NextRequest) {
@@ -65,6 +73,12 @@ export async function PUT(req: NextRequest) {
 	if (partial.recalbox?.sshPassword === PASSWORD_MASK) {
 		const { sshPassword: _omit, ...recalboxWithoutPassword } = partial.recalbox
 		partial.recalbox = recalboxWithoutPassword
+	}
+
+	// Do not overwrite apiKey if the client sent the mask sentinel
+	if (partial.retroachievements?.apiKey === PASSWORD_MASK) {
+		const { apiKey: _omit, ...raWithoutKey } = partial.retroachievements
+		partial.retroachievements = raWithoutKey
 	}
 
 	const updated = configStore.update(partial)

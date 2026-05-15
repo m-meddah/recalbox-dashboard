@@ -11,6 +11,7 @@
     "home": "🕹️ Recalbox",
     "collection": "Collection",
     "stats": "Stats",
+    "achievements": "Succès",
     "settings": "Paramètres"
   },
   "dashboard": {
@@ -125,7 +126,8 @@
     "tabs": {
       "recalbox": "Recalbox",
       "scrobble": "Scrobble",
-      "interface": "Interface"
+      "interface": "Interface",
+      "retroachievements": "RetroAchievements"
     },
     "recalbox": {
       "cardTitle": "Connexion Recalbox",
@@ -172,6 +174,50 @@
       "weekSunday": "Dimanche",
       "saved": "Paramètres d'interface enregistrés",
       "saveError": "Impossible d'enregistrer les paramètres"
+    },
+    "retroachievements": {
+      "cardTitle": "RetroAchievements",
+      "cardDescription": "Suivi des succès et progression pour vos jeux",
+      "enabled": "Activer RetroAchievements",
+      "enabledHint": "Suivre la progression des succès dans votre bibliothèque de jeux",
+      "username": "Nom d'utilisateur",
+      "usernamePlaceholder": "Votre nom d'utilisateur RetroAchievements",
+      "usernameHint": "Rempli automatiquement depuis votre config Recalbox — cliquez sur 🔄 pour actualiser",
+      "fetchUsernameHint": "Détecter automatiquement depuis recalbox.conf",
+      "usernameNotFound": "Nom d'utilisateur introuvable dans recalbox.conf",
+      "usernameError": "Impossible de lire recalbox.conf",
+      "apiKey": "Clé API Web",
+      "apiKeyPlaceholder": "Votre clé API web",
+      "apiKeyHint": "Générez votre clé sur ",
+      "showApiKey": "Afficher",
+      "hideApiKey": "Masquer",
+      "autoSync": "Intervalle de synchronisation auto (minutes)",
+      "autoSyncHint": "Fréquence de synchronisation des succès en arrière-plan",
+      "testConnection": "Tester la connexion",
+      "testing": "Test en cours…",
+      "testSuccess": "Connecté en tant que {user}",
+      "testError": "Connexion échouée : {error}",
+      "testOk": "Connexion réussie",
+      "testFailed": "Connexion échouée — vérifiez votre nom d'utilisateur et votre clé API",
+      "saved": "Paramètres RetroAchievements enregistrés",
+      "saveError": "Impossible d'enregistrer les paramètres"
+    }
+  },
+  "achievements": {
+    "title": "RetroAchievements",
+    "notConfigured": "RetroAchievements n'est pas configuré. Activez-le dans les Paramètres pour suivre votre progression.",
+    "goToSettings": "Aller aux paramètres",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "sync": "Synchroniser",
+    "syncing": "Synchronisation…",
+    "points": "pts",
+    "truePoints": "pts réels",
+    "activityHeatmap": "Activité — 365 derniers jours",
+    "recentUnlocks": "Succès récents",
+    "topGames": "Meilleurs jeux par complétion",
+    "heatmap": {
+      "label": "Succès débloqués par jour"
     }
   },
   "welcome": {

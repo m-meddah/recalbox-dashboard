@@ -1,5 +1,50 @@
 import { index, int, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+export const raCache = sqliteTable('ra_cache', {
+	key: text('key').primaryKey(),
+	value: text('value').notNull(),
+	expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
+})
+
+export const raAchievements = sqliteTable(
+	'ra_achievements',
+	{
+		id: int('id').primaryKey(),
+		gameId: int('game_id').notNull(),
+		title: text('title').notNull(),
+		points: int('points').notNull(),
+		imageUrl: text('image_url').notNull(),
+		unlockedAt: int('unlocked_at', { mode: 'timestamp' }).notNull(),
+		isHardcore: int('is_hardcore', { mode: 'boolean' }).default(false),
+		syncedAt: int('synced_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		gameIdIdx: index('idx_ra_achievements_game_id').on(t.gameId),
+		unlockedAtIdx: index('idx_ra_achievements_unlocked_at').on(t.unlockedAt),
+	}),
+)
+
+export const raGameProgress = sqliteTable('ra_game_progress', {
+	gameId: int('game_id').primaryKey(),
+	title: text('title').notNull(),
+	imageIcon: text('image_icon').notNull(),
+	numAchievements: int('num_achievements').notNull(),
+	numAwarded: int('num_awarded').notNull(),
+	numAwardedHardcore: int('num_awarded_hardcore').notNull(),
+	points: int('points').notNull(),
+	maxPoints: int('max_points').notNull(),
+	consoleId: int('console_id').notNull(),
+	consoleName: text('console_name').notNull(),
+	syncedAt: int('synced_at', { mode: 'timestamp' }).notNull(),
+})
+
+export const raGameMapping = sqliteTable('ra_game_mapping', {
+	romPath: text('rom_path').primaryKey(),
+	raGameId: int('ra_game_id').notNull(),
+	matchKind: text('match_kind', { enum: ['auto', 'manual'] }).notNull(),
+	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
 export const sessions = sqliteTable(
 	'sessions',
 	{
