@@ -1,10 +1,9 @@
-import Link from 'next/link'
-import { getCollectionStats } from '@/lib/db/queries'
-import { CollectionGrid } from '@/components/collection-grid'
 import { CollectionFilters } from '@/components/collection-filters'
+import { CollectionGrid } from '@/components/collection-grid'
 import { SyncButton } from '@/components/sync-button'
+import { SystemSelector } from '@/components/system-selector'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
+import { getCollectionStats } from '@/lib/db/queries'
 import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +11,9 @@ export const dynamic = 'force-dynamic'
 export default async function CollectionPage() {
 	const stats = await getCollectionStats()
 
-	const sortedSystems = Object.entries(stats.bySystem).sort((a, b) => b[1] - a[1])
+	const sortedSystems = Object.entries(stats.bySystem)
+		.sort((a, b) => b[1] - a[1])
+		.map(([name, count]) => ({ name, count }))
 
 	return (
 		<div className="container mx-auto max-w-screen-2xl space-y-6 px-4 py-8">
@@ -21,9 +22,8 @@ export default async function CollectionPage() {
 				<div>
 					<h1 className="text-2xl font-bold">Collection</h1>
 					<p className="text-sm text-muted-foreground">
-						{stats.totalGames.toLocaleString('fr-FR')} jeux ·{' '}
-						{stats.favorites} favoris · {stats.neverPlayed} jamais joués ·{' '}
-						{sortedSystems.length} systèmes
+						{stats.totalGames.toLocaleString('fr-FR')} jeux · {stats.favorites} favoris ·{' '}
+						{stats.neverPlayed} jamais joués · {sortedSystems.length} systèmes
 					</p>
 				</div>
 				<SyncButton />
@@ -31,26 +31,14 @@ export default async function CollectionPage() {
 
 			<Separator />
 
-			{/* System badges */}
-			{sortedSystems.length > 0 && (
-				<div className="flex flex-wrap gap-2">
-					{sortedSystems.map(([system, count]) => (
-						<Link key={system} href={`/collection/${system}`}>
-							<Badge variant="secondary" className="cursor-pointer hover:bg-accent">
-								{system} · {count}
-							</Badge>
-						</Link>
-					))}
-				</div>
-			)}
-
-			<Separator />
-
-			{/* Filters */}
-			<Suspense>
-				<CollectionFilters />
-			</Suspense>
-
+			{/* System selector + Filters */}
+			<div className="flex flex-wrap items-center gap-3">
+				<SystemSelector systems={sortedSystems} />
+				<Separator orientation="vertical" className="h-8" />
+				<Suspense>
+					<CollectionFilters />
+				</Suspense>
+			</div>
 
 			{/* Game grid */}
 			<CollectionGrid />

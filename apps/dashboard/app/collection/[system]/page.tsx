@@ -1,10 +1,11 @@
-import Link from 'next/link'
-import { getCollectionStats } from '@/lib/db/queries'
-import { CollectionGrid } from '@/components/collection-grid'
 import { CollectionFilters } from '@/components/collection-filters'
+import { CollectionGrid } from '@/components/collection-grid'
 import { SyncButton } from '@/components/sync-button'
+import { SystemSelector } from '@/components/system-selector'
 import { Separator } from '@/components/ui/separator'
+import { getCollectionStats } from '@/lib/db/queries'
 import { ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
@@ -17,6 +18,10 @@ export default async function SystemCollectionPage({ params }: Props) {
 	const { system } = await params
 	const stats = await getCollectionStats()
 	const gameCount = stats.bySystem[system] ?? 0
+
+	const sortedSystems = Object.entries(stats.bySystem)
+		.sort((a, b) => b[1] - a[1])
+		.map(([name, count]) => ({ name, count }))
 
 	return (
 		<div className="container mx-auto max-w-screen-2xl space-y-6 px-4 py-8">
@@ -42,10 +47,14 @@ export default async function SystemCollectionPage({ params }: Props) {
 
 			<Separator />
 
-			{/* Filters */}
-			<Suspense>
-				<CollectionFilters system={system} />
-			</Suspense>
+			{/* System selector + Filters */}
+			<div className="flex flex-wrap items-center gap-3">
+				<SystemSelector systems={sortedSystems} currentSystem={system} />
+				<Separator orientation="vertical" className="h-8" />
+				<Suspense>
+					<CollectionFilters system={system} />
+				</Suspense>
+			</div>
 
 			{/* Game grid */}
 			<CollectionGrid system={system} />
