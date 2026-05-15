@@ -1,17 +1,22 @@
-import { NextRequest } from 'next/server'
-import { listSystems, invalidateSystemsCache } from '@/lib/recalbox/systems'
-import { readGamelist, readUserdataIni } from '@/lib/recalbox/gamelist-reader'
-import { parseGamelist } from '@/lib/recalbox/gamelist-parser'
-import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
 import { upsertGames } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
+import { parseGamelist } from '@/lib/recalbox/gamelist-parser'
+import { readGamelist, readUserdataIni } from '@/lib/recalbox/gamelist-reader'
+import { invalidateSystemsCache, listSystems } from '@/lib/recalbox/systems'
+import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
+import type { NextRequest } from 'next/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 type SyncEvent =
 	| { type: 'start'; totalSystems: number }
-	| { type: 'system'; system: string; status: 'reading' | 'parsing' | 'done' | 'skipped'; count?: number }
+	| {
+			type: 'system'
+			system: string
+			status: 'reading' | 'parsing' | 'done' | 'skipped'
+			count?: number
+	  }
 	| { type: 'done'; totalGames: number; durationMs: number }
 	| { type: 'error'; message: string }
 
@@ -30,8 +35,7 @@ export async function POST(req: NextRequest) {
 	const encoder = new TextEncoder()
 	const stream = new ReadableStream({
 		async start(controller) {
-			const write = (event: SyncEvent) =>
-				controller.enqueue(encoder.encode(ndjson(event)))
+			const write = (event: SyncEvent) => controller.enqueue(encoder.encode(ndjson(event)))
 
 			const t0 = Date.now()
 			let totalGames = 0
@@ -39,9 +43,7 @@ export async function POST(req: NextRequest) {
 			try {
 				invalidateSystemsCache()
 				const allSystems = await listSystems()
-				const systems = targetSystem
-					? allSystems.filter((s) => s.id === targetSystem)
-					: allSystems
+				const systems = targetSystem ? allSystems.filter((s) => s.id === targetSystem) : allSystems
 
 				write({ type: 'start', totalSystems: systems.length })
 

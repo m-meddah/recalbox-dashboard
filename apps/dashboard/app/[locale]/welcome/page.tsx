@@ -11,9 +11,10 @@ import {
 	FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { useRouter } from '@/i18n/navigation'
 import type { AppConfig } from '@/lib/settings/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -39,6 +40,9 @@ type TestResult = {
 type Step = 1 | 2 | 3
 
 export default function WelcomePage() {
+	const t = useTranslations('welcome')
+	const tf = useTranslations('welcome.form')
+	const tc = useTranslations('common')
 	const router = useRouter()
 	const [step, setStep] = useState<Step>(1)
 	const [testResult, setTestResult] = useState<TestResult | null>(null)
@@ -112,14 +116,14 @@ export default function WelcomePage() {
 		}
 	}
 
-	const stepLabels = ['Configure Recalbox', 'Test Connection', 'Confirm']
+	const stepLabels = [t('steps.configure'), t('steps.test'), t('steps.confirm')]
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-background p-4">
 			<div className="w-full max-w-lg space-y-6">
 				<div className="text-center space-y-1">
-					<h1 className="text-2xl font-bold">🕹️ Welcome to Recalbox Dashboard</h1>
-					<p className="text-muted-foreground text-sm">Let's get you set up in a few steps</p>
+					<h1 className="text-2xl font-bold">🕹️ {t('title')}</h1>
+					<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 				</div>
 
 				{/* Stepper */}
@@ -156,8 +160,8 @@ export default function WelcomePage() {
 				{step === 1 && (
 					<Card>
 						<CardHeader>
-							<CardTitle>Recalbox Connection</CardTitle>
-							<CardDescription>Enter the network details of your Recalbox console</CardDescription>
+							<CardTitle>{t('step1.title')}</CardTitle>
+							<CardDescription>{t('step1.description')}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Form {...form}>
@@ -167,7 +171,7 @@ export default function WelcomePage() {
 										name="host"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel>Host / IP address</FormLabel>
+												<FormLabel>{tf('host')}</FormLabel>
 												<FormControl>
 													<Input placeholder="recalbox.local" {...field} />
 												</FormControl>
@@ -181,7 +185,7 @@ export default function WelcomePage() {
 											name="sshUser"
 											render={({ field }) => (
 												<FormItem>
-													<FormLabel>SSH user</FormLabel>
+													<FormLabel>{tf('sshUser')}</FormLabel>
 													<FormControl>
 														<Input placeholder="root" {...field} />
 													</FormControl>
@@ -194,7 +198,7 @@ export default function WelcomePage() {
 											name="sshPassword"
 											render={({ field }) => (
 												<FormItem>
-													<FormLabel>SSH password</FormLabel>
+													<FormLabel>{tf('sshPassword')}</FormLabel>
 													<FormControl>
 														<div className="relative">
 															<Input
@@ -207,7 +211,7 @@ export default function WelcomePage() {
 																onClick={() => setShowPassword((v) => !v)}
 																className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
 															>
-																{showPassword ? 'Hide' : 'Show'}
+																{showPassword ? tf('hidePassword') : tf('showPassword')}
 															</button>
 														</div>
 													</FormControl>
@@ -222,7 +226,7 @@ export default function WelcomePage() {
 											name="sshPort"
 											render={({ field }) => (
 												<FormItem>
-													<FormLabel>SSH port</FormLabel>
+													<FormLabel>{tf('sshPort')}</FormLabel>
 													<FormControl>
 														<Input
 															type="number"
@@ -239,7 +243,7 @@ export default function WelcomePage() {
 											name="mqttPort"
 											render={({ field }) => (
 												<FormItem>
-													<FormLabel>MQTT port</FormLabel>
+													<FormLabel>{tf('mqttPort')}</FormLabel>
 													<FormControl>
 														<Input
 															type="number"
@@ -253,7 +257,7 @@ export default function WelcomePage() {
 										/>
 									</div>
 									<Button type="submit" className="w-full">
-										Next: Test Connection
+										{t('step1.next')}
 									</Button>
 								</form>
 							</Form>
@@ -265,14 +269,14 @@ export default function WelcomePage() {
 				{step === 2 && (
 					<Card>
 						<CardHeader>
-							<CardTitle>Test Connection</CardTitle>
-							<CardDescription>
-								Verifying SSH and MQTT connectivity to your Recalbox
-							</CardDescription>
+							<CardTitle>{t('step2.title')}</CardTitle>
+							<CardDescription>{t('step2.description')}</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{testing && (
-								<p className="text-sm text-muted-foreground animate-pulse">Testing connection...</p>
+								<p className="text-sm text-muted-foreground animate-pulse">
+									{t('step2.testing')}
+								</p>
 							)}
 							{testResult && (
 								<div className="space-y-3">
@@ -289,21 +293,16 @@ export default function WelcomePage() {
 										error={testResult.mqtt.error}
 									/>
 									{!testResult.ssh.success && (
-										<p className="text-xs text-muted-foreground">
-											SSH failed: check host, port, credentials. Default password is{' '}
-											<code>recalboxroot</code>.
-										</p>
+										<p className="text-xs text-muted-foreground">{t('step2.sshFailed')}</p>
 									)}
 									{!testResult.mqtt.success && (
-										<p className="text-xs text-muted-foreground">
-											MQTT failed: check that the MQTT broker is enabled in Recalbox settings.
-										</p>
+										<p className="text-xs text-muted-foreground">{t('step2.mqttFailed')}</p>
 									)}
 								</div>
 							)}
 							<div className="flex gap-2">
 								<Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-									Back
+									{tc('back')}
 								</Button>
 								<Button
 									variant="outline"
@@ -311,14 +310,14 @@ export default function WelcomePage() {
 									disabled={testing}
 									className="flex-1"
 								>
-									Retry
+									{tc('retry')}
 								</Button>
 								<Button
 									onClick={() => setStep(3)}
 									disabled={testing || !testResult}
 									className="flex-1"
 								>
-									Continue
+									{t('step2.continue')}
 								</Button>
 							</div>
 						</CardContent>
@@ -329,36 +328,37 @@ export default function WelcomePage() {
 				{step === 3 && (
 					<Card>
 						<CardHeader>
-							<CardTitle>All set!</CardTitle>
+							<CardTitle>{t('step3.title')}</CardTitle>
 							<CardDescription>
 								{testResult?.overall === 'ok'
-									? 'Connection successful. Your dashboard is ready.'
-									: 'You can complete setup now and fix any connection issues later in Settings.'}
+									? t('step3.descriptionOk')
+									: t('step3.descriptionPartial')}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{step1Values && (
 								<div className="rounded-md bg-muted p-3 text-sm space-y-1">
 									<p>
-										<span className="font-medium">Host:</span> {step1Values.host}
+										<span className="font-medium">{t('step3.host')}</span> {step1Values.host}
 									</p>
 									<p>
-										<span className="font-medium">SSH user:</span> {step1Values.sshUser}
+										<span className="font-medium">{t('step3.sshUser')}</span> {step1Values.sshUser}
 									</p>
 									<p>
-										<span className="font-medium">SSH port:</span> {step1Values.sshPort}
+										<span className="font-medium">{t('step3.sshPort')}</span> {step1Values.sshPort}
 									</p>
 									<p>
-										<span className="font-medium">MQTT port:</span> {step1Values.mqttPort}
+										<span className="font-medium">{t('step3.mqttPort')}</span>{' '}
+										{step1Values.mqttPort}
 									</p>
 								</div>
 							)}
 							<div className="flex gap-2">
 								<Button variant="outline" onClick={() => setStep(2)} className="flex-1">
-									Back
+									{tc('back')}
 								</Button>
 								<Button onClick={handleFinish} disabled={saving} className="flex-1">
-									{saving ? 'Saving...' : 'Finish'}
+									{saving ? t('step3.saving') : t('step3.finish')}
 								</Button>
 							</div>
 						</CardContent>

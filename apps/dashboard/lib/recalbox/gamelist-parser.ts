@@ -1,5 +1,5 @@
-import { XMLParser } from 'fast-xml-parser'
 import { logger } from '@/lib/logger'
+import { XMLParser } from 'fast-xml-parser'
 
 export type ParsedGame = {
 	romPath: string

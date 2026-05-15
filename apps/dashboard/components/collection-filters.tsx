@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { Clock, SortAsc, SortDesc, Star } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -20,6 +21,7 @@ const REGION_LABELS: Record<string, string> = {
 }
 
 export function CollectionFilters({ system }: { system?: string }) {
+	const t = useTranslations('collection.filters')
 	const router = useRouter()
 	const pathname = usePathname()
 	const searchParams = useSearchParams()
@@ -71,11 +73,18 @@ export function CollectionFilters({ system }: { system?: string }) {
 		get('sortBy') === field || (field === 'name' && !get('sortBy'))
 	const sortDir = get('sortDir') || 'asc'
 
+	const sortLabels: Record<SortField, string> = {
+		name: t('sortName'),
+		rating: t('sortRating'),
+		lastPlayed: t('sortLastPlayed'),
+		releaseDate: t('sortYear'),
+	}
+
 	return (
 		<div className="flex flex-wrap items-center gap-2">
 			{/* Search */}
 			<Input
-				placeholder="Rechercher…"
+				placeholder={t('search')}
 				className="h-8 w-48 text-sm"
 				defaultValue={get('search')}
 				onChange={(e) => {
@@ -101,7 +110,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 				)}
 			>
 				<Star className="h-3 w-3" />
-				Favoris
+				{t('favorites')}
 			</button>
 
 			<button
@@ -115,7 +124,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 				)}
 			>
 				<Clock className="h-3 w-3" />
-				Jamais joué
+				{t('neverPlayed')}
 			</button>
 
 			{/* Region filter */}
@@ -144,12 +153,6 @@ export function CollectionFilters({ system }: { system?: string }) {
 
 			{/* Sort buttons */}
 			{(['name', 'rating', 'lastPlayed', 'releaseDate'] as SortField[]).map((field) => {
-				const labels: Record<SortField, string> = {
-					name: 'Nom',
-					rating: 'Note',
-					lastPlayed: 'Joué',
-					releaseDate: 'Année',
-				}
 				const active = sortActive(field)
 				return (
 					<button
@@ -163,7 +166,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 								: 'border-border bg-background hover:bg-accent',
 						)}
 					>
-						{labels[field]}
+						{sortLabels[field]}
 						{active &&
 							(sortDir === 'asc' ? (
 								<SortAsc className="h-3 w-3" />

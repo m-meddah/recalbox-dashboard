@@ -42,11 +42,7 @@ export type SystemInfoEvent = {
 	tempCelsius: number
 }
 
-export type RecalboxEvent =
-	| GameStartEvent
-	| GameStopEvent
-	| SystemChangeEvent
-	| SystemInfoEvent
+export type RecalboxEvent = GameStartEvent | GameStopEvent | SystemChangeEvent | SystemInfoEvent
 
 // ── Recalbox/WebAPI/EmulationStation/Event shape ─────────────────────────────
 
@@ -111,9 +107,7 @@ function isSystemInfoPayload(v: unknown): v is SystemInfoPayload {
 function parseSystemInfo(data: SystemInfoPayload): SystemInfoEvent {
 	const cores = Object.values(data.cpus)
 	const cpuPercent =
-		cores.length > 0
-			? cores.reduce((sum, c) => sum + (c.consumption[0] ?? 0), 0) / cores.length
-			: 0
+		cores.length > 0 ? cores.reduce((sum, c) => sum + (c.consumption[0] ?? 0), 0) / cores.length : 0
 
 	const totalBytes = data.memory.total
 	const freeBytes = data.memory.free[0] ?? 0
@@ -151,9 +145,9 @@ function parseEmulationStationEvent(payload: Buffer): RecalboxEvent | null {
 	try {
 		data = JSON.parse(raw)
 	} catch (firstErr) {
-		const pos = (firstErr instanceof SyntaxError
-			? firstErr.message.match(/position (\d+)/)
-			: null)?.[1]
+		const pos = (
+			firstErr instanceof SyntaxError ? firstErr.message.match(/position (\d+)/) : null
+		)?.[1]
 		if (!pos) return null
 		try {
 			data = JSON.parse(raw.slice(0, Number(pos)))

@@ -1,8 +1,8 @@
 import { db } from '@/lib/db/index'
 import { logger } from '@/lib/logger'
+import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import { getMqttClient } from '@/lib/recalbox/mqtt-client'
 import { SessionManager } from './session-manager'
-import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 
 export type Scrobbler = {
 	stop: () => Promise<void>

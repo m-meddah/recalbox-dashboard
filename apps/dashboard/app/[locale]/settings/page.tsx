@@ -22,8 +22,10 @@ import {
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { LanguageSwitcher } from '@/components/language-switcher'
 import type { AppConfig } from '@/lib/settings/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -57,8 +59,6 @@ const uiFormSchema = z.object({
 })
 type UiForm = z.infer<typeof uiFormSchema>
 
-// ─── Test connection result type ─────────────────────────────────────────────
-
 type TestResult = {
 	ssh: { success: boolean; latencyMs: number; error?: string }
 	mqtt: { success: boolean; latencyMs: number; messagesReceived: number; error?: string }
@@ -68,6 +68,8 @@ type TestResult = {
 // ─── Recalbox tab ────────────────────────────────────────────────────────────
 
 function RecalboxTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.recalbox')
+	const tc = useTranslations('common')
 	const [showPassword, setShowPassword] = useState(false)
 	const [testing, setTesting] = useState(false)
 	const [testResult, setTestResult] = useState<TestResult | null>(null)
@@ -95,7 +97,6 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 
 	async function onSave(values: RecalboxForm) {
 		const body = { recalbox: values }
-		// Keep password if empty (user didn't modify it)
 		if (!values.sshPassword) {
 			body.recalbox = { ...values, sshPassword: '***' }
 		}
@@ -114,9 +115,9 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 				sshPort: updated.recalbox.sshPort,
 				mqttPort: updated.recalbox.mqttPort,
 			})
-			toast.success('Recalbox settings saved')
+			toast.success(t('saved'))
 		} catch {
-			toast.error('Failed to save settings')
+			toast.error(t('saveError'))
 		}
 	}
 
@@ -135,7 +136,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 			})
 			setTestResult(await res.json())
 		} catch {
-			toast.error('Connection test failed')
+			toast.error(t('testError'))
 		} finally {
 			setTesting(false)
 		}
@@ -145,10 +146,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
 				<Alert>
-					<AlertDescription>
-						SSH password is stored in plaintext. This dashboard is designed for trusted local
-						networks only.
-					</AlertDescription>
+					<AlertDescription>{t('passwordWarning')}</AlertDescription>
 				</Alert>
 
 				<FormField
@@ -156,7 +154,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 					name="host"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Host / IP address</FormLabel>
+							<FormLabel>{t('host')}</FormLabel>
 							<FormControl>
 								<Input placeholder="recalbox.local" {...field} />
 							</FormControl>
@@ -171,7 +169,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 						name="sshUser"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>SSH user</FormLabel>
+								<FormLabel>{t('sshUser')}</FormLabel>
 								<FormControl>
 									<Input placeholder="root" {...field} />
 								</FormControl>
@@ -184,12 +182,12 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 						name="sshPassword"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>SSH password</FormLabel>
+								<FormLabel>{t('sshPassword')}</FormLabel>
 								<FormControl>
 									<div className="relative">
 										<Input
 											type={showPassword ? 'text' : 'password'}
-											placeholder="Leave blank to keep current"
+											placeholder={t('sshPasswordPlaceholder')}
 											{...field}
 										/>
 										<button
@@ -197,11 +195,11 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 											onClick={() => setShowPassword((v) => !v)}
 											className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
 										>
-											{showPassword ? 'Hide' : 'Show'}
+											{showPassword ? t('hidePassword') : t('showPassword')}
 										</button>
 									</div>
 								</FormControl>
-								<FormDescription>Leave blank to keep the current password</FormDescription>
+								<FormDescription>{t('sshPasswordHint')}</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -214,7 +212,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 						name="sshPort"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>SSH port</FormLabel>
+								<FormLabel>{t('sshPort')}</FormLabel>
 								<FormControl>
 									<Input
 										type="number"
@@ -231,7 +229,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 						name="mqttPort"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>MQTT port</FormLabel>
+								<FormLabel>{t('mqttPort')}</FormLabel>
 								<FormControl>
 									<Input
 										type="number"
@@ -248,7 +246,7 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 				{/* Test connection */}
 				<div className="space-y-3">
 					<Button type="button" variant="outline" onClick={onTest} disabled={testing}>
-						{testing ? 'Testing...' : 'Test Connection'}
+						{testing ? t('testing') : t('testConnection')}
 					</Button>
 					{testResult && (
 						<div className="space-y-2">
@@ -283,10 +281,10 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 						}
 						disabled={!isDirty}
 					>
-						Cancel
+						{tc('cancel')}
 					</Button>
 					<Button type="submit" disabled={!isDirty}>
-						Save
+						{tc('save')}
 					</Button>
 				</div>
 			</form>
@@ -297,6 +295,9 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 // ─── Scrobble tab ────────────────────────────────────────────────────────────
 
 function ScrobbleTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.scrobble')
+	const tc = useTranslations('common')
+
 	const form = useForm<ScrobbleForm>({
 		resolver: zodResolver(scrobbleFormSchema),
 		defaultValues: {
@@ -315,9 +316,9 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 				body: JSON.stringify({ scrobble: values }),
 			})
 			form.reset(values)
-			toast.success('Scrobble settings saved')
+			toast.success(t('saved'))
 		} catch {
-			toast.error('Failed to save settings')
+			toast.error(t('saveError'))
 		}
 	}
 
@@ -329,7 +330,7 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 					name="minDurationSec"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Minimum session duration (seconds)</FormLabel>
+							<FormLabel>{t('minDuration')}</FormLabel>
 							<FormControl>
 								<Input
 									type="number"
@@ -337,7 +338,7 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 									onChange={(e) => field.onChange(e.target.valueAsNumber)}
 								/>
 							</FormControl>
-							<FormDescription>Sessions shorter than this are discarded</FormDescription>
+							<FormDescription>{t('minDurationHint')}</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -347,7 +348,7 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 					name="maxDurationHours"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Maximum session duration (hours)</FormLabel>
+							<FormLabel>{t('maxDuration')}</FormLabel>
 							<FormControl>
 								<Input
 									type="number"
@@ -356,7 +357,7 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 									onChange={(e) => field.onChange(e.target.valueAsNumber)}
 								/>
 							</FormControl>
-							<FormDescription>Orphan sessions are capped at this duration</FormDescription>
+							<FormDescription>{t('maxDurationHint')}</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -366,7 +367,7 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 					name="orphanRecoveryHours"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Orphan recovery threshold (hours)</FormLabel>
+							<FormLabel>{t('orphanRecovery')}</FormLabel>
 							<FormControl>
 								<Input
 									type="number"
@@ -375,19 +376,17 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 									onChange={(e) => field.onChange(e.target.valueAsNumber)}
 								/>
 							</FormControl>
-							<FormDescription>
-								Sessions older than this without an end event are considered orphans
-							</FormDescription>
+							<FormDescription>{t('orphanRecoveryHint')}</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
 				/>
 				<div className="flex gap-2">
 					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
-						Cancel
+						{tc('cancel')}
 					</Button>
 					<Button type="submit" disabled={!isDirty}>
-						Save
+						{tc('save')}
 					</Button>
 				</div>
 			</form>
@@ -398,6 +397,9 @@ function ScrobbleTab({ config }: { config: AppConfig }) {
 // ─── UI tab ──────────────────────────────────────────────────────────────────
 
 function UiTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.interface')
+	const tc = useTranslations('common')
+
 	const form = useForm<UiForm>({
 		resolver: zodResolver(uiFormSchema),
 		defaultValues: {
@@ -416,43 +418,35 @@ function UiTab({ config }: { config: AppConfig }) {
 				body: JSON.stringify({ ui: values }),
 			})
 			form.reset(values)
-			toast.success('Interface settings saved')
+			toast.success(t('saved'))
 		} catch {
-			toast.error('Failed to save settings')
+			toast.error(t('saveError'))
 		}
 	}
 
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
-				<FormField
-					control={form.control}
-					name="locale"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Locale</FormLabel>
-							<FormControl>
-								<Input placeholder="en" {...field} />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
+				<div className="space-y-2">
+					<p className="text-sm font-medium">{t('language')}</p>
+					<LanguageSwitcher />
+				</div>
+
 				<FormField
 					control={form.control}
 					name="theme"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Theme</FormLabel>
+							<FormLabel>{t('theme')}</FormLabel>
 							<FormControl>
 								<Select onValueChange={(v) => v && field.onChange(v)} defaultValue={field.value}>
 									<SelectTrigger>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="system">System</SelectItem>
-										<SelectItem value="light">Light</SelectItem>
-										<SelectItem value="dark">Dark</SelectItem>
+										<SelectItem value="system">{t('themeSystem')}</SelectItem>
+										<SelectItem value="light">{t('themeLight')}</SelectItem>
+										<SelectItem value="dark">{t('themeDark')}</SelectItem>
 									</SelectContent>
 								</Select>
 							</FormControl>
@@ -465,7 +459,7 @@ function UiTab({ config }: { config: AppConfig }) {
 					name="weekStartsOn"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Week starts on</FormLabel>
+							<FormLabel>{t('weekStartsOn')}</FormLabel>
 							<FormControl>
 								<Select
 									onValueChange={(v) => field.onChange(Number.parseInt(v ?? '1', 10))}
@@ -475,8 +469,8 @@ function UiTab({ config }: { config: AppConfig }) {
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="1">Monday</SelectItem>
-										<SelectItem value="0">Sunday</SelectItem>
+										<SelectItem value="1">{t('weekMonday')}</SelectItem>
+										<SelectItem value="0">{t('weekSunday')}</SelectItem>
 									</SelectContent>
 								</Select>
 							</FormControl>
@@ -486,10 +480,10 @@ function UiTab({ config }: { config: AppConfig }) {
 				/>
 				<div className="flex gap-2">
 					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
-						Cancel
+						{tc('cancel')}
 					</Button>
 					<Button type="submit" disabled={!isDirty}>
-						Save
+						{tc('save')}
 					</Button>
 				</div>
 			</form>
@@ -500,6 +494,7 @@ function UiTab({ config }: { config: AppConfig }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+	const t = useTranslations('settings')
 	const [config, setConfig] = useState<AppConfig | null>(null)
 	const [loading, setLoading] = useState(true)
 
@@ -514,31 +509,31 @@ export default function SettingsPage() {
 	}, [])
 
 	if (loading) {
-		return <div className="p-8 text-muted-foreground text-sm">Loading settings...</div>
+		return <div className="p-8 text-muted-foreground text-sm">{t('loading')}</div>
 	}
 
 	if (!config) {
-		return <div className="p-8 text-destructive text-sm">Failed to load settings.</div>
+		return <div className="p-8 text-destructive text-sm">{t('loadError')}</div>
 	}
 
 	return (
 		<div className="container max-w-2xl mx-auto p-6 space-y-6">
 			<Toaster />
 			<div>
-				<h1 className="text-2xl font-bold">Settings</h1>
-				<p className="text-muted-foreground text-sm">Configure your Recalbox Dashboard</p>
+				<h1 className="text-2xl font-bold">{t('title')}</h1>
+				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<Tabs defaultValue="recalbox">
 				<TabsList className="grid w-full grid-cols-3">
-					<TabsTrigger value="recalbox">Recalbox</TabsTrigger>
-					<TabsTrigger value="scrobble">Scrobble</TabsTrigger>
-					<TabsTrigger value="interface">Interface</TabsTrigger>
+					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
+					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
+					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
 				</TabsList>
 				<TabsContent value="recalbox" className="mt-6">
 					<Card>
 						<CardHeader>
-							<CardTitle>Recalbox Connection</CardTitle>
-							<CardDescription>SSH and MQTT connectivity settings</CardDescription>
+							<CardTitle>{t('recalbox.cardTitle')}</CardTitle>
+							<CardDescription>{t('recalbox.cardDescription')}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<RecalboxTab config={config} />
@@ -548,8 +543,8 @@ export default function SettingsPage() {
 				<TabsContent value="scrobble" className="mt-6">
 					<Card>
 						<CardHeader>
-							<CardTitle>Session Tracking</CardTitle>
-							<CardDescription>Control how game sessions are recorded</CardDescription>
+							<CardTitle>{t('scrobble.cardTitle')}</CardTitle>
+							<CardDescription>{t('scrobble.cardDescription')}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<ScrobbleTab config={config} />
@@ -559,8 +554,8 @@ export default function SettingsPage() {
 				<TabsContent value="interface" className="mt-6">
 					<Card>
 						<CardHeader>
-							<CardTitle>Interface</CardTitle>
-							<CardDescription>Display and localization preferences</CardDescription>
+							<CardTitle>{t('interface.cardTitle')}</CardTitle>
+							<CardDescription>{t('interface.cardDescription')}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<UiTab config={config} />

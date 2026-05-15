@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { listSessions } from '@/lib/db/queries'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -7,8 +7,8 @@ export const runtime = 'nodejs'
 export async function GET(req: NextRequest) {
 	const params = req.nextUrl.searchParams
 
-	const page = Math.max(1, parseInt(params.get('page') ?? '1', 10))
-	const pageSize = Math.min(200, Math.max(1, parseInt(params.get('pageSize') ?? '50', 10)))
+	const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10))
+	const pageSize = Math.min(200, Math.max(1, Number.parseInt(params.get('pageSize') ?? '50', 10)))
 
 	const fromParam = params.get('fromDate')
 	const toParam = params.get('toDate')

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { RefreshCw, CheckCircle, XCircle } from 'lucide-react'
+import { CheckCircle, RefreshCw, XCircle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/navigation'
+import { useState } from 'react'
 
 type SyncState =
 	| { status: 'idle' }
@@ -13,13 +14,12 @@ type SyncState =
 	| { status: 'error'; message: string }
 
 export function SyncButton({ system }: { system?: string }) {
+	const t = useTranslations('collection.sync')
 	const router = useRouter()
 	const [state, setState] = useState<SyncState>({ status: 'idle' })
 
 	async function startSync() {
-		const url = system
-			? `/api/collection/sync?system=${system}`
-			: '/api/collection/sync'
+		const url = system ? `/api/collection/sync?system=${system}` : '/api/collection/sync'
 
 		setState({ status: 'running', current: '…', done: 0, total: 0, games: 0 })
 
@@ -42,21 +42,20 @@ export function SyncButton({ system }: { system?: string }) {
 				try {
 					const event = JSON.parse(line)
 					if (event.type === 'start') {
-						setState((s) =>
-							s.status === 'running'
-								? { ...s, total: event.totalSystems }
-								: s,
-						)
+						setState((s) => (s.status === 'running' ? { ...s, total: event.totalSystems } : s))
 					} else if (event.type === 'system' && event.status === 'done') {
 						setState((s) =>
 							s.status === 'running'
-								? { ...s, current: event.system, done: s.done + 1, games: s.games + (event.count ?? 0) }
+								? {
+										...s,
+										current: event.system,
+										done: s.done + 1,
+										games: s.games + (event.count ?? 0),
+									}
 								: s,
 						)
 					} else if (event.type === 'system' && event.status === 'reading') {
-						setState((s) =>
-							s.status === 'running' ? { ...s, current: event.system } : s,
-						)
+						setState((s) => (s.status === 'running' ? { ...s, current: event.system } : s))
 					} else if (event.type === 'done') {
 						setState({ status: 'done', totalGames: event.totalGames, durationMs: event.durationMs })
 						router.refresh()
@@ -72,7 +71,7 @@ export function SyncButton({ system }: { system?: string }) {
 		return (
 			<Button onClick={startSync} variant="outline" size="sm">
 				<RefreshCw className="mr-2 h-4 w-4" />
-				Synchroniser depuis Recalbox
+				{t('button')}
 			</Button>
 		)
 	}
@@ -86,9 +85,7 @@ export function SyncButton({ system }: { system?: string }) {
 						<RefreshCw className="h-3 w-3 animate-spin" />
 						{state.current}
 					</span>
-					<span>
-						{state.done}/{state.total} · {state.games.toLocaleString('fr-FR')} jeux
-					</span>
+					<span>{t('progress', { done: state.done, total: state.total, games: state.games })}</span>
 				</div>
 				<Progress value={pct} className="h-1.5" />
 			</div>
@@ -99,8 +96,7 @@ export function SyncButton({ system }: { system?: string }) {
 		return (
 			<div className="flex items-center gap-2 text-sm text-green-600">
 				<CheckCircle className="h-4 w-4" />
-				{state.totalGames.toLocaleString('fr-FR')} jeux synchronisés en{' '}
-				{(state.durationMs / 1000).toFixed(1)}s
+				{t('done', { count: state.totalGames, seconds: (state.durationMs / 1000).toFixed(1) })}
 				<Button variant="ghost" size="sm" onClick={() => setState({ status: 'idle' })}>
 					×
 				</Button>
@@ -113,7 +109,7 @@ export function SyncButton({ system }: { system?: string }) {
 			<XCircle className="h-4 w-4" />
 			{state.message}
 			<Button variant="ghost" size="sm" onClick={() => setState({ status: 'idle' })}>
-				Réessayer
+				{t('retry')}
 			</Button>
 		</div>
 	)

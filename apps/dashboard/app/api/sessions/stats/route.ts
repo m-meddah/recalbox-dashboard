@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { getSessionStats } from '@/lib/db/queries'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 	const stats = await getSessionStats({
 		fromDate: fromParam ? new Date(fromParam) : undefined,
 		toDate: toParam ? new Date(toParam) : undefined,
-		topGamesLimit: limitParam ? parseInt(limitParam, 10) : undefined,
+		topGamesLimit: limitParam ? Number.parseInt(limitParam, 10) : undefined,
 	})
 
 	return NextResponse.json(stats)

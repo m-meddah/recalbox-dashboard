@@ -1,11 +1,11 @@
 import path from 'node:path'
+import * as schema from '@/lib/db/schema'
+import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import * as schema from '@/lib/db/schema'
 import { SessionManager } from '../session-manager'
-import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle/migrations')
 
@@ -18,7 +18,14 @@ function makeDb() {
 }
 
 function startEvent(romPath: string, startedAt: Date = new Date()): GameStartEvent {
-	return { type: 'game:start', system: 'snes', systemFullName: 'Super Nintendo', gameName: 'Super Mario', romPath, startedAt }
+	return {
+		type: 'game:start',
+		system: 'snes',
+		systemFullName: 'Super Nintendo',
+		gameName: 'Super Mario',
+		romPath,
+		startedAt,
+	}
 }
 
 function stopEvent(romPath: string, stoppedAt: Date = new Date()): GameStopEvent {
@@ -95,10 +102,12 @@ describe('SessionManager', () => {
 		const recentStart = new Date(Date.now() - 30_000)
 
 		// Insert directly to avoid triggering auto-close between the two sessions
-		db.insert(schema.sessions).values([
-			{ startedAt: ancientStart, system: 'snes', romPath: '/roms/ancient.sfc' },
-			{ startedAt: recentStart, system: 'snes', romPath: '/roms/recent.sfc' },
-		]).run()
+		db.insert(schema.sessions)
+			.values([
+				{ startedAt: ancientStart, system: 'snes', romPath: '/roms/ancient.sfc' },
+				{ startedAt: recentStart, system: 'snes', romPath: '/roms/recent.sfc' },
+			])
+			.run()
 
 		const recovered = await manager.recoverOrphanSessions(12)
 		expect(recovered).toBe(1)
