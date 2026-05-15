@@ -8,18 +8,12 @@ services:
     volumes:
       - recalbox-data:/data
     environment:
-      RECALBOX_HOST: recalbox.local
-      RECALBOX_SSH_USER: root
-      RECALBOX_SSH_PASSWORD: recalboxroot
-      RECALBOX_SSH_PORT: 22
-      RECALBOX_MQTT_PORT: 1883
-      TZ: Europe/Paris
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health',r=>r.statusCode===200?process.exit(0):process.exit(1)).on('error',()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      start_period: 30s
-      retries: 3
+      RECALBOX_HOST: ${RECALBOX_HOST:-recalbox.local}
+      RECALBOX_SSH_USER: ${RECALBOX_SSH_USER:-root}
+      RECALBOX_SSH_PASSWORD: ${RECALBOX_SSH_PASSWORD:-recalboxroot}
+      RECALBOX_SSH_PORT: ${RECALBOX_SSH_PORT:-22}
+      RECALBOX_MQTT_PORT: ${RECALBOX_MQTT_PORT:-1883}
+      TZ: ${TZ:-Europe/Paris}
 
 volumes:
   recalbox-data:
