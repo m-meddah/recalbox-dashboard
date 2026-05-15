@@ -3,7 +3,7 @@ import { Geist } from 'next/font/google'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from '@/components/theme-provider'
 import '../globals.css'
 import { RecalboxEventsProvider } from '../recalbox-events-provider'
 import { Link } from '@/i18n/navigation'
@@ -46,7 +46,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 	return (
 		<html lang={locale} className={cn('font-sans', geist.variable)} suppressHydrationWarning>
 			<body>
-				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+				<ThemeProvider>
 					<NextIntlClientProvider>
 						<RecalboxEventsProvider>
 							<header className="border-b px-6 py-3">
