@@ -38,26 +38,27 @@ export function SystemSelector({ systems, currentSystem }: Props) {
           <Button
             variant="outline"
             className="w-56 justify-between"
-          />
+            aria-label="Sélectionner une console"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <Monitor className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">
+                {currentSystem ? (
+                  <span className="capitalize">{currentSystem}</span>
+                ) : (
+                  <span className="text-muted-foreground">Toutes les consoles</span>
+                )}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                'ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                open && 'rotate-180',
+              )}
+            />
+          </Button>
         }
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <Monitor className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="truncate">
-            {currentSystem ? (
-              <span className="capitalize">{currentSystem}</span>
-            ) : (
-              <span className="text-muted-foreground">Toutes les consoles</span>
-            )}
-          </span>
-        </span>
-        <ChevronDown
-          className={cn(
-            'ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-        />
-      </PopoverTrigger>
+      />
       <PopoverContent className="w-56 p-0" align="start">
         <Command>
           <CommandInput placeholder="Rechercher une console…" />
