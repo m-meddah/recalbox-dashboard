@@ -47,9 +47,7 @@ describe('parseGamelist — snes fixture', () => {
 	})
 
 	it('builds absolute romPath correctly (subfolder)', () => {
-		expect(games[0].romPath).toBe(
-			`${ROMS_BASE}/0-9/'96 Zenkoku Koukou Soccer Senshuken (Japan).7z`,
-		)
+		expect(games[0].romPath).toBe(`${ROMS_BASE}/0-9/'96 Zenkoku Koukou Soccer Senshuken (Japan).7z`)
 	})
 
 	it('builds absolute imagePath', () => {

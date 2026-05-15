@@ -1,0 +1,226 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "retry": "Retry",
+    "loading": "Loading…",
+    "error": "Error"
+  },
+  "nav": {
+    "home": "🕹️ Recalbox",
+    "collection": "Collection",
+    "stats": "Stats",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "nowPlaying": {
+      "title": "Now Playing"
+    },
+    "system": {
+      "title": "System",
+      "loading": "Loading…",
+      "offline": "Recalbox offline — stats unavailable",
+      "waitingData": "Waiting for data…",
+      "cpuTemp": "CPU Temperature",
+      "cpuTempHistory": "CPU Temperature — last {seconds} seconds",
+      "tempNormal": "Normal",
+      "tempWarm": "Warm",
+      "tempCritical": "Critical",
+      "ramUsed": "{percent}% used",
+      "cpu": "CPU"
+    }
+  },
+  "nowPlaying": {
+    "mqttOffline": "MQTT offline — Recalbox unreachable",
+    "noGame": "No game playing"
+  },
+  "collection": {
+    "title": "Collection",
+    "subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
+    "gamesCount": "{count, plural, =0 {No games} one {1 game} other {# games}}",
+    "favoritesCount": "{count, plural, =0 {No favorites} one {1 favorite} other {# favorites}}",
+    "neverPlayedCount": "{count, plural, =0 {None never played} one {1 never played} other {# never played}}",
+    "systemsCount": "{count, plural, =0 {No systems} one {1 system} other {# systems}}",
+    "breadcrumb": "Collection",
+    "noGames": "No games found. Sync from your Recalbox.",
+    "totalGames": "{count, plural, =0 {No games} one {1 game} other {# games}}",
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "{page} / {total}"
+    },
+    "filters": {
+      "search": "Search…",
+      "favorites": "Favorites",
+      "neverPlayed": "Never played",
+      "sortName": "Name",
+      "sortRating": "Rating",
+      "sortLastPlayed": "Played",
+      "sortYear": "Year"
+    },
+    "sync": {
+      "button": "Sync from Recalbox",
+      "progress": "{done}/{total} · {games, plural, one {1 game} other {# games}}",
+      "done": "{count, plural, one {1 game} other {# games}} synced in {seconds}s",
+      "retry": "Retry"
+    }
+  },
+  "stats": {
+    "title": "Statistics",
+    "periods": {
+      "week": "This week",
+      "month": "This month",
+      "year": "This year",
+      "all": "All time"
+    },
+    "kpi": {
+      "playtime": "Playtime",
+      "gamesPlayed": "Games played",
+      "sessions": "Sessions",
+      "currentStreak": "Current streak",
+      "streakDays": "{count, plural, one {1 day} other {# days}}",
+      "streakRecord": "Record: {days}",
+      "vsPrevious": "vs previous period"
+    },
+    "sections": {
+      "activity": "Activity — last 365 days",
+      "dailyPlaytime": "Daily playtime",
+      "topGames": "Top games",
+      "bySystem": "By system",
+      "recentSessions": "Recent sessions"
+    },
+    "heatmap": {
+      "empty": "Play some games to see your activity",
+      "less": "Less",
+      "more": "More",
+      "tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
+    },
+    "topGames": {
+      "empty": "No games played in this period",
+      "showMore": "Show more ({count} games)",
+      "showLess": "Show less"
+    },
+    "timeline": {
+      "empty": "No sessions recorded"
+    },
+    "streak": {
+      "days": "{count, plural, one {consecutive day} other {consecutive days}}",
+      "noStreak": "Start a new streak today!",
+      "record": "Record: {days, plural, one {1 day} other {# days}}"
+    },
+    "systemDistribution": {
+      "empty": "No data available",
+      "others": "Others"
+    },
+    "playtimeChart": {
+      "empty": "No activity in this period"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure your Recalbox Dashboard",
+    "loading": "Loading settings…",
+    "loadError": "Failed to load settings.",
+    "tabs": {
+      "recalbox": "Recalbox",
+      "scrobble": "Scrobble",
+      "interface": "Interface"
+    },
+    "recalbox": {
+      "cardTitle": "Recalbox Connection",
+      "cardDescription": "SSH and MQTT connectivity settings",
+      "passwordWarning": "SSH password is stored in plaintext. This dashboard is designed for trusted local networks only.",
+      "host": "Host / IP address",
+      "sshUser": "SSH user",
+      "sshPassword": "SSH password",
+      "sshPasswordPlaceholder": "Leave blank to keep current",
+      "sshPasswordHint": "Leave blank to keep the current password",
+      "sshPort": "SSH port",
+      "mqttPort": "MQTT port",
+      "testConnection": "Test Connection",
+      "testing": "Testing…",
+      "saved": "Recalbox settings saved",
+      "saveError": "Failed to save settings",
+      "testError": "Connection test failed",
+      "showPassword": "Show",
+      "hidePassword": "Hide"
+    },
+    "scrobble": {
+      "cardTitle": "Session Tracking",
+      "cardDescription": "Control how game sessions are recorded",
+      "minDuration": "Minimum session duration (seconds)",
+      "minDurationHint": "Sessions shorter than this are discarded",
+      "maxDuration": "Maximum session duration (hours)",
+      "maxDurationHint": "Orphan sessions are capped at this duration",
+      "orphanRecovery": "Orphan recovery threshold (hours)",
+      "orphanRecoveryHint": "Sessions older than this without an end event are considered orphans",
+      "saved": "Scrobble settings saved",
+      "saveError": "Failed to save settings"
+    },
+    "interface": {
+      "cardTitle": "Interface",
+      "cardDescription": "Display and localization preferences",
+      "language": "Language",
+      "locale": "Locale",
+      "theme": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "weekStartsOn": "Week starts on",
+      "weekMonday": "Monday",
+      "weekSunday": "Sunday",
+      "saved": "Interface settings saved",
+      "saveError": "Failed to save settings"
+    }
+  },
+  "welcome": {
+    "title": "Welcome to Recalbox Dashboard",
+    "subtitle": "Let's get you set up in a few steps",
+    "steps": {
+      "configure": "Configure Recalbox",
+      "test": "Test Connection",
+      "confirm": "Confirm"
+    },
+    "step1": {
+      "title": "Recalbox Connection",
+      "description": "Enter the network details of your Recalbox console",
+      "next": "Next: Test Connection"
+    },
+    "step2": {
+      "title": "Test Connection",
+      "description": "Verifying SSH and MQTT connectivity to your Recalbox",
+      "testing": "Testing connection…",
+      "sshFailed": "SSH failed: check host, port, credentials. Default password is recalboxroot.",
+      "mqttFailed": "MQTT failed: check that the MQTT broker is enabled in Recalbox settings.",
+      "continue": "Continue"
+    },
+    "step3": {
+      "title": "All set!",
+      "descriptionOk": "Connection successful. Your dashboard is ready.",
+      "descriptionPartial": "You can complete setup now and fix any connection issues later in Settings.",
+      "host": "Host:",
+      "sshUser": "SSH user:",
+      "sshPort": "SSH port:",
+      "mqttPort": "MQTT port:",
+      "saving": "Saving…",
+      "finish": "Finish"
+    },
+    "form": {
+      "host": "Host / IP address",
+      "sshUser": "SSH user",
+      "sshPassword": "SSH password",
+      "sshPort": "SSH port",
+      "mqttPort": "MQTT port",
+      "showPassword": "Show",
+      "hidePassword": "Hide"
+    }
+  },
+  "time": {
+    "duration": {
+      "seconds": "{seconds}s",
+      "minutes": "{minutes}m",
+      "hoursMinutes": "{hours}h{minutes}"
+    }
+  }
+}

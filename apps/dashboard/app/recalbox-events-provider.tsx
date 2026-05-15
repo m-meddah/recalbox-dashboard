@@ -1,14 +1,7 @@
 'use client'
 
-import {
-	createContext,
-	useCallback,
-	useContext,
-	useEffect,
-	useRef,
-	useState,
-} from 'react'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
 export type SSEEvent = RecalboxEvent | ConnectionEvent

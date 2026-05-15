@@ -1,20 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import {
-	LineChart,
-	Line,
-	XAxis,
-	YAxis,
-	CartesianGrid,
-	Tooltip,
-	ResponsiveContainer,
-} from 'recharts'
+import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import type { SystemInfoEvent } from '@/lib/recalbox/events'
+import { useTranslations } from 'next-intl'
+import { useCallback, useEffect, useState } from 'react'
+import {
+	CartesianGrid,
+	Line,
+	LineChart,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from 'recharts'
 
 type ChartPoint = { time: string; temp: number }
 
@@ -53,8 +54,8 @@ function LoadingSkeleton() {
 	)
 }
 
-/** Live system stats — driven by Recalbox/WebAPI/SystemInfo via MQTT→SSE (1 update/s). */
 export function SystemStatsChart() {
+	const t = useTranslations('dashboard.system')
 	const { mqttOnline, subscribe } = useRecalboxEvents()
 	const [current, setCurrent] = useState<SystemInfoEvent | null>(null)
 	const [history, setHistory] = useState<ChartPoint[]>([])
@@ -65,7 +66,7 @@ export function SystemStatsChart() {
 		setCurrent(e)
 		setHistory((prev) => {
 			const point: ChartPoint = {
-				time: new Date(e.timestamp).toLocaleTimeString('fr-FR', {
+				time: new Date(e.timestamp).toLocaleTimeString(undefined, {
 					hour: '2-digit',
 					minute: '2-digit',
 					second: '2-digit',
@@ -81,25 +82,25 @@ export function SystemStatsChart() {
 		return subscribe(handleEvent)
 	}, [subscribe, handleEvent])
 
-	// Still connecting
 	if (mqttOnline === null) return <LoadingSkeleton />
 
-	// MQTT offline
 	if (mqttOnline === false) {
 		return (
 			<Card className="border-destructive/50">
 				<CardContent className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-					Recalbox hors ligne — stats indisponibles
+					{t('offline')}
 				</CardContent>
 			</Card>
 		)
 	}
 
-	// MQTT online but no data yet (first system:info not received)
 	if (!current) return <LoadingSkeleton />
 
 	const ramPercent =
 		current.memTotalMb > 0 ? Math.round((current.memUsedMb / current.memTotalMb) * 100) : null
+
+	const tempLabel =
+		current.tempCelsius < 60 ? t('tempNormal') : current.tempCelsius < 75 ? t('tempWarm') : t('tempCritical')
 
 	return (
 		<div className="space-y-4">
@@ -107,7 +108,7 @@ export function SystemStatsChart() {
 				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm font-medium text-muted-foreground">
-							CPU Temperature
+							{t('cpuTemp')}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
@@ -118,8 +119,20 @@ export function SystemStatsChart() {
 							variant="outline"
 							className={`mt-1 text-xs ${tempColorClass(current.tempCelsius)}`}
 						>
-							{current.tempCelsius < 60 ? 'Normal' : current.tempCelsius < 75 ? 'Chaud' : 'Critique'}
+							{tempLabel}
 						</Badge>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle className="text-sm font-medium text-muted-foreground">{t('cpu')}</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className="text-3xl font-bold tabular-nums">{current.cpuPercent.toFixed(1)}%</p>
+						<div className="mt-2">
+							<Progress value={current.cpuPercent} className="h-2" />
+						</div>
 					</CardContent>
 				</Card>
 
@@ -131,27 +144,18 @@ export function SystemStatsChart() {
 						<p className="text-3xl font-bold tabular-nums">
 							{current.memUsedMb}
 							<span className="text-base font-normal text-muted-foreground">
-								{' '}/ {current.memTotalMb} MB
+								{' '}
+								/ {current.memTotalMb} MB
 							</span>
 						</p>
 						{ramPercent != null && (
 							<div className="mt-2">
 								<Progress value={ramPercent} className="h-2" />
-								<p className="text-xs text-muted-foreground mt-1">{ramPercent}% utilisé</p>
+								<p className="text-xs text-muted-foreground mt-1">
+									{t('ramUsed', { percent: ramPercent })}
+								</p>
 							</div>
 						)}
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">CPU</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="text-3xl font-bold tabular-nums">{current.cpuPercent.toFixed(1)}%</p>
-						<div className="mt-2">
-							<Progress value={current.cpuPercent} className="h-2" />
-						</div>
 					</CardContent>
 				</Card>
 			</div>
@@ -159,13 +163,13 @@ export function SystemStatsChart() {
 			<Card>
 				<CardHeader className="pb-2">
 					<CardTitle className="text-sm font-medium text-muted-foreground">
-						CPU Temperature — {MAX_HISTORY} dernières secondes
+						{t('cpuTempHistory', { seconds: MAX_HISTORY })}
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					{history.length < 2 ? (
 						<p className="text-sm text-muted-foreground text-center py-10">
-							En attente de données…
+							{t('waitingData')}
 						</p>
 					) : (
 						<ResponsiveContainer width="100%" height={200}>

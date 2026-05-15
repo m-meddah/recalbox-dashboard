@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/recalbox/ssh-client', () => ({
 	sshClient: {
@@ -25,7 +25,10 @@ describe('getSystemStats', () => {
 		mockExec.mockImplementation((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('57123')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
-			if (cmd.includes('free')) return Promise.resolve('Mem:           3920        1024        2896           0           0        2000')
+			if (cmd.includes('free'))
+				return Promise.resolve(
+					'Mem:           3920        1024        2896           0           0        2000',
+				)
 			if (cmd.includes('uptime')) return Promise.resolve('86400.12 123456.00')
 			return Promise.resolve('')
 		})
@@ -40,7 +43,10 @@ describe('getSystemStats', () => {
 		mockExec.mockImplementation((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('50000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
-			if (cmd.includes('free')) return Promise.resolve('Mem:           7976        2048        5928           0           0        6000')
+			if (cmd.includes('free'))
+				return Promise.resolve(
+					'Mem:           7976        2048        5928           0           0        6000',
+				)
 			if (cmd.includes('uptime')) return Promise.resolve('3661.0 7000.0')
 			return Promise.resolve('')
 		})
@@ -55,7 +61,10 @@ describe('getSystemStats', () => {
 		mockExec.mockImplementation((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('45000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
-			if (cmd.includes('free')) return Promise.resolve('Mem:           3920        512        3408           0           0        2500')
+			if (cmd.includes('free'))
+				return Promise.resolve(
+					'Mem:           3920        512        3408           0           0        2500',
+				)
 			if (cmd.includes('uptime')) return Promise.resolve('172800.00 345600.00')
 			return Promise.resolve('')
 		})
@@ -82,7 +91,10 @@ describe('getSystemStats', () => {
 		mockExec.mockImplementation((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('42000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  not valid data here')
-			if (cmd.includes('free')) return Promise.resolve('Mem:           3920        800        3120           0           0        2500')
+			if (cmd.includes('free'))
+				return Promise.resolve(
+					'Mem:           3920        800        3120           0           0        2500',
+				)
 			if (cmd.includes('uptime')) return Promise.resolve('1234.5 9999.0')
 			return Promise.resolve('')
 		})

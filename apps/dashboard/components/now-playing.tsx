@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Gamepad2, WifiOff } from 'lucide-react'
+import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
+import { Gamepad2, WifiOff } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useCallback, useEffect, useState } from 'react'
 
 function useElapsedTime(startedAt: Date | null): string {
 	const [elapsed, setElapsed] = useState('')
@@ -47,9 +48,7 @@ function LiveBadge() {
 
 function GameCard({ game }: { game: GameStartEvent }) {
 	const elapsed = useElapsedTime(game.startedAt)
-	const imageUrl = game.imagePath
-		? `/api/media?path=${encodeURIComponent(game.imagePath)}`
-		: null
+	const imageUrl = game.imagePath ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
 
 	return (
 		<Card className="overflow-hidden">
@@ -92,11 +91,12 @@ function GameCard({ game }: { game: GameStartEvent }) {
 }
 
 function EmptyState() {
+	const t = useTranslations('nowPlaying')
 	return (
 		<Card className="border-dashed">
 			<CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
 				<Gamepad2 className="size-12 text-muted-foreground opacity-40" />
-				<p className="text-muted-foreground text-sm">Aucun jeu en cours</p>
+				<p className="text-muted-foreground text-sm">{t('noGame')}</p>
 			</CardContent>
 		</Card>
 	)
@@ -121,21 +121,19 @@ function LoadingSkeleton() {
 }
 
 export function NowPlaying() {
+	const t = useTranslations('nowPlaying')
 	const { mqttOnline, subscribe } = useRecalboxEvents()
 	const [currentGame, setCurrentGame] = useState<GameStartEvent | null>(null)
 
-	const handleEvent = useCallback(
-		(event: { type: string } & Record<string, unknown>) => {
-			if (event.type === 'game:start') {
-				const e = event as unknown as GameStartEvent
-				setCurrentGame({ ...e, startedAt: new Date(e.startedAt) })
-			} else if (event.type === 'game:stop') {
-				const e = event as unknown as GameStopEvent
-				setCurrentGame((prev) => (prev?.romPath === e.romPath ? null : prev))
-			}
-		},
-		[],
-	)
+	const handleEvent = useCallback((event: { type: string } & Record<string, unknown>) => {
+		if (event.type === 'game:start') {
+			const e = event as unknown as GameStartEvent
+			setCurrentGame({ ...e, startedAt: new Date(e.startedAt) })
+		} else if (event.type === 'game:stop') {
+			const e = event as unknown as GameStopEvent
+			setCurrentGame((prev) => (prev?.romPath === e.romPath ? null : prev))
+		}
+	}, [])
 
 	useEffect(() => {
 		return subscribe(handleEvent)
@@ -146,7 +144,7 @@ export function NowPlaying() {
 			{mqttOnline === false && (
 				<div className="flex items-center gap-2 text-xs text-orange-500 font-medium">
 					<WifiOff className="size-3.5" />
-					<span>MQTT hors ligne — Recalbox injoignable</span>
+					<span>{t('mqttOffline')}</span>
 				</div>
 			)}
 			{mqttOnline === null ? (

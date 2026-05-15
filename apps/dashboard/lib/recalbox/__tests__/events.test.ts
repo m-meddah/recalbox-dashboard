@@ -31,7 +31,13 @@ describe('rungame', () => {
 	it('maps to game:start with all fields', () => {
 		const result = parseRecalboxMessage(
 			ES_TOPIC,
-			buf({ event: 'rungame', param: baseGame.romPath, system: baseSystem, game: baseGame, media: baseMedia }),
+			buf({
+				event: 'rungame',
+				param: baseGame.romPath,
+				system: baseSystem,
+				game: baseGame,
+				media: baseMedia,
+			}),
 		)
 		expect(result?.type).toBe('game:start')
 		if (result?.type !== 'game:start') return
@@ -47,7 +53,13 @@ describe('rungame', () => {
 	it('sets imagePath to undefined when media.image is empty', () => {
 		const result = parseRecalboxMessage(
 			ES_TOPIC,
-			buf({ event: 'rungame', param: '', system: baseSystem, game: baseGame, media: { ...baseMedia, image: '' } }),
+			buf({
+				event: 'rungame',
+				param: '',
+				system: baseSystem,
+				game: baseGame,
+				media: { ...baseMedia, image: '' },
+			}),
 		)
 		expect(result?.type).toBe('game:start')
 		if (result?.type !== 'game:start') return
@@ -59,7 +71,13 @@ describe('endgame', () => {
 	it('maps to game:stop', () => {
 		const result = parseRecalboxMessage(
 			ES_TOPIC,
-			buf({ event: 'endgame', param: baseGame.romPath, system: baseSystem, game: baseGame, media: baseMedia }),
+			buf({
+				event: 'endgame',
+				param: baseGame.romPath,
+				system: baseSystem,
+				game: baseGame,
+				media: baseMedia,
+			}),
 		)
 		expect(result?.type).toBe('game:stop')
 		if (result?.type !== 'game:stop') return
@@ -73,7 +91,13 @@ describe('gamebrowsing', () => {
 	it('maps to system:change', () => {
 		const result = parseRecalboxMessage(
 			ES_TOPIC,
-			buf({ event: 'gamebrowsing', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
+			buf({
+				event: 'gamebrowsing',
+				param: '',
+				system: baseSystem,
+				game: baseGame,
+				media: baseMedia,
+			}),
 		)
 		expect(result?.type).toBe('system:change')
 		if (result?.type !== 'system:change') return
@@ -102,10 +126,7 @@ it('returns null for unrelated topic', () => {
 })
 
 it('returns null for the legacy plain-text topic', () => {
-	const result = parseRecalboxMessage(
-		'Recalbox/EmulationStation/Event',
-		Buffer.from('rungame'),
-	)
+	const result = parseRecalboxMessage('Recalbox/EmulationStation/Event', Buffer.from('rungame'))
 	expect(result).toBeNull()
 })
 

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { listGames } from '@/lib/db/queries'
 import type { CollectionFilters } from '@/lib/db/queries'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
