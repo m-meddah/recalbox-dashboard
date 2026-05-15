@@ -29,8 +29,8 @@ export async function GET(request: Request) {
 		return new Response('Forbidden', { status: 403 })
 	}
 
-	// Reject any path traversal attempts that survived the prefix check
-	if (filePath.includes('..')) {
+	// Reject path traversal — only block `..` as a full path component, not as part of a filename
+	if (filePath.includes('/../') || filePath.endsWith('/..')) {
 		return new Response('Forbidden', { status: 403 })
 	}
 
