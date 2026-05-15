@@ -218,7 +218,9 @@
     "recentUnlocks": "Succès récents",
     "topGames": "Meilleurs jeux par complétion",
     "heatmap": {
-      "label": "Succès débloqués par jour"
+      "label": "Succès débloqués par jour",
+      "less": "Moins",
+      "more": "Plus"
     }
   },
   "welcome": {

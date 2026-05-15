@@ -218,7 +218,9 @@
     "recentUnlocks": "Recent unlocks",
     "topGames": "Top games by completion",
     "heatmap": {
-      "label": "Achievements unlocked per day"
+      "label": "Achievements unlocked per day",
+      "less": "Less",
+      "more": "More"
     }
   },
   "welcome": {
