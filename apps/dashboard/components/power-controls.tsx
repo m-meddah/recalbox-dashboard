@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Power, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 type Action = 'shutdown' | 'reboot'
@@ -22,8 +23,10 @@ function PowerAction({ action }: { action: Action }) {
 	const t = useTranslations('power')
 	const tCommon = useTranslations('common')
 	const isShutdown = action === 'shutdown'
+	const [open, setOpen] = useState(false)
 
 	async function handleConfirm() {
+		setOpen(false)
 		try {
 			const res = await fetch('/api/system/power', {
 				method: 'POST',
@@ -38,11 +41,9 @@ function PowerAction({ action }: { action: Action }) {
 	}
 
 	return (
-		<AlertDialog>
-			<AlertDialogTrigger asChild>
-				<Button variant="ghost" size="icon" aria-label={t(action)}>
-					{isShutdown ? <Power className="size-4" /> : <RotateCcw className="size-4" />}
-				</Button>
+		<AlertDialog open={open} onOpenChange={setOpen}>
+			<AlertDialogTrigger render={<Button variant="ghost" size="icon" aria-label={t(action)} />}>
+				{isShutdown ? <Power className="size-4" /> : <RotateCcw className="size-4" />}
 			</AlertDialogTrigger>
 			<AlertDialogContent>
 				<AlertDialogHeader>
