@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { routing } from '@/i18n/routing'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { Toaster } from '@/components/ui/sonner'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -85,6 +86,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 								</nav>
 							</header>
 							{children}
+							<Toaster />
 						</RecalboxEventsProvider>
 					</NextIntlClientProvider>
 				</ThemeProvider>
