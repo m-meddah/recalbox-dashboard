@@ -185,6 +185,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 5 — Stats page with heatmap, charts and streaks
 - [x] Ticket 6 — Runtime settings UI with hot-reload
 - [x] Ticket 7 — Docker Compose self-hosting with s6 + multi-arch CI
+- [x] Ticket 8 — Internationalisation FR/EN (next-intl, locale prefix routing)
 
 ## Stats (`/stats/[period]`)
 
