@@ -27,6 +27,8 @@ function mergeDbIntoDefaults(defaults: AppConfig, dbRows: Record<string, string>
 		const current = (result[scope] as Record<string, unknown>)[key]
 		if (typeof current === 'number') {
 			;(result[scope] as Record<string, unknown>)[key] = Number(rawValue)
+		} else if (typeof current === 'boolean') {
+			;(result[scope] as Record<string, unknown>)[key] = rawValue === 'true'
 		} else {
 			;(result[scope] as Record<string, unknown>)[key] = rawValue
 		}
