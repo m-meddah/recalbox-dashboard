@@ -3,12 +3,13 @@
 import { Card, CardContent } from '@/components/ui/card'
 import type { Game } from '@/lib/db/queries'
 import { cn } from '@/lib/utils'
-import { Play, Star } from 'lucide-react'
+import { Play, Star, Trophy } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 
 type Props = {
 	game: Game
+	hasAchievements?: boolean
 }
 
 function formatRating(rating: number | null): string {
@@ -21,7 +22,7 @@ function formatDate(d: Date | null): string {
 	return new Date(d).getFullYear().toString()
 }
 
-export function GameCard({ game }: Props) {
+export function GameCard({ game, hasAchievements }: Props) {
 	const [imgError, setImgError] = useState(false)
 	const coverSrc =
 		game.imagePath && !imgError ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
@@ -29,7 +30,7 @@ export function GameCard({ game }: Props) {
 	return (
 		<Card className="group relative overflow-hidden transition-shadow hover:shadow-lg">
 			{/* Cover */}
-			<div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
+			<div className="relative aspect-3/4 w-full overflow-hidden bg-muted">
 				{coverSrc ? (
 					<Image
 						src={coverSrc}
@@ -43,6 +44,13 @@ export function GameCard({ game }: Props) {
 				) : (
 					<div className="flex h-full items-center justify-center text-4xl text-muted-foreground">
 						🎮
+					</div>
+				)}
+
+				{/* Achievement badge */}
+				{hasAchievements && (
+					<div className="absolute left-1 top-1 rounded-full bg-amber-500 p-1 shadow" title="Has achievements">
+						<Trophy className="h-3 w-3 fill-white text-white" />
 					</div>
 				)}
 

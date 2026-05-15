@@ -67,6 +67,7 @@ interface ConfigStoreEvents {
 	'changed:recalbox': (config: AppConfig) => void
 	'changed:scrobble': (config: AppConfig) => void
 	'changed:ui': (config: AppConfig) => void
+	'changed:retroachievements': (config: AppConfig) => void
 }
 
 declare interface ConfigStore {

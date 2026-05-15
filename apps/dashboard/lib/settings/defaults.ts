@@ -19,5 +19,11 @@ export function getDefaults(): AppConfig {
 			theme: 'system',
 			weekStartsOn: 1,
 		},
+		retroachievements: {
+			enabled: false,
+			username: '',
+			apiKey: '',
+			autoSyncMinutes: 30,
+		},
 	}
 }

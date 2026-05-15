@@ -39,6 +39,7 @@ function CollectionGridInner({ system }: Props) {
 	const [data, setData] = useState<ApiResponse | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [page, setPage] = useState(1)
+	const [unlockedRoms, setUnlockedRoms] = useState<Set<string>>(new Set())
 	const PAGE_SIZE = 60
 
 	const buildUrl = useCallback(
@@ -55,6 +56,13 @@ function CollectionGridInner({ system }: Props) {
 	useEffect(() => {
 		setPage(1)
 	}, [searchParams])
+
+	useEffect(() => {
+		fetch('/api/retroachievements/unlocked-roms')
+			.then((r) => r.json())
+			.then((roms: string[]) => setUnlockedRoms(new Set(roms)))
+			.catch(() => {})
+	}, [])
 
 	useEffect(() => {
 		setLoading(true)
@@ -79,7 +87,7 @@ function CollectionGridInner({ system }: Props) {
 
 			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 				{data.games.map((game) => (
-					<GameCard key={game.id} game={game} />
+					<GameCard key={game.id} game={game} hasAchievements={unlockedRoms.has(game.romPath)} />
 				))}
 			</div>
 

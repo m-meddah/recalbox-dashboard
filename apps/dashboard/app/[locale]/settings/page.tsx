@@ -20,6 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -58,6 +59,14 @@ const uiFormSchema = z.object({
 	weekStartsOn: z.union([z.literal(0), z.literal(1)]),
 })
 type UiForm = z.infer<typeof uiFormSchema>
+
+const raFormSchema = z.object({
+	enabled: z.boolean(),
+	username: z.string().max(64),
+	apiKey: z.string().max(256),
+	autoSyncMinutes: z.number().int().min(1).max(1440),
+})
+type RaForm = z.infer<typeof raFormSchema>
 
 type TestResult = {
 	ssh: { success: boolean; latencyMs: number; error?: string }
@@ -491,6 +500,214 @@ function UiTab({ config }: { config: AppConfig }) {
 	)
 }
 
+// ─── RetroAchievements tab ───────────────────────────────────────────────────
+
+function RetroAchievementsTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.retroachievements')
+	const tc = useTranslations('common')
+	const [showApiKey, setShowApiKey] = useState(false)
+	const [fetchingUsername, setFetchingUsername] = useState(false)
+	const [testing, setTesting] = useState(false)
+	const [testOk, setTestOk] = useState<boolean | null>(null)
+
+	const form = useForm<RaForm>({
+		resolver: zodResolver(raFormSchema),
+		defaultValues: {
+			enabled: config.retroachievements.enabled,
+			username: config.retroachievements.username,
+			apiKey: config.retroachievements.apiKey,
+			autoSyncMinutes: config.retroachievements.autoSyncMinutes,
+		},
+	})
+
+	const isDirty = form.formState.isDirty
+
+	async function fetchUsername() {
+		setFetchingUsername(true)
+		try {
+			const res = await fetch(
+				'/api/recalbox/conf?key=global.retroachievements.username',
+			)
+			const data = await res.json()
+			if (data.value) form.setValue('username', data.value, { shouldDirty: true })
+			else toast.info(t('usernameNotFound'))
+		} catch {
+			toast.error(t('usernameError'))
+		} finally {
+			setFetchingUsername(false)
+		}
+	}
+
+	async function onSave(values: RaForm) {
+		const body: Record<string, unknown> = { retroachievements: values }
+		if (!values.apiKey) {
+			;(body.retroachievements as Record<string, unknown>).apiKey = undefined
+		}
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			})
+			if (!res.ok) throw new Error()
+			form.reset(values)
+			toast.success(t('saved'))
+		} catch {
+			toast.error(t('saveError'))
+		}
+	}
+
+	async function handleTestConnection() {
+		setTesting(true)
+		setTestOk(null)
+		try {
+			const res = await fetch('/api/retroachievements/test-connection', { method: 'POST' })
+			const data = await res.json()
+			setTestOk(data.ok)
+			if (data.ok) toast.success(t('testSuccess', { user: data.user }))
+			else toast.error(t('testError', { error: data.error ?? '' }))
+		} catch {
+			setTestOk(false)
+			toast.error(t('testError', { error: 'Network error' }))
+		} finally {
+			setTesting(false)
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+				<FormField
+					control={form.control}
+					name="enabled"
+					render={({ field }) => (
+						<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+							<div className="space-y-0.5">
+								<FormLabel>{t('enabled')}</FormLabel>
+								<FormDescription>{t('enabledHint')}</FormDescription>
+							</div>
+							<FormControl>
+								<Switch checked={field.value} onCheckedChange={field.onChange} />
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="username"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('username')}</FormLabel>
+							<FormControl>
+								<div className="flex gap-2">
+									<Input {...field} placeholder={t('usernamePlaceholder')} className="flex-1" />
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={fetchUsername}
+										disabled={fetchingUsername}
+										title={t('fetchUsernameHint')}
+									>
+										{fetchingUsername ? '…' : '🔄'}
+									</Button>
+								</div>
+							</FormControl>
+							<FormDescription>{t('usernameHint')}</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="apiKey"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('apiKey')}</FormLabel>
+							<FormControl>
+								<div className="flex gap-2">
+									<Input
+										{...field}
+										type={showApiKey ? 'text' : 'password'}
+										placeholder={t('apiKeyPlaceholder')}
+										className="flex-1 font-mono text-sm"
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => setShowApiKey((v) => !v)}
+									>
+										{showApiKey ? t('hideApiKey') : t('showApiKey')}
+									</Button>
+								</div>
+							</FormControl>
+							<FormDescription>
+								{t('apiKeyHint')}{' '}
+								<a
+									href="https://retroachievements.org/controlpanel.php"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="underline"
+								>
+									retroachievements.org/controlpanel.php
+								</a>
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="autoSyncMinutes"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('autoSync')}</FormLabel>
+							<FormControl>
+								<Input
+									type="number"
+									min={1}
+									max={1440}
+									{...field}
+									onChange={(e) => field.onChange(Number(e.target.value))}
+								/>
+							</FormControl>
+							<FormDescription>{t('autoSyncHint')}</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<div className="flex gap-2 flex-wrap">
+					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
+						{tc('cancel')}
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						{tc('save')}
+					</Button>
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={handleTestConnection}
+						disabled={testing}
+					>
+						{testing ? t('testing') : t('testConnection')}
+					</Button>
+				</div>
+				{testOk === true && (
+					<Alert>
+						<AlertDescription className="text-green-600">{t('testOk')}</AlertDescription>
+					</Alert>
+				)}
+				{testOk === false && (
+					<Alert variant="destructive">
+						<AlertDescription>{t('testFailed')}</AlertDescription>
+					</Alert>
+				)}
+			</form>
+		</Form>
+	)
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -524,10 +741,11 @@ export default function SettingsPage() {
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<Tabs defaultValue="recalbox">
-				<TabsList className="grid w-full grid-cols-3">
+				<TabsList className="grid w-full grid-cols-4">
 					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
 					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
 					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
+					<TabsTrigger value="retroachievements">{t('tabs.retroachievements')}</TabsTrigger>
 				</TabsList>
 				<TabsContent value="recalbox" className="mt-6">
 					<Card>
@@ -559,6 +777,17 @@ export default function SettingsPage() {
 						</CardHeader>
 						<CardContent>
 							<UiTab config={config} />
+						</CardContent>
+					</Card>
+				</TabsContent>
+				<TabsContent value="retroachievements" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>{t('retroachievements.cardTitle')}</CardTitle>
+							<CardDescription>{t('retroachievements.cardDescription')}</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<RetroAchievementsTab config={config} />
 						</CardContent>
 					</Card>
 				</TabsContent>

@@ -11,6 +11,7 @@
     "home": "🕹️ Recalbox",
     "collection": "Collection",
     "stats": "Stats",
+    "achievements": "Achievements",
     "settings": "Settings"
   },
   "dashboard": {
@@ -125,7 +126,8 @@
     "tabs": {
       "recalbox": "Recalbox",
       "scrobble": "Scrobble",
-      "interface": "Interface"
+      "interface": "Interface",
+      "retroachievements": "RetroAchievements"
     },
     "recalbox": {
       "cardTitle": "Recalbox Connection",
@@ -172,6 +174,50 @@
       "weekSunday": "Sunday",
       "saved": "Interface settings saved",
       "saveError": "Failed to save settings"
+    },
+    "retroachievements": {
+      "cardTitle": "RetroAchievements",
+      "cardDescription": "Unlock tracking and achievement progress for your games",
+      "enabled": "Enable RetroAchievements",
+      "enabledHint": "Track achievement progress across your game library",
+      "username": "Username",
+      "usernamePlaceholder": "Your RetroAchievements username",
+      "usernameHint": "Auto-filled from your Recalbox config — click 🔄 to refresh",
+      "fetchUsernameHint": "Auto-detect from recalbox.conf",
+      "usernameNotFound": "Username not found in recalbox.conf",
+      "usernameError": "Failed to read recalbox.conf",
+      "apiKey": "Web API Key",
+      "apiKeyPlaceholder": "Your web API key",
+      "apiKeyHint": "Generate your key at ",
+      "showApiKey": "Show",
+      "hideApiKey": "Hide",
+      "autoSync": "Auto-sync interval (minutes)",
+      "autoSyncHint": "How often to sync achievement data in the background",
+      "testConnection": "Test Connection",
+      "testing": "Testing…",
+      "testSuccess": "Connected as {user}",
+      "testError": "Connection failed: {error}",
+      "testOk": "Connection successful",
+      "testFailed": "Connection failed — check your username and API key",
+      "saved": "RetroAchievements settings saved",
+      "saveError": "Failed to save settings"
+    }
+  },
+  "achievements": {
+    "title": "RetroAchievements",
+    "notConfigured": "RetroAchievements is not configured. Enable it in Settings to track your achievement progress.",
+    "goToSettings": "Go to Settings",
+    "error": "Error",
+    "retry": "Retry",
+    "sync": "Sync now",
+    "syncing": "Syncing…",
+    "points": "pts",
+    "truePoints": "true pts",
+    "activityHeatmap": "Activity — last 365 days",
+    "recentUnlocks": "Recent unlocks",
+    "topGames": "Top games by completion",
+    "heatmap": {
+      "label": "Achievements unlocked per day"
     }
   },
   "welcome": {
