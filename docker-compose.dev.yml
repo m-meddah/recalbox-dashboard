@@ -12,12 +12,12 @@ services:
       - /app/apps/dashboard/node_modules
       - /app/apps/dashboard/.next
     environment:
-      RECALBOX_HOST: recalbox.local
-      RECALBOX_SSH_USER: root
-      RECALBOX_SSH_PASSWORD: recalboxroot
-      RECALBOX_SSH_PORT: 22
-      RECALBOX_MQTT_PORT: 1883
+      RECALBOX_HOST: ${RECALBOX_HOST:-recalbox.local}
+      RECALBOX_SSH_USER: ${RECALBOX_SSH_USER:-root}
+      RECALBOX_SSH_PASSWORD: ${RECALBOX_SSH_PASSWORD:-recalboxroot}
+      RECALBOX_SSH_PORT: ${RECALBOX_SSH_PORT:-22}
+      RECALBOX_MQTT_PORT: ${RECALBOX_MQTT_PORT:-1883}
       DATABASE_PATH: /app/apps/dashboard/recalbox.db
-      TZ: Europe/Paris
+      TZ: ${TZ:-Europe/Paris}
     working_dir: /app
     command: pnpm dev

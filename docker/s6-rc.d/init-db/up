@@ -1,5 +1,5 @@
 #!/command/with-contenv sh
 set -e
 echo "[init-db] Running database migrations..."
-node /app/migrate.js
+exec s6-setuidgid dashboard node /app/migrate.js
 echo "[init-db] Done."
