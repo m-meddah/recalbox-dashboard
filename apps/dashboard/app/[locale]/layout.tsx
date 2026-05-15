@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { routing } from '@/i18n/routing'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { PowerControls } from '@/components/power-controls'
 import { Toaster } from '@/components/ui/sonner'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
@@ -80,6 +81,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 										{t('settings')}
 									</Link>
 									<div className="ml-auto flex items-center gap-2">
+										<PowerControls />
 										<ThemeToggle />
 										<LanguageSwitcher />
 									</div>
