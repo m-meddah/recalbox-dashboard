@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { logger } from '@/lib/logger'
 import { getYearAchievements } from '@/lib/retroachievements/service'
 import { NextResponse } from 'next/server'
 
@@ -15,9 +16,7 @@ export async function GET() {
 		const achievements = await getYearAchievements()
 		return NextResponse.json(achievements)
 	} catch (err) {
-		return NextResponse.json(
-			{ error: err instanceof Error ? err.message : 'Failed to fetch achievements' },
-			{ status: 502 },
-		)
+		logger.error('Failed to fetch RA achievements', err)
+		return NextResponse.json({ error: 'Failed to fetch achievements' }, { status: 502 })
 	}
 }

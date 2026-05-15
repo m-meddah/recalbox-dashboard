@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { logger } from '@/lib/logger'
 import { getAllGameProgress, getLiveGameProgress } from '@/lib/retroachievements/service'
 import { NextResponse } from 'next/server'
 
@@ -18,9 +19,7 @@ export async function GET() {
 		const liveProgress = await getLiveGameProgress()
 		return NextResponse.json(liveProgress)
 	} catch (err) {
-		return NextResponse.json(
-			{ error: err instanceof Error ? err.message : 'Failed to fetch progress' },
-			{ status: 502 },
-		)
+		logger.error('Failed to fetch RA progress', err)
+		return NextResponse.json({ error: 'Failed to fetch progress' }, { status: 502 })
 	}
 }
