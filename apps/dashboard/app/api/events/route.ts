@@ -1,5 +1,5 @@
-import { getMqttClient } from '@/lib/recalbox/mqtt-client'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
+import { getMqttClient } from '@/lib/recalbox/mqtt-client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -21,9 +21,7 @@ export async function GET(request: Request) {
 
 			const sendConnectionStatus = (online: boolean) => {
 				try {
-					controller.enqueue(
-						encode(`data: ${JSON.stringify({ type: 'connection', online })}\n\n`),
-					)
+					controller.enqueue(encode(`data: ${JSON.stringify({ type: 'connection', online })}\n\n`))
 				} catch {
 					// Client already disconnected
 				}

@@ -1,5 +1,5 @@
-import { sshClient } from '@/lib/recalbox/ssh-client'
 import { logger } from '@/lib/logger'
+import { sshClient } from '@/lib/recalbox/ssh-client'
 
 export type SystemStats = {
 	cpuTemp: number | null
@@ -12,7 +12,7 @@ export type SystemStats = {
 
 /** Parse CPU temperature from /sys/class/thermal output (millidegrees → °C). */
 function parseCpuTemp(raw: string): number | null {
-	const val = parseInt(raw, 10)
+	const val = Number.parseInt(raw, 10)
 	if (Number.isNaN(val)) return null
 	return val / 1000
 }
@@ -56,15 +56,15 @@ async function getCpuUsage(): Promise<number | null> {
 function parseRam(raw: string): { used: number; total: number } | null {
 	// Format: Mem:   total  used  free  shared  buff/cache  available
 	const parts = raw.trim().split(/\s+/)
-	const total = parseInt(parts[1] ?? '', 10)
-	const used = parseInt(parts[2] ?? '', 10)
+	const total = Number.parseInt(parts[1] ?? '', 10)
+	const used = Number.parseInt(parts[2] ?? '', 10)
 	if (Number.isNaN(total) || Number.isNaN(used)) return null
 	return { total, used }
 }
 
 /** Parse uptime seconds from /proc/uptime output. */
 function parseUptime(raw: string): number | null {
-	const val = parseFloat(raw.split(' ')[0] ?? '')
+	const val = Number.parseFloat(raw.split(' ')[0] ?? '')
 	return Number.isNaN(val) ? null : val
 }
 

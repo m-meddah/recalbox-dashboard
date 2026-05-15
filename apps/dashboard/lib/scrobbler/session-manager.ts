@@ -1,10 +1,10 @@
-import { eq, isNull, sql } from 'drizzle-orm'
 import type { DB } from '@/lib/db/index'
 import { sessions } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
+import { eq, isNull, sql } from 'drizzle-orm'
 
-const MIN_DURATION_SEC = parseInt(process.env['SCROBBLE_MIN_DURATION_SEC'] ?? '10', 10)
+const MIN_DURATION_SEC = Number.parseInt(process.env['SCROBBLE_MIN_DURATION_SEC'] ?? '10', 10)
 const MAX_DURATION_SEC = 3600
 
 type OpenSession = typeof sessions.$inferSelect
@@ -16,7 +16,11 @@ export class SessionManager {
 		return this.db.select().from(sessions).where(isNull(sessions.endedAt))
 	}
 
-	private async insert(opts: { startedAt: Date; system: string; romPath: string }): Promise<number> {
+	private async insert(opts: {
+		startedAt: Date
+		system: string
+		romPath: string
+	}): Promise<number> {
 		const rows = await this.db
 			.insert(sessions)
 			.values({ startedAt: opts.startedAt, system: opts.system, romPath: opts.romPath })
@@ -51,10 +55,14 @@ export class SessionManager {
 		const open = await this.getOpen()
 
 		for (const existing of open) {
-			const durationSec = Math.round((event.startedAt.getTime() - existing.startedAt.getTime()) / 1000)
+			const durationSec = Math.round(
+				(event.startedAt.getTime() - existing.startedAt.getTime()) / 1000,
+			)
 			if (durationSec < MIN_DURATION_SEC) {
 				await this.remove(existing.id)
-				logger.info(`Deleted short auto-closed session ${existing.id} (${durationSec}s) for ${existing.romPath}`)
+				logger.info(
+					`Deleted short auto-closed session ${existing.id} (${durationSec}s) for ${existing.romPath}`,
+				)
 			} else {
 				await this.close(existing.id, event.startedAt, durationSec, {
 					autoClosed: true,
@@ -64,7 +72,11 @@ export class SessionManager {
 			}
 		}
 
-		const id = await this.insert({ startedAt: event.startedAt, system: event.system, romPath: event.romPath })
+		const id = await this.insert({
+			startedAt: event.startedAt,
+			system: event.system,
+			romPath: event.romPath,
+		})
 		logger.info(`Opened session ${id} for ${event.romPath} on ${event.system}`)
 	}
 
@@ -104,7 +116,9 @@ export class SessionManager {
 			} else {
 				const endedAt = new Date(session.startedAt.getTime() + durationSec * 1000)
 				await this.close(session.id, endedAt, durationSec, { closedReason: 'orphan_recovery' })
-				logger.info(`Recovered orphan session ${session.id} (${durationSec}s capped) for ${session.romPath}`)
+				logger.info(
+					`Recovered orphan session ${session.id} (${durationSec}s capped) for ${session.romPath}`,
+				)
 			}
 		}
 

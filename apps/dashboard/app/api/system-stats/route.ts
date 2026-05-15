@@ -1,23 +1,20 @@
-import { NextResponse } from 'next/server'
-import { getSystemStats } from '@/lib/recalbox/system-stats'
-import { insertSystemSnapshot, getRecentSnapshots } from '@/lib/db/queries'
+import { getRecentSnapshots, insertSystemSnapshot } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
+import { getSystemStats } from '@/lib/recalbox/system-stats'
+import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request): Promise<NextResponse> {
 	const { searchParams } = new URL(request.url)
-	const historyMinutes = parseInt(searchParams.get('history') ?? '0', 10)
+	const historyMinutes = Number.parseInt(searchParams.get('history') ?? '0', 10)
 
 	let stats
 	try {
 		stats = await getSystemStats()
 	} catch (err) {
 		logger.error('Failed to fetch system stats via SSH', err)
-		return NextResponse.json(
-			{ error: 'Recalbox unreachable via SSH' },
-			{ status: 503 },
-		)
+		return NextResponse.json({ error: 'Recalbox unreachable via SSH' }, { status: 503 })
 	}
 
 	try {

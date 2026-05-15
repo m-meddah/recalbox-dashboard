@@ -1,0 +1,226 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "back": "Retour",
+    "retry": "Réessayer",
+    "loading": "Chargement…",
+    "error": "Erreur"
+  },
+  "nav": {
+    "home": "🕹️ Recalbox",
+    "collection": "Collection",
+    "stats": "Stats",
+    "settings": "Paramètres"
+  },
+  "dashboard": {
+    "nowPlaying": {
+      "title": "En cours"
+    },
+    "system": {
+      "title": "Système",
+      "loading": "Chargement…",
+      "offline": "Recalbox hors ligne — stats indisponibles",
+      "waitingData": "En attente de données…",
+      "cpuTemp": "Température CPU",
+      "cpuTempHistory": "Température CPU — {seconds} dernières secondes",
+      "tempNormal": "Normal",
+      "tempWarm": "Chaud",
+      "tempCritical": "Critique",
+      "ramUsed": "{percent}% utilisé",
+      "cpu": "CPU"
+    }
+  },
+  "nowPlaying": {
+    "mqttOffline": "MQTT hors ligne — Recalbox injoignable",
+    "noGame": "Aucun jeu en cours"
+  },
+  "collection": {
+    "title": "Collection",
+    "subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
+    "gamesCount": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
+    "favoritesCount": "{count, plural, =0 {Aucun favori} one {1 favori} other {# favoris}}",
+    "neverPlayedCount": "{count, plural, =0 {Aucun jamais joué} one {1 jamais joué} other {# jamais joués}}",
+    "systemsCount": "{count, plural, =0 {Aucun système} one {1 système} other {# systèmes}}",
+    "breadcrumb": "Collection",
+    "noGames": "Aucun jeu trouvé. Lance une synchronisation depuis la Recalbox.",
+    "totalGames": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
+    "pagination": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "{page} / {total}"
+    },
+    "filters": {
+      "search": "Rechercher…",
+      "favorites": "Favoris",
+      "neverPlayed": "Jamais joué",
+      "sortName": "Nom",
+      "sortRating": "Note",
+      "sortLastPlayed": "Joué",
+      "sortYear": "Année"
+    },
+    "sync": {
+      "button": "Synchroniser depuis Recalbox",
+      "progress": "{done}/{total} · {games, plural, one {1 jeu} other {# jeux}}",
+      "done": "{count, plural, one {1 jeu synchronisé} other {# jeux synchronisés}} en {seconds}s",
+      "retry": "Réessayer"
+    }
+  },
+  "stats": {
+    "title": "Statistiques",
+    "periods": {
+      "week": "Cette semaine",
+      "month": "Ce mois",
+      "year": "Cette année",
+      "all": "Tout"
+    },
+    "kpi": {
+      "playtime": "Temps de jeu",
+      "gamesPlayed": "Jeux joués",
+      "sessions": "Sessions",
+      "currentStreak": "Série actuelle",
+      "streakDays": "{count, plural, one {1 jour} other {# jours}}",
+      "streakRecord": "Record : {days}",
+      "vsPrevious": "vs période précédente"
+    },
+    "sections": {
+      "activity": "Activité — 365 derniers jours",
+      "dailyPlaytime": "Temps de jeu par jour",
+      "topGames": "Top jeux",
+      "bySystem": "Par système",
+      "recentSessions": "Dernières sessions"
+    },
+    "heatmap": {
+      "empty": "Joue à des jeux pour voir ton activité",
+      "less": "Moins",
+      "more": "Plus",
+      "tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
+    },
+    "topGames": {
+      "empty": "Aucun jeu joué sur cette période",
+      "showMore": "Voir plus ({count} jeux)",
+      "showLess": "Voir moins"
+    },
+    "timeline": {
+      "empty": "Aucune session enregistrée"
+    },
+    "streak": {
+      "days": "{count, plural, one {jour consécutif} other {jours consécutifs}}",
+      "noStreak": "Commence une nouvelle série aujourd'hui !",
+      "record": "Record : {days, plural, one {1 jour} other {# jours}}"
+    },
+    "systemDistribution": {
+      "empty": "Aucune donnée disponible",
+      "others": "Autres"
+    },
+    "playtimeChart": {
+      "empty": "Aucune activité sur cette période"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Configurez votre Recalbox Dashboard",
+    "loading": "Chargement des paramètres…",
+    "loadError": "Impossible de charger les paramètres.",
+    "tabs": {
+      "recalbox": "Recalbox",
+      "scrobble": "Scrobble",
+      "interface": "Interface"
+    },
+    "recalbox": {
+      "cardTitle": "Connexion Recalbox",
+      "cardDescription": "Paramètres de connectivité SSH et MQTT",
+      "passwordWarning": "Le mot de passe SSH est stocké en clair. Ce tableau de bord est conçu pour les réseaux locaux de confiance uniquement.",
+      "host": "Hôte / Adresse IP",
+      "sshUser": "Utilisateur SSH",
+      "sshPassword": "Mot de passe SSH",
+      "sshPasswordPlaceholder": "Laisser vide pour conserver l'actuel",
+      "sshPasswordHint": "Laisser vide pour conserver le mot de passe actuel",
+      "sshPort": "Port SSH",
+      "mqttPort": "Port MQTT",
+      "testConnection": "Tester la connexion",
+      "testing": "Test en cours…",
+      "saved": "Paramètres Recalbox enregistrés",
+      "saveError": "Impossible d'enregistrer les paramètres",
+      "testError": "Échec du test de connexion",
+      "showPassword": "Afficher",
+      "hidePassword": "Masquer"
+    },
+    "scrobble": {
+      "cardTitle": "Suivi des sessions",
+      "cardDescription": "Contrôlez l'enregistrement des sessions de jeu",
+      "minDuration": "Durée minimale de session (secondes)",
+      "minDurationHint": "Les sessions plus courtes sont ignorées",
+      "maxDuration": "Durée maximale de session (heures)",
+      "maxDurationHint": "Les sessions orphelines sont plafonnées à cette durée",
+      "orphanRecovery": "Seuil de récupération orphelin (heures)",
+      "orphanRecoveryHint": "Les sessions plus anciennes sans événement de fin sont considérées comme orphelines",
+      "saved": "Paramètres Scrobble enregistrés",
+      "saveError": "Impossible d'enregistrer les paramètres"
+    },
+    "interface": {
+      "cardTitle": "Interface",
+      "cardDescription": "Préférences d'affichage et de localisation",
+      "language": "Langue",
+      "locale": "Locale",
+      "theme": "Thème",
+      "themeSystem": "Système",
+      "themeLight": "Clair",
+      "themeDark": "Sombre",
+      "weekStartsOn": "La semaine commence le",
+      "weekMonday": "Lundi",
+      "weekSunday": "Dimanche",
+      "saved": "Paramètres d'interface enregistrés",
+      "saveError": "Impossible d'enregistrer les paramètres"
+    }
+  },
+  "welcome": {
+    "title": "Bienvenue sur Recalbox Dashboard",
+    "subtitle": "Configurons tout en quelques étapes",
+    "steps": {
+      "configure": "Configurer Recalbox",
+      "test": "Tester la connexion",
+      "confirm": "Confirmer"
+    },
+    "step1": {
+      "title": "Connexion Recalbox",
+      "description": "Entrez les détails réseau de votre console Recalbox",
+      "next": "Suivant : Tester la connexion"
+    },
+    "step2": {
+      "title": "Tester la connexion",
+      "description": "Vérification de la connectivité SSH et MQTT vers votre Recalbox",
+      "testing": "Test en cours…",
+      "sshFailed": "SSH échoué : vérifiez l'hôte, le port, les identifiants. Le mot de passe par défaut est recalboxroot.",
+      "mqttFailed": "MQTT échoué : vérifiez que le broker MQTT est activé dans les paramètres Recalbox.",
+      "continue": "Continuer"
+    },
+    "step3": {
+      "title": "C'est prêt !",
+      "descriptionOk": "Connexion réussie. Votre tableau de bord est prêt.",
+      "descriptionPartial": "Vous pouvez terminer la configuration maintenant et corriger les problèmes de connexion plus tard dans les Paramètres.",
+      "host": "Hôte :",
+      "sshUser": "Utilisateur SSH :",
+      "sshPort": "Port SSH :",
+      "mqttPort": "Port MQTT :",
+      "saving": "Enregistrement…",
+      "finish": "Terminer"
+    },
+    "form": {
+      "host": "Hôte / Adresse IP",
+      "sshUser": "Utilisateur SSH",
+      "sshPassword": "Mot de passe SSH",
+      "sshPort": "Port SSH",
+      "mqttPort": "Port MQTT",
+      "showPassword": "Afficher",
+      "hidePassword": "Masquer"
+    }
+  },
+  "time": {
+    "duration": {
+      "seconds": "{seconds}s",
+      "minutes": "{minutes}m",
+      "hoursMinutes": "{hours}h{minutes}"
+    }
+  }
+}

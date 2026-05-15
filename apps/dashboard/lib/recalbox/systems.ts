@@ -1,6 +1,6 @@
-import { sshClient } from './ssh-client'
-import { shellQuote } from './shell'
 import { logger } from '@/lib/logger'
+import { shellQuote } from './shell'
+import { sshClient } from './ssh-client'
 
 export type GameSystem = {
 	id: string
@@ -108,9 +108,7 @@ export async function listSystems(): Promise<GameSystem[]> {
 	const systems: GameSystem[] = []
 
 	// Discover mounted USB disks under /recalbox/share/externals/
-	const disksOutput = await sshClient.exec(
-		'ls -1 /recalbox/share/externals/ 2>/dev/null',
-	)
+	const disksOutput = await sshClient.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
 	const disks = disksOutput
 		.split('\n')
 		.map((d) => d.trim())
@@ -118,9 +116,7 @@ export async function listSystems(): Promise<GameSystem[]> {
 
 	for (const disk of disks) {
 		const romsBase = `/recalbox/share/externals/${disk}/recalbox/roms`
-		const dirsOutput = await sshClient.exec(
-			`ls -1 ${shellQuote(romsBase)} 2>/dev/null`,
-		)
+		const dirsOutput = await sshClient.exec(`ls -1 ${shellQuote(romsBase)} 2>/dev/null`)
 		const dirs = dirsOutput
 			.split('\n')
 			.map((d) => d.trim())

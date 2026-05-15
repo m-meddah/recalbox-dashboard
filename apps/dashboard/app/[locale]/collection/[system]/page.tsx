@@ -1,22 +1,26 @@
+import { routing } from '@/i18n/routing'
 import { CollectionFilters } from '@/components/collection-filters'
 import { CollectionGrid } from '@/components/collection-grid'
 import { SyncButton } from '@/components/sync-button'
 import { SystemSelector } from '@/components/system-selector'
 import { Separator } from '@/components/ui/separator'
+import { Link } from '@/i18n/navigation'
 import { getCollectionStats } from '@/lib/db/queries'
 import { ChevronRight } from 'lucide-react'
-import Link from 'next/link'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
 type Props = {
-	params: Promise<{ system: string }>
+	params: Promise<{ system: string; locale: string }>
 }
 
 export default async function SystemCollectionPage({ params }: Props) {
-	const { system } = await params
-	const stats = await getCollectionStats()
+	const { system, locale } = await params
+	setRequestLocale(locale as (typeof routing.locales)[number])
+
+	const [stats, t] = await Promise.all([getCollectionStats(), getTranslations('collection')])
 	const gameCount = stats.bySystem[system] ?? 0
 
 	const sortedSystems = Object.entries(stats.bySystem)
@@ -28,7 +32,7 @@ export default async function SystemCollectionPage({ params }: Props) {
 			{/* Breadcrumb */}
 			<nav className="flex items-center gap-1 text-sm text-muted-foreground">
 				<Link href="/collection" className="hover:text-foreground">
-					Collection
+					{t('breadcrumb')}
 				</Link>
 				<ChevronRight className="h-4 w-4" />
 				<span className="font-medium text-foreground capitalize">{system}</span>
@@ -39,7 +43,7 @@ export default async function SystemCollectionPage({ params }: Props) {
 				<div>
 					<h1 className="text-2xl font-bold capitalize">{system}</h1>
 					<p className="text-sm text-muted-foreground">
-						{gameCount.toLocaleString('fr-FR')} jeu{gameCount > 1 ? 'x' : ''}
+						{t('totalGames', { count: gameCount })}
 					</p>
 				</div>
 				<SyncButton system={system} />

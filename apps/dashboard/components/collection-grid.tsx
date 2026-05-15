@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { GameCard } from './game-card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Game } from '@/lib/db/queries'
+import { useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { GameCard } from './game-card'
 
 type Props = {
 	system?: string
@@ -33,6 +34,7 @@ function GridSkeleton() {
 }
 
 function CollectionGridInner({ system }: Props) {
+	const t = useTranslations('collection')
 	const searchParams = useSearchParams()
 	const [data, setData] = useState<ApiResponse | null>(null)
 	const [loading, setLoading] = useState(true)
@@ -65,9 +67,7 @@ function CollectionGridInner({ system }: Props) {
 	if (loading) return <GridSkeleton />
 	if (!data || data.games.length === 0) {
 		return (
-			<div className="py-16 text-center text-muted-foreground">
-				Aucun jeu trouvé. Lance une synchronisation depuis la Recalbox.
-			</div>
+			<div className="py-16 text-center text-muted-foreground">{t('noGames')}</div>
 		)
 	}
 
@@ -75,9 +75,7 @@ function CollectionGridInner({ system }: Props) {
 
 	return (
 		<div className="space-y-4">
-			<p className="text-sm text-muted-foreground">
-				{data.total.toLocaleString('fr-FR')} jeu{data.total > 1 ? 'x' : ''}
-			</p>
+			<p className="text-sm text-muted-foreground">{t('totalGames', { count: data.total })}</p>
 
 			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 				{data.games.map((game) => (
@@ -93,10 +91,10 @@ function CollectionGridInner({ system }: Props) {
 						disabled={page <= 1}
 						onClick={() => setPage((p) => p - 1)}
 					>
-						Précédent
+						{t('pagination.previous')}
 					</Button>
 					<span className="text-sm text-muted-foreground">
-						{page} / {totalPages}
+						{t('pagination.page', { page, total: totalPages })}
 					</span>
 					<Button
 						variant="outline"
@@ -104,7 +102,7 @@ function CollectionGridInner({ system }: Props) {
 						disabled={page >= totalPages}
 						onClick={() => setPage((p) => p + 1)}
 					>
-						Suivant
+						{t('pagination.next')}
 					</Button>
 				</div>
 			)}

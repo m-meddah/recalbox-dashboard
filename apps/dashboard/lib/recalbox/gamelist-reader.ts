@@ -1,6 +1,6 @@
-import { sshClient } from './ssh-client'
-import { shellQuote } from './shell'
 import { logger } from '@/lib/logger'
+import { shellQuote } from './shell'
+import { sshClient } from './ssh-client'
 
 const READ_TIMEOUT_MS = 30_000
 
@@ -21,9 +21,7 @@ export async function readUserdataIni(romsBasePath: string): Promise<string | nu
 
 async function readRemoteFile(path: string): Promise<string | null> {
 	try {
-		const exists = await sshClient.exec(
-			`test -f ${shellQuote(path)} && echo yes || echo no`,
-		)
+		const exists = await sshClient.exec(`test -f ${shellQuote(path)} && echo yes || echo no`)
 		if (exists !== 'yes') return null
 
 		const content = await sshClient.exec(`cat ${shellQuote(path)}`, READ_TIMEOUT_MS)
