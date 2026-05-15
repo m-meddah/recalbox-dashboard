@@ -10,11 +10,13 @@ import type { RaAchievement, RaGameProgress, RaProfile } from '@/lib/retroachiev
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useState } from 'react'
 
+const RECENT_DISPLAY_COUNT = 20
+
 type State =
 	| { kind: 'loading' }
 	| { kind: 'disabled' }
 	| { kind: 'error'; message: string }
-	| { kind: 'ok'; profile: RaProfile; recent: RaAchievement[]; progress: RaGameProgress[] }
+	| { kind: 'ok'; profile: RaProfile; allAchievements: RaAchievement[]; progress: RaGameProgress[] }
 
 function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] }) {
 	const t = useTranslations('achievements.heatmap')
@@ -92,13 +94,13 @@ export default function AchievementsPage() {
 				return
 			}
 
-			const [profile, recent, progress] = await Promise.all([
+			const [profile, allAchievements, progress] = await Promise.all([
 				profileRes.json() as Promise<RaProfile>,
 				recentRes.ok ? (recentRes.json() as Promise<RaAchievement[]>) : Promise.resolve([]),
 				progressRes.ok ? (progressRes.json() as Promise<RaGameProgress[]>) : Promise.resolve([]),
 			])
 
-			setState({ kind: 'ok', profile, recent, progress })
+			setState({ kind: 'ok', profile, allAchievements, progress })
 		} catch (err) {
 			setState({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' })
 		}
@@ -158,7 +160,11 @@ export default function AchievementsPage() {
 		)
 	}
 
-	const { profile, recent, progress } = state
+	const { profile, allAchievements, progress } = state
+	const sortedAchievements = [...allAchievements].sort(
+		(a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime(),
+	)
+	const recent = sortedAchievements.slice(0, RECENT_DISPLAY_COUNT)
 	const topGames = [...progress]
 		.sort((a, b) => b.numAwarded - a.numAwarded)
 		.slice(0, 10)
@@ -188,15 +194,25 @@ export default function AchievementsPage() {
 							{profile.motto && (
 								<p className="text-sm text-muted-foreground truncate">{profile.motto}</p>
 							)}
-							<div className="flex gap-3 mt-1 text-sm">
-								<span>
-									<span className="font-semibold">{profile.totalPoints.toLocaleString()}</span>{' '}
-									{t('points')}
-								</span>
-								<span>
-									<span className="font-semibold">{profile.totalTruePoints.toLocaleString()}</span>{' '}
-									{t('truePoints')}
-								</span>
+							<div className="flex gap-3 mt-1 text-sm flex-wrap">
+								{profile.totalPoints > 0 && (
+									<span>
+										<span className="font-semibold">{profile.totalPoints.toLocaleString()}</span>{' '}
+										{t('points')}
+									</span>
+								)}
+								{profile.totalSoftcorePoints > 0 && (
+									<span>
+										<span className="font-semibold">{profile.totalSoftcorePoints.toLocaleString()}</span>{' '}
+										{t('softcorePoints')}
+									</span>
+								)}
+								{profile.totalTruePoints > 0 && (
+									<span>
+										<span className="font-semibold">{profile.totalTruePoints.toLocaleString()}</span>{' '}
+										{t('truePoints')}
+									</span>
+								)}
 							</div>
 						</div>
 					</div>
@@ -212,7 +228,7 @@ export default function AchievementsPage() {
 					<CardTitle className="text-base">{t('activityHeatmap')}</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<AchievementHeatmap achievements={recent} />
+					<AchievementHeatmap achievements={allAchievements} />
 				</CardContent>
 			</Card>
 
