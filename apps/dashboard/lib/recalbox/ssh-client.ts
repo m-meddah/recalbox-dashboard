@@ -3,7 +3,7 @@ import { logger } from '@/lib/logger'
 import { NodeSSH } from 'node-ssh'
 
 const EXEC_TIMEOUT_MS = 5000
-const MAX_CONCURRENT = 4
+const MAX_CONCURRENT = 2
 
 class SshClient {
 	private ssh = new NodeSSH()
@@ -15,6 +15,9 @@ class SshClient {
 	private async connect(): Promise<void> {
 		if (this.connectingPromise) return this.connectingPromise
 		this.connectingPromise = (async () => {
+			// Dispose and recreate to avoid stale state after ECONNRESET
+			this.ssh.dispose()
+			this.ssh = new NodeSSH()
 			const { host, sshUser, sshPassword, sshPort } = configStore.get().recalbox
 			await this.ssh.connect({
 				host,
@@ -22,8 +25,14 @@ class SshClient {
 				password: sshPassword,
 				port: sshPort,
 				readyTimeout: EXEC_TIMEOUT_MS,
+				keepaliveInterval: 10000,
 			})
 			this.connected = true
+			// Prevent uncaughtException when the server resets the connection externally
+			this.ssh.connection?.on('error', (err: unknown) => {
+				this.connected = false
+				logger.error('SSH connection reset externally', err)
+			})
 			logger.info(`SSH connected to ${host}`)
 		})().finally(() => {
 			this.connectingPromise = null
@@ -48,31 +57,38 @@ class SshClient {
 		}
 	}
 
-	/** Execute a command over SSH and return trimmed stdout. */
+	private async runExec(command: string, timeoutMs: number): Promise<string> {
+		if (!this.connected || !this.ssh.isConnected()) {
+			await this.connect()
+		}
+
+		const timeoutPromise = new Promise<never>((_, reject) =>
+			setTimeout(() => reject(new Error(`SSH command timed out: ${command}`)), timeoutMs),
+		)
+
+		const execPromise = this.ssh.execCommand(command).then((result) => {
+			if (result.stderr) logger.warn(`SSH stderr for "${command}": ${result.stderr}`)
+			return result.stdout.trim()
+		})
+
+		try {
+			return await Promise.race([execPromise, timeoutPromise])
+		} catch (err) {
+			this.connected = false
+			logger.error(`SSH exec failed for "${command}", marking disconnected`, err)
+			throw err
+		}
+	}
+
+	/** Execute a command over SSH and return trimmed stdout. Retries once after reconnect on transient errors. */
 	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
 		await this.acquire()
 		try {
-			if (!this.connected || !this.ssh.isConnected()) {
-				await this.connect()
-			}
-
-			const timeoutPromise = new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error(`SSH command timed out: ${command}`)), timeoutMs),
-			)
-
-			const execPromise = this.ssh.execCommand(command).then((result) => {
-				if (result.stderr) {
-					logger.warn(`SSH stderr for "${command}": ${result.stderr}`)
-				}
-				return result.stdout.trim()
-			})
-
 			try {
-				return await Promise.race([execPromise, timeoutPromise])
-			} catch (err) {
-				this.connected = false
-				logger.error(`SSH exec failed for "${command}", marking disconnected`, err)
-				throw err
+				return await this.runExec(command, timeoutMs)
+			} catch {
+				await this.connect()
+				return await this.runExec(command, timeoutMs)
 			}
 		} finally {
 			this.release()

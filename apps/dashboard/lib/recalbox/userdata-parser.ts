@@ -30,7 +30,7 @@ export function parseUserdataIni(content: string): Map<string, GameUserdata> {
 		const colonIdx = line.indexOf(':')
 		if (colonIdx === -1) continue
 
-		const relativePath = line.slice(0, colonIdx)
+		const relativePath = line.slice(0, colonIdx).replace(/^\.\//, '')
 		const dataStr = line.slice(colonIdx + 1)
 		if (!relativePath || !dataStr) continue
 
