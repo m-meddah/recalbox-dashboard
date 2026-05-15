@@ -1,7 +1,29 @@
 # Recalbox Dashboard
 
-Self-hostable dashboard for your Recalbox retrogaming console. Runs on a machine on the
-same local network as your Recalbox — **not** on the Recalbox itself.
+**A companion analytics dashboard for Recalbox.** Historical session tracking,
+playtime statistics, achievement progress, and an annual recap of your retrogaming year.
+
+Runs on a machine on the same local network as your Recalbox — **not** on the Recalbox itself.
+
+## Why this dashboard?
+
+Recalbox ships with an excellent built-in [Web Manager](https://wiki.recalbox.com/fr/basic-usage/features/webmanager)
+at `http://recalbox.local/` for live monitoring, config editing, and BIOS/ROM
+management. **This project does not replace it** — it complements it.
+
+The Web Manager answers *"How's my Recalbox right now?"*. This dashboard
+answers *"How have I used my Recalbox over time?"* — think Last.fm for
+retrogaming.
+
+| Recalbox Web Manager (built-in) | Recalbox Dashboard (this project) |
+| --- | --- |
+| Live CPU temp, RAM, storage | Historical playtime charts |
+| Edit `recalbox.conf` | Activity heatmap (GitHub-style) |
+| Upload BIOS / ROMs | Top games, streaks, sessions timeline |
+| Screenshots and logs | Game collection browsable & filterable |
+| Mobile-friendly | Mobile-friendly + PWA installable (coming) |
+
+Use both: the Web Manager for ops, this dashboard for analytics.
 
 ## Installation
 

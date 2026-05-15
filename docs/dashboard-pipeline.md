@@ -12,14 +12,42 @@
 
 ## Vue d'ensemble du projet
 
-Dashboard self-hostable open-source pour Recalbox (Pi5). Tourne sur une machine
-tierce (Linux/macOS, NAS, autre Pi) et communique avec la Recalbox via :
+**Dashboard d'analytics historique pour Recalbox**, complémentaire (pas
+concurrent) du Web Manager natif Recalbox.
 
-- **MQTT** (port 1883) pour les événements temps réel
-- **SSH** (port 22) pour les stats système et lecture de fichiers
-- **SMB** ou montage réseau pour les médias
+### Positionnement
 
-Le dashboard NE tourne PAS sur la Recalbox elle-même.
+Recalbox embarque déjà un Web Manager natif (`http://recalbox.local/`) qui
+gère le live monitoring, l'édition de config et la gestion des BIOS/ROMs.
+**Ce projet ne le remplace pas.** Il se greffe par-dessus pour apporter ce
+que le natif ne fait pas :
+
+- Historique long-terme des sessions de jeu (scrobble continu via MQTT)
+- Analytics agrégés (heatmap, streak, top games, distribution par système)
+- Intégration RetroAchievements (à venir)
+- Wrapped annuel partageable (à venir)
+- Multi-Recalbox (à venir)
+
+Mental model : **Spotify (= Web Manager) vs Last.fm (= ce projet)**. Spotify
+joue la musique, Last.fm enregistre l'historique et fait les stats. Pareil
+ici, les deux outils coexistent sans se marcher dessus.
+
+### Architecture technique
+
+Tourne sur une machine tierce (Linux/macOS, NAS, autre Pi) sur le même réseau
+local que la Recalbox. **NE tourne PAS sur la Recalbox elle-même.**
+
+Connexion via :
+
+- **MQTT** (port 1883) pour les événements temps réel (game start/stop)
+- **SSH** (port 22) pour stats système et lecture de gamelist.xml
+- **SMB** ou réseau pour les médias
+
+Données traitées et persistées en SQLite local :
+
+- Sessions de jeu (scrobble continu, daemon séparé)
+- Collection enrichie (parsing gamelist.xml + userdata.ini)
+- Snapshots système (time-series CPU/RAM/temp)
 
 ## Roadmap
 

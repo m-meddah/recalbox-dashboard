@@ -9,7 +9,7 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
 	title: 'Recalbox Dashboard',
-	description: 'Self-hostable dashboard for your Recalbox retrogaming console',
+	description: 'Companion analytics dashboard for your Recalbox — playtime history, achievement progress, and an annual recap.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
