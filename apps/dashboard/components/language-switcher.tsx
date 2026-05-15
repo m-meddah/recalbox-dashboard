@@ -12,9 +12,9 @@ import { routing } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import { useTransition } from 'react'
 
-const LOCALE_LABELS: Record<string, string> = {
-	en: '🇬🇧 English',
-	fr: '🇫🇷 Français',
+const LOCALE_FLAGS: Record<string, string> = {
+	en: '🇬🇧',
+	fr: '🇫🇷',
 }
 
 export function LanguageSwitcher() {
@@ -32,13 +32,13 @@ export function LanguageSwitcher() {
 
 	return (
 		<Select value={locale} onValueChange={handleChange} disabled={isPending}>
-			<SelectTrigger className="w-40">
-				<SelectValue />
+			<SelectTrigger className="w-12 justify-center gap-0 px-2 [&>svg]:hidden">
+				<span className="text-base">{LOCALE_FLAGS[locale] ?? locale}</span>
 			</SelectTrigger>
-			<SelectContent>
+			<SelectContent align="end">
 				{routing.locales.map((loc) => (
 					<SelectItem key={loc} value={loc}>
-						{LOCALE_LABELS[loc] ?? loc}
+						<span className="text-base">{LOCALE_FLAGS[loc] ?? loc}</span>
 					</SelectItem>
 				))}
 			</SelectContent>
