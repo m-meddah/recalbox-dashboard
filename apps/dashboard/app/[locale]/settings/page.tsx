@@ -21,7 +21,6 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import type { AppConfig } from '@/lib/settings/schemas'
@@ -735,7 +734,6 @@ export default function SettingsPage() {
 
 	return (
 		<div className="container max-w-2xl mx-auto p-6 space-y-6">
-			<Toaster />
 			<div>
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
