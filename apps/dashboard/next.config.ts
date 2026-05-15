@@ -1,4 +1,7 @@
+import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
+
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
 const nextConfig: NextConfig = {
 	output: 'standalone',
@@ -6,4 +9,4 @@ const nextConfig: NextConfig = {
 	serverExternalPackages: ['better-sqlite3', 'node-ssh'],
 }
 
-export default nextConfig
+export default withNextIntl(nextConfig)
