@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { shellQuote } from './shell'
 import { sshClient } from './ssh-client'
 
 const ALLOWED_CONF_KEYS = [
@@ -32,7 +33,7 @@ export async function readRecalboxConfValue(key: string): Promise<string | null>
 		throw new Error(`Key "${key}" is not in the allowed recalbox.conf whitelist`)
 	}
 	try {
-		const output = await sshClient.exec(`grep -E '^\\s*${key}\\s*=' ${CONF_PATH} || true`)
+		const output = await sshClient.exec(`grep -E '^\\s*${shellQuote(key)}\\s*=' ${CONF_PATH} || true`)
 		return parseConfValue(output, key)
 	} catch (err) {
 		logger.warn(`Failed to read recalbox.conf key "${key}"`, err)

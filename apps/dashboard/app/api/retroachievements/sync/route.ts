@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { logger } from '@/lib/logger'
 import { syncRetroAchievements } from '@/lib/retroachievements/sync'
 import { NextResponse } from 'next/server'
 
@@ -14,9 +15,7 @@ export async function POST() {
 		await syncRetroAchievements()
 		return NextResponse.json({ ok: true })
 	} catch (err) {
-		return NextResponse.json(
-			{ error: err instanceof Error ? err.message : 'Sync failed' },
-			{ status: 502 },
-		)
+		logger.error('RA sync failed', err)
+		return NextResponse.json({ error: 'Sync failed' }, { status: 502 })
 	}
 }

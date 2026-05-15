@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { logger } from '@/lib/logger'
 import { findRaGameForRom, setManualMapping } from '@/lib/retroachievements/matching'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -29,10 +30,8 @@ export async function GET(request: Request) {
 		const raGameId = await findRaGameForRom(romPath, system)
 		return NextResponse.json({ romPath, raGameId })
 	} catch (err) {
-		return NextResponse.json(
-			{ error: err instanceof Error ? err.message : 'Matching failed' },
-			{ status: 502 },
-		)
+		logger.error('RA matching failed', err)
+		return NextResponse.json({ error: 'Matching failed' }, { status: 502 })
 	}
 }
 
