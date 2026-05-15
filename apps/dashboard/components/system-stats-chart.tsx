@@ -174,17 +174,17 @@ export function SystemStatsChart() {
 					) : (
 						<ResponsiveContainer width="100%" height={200}>
 							<LineChart data={history} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-								<CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+								<CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
 								<XAxis
 									dataKey="time"
-									tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+									tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
 									tickLine={false}
 									interval="preserveStartEnd"
 								/>
 								<YAxis
 									domain={['auto', 'auto']}
 									unit="°C"
-									tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+									tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
 									tickLine={false}
 									axisLine={false}
 									width={42}
@@ -192,8 +192,8 @@ export function SystemStatsChart() {
 								<Tooltip
 									formatter={(value: number) => [`${value.toFixed(1)}°C`, 'CPU Temp']}
 									contentStyle={{
-										background: 'hsl(var(--card))',
-										border: '1px solid hsl(var(--border))',
+										background: 'var(--card)',
+										border: '1px solid var(--border)',
 										borderRadius: '6px',
 										fontSize: '12px',
 									}}
