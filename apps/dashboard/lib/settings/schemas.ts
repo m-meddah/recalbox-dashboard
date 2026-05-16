@@ -62,7 +62,7 @@ export function maskedConfig(cfg: AppConfig): AppConfig {
 		},
 		retroachievements: {
 			...cfg.retroachievements,
-			apiKey: cfg.retroachievements.apiKey ? '***' : '',
+			apiKey: cfg.retroachievements?.apiKey ? '***' : '',
 		},
 	}
 }

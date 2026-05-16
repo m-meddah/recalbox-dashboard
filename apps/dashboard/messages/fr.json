@@ -127,7 +127,8 @@
       "recalbox": "Recalbox",
       "scrobble": "Scrobble",
       "interface": "Interface",
-      "retroachievements": "RetroAchievements"
+      "retroachievements": "RetroAchievements",
+      "integrations": "Intégrations"
     },
     "recalbox": {
       "cardTitle": "Connexion Recalbox",
@@ -201,6 +202,26 @@
       "testFailed": "Connexion échouée — vérifiez votre nom d'utilisateur et votre clé API",
       "saved": "Paramètres RetroAchievements enregistrés",
       "saveError": "Impossible d'enregistrer les paramètres"
+    },
+    "integrations": {
+      "cardTitle": "Intégrations",
+      "cardDescription": "Connectez le dashboard à l'encyclopédie Super Retrogamers",
+      "enabled": "Activer l'intégration Super Retrogamers",
+      "enabledHint": "Affiche des liens et des aperçus pour les jeux disposant d'une fiche sur Super Retrogamers",
+      "preferredRegion": "Région préférée",
+      "regionDefault": "Aucune préférence",
+      "apiUrl": "URL de l'API (optionnel)",
+      "apiUrlHint": "Remplace l'URL par défaut de l'API Super Retrogamers",
+      "testConnection": "Tester la connexion",
+      "testing": "Test en cours…",
+      "testOk": "Connecté — {ms}ms",
+      "testFailed": "Connexion échouée",
+      "enrich": "Enrichir la collection",
+      "enriching": "Enrichissement…",
+      "enrichDone": "{matched} jeux référencés sur {total}",
+      "enrichError": "Enrichissement échoué",
+      "saved": "Enregistré",
+      "saveError": "Erreur lors de l'enregistrement"
     }
   },
   "achievements": {
@@ -281,5 +302,17 @@
     "confirmRebootDescription": "La console va redémarrer. Cela interrompra toute session en cours.",
     "shutdownToast": "Extinction en cours…",
     "rebootToast": "Redémarrage en cours…"
+  },
+  "superRetrogamers": {
+    "viewOnSr": "Voir sur Super Retrogamers ↗",
+    "noPage": "Pas de fiche sur Super Retrogamers",
+    "check": "Vérifier",
+    "preview": {
+      "notFound": "Aucune fiche trouvée sur Super Retrogamers",
+      "error": "Impossible de charger la fiche",
+      "retry": "Réessayer",
+      "stale": "Données en cache — Super Retrogamers est inaccessible",
+      "readFull": "Lire l'article complet ↗"
+    }
   }
 }

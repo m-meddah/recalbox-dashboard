@@ -1,5 +1,6 @@
 'use client'
 
+import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { formatDuration } from '@/lib/stats/formatters'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -10,6 +11,8 @@ type GameEntry = {
 	system: string
 	playtimeSec: number
 	sessionCount: number
+	srHasPage?: number | null
+	srUrl?: string | null
 }
 
 type Props = {
@@ -56,6 +59,13 @@ export function TopGames({ games }: Props) {
 							<span className="shrink-0 text-[10px] text-muted-foreground capitalize">
 								{game.system}
 							</span>
+							{game.srHasPage === 1 && (
+								<SuperRetrogamersLink
+									srHasPage={game.srHasPage}
+									srUrl={game.srUrl ?? null}
+									variant="icon"
+								/>
+							)}
 						</div>
 					</div>
 				</div>
