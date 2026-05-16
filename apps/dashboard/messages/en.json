@@ -127,7 +127,8 @@
       "recalbox": "Recalbox",
       "scrobble": "Scrobble",
       "interface": "Interface",
-      "retroachievements": "RetroAchievements"
+      "retroachievements": "RetroAchievements",
+      "integrations": "Integrations"
     },
     "recalbox": {
       "cardTitle": "Recalbox Connection",
@@ -201,6 +202,26 @@
       "testFailed": "Connection failed — check your username and API key",
       "saved": "RetroAchievements settings saved",
       "saveError": "Failed to save settings"
+    },
+    "integrations": {
+      "cardTitle": "Integrations",
+      "cardDescription": "Connect the dashboard to Super Retrogamers encyclopedia",
+      "enabled": "Enable Super Retrogamers integration",
+      "enabledHint": "Show links and preview cards for games that have a page on Super Retrogamers",
+      "preferredRegion": "Preferred region",
+      "regionDefault": "No preference",
+      "apiUrl": "API URL (optional)",
+      "apiUrlHint": "Override the default Super Retrogamers API endpoint",
+      "testConnection": "Test connection",
+      "testing": "Testing…",
+      "testOk": "Connected — {ms}ms",
+      "testFailed": "Connection failed",
+      "enrich": "Enrich collection",
+      "enriching": "Enriching…",
+      "enrichDone": "{matched} matched out of {total} games",
+      "enrichError": "Enrichment failed",
+      "saved": "Saved",
+      "saveError": "Failed to save"
     }
   },
   "achievements": {
@@ -281,5 +302,17 @@
     "confirmRebootDescription": "The console will restart. This will interrupt any ongoing session.",
     "shutdownToast": "Shutting down…",
     "rebootToast": "Rebooting…"
+  },
+  "superRetrogamers": {
+    "viewOnSr": "View on Super Retrogamers ↗",
+    "noPage": "No page on Super Retrogamers",
+    "check": "Check",
+    "preview": {
+      "notFound": "No page found on Super Retrogamers",
+      "error": "Could not load the page",
+      "retry": "Retry",
+      "stale": "Cached data — Super Retrogamers is unreachable",
+      "readFull": "Read full article ↗"
+    }
   }
 }

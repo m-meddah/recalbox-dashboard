@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
+import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import type { Game } from '@/lib/db/queries'
 import { cn } from '@/lib/utils'
 import { Play, Star, Trophy } from 'lucide-react'
@@ -95,6 +96,14 @@ export function GameCard({ game, hasAchievements }: Props) {
 							<Play className="h-2.5 w-2.5" />
 							{game.playCount}×
 						</span>
+					)}
+					{game.srHasPage === 1 && (
+						<SuperRetrogamersLink
+							srHasPage={game.srHasPage}
+							srUrl={game.srUrl}
+							variant="badge"
+							romPath={game.romPath}
+						/>
 					)}
 				</div>
 			</CardContent>

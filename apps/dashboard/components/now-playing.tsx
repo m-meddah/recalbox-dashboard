@@ -1,6 +1,7 @@
 'use client'
 
 import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,6 +50,17 @@ function LiveBadge() {
 function GameCard({ game }: { game: GameStartEvent }) {
 	const elapsed = useElapsedTime(game.startedAt)
 	const imageUrl = game.imagePath ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
+	const [srInfo, setSrInfo] = useState<{ srHasPage: number | null; srUrl: string | null }>({
+		srHasPage: null,
+		srUrl: null,
+	})
+
+	useEffect(() => {
+		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(game.romPath)}`)
+			.then((r) => r.json())
+			.then((data: { srHasPage: number | null; srUrl: string | null }) => setSrInfo(data))
+			.catch(() => {})
+	}, [game.romPath])
 
 	return (
 		<Card className="overflow-hidden">
@@ -79,6 +91,13 @@ function GameCard({ game }: { game: GameStartEvent }) {
 								</Badge>
 								{game.emulator && (
 									<span className="text-xs text-muted-foreground">{game.emulator}</span>
+								)}
+								{srInfo.srHasPage === 1 && (
+									<SuperRetrogamersLink
+										srHasPage={srInfo.srHasPage}
+										srUrl={srInfo.srUrl}
+										variant="icon"
+									/>
 								)}
 							</div>
 						</div>

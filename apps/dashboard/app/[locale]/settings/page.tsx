@@ -67,6 +67,13 @@ const raFormSchema = z.object({
 })
 type RaForm = z.infer<typeof raFormSchema>
 
+const srFormSchema = z.object({
+	enabled: z.boolean(),
+	apiUrl: z.string().max(256),
+	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
+})
+type SrForm = z.infer<typeof srFormSchema>
+
 type TestResult = {
 	ssh: { success: boolean; latencyMs: number; error?: string }
 	mqtt: { success: boolean; latencyMs: number; messagesReceived: number; error?: string }
@@ -707,6 +714,178 @@ function RetroAchievementsTab({ config }: { config: AppConfig }) {
 	)
 }
 
+// ─── Integrations tab ────────────────────────────────────────────────────────
+
+function IntegrationsTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.integrations')
+	const tc = useTranslations('common')
+	const [testing, setTesting] = useState(false)
+	const [testResult, setTestResult] = useState<{
+		ok: boolean
+		latencyMs?: number
+		error?: string
+	} | null>(null)
+	const [enriching, setEnriching] = useState(false)
+	const [enrichProgress, setEnrichProgress] = useState<string | null>(null)
+
+	const form = useForm<SrForm>({
+		resolver: zodResolver(srFormSchema),
+		defaultValues: {
+			enabled: config.superRetrogamers.enabled,
+			apiUrl: config.superRetrogamers.apiUrl,
+			preferredRegion: config.superRetrogamers.preferredRegion,
+		},
+	})
+	const isDirty = form.formState.isDirty
+
+	async function onSave(values: SrForm) {
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ superRetrogamers: values }),
+			})
+			if (!res.ok) throw new Error()
+			const updated: AppConfig = await res.json()
+			form.reset({
+				enabled: updated.superRetrogamers.enabled,
+				apiUrl: updated.superRetrogamers.apiUrl,
+				preferredRegion: updated.superRetrogamers.preferredRegion,
+			})
+			toast.success(t('saved'))
+		} catch {
+			toast.error(t('saveError'))
+		}
+	}
+
+	async function handleTest() {
+		setTesting(true)
+		setTestResult(null)
+		try {
+			const res = await fetch('/api/super-retrogamers/test-connection', { method: 'POST' })
+			const data = await res.json()
+			setTestResult(data)
+		} catch {
+			setTestResult({ ok: false, error: 'Network error' })
+		} finally {
+			setTesting(false)
+		}
+	}
+
+	async function handleEnrich() {
+		setEnriching(true)
+		setEnrichProgress(null)
+		try {
+			const res = await fetch('/api/super-retrogamers/enrich-collection', { method: 'POST' })
+			if (!res.body) return
+			const reader = res.body.getReader()
+			const decoder = new TextDecoder()
+			while (true) {
+				const { done, value } = await reader.read()
+				if (done) break
+				const lines = decoder.decode(value).split('\n').filter(Boolean)
+				for (const line of lines) {
+					try {
+						const event = JSON.parse(line)
+						if (event.type === 'progress') {
+							setEnrichProgress(`${event.done} / ${event.total}`)
+						} else if (event.type === 'complete') {
+							setEnrichProgress(t('enrichDone', { matched: event.matched, total: event.total }))
+						}
+					} catch {}
+				}
+			}
+		} catch {
+			toast.error(t('enrichError'))
+		} finally {
+			setEnriching(false)
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+				<FormField
+					control={form.control}
+					name="enabled"
+					render={({ field }) => (
+						<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+							<div className="space-y-0.5">
+								<FormLabel>{t('enabled')}</FormLabel>
+								<FormDescription>{t('enabledHint')}</FormDescription>
+							</div>
+							<FormControl>
+								<Switch checked={field.value} onCheckedChange={field.onChange} />
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="preferredRegion"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('preferredRegion')}</FormLabel>
+							<FormControl>
+								<Select onValueChange={field.onChange} defaultValue={field.value}>
+									<SelectTrigger>
+										<SelectValue placeholder={t('regionDefault')} />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">{t('regionDefault')}</SelectItem>
+										<SelectItem value="US">US</SelectItem>
+										<SelectItem value="EU">EU</SelectItem>
+										<SelectItem value="JP">JP</SelectItem>
+									</SelectContent>
+								</Select>
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="apiUrl"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('apiUrl')}</FormLabel>
+							<FormControl>
+								<Input placeholder="https://super-retrogamers.com/api/v1" {...field} />
+							</FormControl>
+							<FormDescription>{t('apiUrlHint')}</FormDescription>
+						</FormItem>
+					)}
+				/>
+				<div className="flex flex-wrap gap-2">
+					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
+						{tc('cancel')}
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						{tc('save')}
+					</Button>
+					<Button type="button" variant="secondary" onClick={handleTest} disabled={testing}>
+						{testing ? t('testing') : t('testConnection')}
+					</Button>
+					<Button type="button" variant="secondary" onClick={handleEnrich} disabled={enriching}>
+						{enriching ? (enrichProgress ?? t('enriching')) : t('enrich')}
+					</Button>
+				</div>
+				{testResult?.ok === true && (
+					<Alert>
+						<AlertDescription className="text-green-600">
+							{t('testOk', { ms: testResult.latencyMs ?? 0 })}
+						</AlertDescription>
+					</Alert>
+				)}
+				{testResult?.ok === false && (
+					<Alert variant="destructive">
+						<AlertDescription>{testResult.error ?? t('testFailed')}</AlertDescription>
+					</Alert>
+				)}
+			</form>
+		</Form>
+	)
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -739,11 +918,12 @@ export default function SettingsPage() {
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<Tabs defaultValue="recalbox">
-				<TabsList className="grid w-full grid-cols-4">
+				<TabsList className="grid w-full grid-cols-5">
 					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
 					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
 					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
 					<TabsTrigger value="retroachievements">{t('tabs.retroachievements')}</TabsTrigger>
+					<TabsTrigger value="integrations">{t('tabs.integrations')}</TabsTrigger>
 				</TabsList>
 				<TabsContent value="recalbox" className="mt-6">
 					<Card>
@@ -786,6 +966,17 @@ export default function SettingsPage() {
 						</CardHeader>
 						<CardContent>
 							<RetroAchievementsTab config={config} />
+						</CardContent>
+					</Card>
+				</TabsContent>
+				<TabsContent value="integrations" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>{t('integrations.cardTitle')}</CardTitle>
+							<CardDescription>{t('integrations.cardDescription')}</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<IntegrationsTab config={config} />
 						</CardContent>
 					</Card>
 				</TabsContent>
