@@ -201,6 +201,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 7 — Docker Compose self-hosting with s6 + multi-arch CI
 - [x] Ticket 8 — Internationalisation FR/EN (next-intl, locale prefix routing)
 - [x] Ticket 9 — RetroAchievements integration with auto-username detection
+- [x] Ticket 10 — Super Retrogamers cross-project linking (slug matching, proxy routes, UI touchpoints, API spec — see [docs/super-retrogamers-api-spec.md](docs/super-retrogamers-api-spec.md))
 
 ## RetroAchievements integration
 
