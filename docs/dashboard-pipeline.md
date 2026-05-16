@@ -91,8 +91,9 @@ Données traitées et persistées en SQLite local :
 | 14 | Multi-Recalbox | 15-25h | ⭐⭐ |
 | 15 | Publication analytics sur MQTT (bonus) | 4-6h | ⭐⭐⭐ Interopérabilité écosystème |
 | 16 | Générateur de fichiers .m3u multi-disques | 5-7h | ⭐⭐⭐⭐ Gestion de collection |
+| 17 | Diagnostic de collection et statut Patron | 5-7h | ⭐⭐⭐⭐ Recommandations actionnables |
 
-**Total estimé** : 94 à 133 heures de travail réel.
+**Total estimé** : 99 à 140 heures de travail réel.
 À 5h/semaine : environ 4 à 6 mois de side project.
 
 ## Conseils d'utilisation
@@ -4419,6 +4420,227 @@ Démarre par demander l'échantillon de fichiers.
 
 ---
 
+## Ticket 17 — Diagnostic de collection et statut Patron
+
+````markdown
+# Ticket 17 : Panneau "santé de la collection"
+
+## Contexte
+
+Lis d'abord README.md et fais `git log --oneline -10`.
+
+Le dashboard parse déjà les gamelist.xml (Ticket 3) et lit recalbox.conf via
+SSH (Ticket 9, pour les credentials RetroAchievements). On ajoute un panneau
+"santé de la collection" qui détecte les ROMs non scrapées et le statut Patron,
+et donne des recommandations.
+
+Principe strict : LECTURE SEULE. Le dashboard détecte et recommande, il
+n'exécute jamais d'action sur la Recalbox (pas de scraping, pas d'écriture de
+config).
+
+## Objectifs
+
+1. Détecter les jeux sans média (jaquette, description, vidéo) dans la collection
+2. Lire le statut Patron depuis recalbox.conf
+3. Détecter si la clé Patron est absente / vide
+4. Panneau "santé de la collection" sur la page collection (et/ou accueil)
+5. Recommandations actionnables contextualisées (Patron vs non-Patron)
+6. Liste cliquable des jeux concernés
+
+## Détails techniques
+
+### Détection des jeux non scrapés
+
+Le dashboard a déjà les données de la collection en DB (table games, Ticket 3).
+Un jeu est considéré "non scrapé" ou "partiellement scrapé" selon les champs
+média manquants.
+
+```typescript
+export type ScrapeStatus = {
+  romPath: string;
+  name: string;
+  system: string;
+  missingImage: boolean;       // pas de jaquette
+  missingDescription: boolean; // pas de description
+  missingVideo: boolean;       // pas de vidéo (optionnel, moins critique)
+  // un jeu est "fully scraped" si image + description présentes
+  // (la vidéo est un bonus, ne compte pas comme manquant critique)
+};
+
+export type CollectionHealth = {
+  totalGames: number;
+  fullyScraped: number;
+  missingMedia: number;          // jeux avec au moins image OU description manquante
+  bySystem: Array<{
+    system: string;
+    total: number;
+    missingMedia: number;
+  }>;
+  unscrapedGames: ScrapeStatus[]; // liste détaillée des jeux à problème
+};
+
+export async function getCollectionHealth(): Promise<CollectionHealth>;
+```
+
+Cette fonction lit la table games (déjà en DB), pas besoin de SSH ici. Rapide.
+
+Décision de design : la VIDÉO ne compte pas comme "média manquant critique"
+(beaucoup de jeux n'ont pas de vidéo et c'est normal). Seules l'image et la
+description comptent pour le statut "fully scraped". Documente ce choix.
+
+### Lecture du statut Patron
+
+Étendre le conf-reader existant (créé au Ticket 9 pour RetroAchievements).
+
+La clé Patron est stockée dans recalbox.conf. Demande-moi de te confirmer le
+nom exact de la clé — c'est probablement quelque chose comme
+`system.recalboxprivatekey` ou `updates.lts.activationkey`, à vérifier sur une
+vraie Recalbox. Demande-moi un `grep -i patron /recalbox/share/system/recalbox.conf`
+et `grep -i privatekey /recalbox/share/system/recalbox.conf` pour identifier
+la bonne clé.
+
+⚠️ IMPORTANT : la clé Patron est un SECRET. Comme le password RetroAchievements
+au Ticket 9, elle doit être traitée avec la whitelist du conf-reader :
+- On peut lire si la clé EXISTE et si elle est NON VIDE
+- On ne RENVOIE JAMAIS la valeur de la clé via l'API
+- On ne LOGGUE JAMAIS la valeur
+- L'API expose uniquement un booléen : `patronKeyPresent: true/false`
+
+```typescript
+export type PatronStatus = {
+  isPatron: boolean;           // l'utilisateur a-t-il une clé Patron configurée
+  keyPresent: boolean;         // la clé est-elle présente ET non vide
+  keyLooksValid: boolean;      // heuristique simple : longueur/format plausible
+                                // (PAS une validation réseau, juste un sanity check)
+};
+
+export async function getPatronStatus(): Promise<PatronStatus>;
+```
+
+Le conf-reader doit ajouter la clé Patron à sa whitelist MAIS dans une catégorie
+"présence seulement" — la valeur n'est jamais exposée, contrairement au username
+RetroAchievements dont la valeur peut l'être.
+
+### Routes API
+
+**`GET /api/collection/health`** :
+- Retourne CollectionHealth
+- Query param optionnel `?system=psx` pour filtrer
+- Pas de cache long (la collection change quand on sync) ou cache court invalidé
+  au sync collection
+
+**`GET /api/patron/status`** :
+- Retourne PatronStatus (booléens uniquement, jamais la clé)
+
+### UI — Panneau "santé de la collection"
+
+Un panneau (card/section) affiché sur la page collection. Composants :
+
+**Bloc 1 — Scraping**
+- Décompte global : "47 jeux sans média sur 2841" + une barre de progression
+  visuelle (ex: 98% scrapé)
+- Détail par système : liste des systèmes avec le nombre de jeux à problème
+  (ex: "psx : 12 jeux", "saturn : 8 jeux") — chaque système cliquable pour
+  filtrer la liste
+- Liste cliquable des jeux concernés : nom + système + ce qui manque
+  (badge "pas de jaquette", "pas de description"). Cliquer un jeu pourrait
+  ouvrir sa fiche ou le mettre en évidence dans la collection.
+- Recommandation contextualisée selon le statut Patron (voir bloc 3)
+
+**Bloc 2 — Statut Patron**
+- Si isPatron && keyPresent && keyLooksValid :
+  badge vert "Patron actif"
+- Si isPatron mais !keyPresent ou !keyLooksValid :
+  alerte orange "Ta clé Patron semble absente ou invalide. Si tu es Patron,
+  remets-la via le Web Manager Recalbox." + lien vers http://recalbox.local/
+  (ou l'URL configurée de la Recalbox)
+- Si !isPatron :
+  pas d'alerte, juste l'info neutre (optionnel : mention discrète que Patron
+  donne accès aux serveurs de scraping rapides)
+
+**Bloc 3 — Recommandation de scraping**
+- Si des jeux sont à scraper ET utilisateur Patron :
+  "47 jeux à scraper. En tant que Patron, scrape depuis EmulationStation
+  (Menu → Scraper) — tu utiliseras les serveurs Recalbox, bien plus rapides
+  que ScreenScraper."
+- Si des jeux à scraper ET non-Patron :
+  "47 jeux à scraper. Lance le scraper depuis EmulationStation
+  (Menu → Scraper)."
+- Si tout est scrapé :
+  message positif "Ta collection est entièrement scrapée."
+
+IMPORTANT : aucun bouton "scraper maintenant" dans le dashboard. On guide
+l'utilisateur vers le scraper natif de Recalbox (EmulationStation ou Web
+Manager), on ne scrape pas nous-mêmes. Le texte des recommandations doit être
+clair là-dessus.
+
+### Placement
+
+Le panneau "santé de la collection" va sur la page collection existante, en
+encart en haut (avant la grille de jeux). Optionnellement un résumé compact
+peut aussi apparaître sur la page d'accueil (juste le décompte + l'alerte
+Patron si applicable), avec un lien vers le panneau complet.
+
+## Ce que ce ticket NE fait PAS (volontairement)
+
+- Pas de scraping depuis le dashboard (Recalbox a son scraper natif)
+- Pas d'écriture de la clé Patron (le Web Manager natif gère ça en sécurité ;
+  la clé est un secret sensible qu'un outil tiers ne doit pas écrire)
+- Pas de validation réseau de la clé Patron (juste un sanity check de format)
+- Pas de déclenchement à distance du scraper Recalbox (à investiguer un jour
+  éventuellement, mais hors périmètre ici — Recalbox n'expose pas forcément
+  de commande pour ça, et ça ferait glisser vers le rôle "contrôle")
+
+## Tests
+
+lib/__tests__/collection-health.test.ts :
+- Détection correcte des jeux sans image / sans description
+- La vidéo manquante ne compte pas comme "média manquant critique"
+- Agrégation par système correcte
+- Collection 100% scrapée → missingMedia = 0
+
+lib/recalbox/__tests__/patron-status.test.ts :
+- Clé présente et non vide → keyPresent true
+- Clé absente du fichier → keyPresent false
+- Clé présente mais vide → keyPresent false
+- La VALEUR de la clé n'est jamais retournée (vérifier que l'objet de sortie
+  ne contient que des booléens)
+
+## Contraintes
+
+- Strict TypeScript
+- LECTURE SEULE absolue : aucune écriture sur la Recalbox
+- La clé Patron n'est JAMAIS exposée via l'API ni loggée (booléens uniquement)
+- Le conf-reader whiteliste la clé Patron en mode "présence seulement"
+- Aucun bouton d'action de scraping (on guide, on n'exécute pas)
+- Cohérent avec le positionnement companion analytics
+- Commit final : "feat(health): collection scrape diagnostic + Patron status"
+
+## Workflow
+
+1. Demande-moi de confirmer le nom exact de la clé Patron dans recalbox.conf :
+   `ssh root@recalbox.local 'grep -iE "patron|privatekey|activation" /recalbox/share/system/recalbox.conf'`
+   (je te donnerai le nom de la clé, PAS sa valeur)
+2. Implémente dans l'ordre :
+   - collection-health.ts (lecture table games) + tests
+   - extension conf-reader pour le statut Patron (whitelist "présence seulement") + tests
+   - routes API (/api/collection/health, /api/patron/status)
+   - composant panneau "santé de la collection"
+   - intégration page collection (encart en haut)
+   - résumé compact optionnel sur la page d'accueil
+3. Vérifie pnpm build
+4. Test : sur ta vraie Recalbox, vérifie que le décompte de jeux non scrapés
+   est cohérent, que le statut Patron est correct, que l'alerte clé fonctionne
+   (tu peux tester l'alerte en imaginant le cas clé absente)
+5. Update README (section features) + roadmap
+6. Résume-moi : le nom de la clé Patron trouvé, le décompte sur ta collection
+   réelle, et confirme que la valeur de la clé n'est exposée nulle part
+
+Démarre par demander le nom de la clé Patron.
+````
+
+---
+
 ## Annexes
 
 ### Stratégie de communication recommandée
@@ -4460,10 +4682,11 @@ pour toi en particulier qui a une seule Recalbox).
 > fonctionnalité créerait un doublon, exactement ce que le positionnement
 > "companion, pas concurrent" cherche à éviter. Le `packages/scraper-core`
 > reste destiné au CLI du projet image perso (provisioning), pas au dashboard.
-> Si un besoin émerge un jour, l'approche acceptable serait de DÉTECTER les
-> jeux sans métadonnées et de proposer de déclencher le scraper natif de
-> Recalbox à distance — mais sans jamais scraper depuis le dashboard lui-même.
-> Non prioritaire.
+> La DÉTECTION des jeux sans métadonnées, elle, est désormais couverte par le
+> **Ticket 17** (panneau "santé de la collection") : détecter et orienter vers
+> le scraper natif d'EmulationStation, sans jamais scraper depuis le dashboard
+> lui-même. L'écriture de config Recalbox et le déclenchement à distance du
+> scraper restent hors périmètre — c'est le rôle du Web Manager natif.
 
 ### Rappel final
 
