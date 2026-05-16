@@ -17,7 +17,10 @@ function ttlFor(key: string): number {
 export function getCached<T>(key: string): T | null {
 	const row = db.select().from(srCache).where(eq(srCache.key, key)).get()
 	if (!row) return null
-	if (row.expiresAt < new Date()) return null
+	if (row.expiresAt < new Date()) {
+		db.delete(srCache).where(eq(srCache.key, key)).run()
+		return null
+	}
 	try {
 		return JSON.parse(row.value) as T
 	} catch {
