@@ -1,10 +1,10 @@
 const REGION_TAGS: Array<[RegExp, string]> = [
 	[/\(USA\)/i, 'US'],
-	[/\(U\)/, 'US'],
+	[/\(U\)/i, 'US'],
 	[/\(Europe\)/i, 'EU'],
-	[/\(E\)/, 'EU'],
+	[/\(E\)/i, 'EU'],
 	[/\(Japan\)/i, 'JP'],
-	[/\(J\)/, 'JP'],
+	[/\(J\)/i, 'JP'],
 	[/\(Australia\)/i, 'AU'],
 	[/\(Korea\)/i, 'KR'],
 	[/\(China\)/i, 'CN'],
