@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { NodeSSH } from 'node-ssh'
 
 const EXEC_TIMEOUT_MS = 5000
+const CONNECT_TIMEOUT_MS = 8000
 const MAX_CONCURRENT = 2
 
 class SshClient {
@@ -19,7 +20,7 @@ class SshClient {
 			this.ssh.dispose()
 			this.ssh = new NodeSSH()
 			const { host, sshUser, sshPassword, sshPort } = configStore.get().recalbox
-			await this.ssh.connect({
+			const connectPromise = this.ssh.connect({
 				host,
 				username: sshUser,
 				password: sshPassword,
@@ -27,6 +28,13 @@ class SshClient {
 				readyTimeout: EXEC_TIMEOUT_MS,
 				keepaliveInterval: 10000,
 			})
+			const connectTimeout = new Promise<never>((_, reject) =>
+				setTimeout(
+					() => reject(new Error(`SSH connect timed out after ${CONNECT_TIMEOUT_MS}ms`)),
+					CONNECT_TIMEOUT_MS,
+				),
+			)
+			await Promise.race([connectPromise, connectTimeout])
 			this.connected = true
 			// Prevent uncaughtException when the server resets the connection externally
 			this.ssh.connection?.on('error', (err: unknown) => {
