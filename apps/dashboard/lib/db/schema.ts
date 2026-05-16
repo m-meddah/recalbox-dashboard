@@ -93,6 +93,10 @@ export const games = sqliteTable('games', {
 		.notNull()
 		.default('pending'),
 	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+	srSlug: text('sr_slug'),
+	srHasPage: int('sr_has_page'),
+	srUrl: text('sr_url'),
+	srCheckedAt: int('sr_checked_at', { mode: 'timestamp' }),
 })
 
 export const settings = sqliteTable('settings', {
@@ -109,4 +113,10 @@ export const systemSnapshots = sqliteTable('system_snapshots', {
 	memTotalMb: real('mem_total_mb'),
 	tempCelsius: real('temp_celsius'),
 	uptimeSeconds: int('uptime_seconds'),
+})
+
+export const srCache = sqliteTable('sr_cache', {
+	key: text('key').primaryKey(),
+	value: text('value').notNull(),
+	expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
 })
