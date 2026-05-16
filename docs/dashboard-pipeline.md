@@ -90,8 +90,9 @@ Données traitées et persistées en SQLite local :
 | 13 | PWA installable | 4-6h | ⭐⭐⭐⭐ |
 | 14 | Multi-Recalbox | 15-25h | ⭐⭐ |
 | 15 | Publication analytics sur MQTT (bonus) | 4-6h | ⭐⭐⭐ Interopérabilité écosystème |
+| 16 | Générateur de fichiers .m3u multi-disques | 5-7h | ⭐⭐⭐⭐ Gestion de collection |
 
-**Total estimé** : 89 à 126 heures de travail réel.
+**Total estimé** : 94 à 133 heures de travail réel.
 À 5h/semaine : environ 4 à 6 mois de side project.
 
 ## Conseils d'utilisation
@@ -4239,6 +4240,185 @@ Démarre.
 
 ---
 
+## Ticket 16 — Générateur de fichiers .m3u multi-disques
+
+```markdown
+# Ticket 16 : Générateur de fichiers .m3u
+
+## Contexte
+
+Lis d'abord README.md et fais `git log --oneline -10`.
+
+Les jeux multi-disques nécessitent un fichier .m3u listant les disques. Le
+dashboard parse déjà les gamelist.xml et les ROMs par système. On ajoute la
+capacité de détecter les jeux multi-disques et de générer/déployer leurs .m3u.
+
+## Format .m3u
+
+Un .m3u est un fichier texte brut :
+- Nom : le nom du jeu SANS la mention de disque
+  Ex: jeu "Final Fantasy VII (France) (Disc 1).cue" → m3u "Final Fantasy VII (France).m3u"
+- Contenu : un fichier disque par ligne, dans l'ordre
+- Fins de ligne UNIX (LF), JAMAIS Windows (CRLF) — sinon Recalbox refuse
+- Fonctionne avec n'importe quelle extension : .cue, .chd, .ccd, .cdi, .pbp, etc.
+- NE fonctionne PAS avec des fichiers compressés (.zip)
+
+Exemple de contenu pour "Final Fantasy VII (France).m3u" :
+
+    Final Fantasy VII (France) (Disc 1).cue
+    Final Fantasy VII (France) (Disc 2).cue
+    Final Fantasy VII (France) (Disc 3).cue
+
+## Objectifs
+
+- `lib/recalbox/multidisc-detector.ts` : détection des jeux multi-disques
+- `lib/recalbox/m3u-generator.ts` : génération du contenu .m3u
+- Route API pour lister les candidats + générer + déployer
+- UI dans la section collection
+- Déploiement des .m3u sur la Recalbox via SSH
+
+## Détails techniques
+
+### Détection des multi-disques (multidisc-detector.ts)
+
+Parser les noms de fichiers ROM pour repérer les patterns de disque. Patterns
+courants à gérer :
+
+- `(Disc 1)`, `(Disc 2)` ... — le plus courant
+- `(Disc 1 of 3)`, `(CD 1 of 3)`
+- `(CD 1)`, `(CD1)`
+- `(Disk 1)` (orthographe alternative)
+- variations de casse et d'espaces
+
+Algorithme :
+
+1. Pour chaque système supportant le multi-disque (psx, saturn, segacd, pcenginecd,
+   3do, dreamcast, amiga, pc98, etc. — liste à définir)
+2. Lister les fichiers ROM
+3. Normaliser : retirer le pattern de disque du nom → "nom de base"
+4. Grouper les fichiers par nom de base
+5. Un groupe avec 2+ fichiers = un jeu multi-disque candidat
+
+Type de sortie :
+
+    export type MultiDiscGame = {
+      system: string;
+      baseName: string;              // "Final Fantasy VII (France)"
+      m3uFileName: string;           // "Final Fantasy VII (France).m3u"
+      discs: Array<{
+        fileName: string;            // "Final Fantasy VII (France) (Disc 1).cue"
+        discNumber: number;          // 1
+      }>;
+      m3uAlreadyExists: boolean;     // un .m3u existe-t-il déjà ?
+    };
+
+    export async function detectMultiDiscGames(system?: string): Promise<MultiDiscGame[]>;
+
+Trie les disques par numéro. Gère le cas où un .m3u existe déjà (ne pas écraser
+sans confirmation).
+
+### Génération (m3u-generator.ts)
+
+    // Lines are joined with LF (never CRLF) — Recalbox requires UNIX line endings.
+    export function generateM3uContent(game: MultiDiscGame): string;
+
+Trivial : joindre les noms de disques avec `\n`, terminer par `\n`.
+
+### Option "cacher les disques individuels"
+
+Astuce communautaire importante : pour éviter que le scraper Recalbox scrape
+chaque disque séparément, on préfixe les fichiers disque individuels avec un
+point (`.`) ce qui les rend cachés. Seul le .m3u reste visible et scrapable.
+
+Ex: `"Final Fantasy VII (Disc 1).cue"` devient `".Final Fantasy VII (Disc 1).cue"`
+
+Ça doit être une OPTION (checkbox dans l'UI), pas automatique, car ça renomme
+des fichiers — action plus intrusive. Pour un `.cue`/`.bin`, attention : si on
+cache le `.cue` il faut aussi cacher le `.bin` associé, et le `.cue` référence le
+`.bin` par son nom donc renommer le `.bin` casserait le `.cue`. À gérer avec soin,
+ou limiter l'option de masquage aux formats mono-fichier (`.chd`, `.pbp`).
+
+⚠️ Demande-moi confirmation sur ce point avant d'implémenter le masquage :
+c'est la partie la plus délicate, on peut très bien livrer le ticket SANS
+le masquage dans une v1 et l'ajouter après.
+
+### Routes API
+
+`GET /api/m3u/candidates` :
+- Query param optionnel `?system=psx`
+- Retourne la liste des `MultiDiscGame` détectés
+
+`POST /api/m3u/generate` :
+- Body : liste de `baseNames` à traiter + option `hideDiscs`
+- Génère les .m3u et les déploie via SSH dans le bon dossier système
+- Si masquage activé : renomme les fichiers disque
+- Retourne un résumé (créés, déjà existants ignorés, erreurs)
+- Idempotent : si le .m3u existe déjà et est identique, ne rien faire
+
+### UI
+
+Dans la section collection, nouvel onglet ou sous-page "Multi-disc / .m3u" :
+
+- Liste des jeux multi-disques détectés, groupés par système
+- Pour chaque : nom de base, nombre de disques, statut (.m3u existe ou non)
+- Prévisualisation du contenu .m3u qui serait généré
+- Checkbox "cacher les disques individuels" (avec avertissement)
+- Bouton "Générer les .m3u manquants" (batch) ou génération individuelle
+- Après génération : indiquer qu'un re-scan EmulationStation peut être nécessaire
+
+### Déploiement
+
+Les .m3u vont dans `/recalbox/share/roms/<system>/`, à côté des disques.
+Déploiement via SSH (réutilise le client SSH existant).
+
+⚠️ Recalbox doit reconnaître l'extension `.m3u` pour le système concerné. Sur
+les versions récentes c'est natif pour psx/saturn/etc., mais pas forcément
+pour tous les systèmes. Le ticket doit le documenter, et l'UI peut afficher
+un avertissement si le système ciblé ne reconnaît pas .m3u nativement.
+
+## Tests
+
+`lib/recalbox/__tests__/multidisc-detector.test.ts` :
+- Détection avec tous les patterns (`(Disc 1)`, `(CD 1 of 3)`, etc.)
+- Groupement correct
+- Tri des disques par numéro
+- Jeux mono-disque ignorés
+- m3u déjà existant détecté
+
+`lib/recalbox/__tests__/m3u-generator.test.ts` :
+- Contenu correct
+- Fins de ligne LF (vérifier explicitement qu'il n'y a pas de CRLF)
+
+## Contraintes
+
+- Strict TypeScript
+- Fins de ligne LF garanties (test explicite)
+- Ne JAMAIS écraser un .m3u existant sans confirmation explicite
+- Le masquage de fichiers est opt-in et bien averti (action destructive)
+- Cohérent avec le positionnement : gestion de collection, pas ops
+- Commit final : `"feat(m3u): multi-disc detection and .m3u generation"`
+
+## Workflow
+
+1. Commence par me demander un échantillon : la liste des fichiers d'un dossier
+   système multi-disque réel de ma Recalbox, ex:
+   `ssh root@recalbox.local 'ls /recalbox/share/roms/psx/'`
+   pour calibrer les patterns de détection sur des vrais noms de fichiers
+2. Implémente : detector + tests → generator + tests → routes API → UI → déploiement
+3. Vérifie `pnpm build`
+4. Demande-moi confirmation sur l'approche du masquage de fichiers avant de
+   l'implémenter (ou livre une v1 sans masquage)
+5. Test end-to-end : détecter, générer, déployer, vérifier sur la Recalbox
+   qu'un jeu multi-disque se lance bien via le .m3u
+6. Update README (section features ou collection) + roadmap
+7. Résume-moi : patterns rencontrés sur ma vraie collection, si le masquage
+   a été inclus ou reporté, et toute limitation découverte
+
+Démarre par demander l'échantillon de fichiers.
+```
+
+---
+
 ## Annexes
 
 ### Stratégie de communication recommandée
@@ -4273,9 +4453,21 @@ Mais réaliste : Tickets 1-13 forment déjà un projet **exceptionnel** pour un 
 project < 5h/semaine. Le Ticket 14 est niche (refactor lourd, ROI utilisateur faible
 pour toi en particulier qui a une seule Recalbox).
 
+### Idée écartée : scraping intégré au dashboard
+
+> **Scraping intégré au dashboard** — non retenu.
+> Recalbox embarque déjà un scraper ScreenScraper natif. Dupliquer cette
+> fonctionnalité créerait un doublon, exactement ce que le positionnement
+> "companion, pas concurrent" cherche à éviter. Le `packages/scraper-core`
+> reste destiné au CLI du projet image perso (provisioning), pas au dashboard.
+> Si un besoin émerge un jour, l'approche acceptable serait de DÉTECTER les
+> jeux sans métadonnées et de proposer de déclencher le scraper natif de
+> Recalbox à distance — mais sans jamais scraper depuis le dashboard lui-même.
+> Non prioritaire.
+
 ### Rappel final
 
-Ce pipeline représente **89 à 126 heures de travail réel**. À 5h/semaine, c'est
+Ce pipeline représente **94 à 133 heures de travail réel**. À 5h/semaine, c'est
 4 à 6 mois de side project. Ne pas chercher à tout faire d'un coup. Livrer
 3-4 tickets bien faits avant d'attaquer les suivants. Mettre à jour ce fichier
 au fur et à mesure (cocher les tickets terminés, ajuster les estimations basées
