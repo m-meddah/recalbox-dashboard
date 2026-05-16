@@ -7,6 +7,12 @@ export const retroachievementsConfigSchema = z.object({
 	autoSyncMinutes: z.number().int().min(1).max(1440),
 })
 
+export const superRetrogamersConfigSchema = z.object({
+	enabled: z.boolean(),
+	apiUrl: z.string().max(256),
+	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
+})
+
 export const recalboxConfigSchema = z.object({
 	host: z
 		.string()
@@ -35,12 +41,14 @@ export const appConfigSchema = z.object({
 	scrobble: scrobbleConfigSchema,
 	ui: uiConfigSchema,
 	retroachievements: retroachievementsConfigSchema,
+	superRetrogamers: superRetrogamersConfigSchema,
 })
 
 export type RecalboxConfig = z.infer<typeof recalboxConfigSchema>
 export type ScrobbleConfig = z.infer<typeof scrobbleConfigSchema>
 export type UiConfig = z.infer<typeof uiConfigSchema>
 export type RetroachievementsConfig = z.infer<typeof retroachievementsConfigSchema>
+export type SuperRetrogamersConfig = z.infer<typeof superRetrogamersConfigSchema>
 export type AppConfig = z.infer<typeof appConfigSchema>
 
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T
