@@ -439,6 +439,8 @@ export async function getSessionStats(
 				playtimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
 				sessionCount: count(),
 				lastPlayed: sql<number>`MAX(${sessions.startedAt})`,
+				srHasPage: games.srHasPage,
+				srUrl: games.srUrl,
 			})
 			.from(sessions)
 			.leftJoin(games, eq(sessions.romPath, games.romPath))
@@ -469,6 +471,62 @@ export async function getSessionStats(
 			playtimeSec: r.playtimeSec,
 			sessionCount: r.sessionCount,
 			lastPlayed: new Date(r.lastPlayed * 1000),
+			srHasPage: r.srHasPage ?? null,
+			srUrl: r.srUrl ?? null,
 		})),
 	}
+}
+
+// ─── Super Retrogamers ────────────────────────────────────────────────────────
+
+export function updateGameSrInfo(
+	romPath: string,
+	srSlug: string,
+	srHasPage: boolean,
+	srUrl: string | null,
+): void {
+	db.update(games)
+		.set({
+			srSlug,
+			srHasPage: srHasPage ? 1 : 0,
+			srUrl: srUrl ?? null,
+			srCheckedAt: new Date(),
+		})
+		.where(eq(games.romPath, romPath))
+		.run()
+}
+
+export function getGameSrInfo(
+	romPath: string,
+): { srHasPage: number | null; srUrl: string | null } | null {
+	const row = db
+		.select({ srHasPage: games.srHasPage, srUrl: games.srUrl })
+		.from(games)
+		.where(eq(games.romPath, romPath))
+		.get()
+	return row ?? null
+}
+
+export function countSrStats(): { total: number; matched: number } {
+	const total = db.select({ count: count() }).from(games).get()?.count ?? 0
+	const matched =
+		db
+			.select({ count: count() })
+			.from(games)
+			.where(eq(games.srHasPage, 1))
+			.get()?.count ?? 0
+	return { total, matched }
+}
+
+export function listUncheckedGames(limit: number): Array<{
+	romPath: string
+	name: string
+	system: string
+}> {
+	return db
+		.select({ romPath: games.romPath, name: games.name, system: games.system })
+		.from(games)
+		.where(isNull(games.srCheckedAt))
+		.limit(limit)
+		.all()
 }
