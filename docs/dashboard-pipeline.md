@@ -32,6 +32,27 @@ Mental model : **Spotify (= Web Manager) vs Last.fm (= ce projet)**. Spotify
 joue la musique, Last.fm enregistre l'historique et fait les stats. Pareil
 ici, les deux outils coexistent sans se marcher dessus.
 
+### Cartographie de l'écosystème Recalbox
+
+L'écosystème d'outils Recalbox se répartit en catégories distinctes. Il est
+important de savoir où notre projet se situe pour ne pas faire de doublon et
+pour bien communiquer dessus.
+
+| Outil | Catégorie | Concurrence avec nous ? |
+| --- | --- | --- |
+| Web Manager (natif) | Ops (monitoring, config, BIOS) | Non |
+| RecalboxHomeAssistant | Contrôle / domotique | Non |
+| M3U Master, Theme Gen, etc. | Utilitaires ponctuels | Non |
+| **recalbox-dashboard** | **Analytics historique** | — |
+
+Notre créneau (analytics historique : scrobble, heatmap, streak, Wrapped)
+n'est couvert par AUCUN outil existant. C'est notre raison d'être.
+
+Note technique : RecalboxHomeAssistant écoute le même broker MQTT que nous.
+Cela ouvre une piste d'interopérabilité — publier nos analytics sur MQTT pour
+que d'autres outils (Home Assistant, etc.) puissent les consommer. Voir le
+Ticket 15 (bonus).
+
 ### Architecture technique
 
 Tourne sur une machine tierce (Linux/macOS, NAS, autre Pi) sur le même réseau
@@ -68,6 +89,7 @@ Données traitées et persistées en SQLite local :
 | 12 | Push notifications | 8-10h | ⭐⭐⭐ |
 | 13 | PWA installable | 4-6h | ⭐⭐⭐⭐ |
 | 14 | Multi-Recalbox | 15-25h | ⭐⭐ |
+| 15 | Publication analytics sur MQTT (bonus) | 4-6h | ⭐⭐⭐ Interopérabilité écosystème |
 
 **Total estimé** : 89 à 126 heures de travail réel.
 À 5h/semaine : environ 4 à 6 mois de side project.
@@ -4089,6 +4111,134 @@ Démarre par l'analyse d'impact.
 
 ---
 
+## Ticket 15 — Publication des analytics sur MQTT (bonus / optionnel / interopérabilité)
+
+```markdown
+# Ticket 15 : Publier les analytics du dashboard sur MQTT
+
+## Contexte
+
+Lis d'abord README.md et fais `git log --oneline -10`.
+
+Le dashboard CONSOMME déjà les événements MQTT de Recalbox (Ticket 2). Ce ticket
+ajoute la capacité de PUBLIER nos propres données analytics sur le broker MQTT,
+pour que d'autres outils de l'écosystème (Home Assistant via la custom component
+RecalboxHomeAssistant, ou n'importe quel client MQTT) puissent les consommer.
+
+C'est une feature d'interopérabilité : le dashboard devient une SOURCE de
+données analytics pour l'écosystème, pas seulement un consommateur.
+
+Cas d'usage concret : un utilisateur qui a Home Assistant peut afficher sur son
+dashboard domotique "Temps de jeu aujourd'hui : 2h34" ou "Série en cours :
+12 jours", données que SEUL notre dashboard sait calculer.
+
+## Objectifs
+
+1. Un publisher MQTT qui pousse les analytics clés sur des topics dédiés
+2. Configuration : activable/désactivable, broker configurable (par défaut le
+   même que Recalbox, mais peut être un broker tiers)
+3. Topics documentés et stables (contrat d'API)
+4. Publication déclenchée par événement (fin de session) + refresh périodique
+5. Discovery Home Assistant optionnel (auto-configuration des entités HA)
+
+## Topics MQTT proposés
+
+Préfixe configurable, par défaut `RecalboxDashboard/`.
+
+| Topic | Payload | Quand publié |
+| --- | --- | --- |
+| `RecalboxDashboard/status` | `online` / `offline` | Au démarrage / LWT |
+| `RecalboxDashboard/playtime/today` | secondes (int) | Fin de session + toutes les 5 min |
+| `RecalboxDashboard/playtime/week` | secondes (int) | Idem |
+| `RecalboxDashboard/streak/current` | jours (int) | Fin de session |
+| `RecalboxDashboard/streak/longest` | jours (int) | Fin de session |
+| `RecalboxDashboard/sessions/today` | nombre (int) | Fin de session |
+| `RecalboxDashboard/topgame/week` | titre du jeu (string) | Fin de session |
+| `RecalboxDashboard/lastgame` | JSON {name, system, durationSec} | Fin de session |
+
+Tous en `retained: true` pour qu'un client qui se connecte ait l'état immédiat.
+
+## Détails techniques
+
+### Publisher
+
+`apps/dashboard/lib/recalbox/mqtt-publisher.ts` :
+- Réutilise la connexion / config MQTT existante (Ticket 2)
+- Méthode `publishAnalytics(snapshot: AnalyticsSnapshot)`
+- LWT (Last Will and Testament) : `RecalboxDashboard/status` → `offline`
+- Tous les messages `retained`
+
+### Calcul du snapshot
+
+Réutilise les calculateurs de stats existants (Ticket 5). Un
+`AnalyticsSnapshot` agrège : playtime today/week, streak, sessions today,
+top game week, last game.
+
+### Déclenchement
+
+Intégré au scrobbler daemon (Ticket 4) :
+- À chaque `closeSession` → recalcule et publie
+- Timer toutes les 5 min → republie (pour le playtime "today" qui avance)
+
+### Configuration
+
+Nouveau bloc dans le settings store (Ticket 6) :
+
+    mqttPublish: {
+      enabled: boolean;          // défaut: false (opt-in)
+      brokerUrl: string;         // défaut: même broker que Recalbox
+      topicPrefix: string;       // défaut: "RecalboxDashboard/"
+      homeAssistantDiscovery: boolean;  // défaut: false
+    }
+
+Nouveau tab ou section dans la page Settings pour configurer ça.
+
+### Home Assistant Discovery (optionnel)
+
+Si `homeAssistantDiscovery` activé, publier des messages de discovery sur
+`homeassistant/sensor/recalbox_dashboard_*/config` pour que Home Assistant
+crée automatiquement les entités (sensors). Format standard HA MQTT Discovery.
+
+Ça permet à un utilisateur HA de voir les analytics du dashboard apparaître
+automatiquement comme des sensors, sans config manuelle.
+
+### Documentation
+
+Crée `docs/mqtt-api.md` qui documente tous les topics, leur payload, leur
+fréquence de publication. C'est un contrat d'API : une fois publié, on évite
+de casser ces topics.
+
+Mentionne dans le README (section écosystème) que le dashboard peut publier
+ses analytics sur MQTT pour interopérer avec Home Assistant et autres.
+
+## Contraintes
+
+- Feature OPT-IN (désactivée par défaut — on ne publie pas sans consentement)
+- Ne doit jamais bloquer le scrobbler si le broker de publication est down
+- Réutiliser au maximum le code MQTT existant (Ticket 2)
+- Strict TypeScript
+- Commit final : "feat(mqtt): publish analytics to MQTT for ecosystem interop"
+
+## Workflow
+
+1. Lis le code MQTT existant (lib/recalbox/mqtt-client.ts) pour réutiliser
+2. Crée le publisher
+3. Définis AnalyticsSnapshot + le calcul (réutilise stats du Ticket 5)
+4. Intègre au scrobbler (publication sur closeSession + timer)
+5. Ajoute la config dans le settings store + UI
+6. Implémente le HA Discovery (optionnel mais recommandé)
+7. Crée docs/mqtt-api.md
+8. Vérifie pnpm build
+9. Test : active la feature, utilise un client MQTT (mosquitto_sub) pour voir
+   les topics publiés ; si tu as Home Assistant, vérifie le discovery
+10. Update README + roadmap
+11. Résume-moi ce qui marche et si le HA Discovery a pu être testé
+
+Démarre.
+```
+
+---
+
 ## Annexes
 
 ### Stratégie de communication recommandée
@@ -4113,10 +4263,11 @@ identifiée (phrases courtes, technique concret, sans corporate) :
 ### Roadmap optionnelle post-Ticket 14
 
 Si tu veux pousser plus loin :
-- **Ticket 15** : Telemetry opt-in anonyme (stats globales pour la slide "comparison")
-- **Ticket 16** : Extraction package `@super-retrogamers/slug` sur npm
-- **Ticket 17** : Theming custom (palette utilisateur)
-- **Ticket 18** : Export complet RGPD-compatible
+
+- **Ticket 16** : Telemetry opt-in anonyme (stats globales pour la slide "comparison")
+- **Ticket 17** : Extraction package `@super-retrogamers/slug` sur npm
+- **Ticket 18** : Theming custom (palette utilisateur)
+- **Ticket 19** : Export complet RGPD-compatible
 
 Mais réaliste : Tickets 1-13 forment déjà un projet **exceptionnel** pour un side
 project < 5h/semaine. Le Ticket 14 est niche (refactor lourd, ROI utilisateur faible
@@ -4136,4 +4287,3 @@ sur l'expérience réelle).
 **Stack** : Next.js 16+, TypeScript, Drizzle, SQLite, Tailwind v4, shadcn/ui
 **Licence** : MIT
 **Date de génération** : Mai 2026
-
