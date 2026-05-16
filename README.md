@@ -23,6 +23,20 @@ retrogaming.
 | Screenshots and logs | Game collection browsable & filterable |
 | Mobile-friendly | Mobile-friendly + PWA installable (coming) |
 
+### Where this fits in the Recalbox ecosystem
+
+Recalbox has a rich ecosystem of community tools, each serving a different
+purpose:
+
+- **Web Manager** (built-in) — operations: live monitoring, config, BIOS/ROM management
+- **[RecalboxHomeAssistant](https://github.com/recalbox/RecalboxHomeAssistant)** — control & automation: launch/stop games, trigger smart-home automations, voice commands
+- **This dashboard** — analytics: long-term playtime history, stats, achievement tracking, annual recap
+
+These tools are **orthogonal, not competing**. The Web Manager runs your
+Recalbox, RecalboxHomeAssistant controls it from your smart home, and this
+dashboard tells you how you've used it over time. If you use Home Assistant,
+run both: RecalboxHomeAssistant for control, this dashboard for analytics.
+
 Use both: the Web Manager for ops, this dashboard for analytics.
 
 ## Installation
