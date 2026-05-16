@@ -52,6 +52,13 @@ const putBodySchema = z.object({
 			autoSyncMinutes: z.number().int().min(1).max(1440).optional(),
 		})
 		.optional(),
+	superRetrogamers: z
+		.object({
+			enabled: z.boolean().optional(),
+			apiUrl: z.string().max(256).optional(),
+			preferredRegion: z.enum(['US', 'EU', 'JP', '']).optional(),
+		})
+		.optional(),
 })
 
 export async function PUT(req: NextRequest) {

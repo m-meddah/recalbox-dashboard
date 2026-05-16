@@ -25,5 +25,10 @@ export function getDefaults(): AppConfig {
 			apiKey: '',
 			autoSyncMinutes: 30,
 		},
+		superRetrogamers: {
+			enabled: false,
+			apiUrl: '',
+			preferredRegion: '',
+		},
 	}
 }
