@@ -1,4 +1,4 @@
-import { index, int, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, int, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const raCache = sqliteTable('ra_cache', {
 	key: text('key').primaryKey(),
@@ -120,3 +120,16 @@ export const srCache = sqliteTable('sr_cache', {
 	value: text('value').notNull(),
 	expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
 })
+
+export const wrappedCache = sqliteTable(
+	'wrapped_cache',
+	{
+		year: int('year').notNull(),
+		locale: text('locale').notNull(),
+		data: text('data').notNull(),
+		generatedAt: int('generated_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.year, t.locale] }),
+	}),
+)
