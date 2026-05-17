@@ -12,7 +12,8 @@
     "collection": "Collection",
     "stats": "Stats",
     "achievements": "Achievements",
-    "settings": "Settings"
+    "settings": "Settings",
+    "wrapped": "Wrapped"
   },
   "dashboard": {
     "nowPlaying": {
