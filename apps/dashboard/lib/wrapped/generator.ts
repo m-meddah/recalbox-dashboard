@@ -317,7 +317,7 @@ export async function fetchWrappedRawData(year: number): Promise<WrappedRawData>
 					title: raAchievements.title,
 					points: raAchievements.points,
 					imageUrl: raAchievements.imageUrl,
-					isHardcore: raAchievements.isHardcore,
+					isHardcore: sql<boolean>`COALESCE(${raAchievements.isHardcore}, false)`,
 				})
 				.from(raAchievements)
 				.where(
