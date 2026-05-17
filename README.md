@@ -246,6 +246,10 @@ The dashboard integrates with [RetroAchievements](https://retroachievements.org)
 - `recalbox.conf` read uses a strict whitelist — password keys are never accessible
 - API key is never logged
 
+### Recalbox Wrapped
+
+Annual gaming recap at `/wrapped/:year` — story-mode slides with tap/swipe navigation, glassmorphism dark design, and shareable PNG images. Accessible year-round. Archive at `/wrapped`.
+
 ## Stats (`/stats/[period]`)
 
 | Period | URL |
