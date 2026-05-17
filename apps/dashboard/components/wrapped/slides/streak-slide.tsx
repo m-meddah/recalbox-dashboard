@@ -14,11 +14,9 @@ export function StreakSlideView({ slide }: Props) {
 
 	const firstDay = slide.activeDays[0]
 	const year = firstDay ? parseInt(firstDay.slice(0, 4)) : new Date().getFullYear()
-	const jan1 = new Date(`${year}-01-01`)
 	const days: string[] = []
 	for (let i = 0; i < 365; i++) {
-		const d = new Date(jan1)
-		d.setDate(d.getDate() + i)
+		const d = new Date(Date.UTC(year, 0, 1 + i))
 		days.push(d.toISOString().slice(0, 10))
 	}
 
