@@ -314,5 +314,95 @@
       "stale": "Données en cache — Super Retrogamers est inaccessible",
       "readFull": "Lire l'article complet ↗"
     }
+  },
+  "wrapped": {
+    "nav": {
+      "archive": "Mon Wrapped",
+      "regen": "Régénérer"
+    },
+    "intro": {
+      "title": "Ton année {year} en revue",
+      "subtitle": "Tout ce que tu as joué cette année"
+    },
+    "totalTime": {
+      "headline": "{hours}h de jeu",
+      "subheadline": "{sessions} sessions",
+      "comparison": "C'est comme regarder {movies} films d'affilée"
+    },
+    "mostPlayedGame": {
+      "title": "Ton jeu le plus joué",
+      "hours": "{hours}h jouées",
+      "sessions": "{sessions} sessions"
+    },
+    "topSystem": {
+      "title": "Ton système principal",
+      "percentage": "{percent}% de ton temps"
+    },
+    "topGamesList": {
+      "title": "Ton top jeux"
+    },
+    "longestSession": {
+      "title": "Ta plus longue session",
+      "headline": "{hours}h {minutes}min sur {game}"
+    },
+    "busiestDay": {
+      "title": "Ton jour le plus actif",
+      "headline": "{hours}h le {date}",
+      "sessions": "{sessions} sessions"
+    },
+    "streak": {
+      "title": "Ton record de streak",
+      "headline": "{days} jours consécutifs"
+    },
+    "achievements": {
+      "title": "Tes RetroAchievements",
+      "headline": "{count} succès débloqués",
+      "points": "{points} points",
+      "rarest": "Plus rare : {title}"
+    },
+    "unlocks": {
+      "title": "Tes badges secrets",
+      "rarity": {
+        "common": "Commun",
+        "uncommon": "Peu commun",
+        "rare": "Rare",
+        "legendary": "Légendaire"
+      }
+    },
+    "comparison": {
+      "title": "vs. les autres joueurs",
+      "headline": "Tu es dans le top {percent}%",
+      "disclaimer": "Chiffres estimés, pas de tracking",
+      "yourHours": "Toi : {hours}h",
+      "avgHours": "Moyenne : {hours}h"
+    },
+    "outro": {
+      "title": "À l'année prochaine !",
+      "share": "Partager mon Wrapped",
+      "archive": "Voir toutes les années"
+    },
+    "noData": {
+      "title": "Aucune session en {year}",
+      "subtitle": "Joue et reviens !",
+      "cta": "Aller aux stats"
+    },
+    "archive": {
+      "title": "Mon Wrapped",
+      "hoursPlayed": "{hours}h jouées",
+      "generatedOn": "Généré le {date}",
+      "view": "Voir"
+    },
+    "share": {
+      "title": "Partager ce slide",
+      "story": "Story (9:16)",
+      "square": "Carré (1:1)",
+      "landscape": "Paysage (1.91:1)",
+      "download": "Télécharger",
+      "shareNative": "Partager"
+    },
+    "statsBanner": {
+      "text": "Ton Wrapped {year} prend forme — {hours}h · {topGame} en tête",
+      "cta": "Voir mon Wrapped"
+    }
   }
 }

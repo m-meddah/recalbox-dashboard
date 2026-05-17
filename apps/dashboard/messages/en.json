@@ -314,5 +314,95 @@
       "stale": "Cached data — Super Retrogamers is unreachable",
       "readFull": "Read full article ↗"
     }
+  },
+  "wrapped": {
+    "nav": {
+      "archive": "My Wrapped",
+      "regen": "Regenerate"
+    },
+    "intro": {
+      "title": "Your {year} in review",
+      "subtitle": "Everything you played this year"
+    },
+    "totalTime": {
+      "headline": "{hours}h of gaming",
+      "subheadline": "{sessions} sessions",
+      "comparison": "That's like watching {movies} movies back-to-back"
+    },
+    "mostPlayedGame": {
+      "title": "Your most played game",
+      "hours": "{hours}h played",
+      "sessions": "{sessions} sessions"
+    },
+    "topSystem": {
+      "title": "Your top system",
+      "percentage": "{percent}% of your time"
+    },
+    "topGamesList": {
+      "title": "Your top games"
+    },
+    "longestSession": {
+      "title": "Your longest session",
+      "headline": "{hours}h {minutes}min on {game}"
+    },
+    "busiestDay": {
+      "title": "Your most active day",
+      "headline": "{hours}h on {date}",
+      "sessions": "{sessions} sessions"
+    },
+    "streak": {
+      "title": "Your streak record",
+      "headline": "{days} days in a row"
+    },
+    "achievements": {
+      "title": "Your RetroAchievements",
+      "headline": "{count} achievements unlocked",
+      "points": "{points} points",
+      "rarest": "Rarest: {title}"
+    },
+    "unlocks": {
+      "title": "Your secret badges",
+      "rarity": {
+        "common": "Common",
+        "uncommon": "Uncommon",
+        "rare": "Rare",
+        "legendary": "Legendary"
+      }
+    },
+    "comparison": {
+      "title": "vs. other players",
+      "headline": "You're in the top {percent}%",
+      "disclaimer": "Estimated averages — no tracking",
+      "yourHours": "You: {hours}h",
+      "avgHours": "Average: {hours}h"
+    },
+    "outro": {
+      "title": "See you next year!",
+      "share": "Share my Wrapped",
+      "archive": "See all years"
+    },
+    "noData": {
+      "title": "No sessions in {year}",
+      "subtitle": "Play some games and come back!",
+      "cta": "Go to stats"
+    },
+    "archive": {
+      "title": "My Wrapped",
+      "hoursPlayed": "{hours}h played",
+      "generatedOn": "Generated on {date}",
+      "view": "View"
+    },
+    "share": {
+      "title": "Share this slide",
+      "story": "Story (9:16)",
+      "square": "Square (1:1)",
+      "landscape": "Landscape (1.91:1)",
+      "download": "Download",
+      "shareNative": "Share"
+    },
+    "statsBanner": {
+      "text": "Your {year} Wrapped is taking shape — {hours}h · {topGame} in the lead",
+      "cta": "View my Wrapped"
+    }
   }
 }
