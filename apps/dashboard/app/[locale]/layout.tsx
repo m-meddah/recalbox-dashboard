@@ -80,6 +80,12 @@ export default async function LocaleLayout({ children, params }: Props) {
 									>
 										{t('settings')}
 									</Link>
+									<Link
+										href="/wrapped"
+										className="text-sm text-muted-foreground hover:text-foreground"
+									>
+										{t('wrapped')}
+									</Link>
 									<div className="ml-auto flex items-center gap-2">
 										<PowerControls />
 										<ThemeToggle />
