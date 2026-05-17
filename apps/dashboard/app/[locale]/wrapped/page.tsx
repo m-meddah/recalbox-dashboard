@@ -6,6 +6,8 @@ import { Link } from '@/i18n/navigation'
 import { sql, desc } from 'drizzle-orm'
 import { ArrowLeft } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 type Props = { params: Promise<{ locale: string }> }
 
 async function getAvailableYears(locale: string) {
