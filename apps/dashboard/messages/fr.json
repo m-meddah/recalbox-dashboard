@@ -522,5 +522,13 @@
     "title": "Vous êtes hors-ligne",
     "description": "Vérifiez votre connexion et réessayez.",
     "retry": "Réessayer"
+  },
+  "recalboxes": {
+    "switcher": {
+      "label": "Changer de Recalbox",
+      "manage": "Gérer les Recalboxes",
+      "add": "Ajouter une Recalbox",
+      "viewAll": "Voir toutes les Recalboxes"
+    }
   }
 }
