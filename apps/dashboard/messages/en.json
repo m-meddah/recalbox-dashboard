@@ -529,6 +529,33 @@
       "manage": "Manage Recalboxes",
       "add": "Add Recalbox",
       "viewAll": "View all Recalboxes"
+    },
+    "allPage": {
+      "title": "All Recalboxes",
+      "totalPlaytime": "Total Playtime",
+      "totalSessions": "Total Sessions",
+      "recalboxes": "Recalboxes"
+    },
+    "page": {
+      "title": "My Recalboxes",
+      "add": "Add Recalbox",
+      "default": "default",
+      "active": "active",
+      "edit": "Edit",
+      "archived": "Archived"
+    },
+    "form": {
+      "name": "Name",
+      "icon": "Icon",
+      "host": "Hostname",
+      "sshUser": "SSH User",
+      "sshPassword": "SSH Password",
+      "sshPort": "SSH Port",
+      "mqttPort": "MQTT Port",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "show": "Show",
+      "hide": "Hide"
     }
   }
 }
