@@ -1,4 +1,6 @@
 import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { executeSystemPower } from '@/lib/recalbox/system-power'
 import { NextResponse } from 'next/server'
 
@@ -12,8 +14,15 @@ export async function POST(request: Request): Promise<NextResponse> {
 		return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 	}
 
+	const recalboxId = await getActiveRecalboxId()
+	if (!recalboxId) {
+		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+	}
+
+	const ssh = getSshClient(recalboxId)
+
 	try {
-		await executeSystemPower(action)
+		await executeSystemPower(action, ssh)
 		return NextResponse.json({ ok: true })
 	} catch (err) {
 		logger.error(`Power action "${action}" failed — Recalbox unreachable`, err)

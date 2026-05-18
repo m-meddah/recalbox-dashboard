@@ -1,10 +1,11 @@
 import { upsertGames } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { parseGamelist } from '@/lib/recalbox/gamelist-parser'
 import { readGamelist, readUserdataIni } from '@/lib/recalbox/gamelist-reader'
+import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { invalidateSystemsCache, listSystems } from '@/lib/recalbox/systems'
 import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
-import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import type { NextRequest } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -48,7 +49,8 @@ export async function POST(req: NextRequest) {
 					write({ type: 'error', message: 'No Recalbox configured' })
 					return
 				}
-				const allSystems = await listSystems()
+				const ssh = getSshClient(recalboxId)
+				const allSystems = await listSystems(ssh)
 				const systems = targetSystem ? allSystems.filter((s) => s.id === targetSystem) : allSystems
 
 				write({ type: 'start', totalSystems: systems.length })
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 				for (const system of systems) {
 					write({ type: 'system', system: system.id, status: 'reading' })
 
-					const xml = await readGamelist(system.gamelistPath)
+					const xml = await readGamelist(system.gamelistPath, ssh)
 					if (!xml) {
 						write({ type: 'system', system: system.id, status: 'skipped' })
 						continue
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
 					const parsed = parseGamelist(xml, system.romsBasePath)
 
 					// Merge userdata.ini: real favorite / hidden / play stats override XML values
-					const userdataRaw = await readUserdataIni(system.romsBasePath)
+					const userdataRaw = await readUserdataIni(system.romsBasePath, ssh)
 					if (userdataRaw) {
 						const userdata = parseUserdataIni(userdataRaw)
 						for (const game of parsed) {

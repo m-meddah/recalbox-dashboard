@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger'
-import { sshClient } from '@/lib/recalbox/ssh-client'
+import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 
 const POWER_TIMEOUT_MS = 2000
 
@@ -10,10 +10,10 @@ function isExpectedDisconnect(err: unknown): boolean {
 	return CONNECTION_RESET_PATTERNS.some((p) => msg.includes(p))
 }
 
-export async function executeSystemPower(action: 'shutdown' | 'reboot'): Promise<void> {
+export async function executeSystemPower(action: 'shutdown' | 'reboot', ssh: SshClientLike): Promise<void> {
 	const command = action === 'shutdown' ? 'poweroff' : 'reboot'
 	try {
-		await sshClient.exec(command, POWER_TIMEOUT_MS)
+		await ssh.exec(command, POWER_TIMEOUT_MS)
 	} catch (err) {
 		if (isExpectedDisconnect(err)) {
 			logger.info(`SSH disconnected after ${command} — expected`)

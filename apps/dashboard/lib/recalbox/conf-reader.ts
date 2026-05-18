@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger'
 import { shellQuote } from './shell'
-import { sshClient } from './ssh-client'
+import type { SshClientLike } from './ssh-client'
 
 const ALLOWED_CONF_KEYS = [
 	'global.retroachievements',
@@ -28,12 +28,12 @@ function parseConfValue(output: string, key: string): string | null {
 
 const CONF_PATH = '/recalbox/share/system/recalbox.conf'
 
-export async function readRecalboxConfValue(key: string): Promise<string | null> {
+export async function readRecalboxConfValue(key: string, ssh: SshClientLike): Promise<string | null> {
 	if (!isAllowed(key)) {
 		throw new Error(`Key "${key}" is not in the allowed recalbox.conf whitelist`)
 	}
 	try {
-		const output = await sshClient.exec(`grep -E '^\\s*${shellQuote(key)}\\s*=' ${CONF_PATH} || true`)
+		const output = await ssh.exec(`grep -E '^\\s*${shellQuote(key)}\\s*=' ${CONF_PATH} || true`)
 		return parseConfValue(output, key)
 	} catch (err) {
 		logger.warn(`Failed to read recalbox.conf key "${key}"`, err)
@@ -43,6 +43,7 @@ export async function readRecalboxConfValue(key: string): Promise<string | null>
 
 export async function readRecalboxConfValues(
 	keys: string[],
+	ssh: SshClientLike,
 ): Promise<Record<string, string | null>> {
 	const result: Record<string, string | null> = {}
 	for (const key of keys) {
@@ -51,7 +52,7 @@ export async function readRecalboxConfValues(
 		}
 	}
 	try {
-		const output = await sshClient.exec(`cat ${CONF_PATH}`)
+		const output = await ssh.exec(`cat ${CONF_PATH}`)
 		for (const key of keys) {
 			result[key] = parseConfValue(output, key)
 		}

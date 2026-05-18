@@ -1,4 +1,6 @@
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { isAllowedConfKey, readRecalboxConfValue } from '@/lib/recalbox/conf-reader'
+import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +17,13 @@ export async function GET(request: Request) {
 		return NextResponse.json({ error: 'Key not allowed' }, { status: 403 })
 	}
 
-	const value = await readRecalboxConfValue(key)
+	const recalboxId = await getActiveRecalboxId()
+	if (!recalboxId) {
+		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+	}
+
+	const ssh = getSshClient(recalboxId)
+	const value = await readRecalboxConfValue(key, ssh)
 
 	return NextResponse.json(
 		{ key, value },

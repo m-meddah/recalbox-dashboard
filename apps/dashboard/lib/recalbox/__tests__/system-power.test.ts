@@ -1,19 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/recalbox/ssh-client', () => ({
-	sshClient: {
-		exec: vi.fn(),
-	},
-}))
-
 vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { sshClient } from '@/lib/recalbox/ssh-client'
 import { executeSystemPower } from '@/lib/recalbox/system-power'
+import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 
-const mockExec = vi.mocked(sshClient.exec)
+function makeMockSsh(): SshClientLike & { exec: ReturnType<typeof vi.fn> } {
+	return { exec: vi.fn() }
+}
 
 beforeEach(() => {
 	vi.clearAllMocks()
@@ -21,30 +17,34 @@ beforeEach(() => {
 
 describe('executeSystemPower', () => {
 	it('runs poweroff for shutdown action', async () => {
-		mockExec.mockResolvedValue('')
+		const ssh = makeMockSsh()
+		ssh.exec.mockResolvedValue('')
 
-		await executeSystemPower('shutdown')
+		await executeSystemPower('shutdown', ssh)
 
-		expect(mockExec).toHaveBeenCalledWith('poweroff', 2000)
+		expect(ssh.exec).toHaveBeenCalledWith('poweroff', 2000)
 	})
 
 	it('runs reboot for reboot action', async () => {
-		mockExec.mockResolvedValue('')
+		const ssh = makeMockSsh()
+		ssh.exec.mockResolvedValue('')
 
-		await executeSystemPower('reboot')
+		await executeSystemPower('reboot', ssh)
 
-		expect(mockExec).toHaveBeenCalledWith('reboot', 2000)
+		expect(ssh.exec).toHaveBeenCalledWith('reboot', 2000)
 	})
 
 	it('does not throw when SSH disconnects (expected for poweroff/reboot)', async () => {
-		mockExec.mockRejectedValue(new Error('ECONNRESET'))
+		const ssh = makeMockSsh()
+		ssh.exec.mockRejectedValue(new Error('ECONNRESET'))
 
-		await expect(executeSystemPower('shutdown')).resolves.toBeUndefined()
+		await expect(executeSystemPower('shutdown', ssh)).resolves.toBeUndefined()
 	})
 
 	it('re-throws unexpected SSH errors', async () => {
-		mockExec.mockRejectedValue(new Error('Authentication failed'))
+		const ssh = makeMockSsh()
+		ssh.exec.mockRejectedValue(new Error('Authentication failed'))
 
-		await expect(executeSystemPower('reboot')).rejects.toThrow('Authentication failed')
+		await expect(executeSystemPower('reboot', ssh)).rejects.toThrow('Authentication failed')
 	})
 })
