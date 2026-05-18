@@ -104,10 +104,14 @@ export default function WelcomePage() {
 		if (!step1Values) return
 		setSaving(true)
 		try {
-			await fetch('/api/settings', {
-				method: 'PUT',
+			await fetch('/api/recalboxes', {
+				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recalbox: step1Values }),
+				body: JSON.stringify({
+					name: 'My Recalbox',
+					iconEmoji: '🕹️',
+					...step1Values,
+				}),
 			})
 			await fetch('/api/settings/complete-setup', { method: 'POST' })
 			router.push('/')
