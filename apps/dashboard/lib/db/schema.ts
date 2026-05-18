@@ -1,4 +1,20 @@
-import { index, int, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, int, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+
+export const recalboxes = sqliteTable('recalboxes', {
+	id: text('id').primaryKey(),
+	name: text('name').notNull(),
+	host: text('host').notNull(),
+	sshUser: text('ssh_user').notNull(),
+	sshPassword: text('ssh_password').notNull(),
+	sshPort: int('ssh_port').notNull().default(22),
+	mqttPort: int('mqtt_port').notNull().default(1883),
+	color: text('color'),
+	iconEmoji: text('icon_emoji'),
+	isDefault: int('is_default', { mode: 'boolean' }).default(false),
+	archived: int('archived', { mode: 'boolean' }).default(false),
+	createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+	lastConnectedAt: int('last_connected_at', { mode: 'timestamp' }),
+})
 
 export const raCache = sqliteTable('ra_cache', {
 	key: text('key').primaryKey(),
@@ -38,17 +54,25 @@ export const raGameProgress = sqliteTable('ra_game_progress', {
 	syncedAt: int('synced_at', { mode: 'timestamp' }).notNull(),
 })
 
-export const raGameMapping = sqliteTable('ra_game_mapping', {
-	romPath: text('rom_path').primaryKey(),
-	raGameId: int('ra_game_id').notNull(),
-	matchKind: text('match_kind', { enum: ['auto', 'manual'] }).notNull(),
-	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
-})
+export const raGameMapping = sqliteTable(
+	'ra_game_mapping',
+	{
+		recalboxId: text('recalbox_id').notNull(),
+		romPath: text('rom_path').notNull(),
+		raGameId: int('ra_game_id').notNull(),
+		matchKind: text('match_kind', { enum: ['auto', 'manual'] }).notNull(),
+		updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.recalboxId, t.romPath] }),
+	}),
+)
 
 export const sessions = sqliteTable(
 	'sessions',
 	{
 		id: int('id').primaryKey({ autoIncrement: true }),
+		recalboxId: text('recalbox_id'),
 		gameId: int('game_id'),
 		startedAt: int('started_at', { mode: 'timestamp' }).notNull(),
 		endedAt: int('ended_at', { mode: 'timestamp' }),
@@ -59,45 +83,54 @@ export const sessions = sqliteTable(
 		closedReason: text('closed_reason'),
 	},
 	(t) => ({
+		recalboxIdIdx: index('idx_sessions_recalbox_id').on(t.recalboxId),
 		romPathIdx: index('idx_sessions_rom_path').on(t.romPath),
 		startedAtIdx: index('idx_sessions_started_at').on(t.startedAt),
 		endedAtIdx: index('idx_sessions_ended_at').on(t.endedAt),
 	}),
 )
 
-export const games = sqliteTable('games', {
-	id: int('id').primaryKey({ autoIncrement: true }),
-	name: text('name').notNull(),
-	system: text('system').notNull(),
-	romPath: text('rom_path').notNull().unique(),
-	screenshotPath: text('screenshot_path'),
-	imagePath: text('image_path'),
-	videoPath: text('video_path'),
-	thumbnailPath: text('thumbnail_path'),
-	rating: real('rating'),
-	players: text('players'),
-	releaseDate: int('release_date', { mode: 'timestamp' }),
-	developer: text('developer'),
-	publisher: text('publisher'),
-	genre: text('genre'),
-	description: text('description'),
-	hash: text('hash'),
-	region: text('region'),
-	favorite: int('favorite', { mode: 'boolean' }).notNull().default(false),
-	hidden: int('hidden', { mode: 'boolean' }).notNull().default(false),
-	playCount: int('play_count').default(0),
-	lastPlayed: int('last_played', { mode: 'timestamp' }),
-	diskSource: text('disk_source'),
-	syncedAt: int('synced_at', { mode: 'timestamp' }),
-	scrapeStatus: text('scrape_status', { enum: ['pending', 'done', 'failed'] })
-		.notNull()
-		.default('pending'),
-	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
-	srSlug: text('sr_slug'),
-	srHasPage: int('sr_has_page'),
-	srUrl: text('sr_url'),
-	srCheckedAt: int('sr_checked_at', { mode: 'timestamp' }),
-})
+export const games = sqliteTable(
+	'games',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		recalboxId: text('recalbox_id'),
+		name: text('name').notNull(),
+		system: text('system').notNull(),
+		romPath: text('rom_path').notNull(),
+		screenshotPath: text('screenshot_path'),
+		imagePath: text('image_path'),
+		videoPath: text('video_path'),
+		thumbnailPath: text('thumbnail_path'),
+		rating: real('rating'),
+		players: text('players'),
+		releaseDate: int('release_date', { mode: 'timestamp' }),
+		developer: text('developer'),
+		publisher: text('publisher'),
+		genre: text('genre'),
+		description: text('description'),
+		hash: text('hash'),
+		region: text('region'),
+		favorite: int('favorite', { mode: 'boolean' }).notNull().default(false),
+		hidden: int('hidden', { mode: 'boolean' }).notNull().default(false),
+		playCount: int('play_count').default(0),
+		lastPlayed: int('last_played', { mode: 'timestamp' }),
+		diskSource: text('disk_source'),
+		syncedAt: int('synced_at', { mode: 'timestamp' }),
+		scrapeStatus: text('scrape_status', { enum: ['pending', 'done', 'failed'] })
+			.notNull()
+			.default('pending'),
+		updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+		srSlug: text('sr_slug'),
+		srHasPage: int('sr_has_page'),
+		srUrl: text('sr_url'),
+		srCheckedAt: int('sr_checked_at', { mode: 'timestamp' }),
+	},
+	(t) => ({
+		recalboxRomUnique: unique('uq_games_recalbox_rom').on(t.recalboxId, t.romPath),
+		recalboxIdIdx: index('idx_games_recalbox_id').on(t.recalboxId),
+	}),
+)
 
 export const settings = sqliteTable('settings', {
 	key: text('key').primaryKey(),
@@ -105,15 +138,22 @@ export const settings = sqliteTable('settings', {
 	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
 })
 
-export const systemSnapshots = sqliteTable('system_snapshots', {
-	id: int('id').primaryKey({ autoIncrement: true }),
-	capturedAt: int('captured_at', { mode: 'timestamp' }).notNull(),
-	cpuPercent: real('cpu_percent'),
-	memUsedMb: real('mem_used_mb'),
-	memTotalMb: real('mem_total_mb'),
-	tempCelsius: real('temp_celsius'),
-	uptimeSeconds: int('uptime_seconds'),
-})
+export const systemSnapshots = sqliteTable(
+	'system_snapshots',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		recalboxId: text('recalbox_id'),
+		capturedAt: int('captured_at', { mode: 'timestamp' }).notNull(),
+		cpuPercent: real('cpu_percent'),
+		memUsedMb: real('mem_used_mb'),
+		memTotalMb: real('mem_total_mb'),
+		tempCelsius: real('temp_celsius'),
+		uptimeSeconds: int('uptime_seconds'),
+	},
+	(t) => ({
+		recalboxIdIdx: index('idx_snapshots_recalbox_id').on(t.recalboxId),
+	}),
+)
 
 export const srCache = sqliteTable('sr_cache', {
 	key: text('key').primaryKey(),
@@ -138,6 +178,7 @@ export const notifications = sqliteTable(
 	'notifications',
 	{
 		id: int('id').primaryKey({ autoIncrement: true }),
+		recalboxId: text('recalbox_id'),
 		type: text('type').notNull(),
 		data: text('data').notNull(),
 		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
@@ -148,6 +189,7 @@ export const notifications = sqliteTable(
 	(t) => ({
 		createdAtIdx: index('idx_notifications_created_at').on(t.createdAt),
 		pushedInAppIdx: index('idx_notifications_pushed_in_app').on(t.pushedInApp),
+		recalboxIdIdx: index('idx_notifications_recalbox_id').on(t.recalboxId),
 	}),
 )
 
