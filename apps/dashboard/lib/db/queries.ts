@@ -3,7 +3,7 @@ import { games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
-import { asc, count, desc, eq, gte, isNull, like, lte, max, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, isNull, like, lte, max, sql } from 'drizzle-orm'
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -52,8 +52,9 @@ export function isSetupComplete(): boolean {
 // ─── System snapshots ────────────────────────────────────────────────────────
 
 /** Insert a system stats snapshot into the database. */
-export async function insertSystemSnapshot(stats: SystemStats): Promise<void> {
+export async function insertSystemSnapshot(stats: SystemStats, recalboxId: string): Promise<void> {
 	await db.insert(systemSnapshots).values({
+		recalboxId,
 		capturedAt: stats.takenAt,
 		cpuPercent: stats.cpuUsage,
 		memUsedMb: stats.ramUsedMb,
@@ -64,12 +65,14 @@ export async function insertSystemSnapshot(stats: SystemStats): Promise<void> {
 }
 
 /** Retrieve system snapshots from the last N minutes. */
-export async function getRecentSnapshots(minutes: number) {
+export async function getRecentSnapshots(minutes: number, recalboxId?: string) {
 	const since = new Date(Date.now() - minutes * 60 * 1000)
+	const conditions = [gte(systemSnapshots.capturedAt, since)]
+	if (recalboxId) conditions.push(eq(systemSnapshots.recalboxId, recalboxId))
 	return db
 		.select()
 		.from(systemSnapshots)
-		.where(gte(systemSnapshots.capturedAt, since))
+		.where(sql.join(conditions, sql` AND `))
 		.orderBy(systemSnapshots.capturedAt)
 }
 
@@ -85,6 +88,7 @@ export async function upsertGames(
 	parsedGames: ParsedGame[],
 	system: string,
 	diskSource: string,
+	recalboxId: string,
 ): Promise<number> {
 	if (parsedGames.length === 0) return 0
 
@@ -98,6 +102,7 @@ export async function upsertGames(
 			.insert(games)
 			.values(
 				batch.map((g) => ({
+					recalboxId,
 					name: g.name,
 					system,
 					romPath: g.romPath,
@@ -123,7 +128,7 @@ export async function upsertGames(
 				})),
 			)
 			.onConflictDoUpdate({
-				target: games.romPath,
+				target: [games.recalboxId, games.romPath],
 				set: {
 					name: sql`excluded.name`,
 					imagePath: sql`excluded.image_path`,
@@ -155,6 +160,7 @@ export async function upsertGames(
 }
 
 export type CollectionFilters = {
+	recalboxId?: string
 	system?: string
 	favoritesOnly?: boolean
 	neverPlayed?: boolean
@@ -174,6 +180,7 @@ export async function listGames(
 	filters: CollectionFilters = {},
 ): Promise<{ games: Game[]; total: number }> {
 	const {
+		recalboxId,
 		system,
 		favoritesOnly,
 		neverPlayed,
@@ -188,6 +195,7 @@ export async function listGames(
 
 	const conditions = [eq(games.hidden, false)]
 
+	if (recalboxId) conditions.push(eq(games.recalboxId, recalboxId))
 	if (system) conditions.push(eq(games.system, system))
 	if (favoritesOnly) conditions.push(eq(games.favorite, true))
 	if (neverPlayed) conditions.push(sql`${games.playCount} = 0 OR ${games.playCount} IS NULL`)
@@ -260,8 +268,9 @@ export async function getCollectionStats(): Promise<CollectionStats> {
 }
 
 /** List distinct region values present in the collection (excluding hidden games). */
-export async function listRegions(system?: string): Promise<string[]> {
+export async function listRegions(system?: string, recalboxId?: string): Promise<string[]> {
 	const conditions = [eq(games.hidden, false), sql`${games.region} IS NOT NULL`]
+	if (recalboxId) conditions.push(eq(games.recalboxId, recalboxId))
 	if (system) conditions.push(eq(games.system, system))
 
 	const rows = await db
@@ -278,6 +287,7 @@ export async function listRegions(system?: string): Promise<string[]> {
 export type Session = typeof sessions.$inferSelect
 
 export type SessionFilters = {
+	recalboxId?: string
 	system?: string
 	romPath?: string
 	fromDate?: Date
@@ -306,6 +316,7 @@ export type SessionStats = {
 
 /** Insert a new open session record. Returns the inserted session id. */
 export async function openSession(opts: {
+	recalboxId: string
 	gameId?: number
 	startedAt: Date
 	system: string
@@ -314,6 +325,7 @@ export async function openSession(opts: {
 	const result = await db
 		.insert(sessions)
 		.values({
+			recalboxId: opts.recalboxId,
 			gameId: opts.gameId ?? null,
 			startedAt: opts.startedAt,
 			system: opts.system,
@@ -357,9 +369,10 @@ export async function getOpenSessions(): Promise<Session[]> {
 export async function listSessions(
 	filters: SessionFilters = {},
 ): Promise<{ sessions: Session[]; total: number }> {
-	const { system, romPath, fromDate, toDate, autoClosed, page = 1, pageSize = 50 } = filters
+	const { recalboxId, system, romPath, fromDate, toDate, autoClosed, page = 1, pageSize = 50 } = filters
 
 	const conditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
+	if (recalboxId) conditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
 	if (system) conditions.push(sql`${sessions.system} = ${system}`)
 	if (romPath) conditions.push(sql`${sessions.romPath} = ${romPath}`)
 	if (fromDate)
@@ -387,14 +400,16 @@ export async function listSessions(
 /** Aggregate session stats over an optional date range. */
 export async function getSessionStats(
 	opts: {
+		recalboxId?: string
 		fromDate?: Date
 		toDate?: Date
 		topGamesLimit?: number
 	} = {},
 ): Promise<SessionStats> {
-	const { fromDate, toDate, topGamesLimit = 10 } = opts
+	const { recalboxId, fromDate, toDate, topGamesLimit = 10 } = opts
 
 	const baseConditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
+	if (recalboxId) baseConditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
 	if (fromDate)
 		baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
 	if (toDate)
@@ -443,7 +458,10 @@ export async function getSessionStats(
 				srUrl: games.srUrl,
 			})
 			.from(sessions)
-			.leftJoin(games, eq(sessions.romPath, games.romPath))
+			.leftJoin(games, and(
+				eq(sessions.recalboxId, games.recalboxId),
+				eq(sessions.romPath, games.romPath),
+			))
 			.where(where)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
@@ -477,9 +495,22 @@ export async function getSessionStats(
 	}
 }
 
+export async function listAllSessionsAcrossRecalboxes(
+	filters: SessionFilters = {},
+): Promise<{ sessions: Session[]; total: number }> {
+	return listSessions(filters)
+}
+
+export async function getSessionStatsAllRecalboxes(
+	opts: { fromDate?: Date; toDate?: Date; topGamesLimit?: number } = {},
+): Promise<SessionStats> {
+	return getSessionStats(opts)
+}
+
 // ─── Super Retrogamers ────────────────────────────────────────────────────────
 
 export function updateGameSrInfo(
+	recalboxId: string,
 	romPath: string,
 	srSlug: string,
 	srHasPage: boolean,
@@ -492,41 +523,49 @@ export function updateGameSrInfo(
 			srUrl: srUrl ?? null,
 			srCheckedAt: new Date(),
 		})
-		.where(eq(games.romPath, romPath))
+		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
 		.run()
 }
 
 export function getGameSrInfo(
+	recalboxId: string,
 	romPath: string,
 ): { srHasPage: number | null; srUrl: string | null } | null {
 	const row = db
 		.select({ srHasPage: games.srHasPage, srUrl: games.srUrl })
 		.from(games)
-		.where(eq(games.romPath, romPath))
+		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
 		.get()
 	return row ?? null
 }
 
-export function countSrStats(): { total: number; matched: number } {
-	const total = db.select({ count: count() }).from(games).get()?.count ?? 0
+export function countSrStats(recalboxId?: string): { total: number; matched: number } {
+	const totalWhere = recalboxId ? eq(games.recalboxId, recalboxId) : undefined
+	const matchedWhere = recalboxId
+		? and(eq(games.recalboxId, recalboxId), eq(games.srHasPage, 1))
+		: eq(games.srHasPage, 1)
+	const total = db.select({ count: count() }).from(games).where(totalWhere).get()?.count ?? 0
 	const matched =
 		db
 			.select({ count: count() })
 			.from(games)
-			.where(eq(games.srHasPage, 1))
+			.where(matchedWhere)
 			.get()?.count ?? 0
 	return { total, matched }
 }
 
-export function listUncheckedGames(limit: number): Array<{
+export function listUncheckedGames(limit: number, recalboxId?: string): Array<{
 	romPath: string
 	name: string
 	system: string
 }> {
+	const whereClause = recalboxId
+		? and(isNull(games.srCheckedAt), eq(games.recalboxId, recalboxId))
+		: isNull(games.srCheckedAt)
 	return db
 		.select({ romPath: games.romPath, name: games.name, system: games.system })
 		.from(games)
-		.where(isNull(games.srCheckedAt))
+		.where(whereClause)
 		.limit(limit)
 		.all()
 }
