@@ -529,6 +529,33 @@
       "manage": "Gérer les Recalboxes",
       "add": "Ajouter une Recalbox",
       "viewAll": "Voir toutes les Recalboxes"
+    },
+    "allPage": {
+      "title": "Toutes les Recalboxes",
+      "totalPlaytime": "Temps de jeu total",
+      "totalSessions": "Sessions totales",
+      "recalboxes": "Recalboxes"
+    },
+    "page": {
+      "title": "Mes Recalboxes",
+      "add": "Ajouter une Recalbox",
+      "default": "défaut",
+      "active": "actif",
+      "edit": "Modifier",
+      "archived": "Archivées"
+    },
+    "form": {
+      "name": "Nom",
+      "icon": "Icône",
+      "host": "Nom d'hôte",
+      "sshUser": "Utilisateur SSH",
+      "sshPassword": "Mot de passe SSH",
+      "sshPort": "Port SSH",
+      "mqttPort": "Port MQTT",
+      "test": "Tester la connexion",
+      "testing": "Test en cours…",
+      "show": "Afficher",
+      "hide": "Masquer"
     }
   }
 }
