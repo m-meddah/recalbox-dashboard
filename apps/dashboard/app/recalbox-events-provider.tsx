@@ -1,10 +1,12 @@
 'use client'
 
+import type { Notification } from '@/lib/notifications/types'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
-export type SSEEvent = RecalboxEvent | ConnectionEvent
+export type NotificationSSEEvent = { type: 'notification'; notification: Notification }
+export type SSEEvent = RecalboxEvent | ConnectionEvent | NotificationSSEEvent
 
 type Handler = (event: SSEEvent) => void
 

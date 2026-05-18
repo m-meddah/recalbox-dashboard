@@ -2,11 +2,23 @@
 import { configStore } from '../lib/config-store'
 import { getLatestSettingUpdatedAt } from '../lib/db/queries'
 import { logger } from '../lib/logger'
+import { notificationService } from '../lib/notifications/service'
+import { sendWebPush } from '../lib/notifications/web-push'
+import { getOrCreateVapidKeys } from '../lib/notifications/vapid'
 import { syncRetroAchievements } from '../lib/retroachievements/sync'
 import { startScrobbler } from '../lib/scrobbler'
+import { CronJob } from 'cron'
 
 async function main() {
 	logger.info('Starting Recalbox scrobbler daemon...')
+
+	// Ensure VAPID keys exist (auto-generate if absent)
+	try {
+		await getOrCreateVapidKeys()
+		logger.info('VAPID keys ready')
+	} catch (err) {
+		logger.warn('Failed to initialize VAPID keys', err)
+	}
 	const scrobbler = await startScrobbler()
 
 	// Initialize config and track last known update timestamp
@@ -48,8 +60,22 @@ async function main() {
 		raSyncInterval = scheduleRaSync()
 	})
 
+	// Wrapped available — fires December 1st at 9am
+	const wrappedCron = new CronJob(
+		'0 9 1 12 *',
+		async () => {
+			const year = new Date().getFullYear() - 1
+			logger.info(`Sending Wrapped available notification for ${year}`)
+			const notif = await notificationService.create({ type: 'wrapped.available', data: { year } })
+			if (notif) sendWebPush(notif).catch(() => {})
+		},
+		null,
+		true,
+	)
+
 	const shutdown = async (signal: string) => {
 		logger.info(`Received ${signal}, shutting down...`)
+		wrappedCron.stop()
 		clearInterval(configPollInterval)
 		if (raSyncInterval) clearInterval(raSyncInterval)
 		await scrobbler.stop()

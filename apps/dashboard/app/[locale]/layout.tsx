@@ -13,6 +13,8 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { PowerControls } from '@/components/power-controls'
 import { Toaster } from '@/components/ui/sonner'
+import { NotificationBell } from '@/components/notification-bell'
+import { NotificationListener } from '@/components/notification-listener'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -87,6 +89,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 										{t('wrapped')}
 									</Link>
 									<div className="ml-auto flex items-center gap-2">
+										<NotificationBell />
 										<PowerControls />
 										<ThemeToggle />
 										<LanguageSwitcher />
@@ -94,6 +97,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 								</nav>
 							</header>
 							{children}
+							<NotificationListener />
 							<Toaster />
 						</RecalboxEventsProvider>
 					</NextIntlClientProvider>

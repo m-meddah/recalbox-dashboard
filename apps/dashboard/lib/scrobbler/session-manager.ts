@@ -1,8 +1,12 @@
 import type { DB } from '@/lib/db/index'
 import { sessions } from '@/lib/db/schema'
+import { notificationService } from '@/lib/notifications/service'
+import { sendWebPush } from '@/lib/notifications/web-push'
 import { logger } from '@/lib/logger'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
-import { eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
+
+const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365]
 
 const MIN_DURATION_SEC = Number.parseInt(process.env['SCROBBLE_MIN_DURATION_SEC'] ?? '10', 10)
 const MAX_DURATION_SEC = 3600
@@ -99,6 +103,47 @@ export class SessionManager {
 
 		await this.close(match.id, event.stoppedAt, durationSec)
 		logger.info(`Closed session ${match.id} (${durationSec}s) for ${event.romPath}`)
+
+		this.checkStreakMilestone().catch(() => {})
+	}
+
+	private async checkStreakMilestone(): Promise<void> {
+		// Fetch last 400 days of sessions to calculate streak
+		const cutoff = new Date(Date.now() - 400 * 24 * 3600 * 1000)
+		const rows = await this.db
+			.select({ endedAt: sessions.endedAt })
+			.from(sessions)
+			.where(and(isNotNull(sessions.endedAt), gte(sessions.endedAt, cutoff)))
+			.orderBy(desc(sessions.endedAt))
+			.all()
+
+		const activeDays = new Set<string>()
+		for (const row of rows) {
+			if (row.endedAt) {
+				activeDays.add(row.endedAt.toISOString().slice(0, 10))
+			}
+		}
+
+		let streak = 0
+		const today = new Date()
+		for (let i = 0; i < 400; i++) {
+			const d = new Date(today)
+			d.setDate(today.getDate() - i)
+			const key = d.toISOString().slice(0, 10)
+			if (activeDays.has(key)) {
+				streak++
+			} else if (i > 0) {
+				break
+			}
+		}
+
+		if (STREAK_MILESTONES.includes(streak)) {
+			const notif = await notificationService.create({
+				type: 'streak.milestone',
+				data: { days: streak },
+			})
+			if (notif) sendWebPush(notif).catch(() => {})
+		}
 	}
 
 	async recoverOrphanSessions(maxAgeHours = 12): Promise<number> {

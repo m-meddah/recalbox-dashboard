@@ -133,3 +133,30 @@ export const wrappedCache = sqliteTable(
 		pk: primaryKey({ columns: [t.year, t.locale] }),
 	}),
 )
+
+export const notifications = sqliteTable(
+	'notifications',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		type: text('type').notNull(),
+		data: text('data').notNull(),
+		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+		readAt: int('read_at', { mode: 'timestamp' }),
+		pushedInApp: int('pushed_in_app', { mode: 'boolean' }).default(false),
+		pushedWeb: int('pushed_web', { mode: 'boolean' }).default(false),
+	},
+	(t) => ({
+		createdAtIdx: index('idx_notifications_created_at').on(t.createdAt),
+		pushedInAppIdx: index('idx_notifications_pushed_in_app').on(t.pushedInApp),
+	}),
+)
+
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+	id: int('id').primaryKey({ autoIncrement: true }),
+	endpoint: text('endpoint').notNull().unique(),
+	p256dh: text('p256dh').notNull(),
+	auth: text('auth').notNull(),
+	userAgent: text('user_agent'),
+	createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+	lastUsedAt: int('last_used_at', { mode: 'timestamp' }).notNull(),
+})

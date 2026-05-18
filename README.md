@@ -202,6 +202,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 8 — Internationalisation FR/EN (next-intl, locale prefix routing)
 - [x] Ticket 9 — RetroAchievements integration with auto-username detection
 - [x] Ticket 10 — Super Retrogamers cross-project linking (slug matching, proxy routes, UI touchpoints, API spec — see [docs/super-retrogamers-api-spec.md](docs/super-retrogamers-api-spec.md))
+- [x] Ticket 11 — Recalbox Wrapped: annual gaming recap at `/wrapped/:year` — glassmorphism slides, tap/swipe navigation, easter eggs, shareable PNG images, archive page
 
 ## RetroAchievements integration
 
