@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm dev              # Next.js dev server (Turbopack) — http://localhost:3000
 pnpm build            # Build all packages
+pnpm start            # Production server (after build)
 pnpm lint             # Biome lint + check
 pnpm format           # Biome format (write)
 pnpm test             # Run all tests (Vitest)
@@ -24,6 +25,12 @@ Database migrations via Drizzle Kit:
 ```bash
 pnpm --filter @recalbox/dashboard drizzle-kit generate
 pnpm --filter @recalbox/dashboard drizzle-kit migrate
+```
+
+Build the scrobbler as a standalone bundle (for Docker/production):
+
+```bash
+pnpm --filter @recalbox/dashboard build:scrobbler
 ```
 
 ## Architecture
@@ -44,13 +51,20 @@ The dashboard runs as two independent processes that share the same SQLite datab
 
 ### Key directories in `apps/dashboard/`
 
-- `app/` — Next.js App Router pages and API routes
+- `app/` — Next.js App Router pages and API routes; pages live under `app/[locale]/`
 - `lib/db/` — Drizzle ORM schema (`schema.ts`), queries (`queries.ts`), and db singleton (`index.ts`)
 - `lib/recalbox/` — All Recalbox integration: MQTT client, SSH client, gamelist XML parser, userdata `.ini` parser, system stats
 - `lib/scrobbler/` — Session manager for the scrobbler daemon
 - `lib/stats/` — Playtime calculators and formatters
-- `lib/config.ts` — Typed env-var config (lazy getters; throws on missing required vars)
+- `lib/settings/` — App settings schemas (`schemas.ts`) and defaults (`defaults.ts`); persisted in DB via `lib/config-store.ts`
+- `lib/retroachievements/` — RetroAchievements.org API integration: auth, game matching, achievement sync, cache
+- `lib/notifications/` — Web Push notification service, VAPID key management, push subscriptions
+- `lib/super-retrogamers/` — Super Retrogamers community site integration (game page lookup, slug matching)
+- `lib/wrapped/` — Annual recap generator (playtime heatmap, top games, shareable images via Remotion)
+- `lib/config.ts` — Typed config façade; reads from DB via `config-store.ts` (env vars used as fallback at first run)
 - `components/` — React components; `components/ui/` is shadcn/ui
+- `messages/` — i18n translation files (`en.json`, `fr.json`)
+- `i18n/` — next-intl routing config (`routing.ts`) and middleware helpers
 
 ### Real-time event pipeline
 
@@ -66,15 +80,24 @@ Recalbox MQTT broker
 
 `GET /api/media?path=/recalbox/share/...` proxies game cover images from the Recalbox filesystem over SSH (`base64 -w 0`). Paths are whitelisted to `/recalbox/share/` and shell-quoted before execution. A `test -f` check runs first to return a clean 404 for missing files.
 
+### i18n
+
+All UI routes live under `app/[locale]/` (locales: `en`, `fr`; default: `en`). The middleware in `proxy.ts` handles both i18n routing (via `next-intl`) and the setup wizard redirect: if the `setup_done` cookie is absent, every request is redirected to `/{locale}/welcome`.
+
 ### Database schema (SQLite via Drizzle)
 
 - `sessions` — game play sessions (start/end timestamps, romPath, system, duration)
 - `games` — collection imported from `gamelist.xml` files via SSH (metadata, artwork paths, favorites, region)
 - `system_snapshots` — periodic CPU/RAM/temp snapshots from SSH
+- `settings` — flat key-value store for all app config (format: `scope.key`)
+- `notifications` / `push_subscriptions` — in-app and Web Push notification state
+- `ra_achievements` / `ra_game_progress` / `ra_game_mapping` / `ra_cache` — RetroAchievements sync data
+- `sr_cache` — Super Retrogamers page lookup cache
+- `wrapped_cache` — pre-generated annual recap data keyed by `(year, locale)`
 
 ### Configuration
 
-Copy `.env.example` to `.env.local` before first run. Required vars: `RECALBOX_HOST`, `RECALBOX_SSH_USER`, `RECALBOX_SSH_PASSWORD`. Optional: `MQTT_BROKER_URL` (defaults to `mqtt://recalbox.local:1883`), `DATABASE_PATH` (defaults to `./recalbox.db`).
+On first run the setup wizard (`/welcome`) collects connection details and stores them in the `settings` table. Subsequent reads go through `lib/config-store.ts` (singleton, EventEmitter-based). The `.env.local` file is only needed to bootstrap before the wizard runs or to override DB-stored values.
 
 The `@` path alias resolves to `apps/dashboard/` (configured in `tsconfig.json` and `vitest.config.ts`).
 
