@@ -556,6 +556,25 @@
       "testing": "Testing…",
       "show": "Show",
       "hide": "Hide"
+    },
+    "add": {
+      "title": "Add Recalbox",
+      "submit": "Add",
+      "success": "Recalbox added successfully",
+      "error": "Failed to add Recalbox"
+    },
+    "edit": {
+      "title": "Edit {name}",
+      "submit": "Save changes",
+      "success": "Recalbox updated",
+      "error": "Failed to update Recalbox",
+      "deleteConfirm": "Delete this Recalbox? This cannot be undone.",
+      "deleteError": "Failed to delete Recalbox",
+      "deleteSuccess": "Recalbox deleted",
+      "archive": "Archive",
+      "archived": "Recalbox archived",
+      "delete": "Delete",
+      "loading": "Loading…"
     }
   }
 }
