@@ -1,69 +1,77 @@
 import type { Notification } from '@/lib/notifications/types'
 import { getNotificationService } from '@/lib/notifications/service'
-import type { RecalboxEvent } from '@/lib/recalbox/events'
-import { getMqttClient } from '@/lib/recalbox/mqtt-client'
+import type { RecalboxEvent, GameStartEvent, GameStopEvent, SystemChangeEvent, SystemInfoEvent } from '@/lib/recalbox/events'
+import { mqttPool } from '@/lib/recalbox/mqtt-client'
+import { configStore } from '@/lib/config-store'
+import type { RecalboxMqttClient } from '@/lib/recalbox/mqtt-client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-	const mqttClient = getMqttClient()
+	const url = new URL(request.url)
+	const recalboxIdFilter = url.searchParams.get('recalboxId')
 	const notifService = getNotificationService()
 
 	const stream = new ReadableStream({
 		start(controller) {
 			const encode = (chunk: string) => new TextEncoder().encode(chunk)
 
-			const sendEvent = (event: RecalboxEvent) => {
-				try {
-					controller.enqueue(encode(`data: ${JSON.stringify(event)}\n\n`))
-				} catch {
-					// Client already disconnected
-				}
+			const sendEvent = (recalboxId: string, event: RecalboxEvent) => {
+				if (recalboxIdFilter && recalboxIdFilter !== recalboxId) return
+				try { controller.enqueue(encode(`data: ${JSON.stringify({ ...event, recalboxId })}\n\n`)) } catch {}
 			}
 
 			const sendNotification = (notif: Notification) => {
-				try {
-					controller.enqueue(
-						encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`),
-					)
-				} catch {
-					// Client already disconnected
+				try { controller.enqueue(encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`)) } catch {}
+			}
+
+			const sendConnectionStatus = (recalboxId: string, online: boolean) => {
+				if (recalboxIdFilter && recalboxIdFilter !== recalboxId) return
+				try { controller.enqueue(encode(`data: ${JSON.stringify({ type: 'connection', online, recalboxId })}\n\n`)) } catch {}
+			}
+
+			const recalboxIds = configStore.getRecalboxes().filter((r) => !r.archived).map((r) => r.id)
+			const cleanups: Array<() => void> = []
+
+			for (const recalboxId of recalboxIds) {
+				let client: RecalboxMqttClient
+				try { client = mqttPool.getClient(recalboxId) } catch { continue }
+
+				sendConnectionStatus(recalboxId, client.isConnected)
+				if (client.lastKnownGame && (!recalboxIdFilter || recalboxIdFilter === recalboxId)) {
+					sendEvent(recalboxId, client.lastKnownGame)
 				}
-			}
 
-			const sendConnectionStatus = (online: boolean) => {
-				try {
-					controller.enqueue(encode(`data: ${JSON.stringify({ type: 'connection', online })}\n\n`))
-				} catch {
-					// Client already disconnected
-				}
-			}
+				const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
+				const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
+				const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
+				const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
+				const onUp = () => sendConnectionStatus(recalboxId, true)
+				const onDown = () => sendConnectionStatus(recalboxId, false)
 
-			// ── Send current state immediately so new clients don't wait ──────────
-			sendConnectionStatus(mqttClient.isConnected)
-			if (mqttClient.lastKnownGame) {
-				sendEvent(mqttClient.lastKnownGame)
-			}
+				client.on('game:start', onGameStart)
+				client.on('game:stop', onGameStop)
+				client.on('system:change', onSystemChange)
+				client.on('system:info', onSystemInfo)
+				client.on('connection:up', onUp)
+				client.on('connection:down', onDown)
 
-			// ── Subscribe to future events ────────────────────────────────────────
-			const onConnectionUp = () => sendConnectionStatus(true)
-			const onConnectionDown = () => sendConnectionStatus(false)
-			const onNotificationCreated = (notif: Notification) => {
-				notifService.markPushedInApp(notif.id).then((claimed) => {
-					if (claimed) sendNotification(notif)
+				cleanups.push(() => {
+					client.off('game:start', onGameStart)
+					client.off('game:stop', onGameStop)
+					client.off('system:change', onSystemChange)
+					client.off('system:info', onSystemInfo)
+					client.off('connection:up', onUp)
+					client.off('connection:down', onDown)
 				})
 			}
 
-			mqttClient.on('game:start', sendEvent)
-			mqttClient.on('game:stop', sendEvent)
-			mqttClient.on('system:change', sendEvent)
-			mqttClient.on('system:info', sendEvent)
-			mqttClient.on('connection:up', onConnectionUp)
-			mqttClient.on('connection:down', onConnectionDown)
+			const onNotificationCreated = (notif: Notification) => {
+				notifService.markPushedInApp(notif.id).then((claimed) => { if (claimed) sendNotification(notif) })
+			}
 			notifService.on('created', onNotificationCreated)
 
-			// ── Poll DB for notifications from external processes (scrobbler) ─────
 			const pollNotifications = async () => {
 				try {
 					const unpushed = await notifService.getUnpushedInApp(0)
@@ -71,30 +79,18 @@ export async function GET(request: Request) {
 						const claimed = await notifService.markPushedInApp(notif.id)
 						if (claimed) sendNotification(notif)
 					}
-				} catch {
-					// Ignore poll errors
-				}
+				} catch {}
 			}
 			const pollInterval = setInterval(pollNotifications, 5000)
 
-			// Keep connection alive — proxies and Next.js dev server drop idle SSE streams
 			const heartbeat = setInterval(() => {
-				try {
-					controller.enqueue(encode(': heartbeat\n\n'))
-				} catch {
-					clearInterval(heartbeat)
-				}
+				try { controller.enqueue(encode(': heartbeat\n\n')) } catch { clearInterval(heartbeat) }
 			}, 15000)
 
 			request.signal.addEventListener('abort', () => {
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
-				mqttClient.off('game:start', sendEvent)
-				mqttClient.off('game:stop', sendEvent)
-				mqttClient.off('system:change', sendEvent)
-				mqttClient.off('system:info', sendEvent)
-				mqttClient.off('connection:up', onConnectionUp)
-				mqttClient.off('connection:down', onConnectionDown)
+				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
 				controller.close()
 			})
