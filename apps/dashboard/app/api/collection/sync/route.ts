@@ -4,6 +4,7 @@ import { parseGamelist } from '@/lib/recalbox/gamelist-parser'
 import { readGamelist, readUserdataIni } from '@/lib/recalbox/gamelist-reader'
 import { invalidateSystemsCache, listSystems } from '@/lib/recalbox/systems'
 import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import type { NextRequest } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -42,6 +43,11 @@ export async function POST(req: NextRequest) {
 
 			try {
 				invalidateSystemsCache()
+				const recalboxId = await getActiveRecalboxId()
+				if (!recalboxId) {
+					write({ type: 'error', message: 'No Recalbox configured' })
+					return
+				}
 				const allSystems = await listSystems()
 				const systems = targetSystem ? allSystems.filter((s) => s.id === targetSystem) : allSystems
 
@@ -73,7 +79,7 @@ export async function POST(req: NextRequest) {
 						}
 					}
 
-					const inserted = await upsertGames(parsed, system.id, system.diskSource)
+					const inserted = await upsertGames(parsed, system.id, system.diskSource, recalboxId)
 					totalGames += inserted
 
 					write({ type: 'system', system: system.id, status: 'done', count: inserted })
