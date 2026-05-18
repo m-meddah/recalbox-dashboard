@@ -203,6 +203,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 9 — RetroAchievements integration with auto-username detection
 - [x] Ticket 10 — Super Retrogamers cross-project linking (slug matching, proxy routes, UI touchpoints, API spec — see [docs/super-retrogamers-api-spec.md](docs/super-retrogamers-api-spec.md))
 - [x] Ticket 11 — Recalbox Wrapped: annual gaming recap at `/wrapped/:year` — glassmorphism slides, tap/swipe navigation, easter eggs, shareable PNG images, archive page
+- [x] Ticket 12 — Push notifications: in-app toasts via SSE + Web Push (background), achievement unlocks, streak milestones, annual Wrapped alert, notification center bell, quiet hours, per-type toggles
 
 ## RetroAchievements integration
 
@@ -250,6 +251,37 @@ The dashboard integrates with [RetroAchievements](https://retroachievements.org)
 ### Recalbox Wrapped
 
 Annual gaming recap at `/wrapped/:year` — story-mode slides with tap/swipe navigation, glassmorphism dark design, and shareable PNG images. Accessible year-round. Archive at `/wrapped`.
+
+## Notifications
+
+Two delivery tiers, zero external dependencies.
+
+| Tier | How | When |
+| ---- | --- | ---- |
+| In-app toasts | SSE (Server-Sent Events) | Dashboard tab is open |
+| Web Push | Service Worker + VAPID | Dashboard is closed / background |
+
+### Events
+
+| Event | Trigger |
+| ----- | ------- |
+| Achievement unlocked | RA sync detects a new unlock |
+| Streak milestone | Session close reaches 3/7/14/30/50/100/200/365 days |
+| Annual Wrapped available | Cron fires on December 1st at 09:00 |
+| System alert | Manual test or internal alert |
+
+### Setup (Web Push)
+
+1. Go to **Settings → Notifications**
+2. Toggle **Web Push (background)** → your browser will ask for permission
+3. Done — VAPID keys are generated automatically on first scrobbler boot and stored in the database
+
+> **Requires HTTPS** in production (browsers block push on plain HTTP, except `localhost`).
+> On iOS, install the dashboard as a PWA (Add to Home Screen) before enabling push.
+
+### Cross-process delivery
+
+The scrobbler daemon and the Next.js app run as separate processes. Notifications created by the scrobbler are delivered to open browser tabs via a 5-second DB poll in the SSE endpoint — no message broker needed. An atomic `pushedInApp` flag prevents duplicate delivery across multiple tabs.
 
 ## Stats (`/stats/[period]`)
 
