@@ -68,6 +68,21 @@ docker run --rm -v recalbox-data:/data -v $(pwd):/backup alpine \
 
 See [docs/deployment.md](docs/deployment.md) for Synology, Unraid, Traefik, and Raspberry Pi guides.
 
+---
+
+## Install as an app (PWA)
+
+The dashboard is a Progressive Web App — you can install it on your home screen for a native-like experience.
+
+| Platform | Instructions |
+| --- | --- |
+| **iPhone / iPad** | Safari → tap Share (□↑) → **Add to Home Screen** |
+| **Android** | Chrome → menu (⋮) → **Add to Home Screen** |
+| **Desktop** | Chrome/Edge → click the install icon (⊕) in the address bar |
+
+> **HTTPS required** — PWA installation and Web Push notifications require a secure context. See [docs/https-setup.md](docs/https-setup.md) for Caddy, Tailscale, and Cloudflare Tunnel options.
+> **Web Push on iOS** requires the app to be installed as a PWA first (iOS 16.4+).
+
 ### From source
 
 See [Getting started](#getting-started) below.

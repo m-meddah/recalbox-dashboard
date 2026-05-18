@@ -130,7 +130,8 @@
       "interface": "Interface",
       "retroachievements": "RetroAchievements",
       "integrations": "Intégrations",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "app": "App"
     },
     "recalbox": {
       "cardTitle": "Connexion Recalbox",
@@ -257,6 +258,26 @@
       "saving": "Enregistrement…",
       "swError": "Impossible d’enregistrer le service worker",
       "pushDenied": "Permission de notification refusée"
+    },
+    "app": {
+      "cardTitle": "Application",
+      "cardDescription": "Installation et gestion du cache",
+      "installed": "Installée sur cet appareil",
+      "notInstalled": "Non installée",
+      "version": "Version {version}",
+      "clearCache": "Vider le cache",
+      "checkUpdates": "Vérifier les mises à jour",
+      "checkingUpdates": "Vérification…",
+      "cacheClearedSuccess": "Cache vidé",
+      "cacheClearError": "Impossible de vider le cache",
+      "updateChecked": "L’application est à jour",
+      "updateCheckError": "Impossible de vérifier les mises à jour",
+      "installInstructions": "Installer sur un autre appareil",
+      "installNow": "Installer",
+      "iosInstructions": "Ouvrir dans Safari → appuyer sur Partager (□↑) → Sur l’écran d’accueil",
+      "androidInstructions": "Ouvrir dans Chrome → menu (⋮) → Ajouter à l’écran d’accueil",
+      "desktopInstructions": "Cliquer sur l’icône d’installation (⊕) dans la barre d’adresse",
+      "webPushNote": "Les notifications Web Push sur iOS nécessitent que l’application soit installée en PWA."
     }
   },
   "achievements": {
@@ -482,5 +503,24 @@
     "wrappedAvailable": "🎮 Wrapped disponible",
     "gameStarted": "▶️ Partie démarrée",
     "systemAlert": "📢 Alerte système"
+  },
+  "pwa": {
+    "installBanner": {
+      "title": "Installer Recalbox Dashboard",
+      "description": "Ajoutez à votre écran d'accueil pour la meilleure expérience.",
+      "installButton": "Installer",
+      "dismissButton": "Ignorer",
+      "iosInstructions": "Appuyer sur Partager (□↑) puis « Sur l'écran d'accueil »"
+    },
+    "update": {
+      "title": "Mise à jour disponible",
+      "description": "Une nouvelle version de l'application est prête.",
+      "action": "Mettre à jour"
+    }
+  },
+  "offline": {
+    "title": "Vous êtes hors-ligne",
+    "description": "Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer"
   }
 }

@@ -10,7 +10,8 @@
 		"scrobbler:dev": "tsx watch scripts/start-scrobbler.ts",
 		"test": "vitest run",
 		"seed:dev": "tsx scripts/seed-fake-sessions.ts",
-		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js"
+		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js",
+		"icons:generate": "tsx scripts/generate-icons.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.4.1",
@@ -53,6 +54,7 @@
 		"@types/web-push": "^3.6.4",
 		"drizzle-kit": "^0.31.10",
 		"esbuild": "^0.25.0",
+		"sharp": "^0.33.5",
 		"tailwindcss": "^4.0.0",
 		"tsx": "^4.0.0",
 		"vitest": "^2.0.0"

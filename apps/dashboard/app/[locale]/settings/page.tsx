@@ -3,6 +3,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { CheckCircle2, Circle } from 'lucide-react'
 import {
 	Form,
 	FormControl,
@@ -23,6 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { useInstallPrompt } from '@/hooks/use-install-prompt'
 import { registerServiceWorker, subscribeToPush, unsubscribeFromPush } from '@/lib/notifications/client'
 import { DEFAULT_PREFERENCES, type NotificationPreferences } from '@/lib/notifications/types'
 import type { AppConfig } from '@/lib/settings/schemas'
@@ -920,13 +922,14 @@ export default function SettingsPage() {
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<Tabs defaultValue="recalbox">
-				<TabsList className="grid w-full grid-cols-6">
+				<TabsList className="grid w-full grid-cols-7">
 					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
 					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
 					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
 					<TabsTrigger value="retroachievements">{t('tabs.retroachievements')}</TabsTrigger>
 					<TabsTrigger value="integrations">{t('tabs.integrations')}</TabsTrigger>
 					<TabsTrigger value="notifications">{t('tabs.notifications')}</TabsTrigger>
+					<TabsTrigger value="app">{t('tabs.app')}</TabsTrigger>
 				</TabsList>
 				<TabsContent value="recalbox" className="mt-6">
 					<Card>
@@ -985,6 +988,17 @@ export default function SettingsPage() {
 				</TabsContent>
 				<TabsContent value="notifications" className="mt-6">
 					<NotificationsTab />
+				</TabsContent>
+				<TabsContent value="app" className="mt-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>{t('app.cardTitle')}</CardTitle>
+							<CardDescription>{t('app.cardDescription')}</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<AppTab />
+						</CardContent>
+					</Card>
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -1180,6 +1194,93 @@ function NotificationsTab() {
 				<Button onClick={save} disabled={!dirty || saving}>{saving ? t('notificationsTab.saving') : tCommon('save')}</Button>
 				<Button variant="outline" onClick={testNotification}>{t('notificationsTab.test')}</Button>
 				<Button variant="destructive" onClick={regenerateVapid}>{t('notificationsTab.regenerateVapid')}</Button>
+			</div>
+		</div>
+	)
+}
+
+// ─── App Tab ──────────────────────────────────────────────────────────────────
+
+function AppTab() {
+	const t = useTranslations('settings')
+	const { isInstalled, canInstall, isIOS, install } = useInstallPrompt()
+	const [checkingUpdates, setCheckingUpdates] = useState(false)
+
+	const clearCache = async () => {
+		try {
+			const keys = await caches.keys()
+			await Promise.all(keys.map((k) => caches.delete(k)))
+			toast.success(t('app.cacheClearedSuccess'))
+		} catch {
+			toast.error(t('app.cacheClearError'))
+		}
+	}
+
+	const checkUpdates = async () => {
+		setCheckingUpdates(true)
+		try {
+			const reg = await navigator.serviceWorker.getRegistration()
+			await reg?.update()
+			toast.info(t('app.updateChecked'))
+		} catch {
+			toast.error(t('app.updateCheckError'))
+		} finally {
+			setCheckingUpdates(false)
+		}
+	}
+
+	return (
+		<div className="space-y-6">
+			<div className="flex items-center gap-3">
+				{isInstalled ? (
+					<CheckCircle2 className="h-5 w-5 text-green-500" />
+				) : (
+					<Circle className="h-5 w-5 text-muted-foreground" />
+				)}
+				<div>
+					<p className="text-sm font-medium">
+						{isInstalled ? t('app.installed') : t('app.notInstalled')}
+					</p>
+					<p className="text-xs text-muted-foreground">{t('app.version', { version: '0.1.0' })}</p>
+				</div>
+			</div>
+
+			<div className="flex gap-2 flex-wrap">
+				<Button variant="outline" size="sm" onClick={clearCache}>
+					{t('app.clearCache')}
+				</Button>
+				<Button variant="outline" size="sm" onClick={checkUpdates} disabled={checkingUpdates}>
+					{checkingUpdates ? t('app.checkingUpdates') : t('app.checkUpdates')}
+				</Button>
+			</div>
+
+			{!isInstalled && (
+				<div className="space-y-3">
+					<p className="text-sm font-semibold">{t('app.installInstructions')}</p>
+					<div className="space-y-3 text-sm">
+						{canInstall && (
+							<Button size="sm" onClick={install}>
+								{t('app.installNow')}
+							</Button>
+						)}
+						<div>
+							<p className="font-medium">iPhone / iPad Safari</p>
+							<p className="text-muted-foreground">{t('app.iosInstructions')}</p>
+						</div>
+						<div>
+							<p className="font-medium">Android Chrome</p>
+							<p className="text-muted-foreground">{t('app.androidInstructions')}</p>
+						</div>
+						<div>
+							<p className="font-medium">Desktop Chrome / Edge</p>
+							<p className="text-muted-foreground">{t('app.desktopInstructions')}</p>
+						</div>
+					</div>
+				</div>
+			)}
+
+			<div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+				{t('app.webPushNote')}
 			</div>
 		</div>
 	)
