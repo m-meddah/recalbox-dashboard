@@ -143,9 +143,11 @@ if (!g.__mqttPool || g.__mqttPoolVersion !== SINGLETON_VERSION) {
 		g.__mqttPool?.removeClient(id)
 	})
 
-	for (const rb of configStore.getRecalboxes().filter((r) => !r.archived)) {
-		try { g.__mqttPool.getClient(rb.id) } catch { /* no Recalbox configured yet */ }
-	}
+	try {
+		for (const rb of configStore.getRecalboxes().filter((r) => !r.archived)) {
+			try { g.__mqttPool.getClient(rb.id) } catch { /* ignore per-client failures */ }
+		}
+	} catch { /* recalboxes table may not exist yet — migration runs at runtime */ }
 }
 
 export const mqttPool = g.__mqttPool
