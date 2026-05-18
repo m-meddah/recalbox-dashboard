@@ -6,13 +6,25 @@ export type RecalboxRow = typeof recalboxes.$inferSelect
 export type RecalboxInsert = typeof recalboxes.$inferInsert
 
 export function listRecalboxes(): RecalboxRow[] {
-	return db.select().from(recalboxes).all()
+	try {
+		return db.select().from(recalboxes).all()
+	} catch {
+		return []
+	}
 }
 export function getRecalbox(id: string): RecalboxRow | null {
-	return db.select().from(recalboxes).where(eq(recalboxes.id, id)).get() ?? null
+	try {
+		return db.select().from(recalboxes).where(eq(recalboxes.id, id)).get() ?? null
+	} catch {
+		return null
+	}
 }
 export function getDefaultRecalbox(): RecalboxRow | null {
-	return db.select().from(recalboxes).where(eq(recalboxes.isDefault, true)).get() ?? null
+	try {
+		return db.select().from(recalboxes).where(eq(recalboxes.isDefault, true)).get() ?? null
+	} catch {
+		return null
+	}
 }
 export function insertRecalbox(row: RecalboxInsert): void {
 	db.insert(recalboxes).values(row).run()
