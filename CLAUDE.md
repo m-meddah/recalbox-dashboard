@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## First-time setup
+
+```bash
+pnpm install
+cp apps/dashboard/.env.example apps/dashboard/.env.local
+# Edit .env.local: set RECALBOX_HOST, RECALBOX_SSH_USER, RECALBOX_SSH_PASSWORD
+pnpm dev
+```
+
 ## Commands
 
 ```bash
@@ -33,6 +42,17 @@ Build the scrobbler as a standalone bundle (for Docker/production):
 pnpm --filter @recalbox/dashboard build:scrobbler
 ```
 
+Test the Docker build:
+
+```bash
+docker build -t recalbox-dashboard:dev .
+docker run --rm -p 3000:3000 \
+  -e RECALBOX_HOST=recalbox.local \
+  -e RECALBOX_SSH_USER=root \
+  -e RECALBOX_SSH_PASSWORD=recalboxroot \
+  recalbox-dashboard:dev
+```
+
 ## Architecture
 
 ### Monorepo
@@ -58,7 +78,7 @@ The dashboard runs as two independent processes that share the same SQLite datab
 - `lib/stats/` — Playtime calculators and formatters
 - `lib/settings/` — App settings schemas (`schemas.ts`) and defaults (`defaults.ts`); persisted in DB via `lib/config-store.ts`
 - `lib/retroachievements/` — RetroAchievements.org API integration: auth, game matching, achievement sync, cache
-- `lib/notifications/` — Web Push notification service, VAPID key management, push subscriptions
+- `lib/notifications/` — Web Push notification service, VAPID key management, push subscriptions; cross-process delivery uses a 5-second DB poll in the SSE endpoint (scrobbler writes, Next.js reads) with an atomic `pushedInApp` flag to prevent duplicate delivery
 - `lib/super-retrogamers/` — Super Retrogamers community site integration (game page lookup, slug matching)
 - `lib/wrapped/` — Annual recap generator (playtime heatmap, top games, shareable images via Remotion)
 - `lib/config.ts` — Typed config façade; reads from DB via `config-store.ts` (env vars used as fallback at first run)
@@ -104,3 +124,7 @@ The `@` path alias resolves to `apps/dashboard/` (configured in `tsconfig.json` 
 ## Code style
 
 Biome enforces: tabs for indentation, single quotes, no semicolons, trailing commas. Tests live in `__tests__/` subdirectories next to the code they test.
+
+## Commit messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(area): description`, `fix(area): description`, `docs(area): description`.
