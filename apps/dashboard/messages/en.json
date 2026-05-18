@@ -522,5 +522,13 @@
     "title": "You're offline",
     "description": "Check your connection and try again.",
     "retry": "Retry"
+  },
+  "recalboxes": {
+    "switcher": {
+      "label": "Switch Recalbox",
+      "manage": "Manage Recalboxes",
+      "add": "Add Recalbox",
+      "viewAll": "View all Recalboxes"
+    }
   }
 }

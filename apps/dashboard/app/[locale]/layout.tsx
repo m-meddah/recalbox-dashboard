@@ -17,6 +17,9 @@ import { NotificationBell } from '@/components/notification-bell'
 import { NotificationListener } from '@/components/notification-listener'
 import { InstallBanner } from '@/components/pwa/install-banner'
 import { ServiceWorkerUpdater } from '@/components/pwa/service-worker-updater'
+import { RecalboxSwitcher } from '@/components/recalbox-switcher'
+import { configStore } from '@/lib/config-store'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -67,6 +70,9 @@ export default async function LocaleLayout({ children, params }: Props) {
 
 	const t = await getTranslations({ locale, namespace: 'nav' })
 
+	const recalboxes = configStore.getRecalboxes()
+	const activeRecalboxId = await getActiveRecalboxId()
+
 	return (
 		<html lang={locale} className={cn('font-sans', geist.variable)} suppressHydrationWarning>
 			<body>
@@ -110,6 +116,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 									</Link>
 									<div className="ml-auto flex items-center gap-2">
 										<NotificationBell />
+										<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
 										<PowerControls />
 										<ThemeToggle />
 										<LanguageSwitcher />
