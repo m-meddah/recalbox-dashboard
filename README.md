@@ -2,6 +2,7 @@
 
 **A companion analytics dashboard for Recalbox.** Historical session tracking,
 playtime statistics, achievement progress, and an annual recap of your retrogaming year.
+Supports multiple Recalbox instances from a single dashboard.
 
 Runs on a machine on the same local network as your Recalbox — **not** on the Recalbox itself.
 
@@ -169,6 +170,35 @@ Recalbox MQTT broker
 | `endgame` | `game:stop` |
 | `gamebrowsing` | `system:change` (deduplicated) |
 
+### Multi-Recalbox support
+
+The dashboard manages **N Recalbox instances** from a single install.
+
+Each Recalbox is stored in the `recalboxes` DB table with its connection parameters
+(host, SSH credentials, MQTT port). All data tables (`sessions`, `games`,
+`system_snapshots`, `ra_game_mapping`, `notifications`) carry a `recalbox_id` foreign key.
+
+**Active Recalbox** is selected via a cookie (`active_recalbox_id`) so each browser
+session can point to a different Recalbox independently. A header switcher appears when
+more than one Recalbox is configured.
+
+| Route | Description |
+| ----- | ----------- |
+| `GET /recalboxes` | Management list — add, edit, archive |
+| `GET /recalboxes/add` | Add a new Recalbox |
+| `GET /recalboxes/:id/edit` | Edit, archive, or delete a Recalbox |
+| `GET /all-recalboxes` | Aggregated playtime and session view |
+| `PUT /api/recalboxes/active` | Switch active Recalbox (sets cookie) |
+| `GET /api/recalboxes` | List all Recalboxes |
+| `POST /api/recalboxes` | Create a Recalbox |
+| `PUT /api/recalboxes/:id` | Update a Recalbox |
+| `DELETE /api/recalboxes/:id` | Delete a Recalbox |
+| `POST /api/recalboxes/:id/test-connection` | Test SSH + MQTT connectivity |
+
+SSH and MQTT connections are managed by **pools** (`SshPool`, `MqttPool`) that create
+one client per Recalbox on demand and reconnect automatically. The scrobbler daemon
+subscribes to all non-archived Recalboxes and reacts to add/remove events in real-time.
+
 ### Media proxy
 
 ```text
@@ -219,6 +249,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 10 — Super Retrogamers cross-project linking (slug matching, proxy routes, UI touchpoints, API spec — see [docs/super-retrogamers-api-spec.md](docs/super-retrogamers-api-spec.md))
 - [x] Ticket 11 — Recalbox Wrapped: annual gaming recap at `/wrapped/:year` — glassmorphism slides, tap/swipe navigation, easter eggs, shareable PNG images, archive page
 - [x] Ticket 12 — Push notifications: in-app toasts via SSE + Web Push (background), achievement unlocks, streak milestones, annual Wrapped alert, notification center bell, quiet hours, per-type toggles
+- [x] Ticket 14 — Multi-Recalbox support: manage N Recalbox instances from one dashboard, per-user active switcher (cookie), SSH/MQTT connection pools, aggregated view, CRUD management UI
 
 ## RetroAchievements integration
 
