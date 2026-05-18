@@ -130,7 +130,8 @@
       "interface": "Interface",
       "retroachievements": "RetroAchievements",
       "integrations": "Integrations",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "app": "App"
     },
     "recalbox": {
       "cardTitle": "Recalbox Connection",
@@ -257,6 +258,26 @@
       "saving": "Saving…",
       "swError": "Could not register service worker",
       "pushDenied": "Notification permission denied"
+    },
+    "app": {
+      "cardTitle": "App",
+      "cardDescription": "Installation and cache management",
+      "installed": "Installed on this device",
+      "notInstalled": "Not installed",
+      "version": "Version {version}",
+      "clearCache": "Clear cache",
+      "checkUpdates": "Check for updates",
+      "checkingUpdates": "Checking…",
+      "cacheClearedSuccess": "Cache cleared",
+      "cacheClearError": "Could not clear cache",
+      "updateChecked": "App is up to date",
+      "updateCheckError": "Could not check for updates",
+      "installInstructions": "Install on another device",
+      "installNow": "Install",
+      "iosInstructions": "Open in Safari → tap Share (□↑) → Add to Home Screen",
+      "androidInstructions": "Open in Chrome → tap menu (⋮) → Add to Home Screen",
+      "desktopInstructions": "Click the install icon (⊕) in the address bar",
+      "webPushNote": "Web Push notifications on iOS require the app to be installed as a PWA."
     }
   },
   "achievements": {
@@ -482,5 +503,24 @@
     "wrappedAvailable": "🎮 Wrapped available",
     "gameStarted": "▶️ Game started",
     "systemAlert": "📢 System alert"
+  },
+  "pwa": {
+    "installBanner": {
+      "title": "Install Recalbox Dashboard",
+      "description": "Add to your home screen for the best experience.",
+      "installButton": "Install",
+      "dismissButton": "Dismiss",
+      "iosInstructions": "Tap Share (□↑) then \"Add to Home Screen\""
+    },
+    "update": {
+      "title": "Update available",
+      "description": "A new version of the app is ready.",
+      "action": "Update"
+    }
+  },
+  "offline": {
+    "title": "You're offline",
+    "description": "Check your connection and try again.",
+    "retry": "Retry"
   }
 }

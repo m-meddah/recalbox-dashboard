@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
@@ -15,6 +15,8 @@ import { PowerControls } from '@/components/power-controls'
 import { Toaster } from '@/components/ui/sonner'
 import { NotificationBell } from '@/components/notification-bell'
 import { NotificationListener } from '@/components/notification-listener'
+import { InstallBanner } from '@/components/pwa/install-banner'
+import { ServiceWorkerUpdater } from '@/components/pwa/service-worker-updater'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -27,13 +29,31 @@ export async function generateStaticParams() {
 	return routing.locales.map((locale) => ({ locale }))
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
-	const { locale } = await params
-	return {
-		title: 'Recalbox Dashboard',
-		description:
-			'Companion analytics dashboard for your Recalbox — playtime history, achievement progress, and an annual recap.',
-	} satisfies Metadata
+export const metadata: Metadata = {
+	title: 'Recalbox Dashboard',
+	description:
+		'Companion analytics dashboard for your Recalbox — playtime history, achievement progress, and an annual recap.',
+	manifest: '/manifest.webmanifest',
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: 'black-translucent',
+		title: 'Recalbox',
+	},
+	icons: {
+		icon: [
+			{ url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+			{ url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+		],
+		apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+	},
+}
+
+export const viewport: Viewport = {
+	themeColor: [
+		{ media: '(prefers-color-scheme: light)', color: '#ffffff' },
+		{ media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+	],
+	viewportFit: 'cover',
 }
 
 export default async function LocaleLayout({ children, params }: Props) {
@@ -98,6 +118,8 @@ export default async function LocaleLayout({ children, params }: Props) {
 							</header>
 							{children}
 							<NotificationListener />
+							<ServiceWorkerUpdater />
+							<InstallBanner />
 							<Toaster />
 						</RecalboxEventsProvider>
 					</NextIntlClientProvider>
