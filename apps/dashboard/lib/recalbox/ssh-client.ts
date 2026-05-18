@@ -125,6 +125,8 @@ if (!g.__sshPool || g.__sshPoolVersion !== POOL_VERSION) {
 
 export const sshPool = g.__sshPool
 
+export type SshClientLike = { exec: (cmd: string, timeoutMs?: number) => Promise<string> }
+
 export function getSshClient(recalboxId: string): SshClient {
 	return sshPool.getClient(recalboxId)
 }

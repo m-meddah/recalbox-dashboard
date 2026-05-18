@@ -1,19 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/recalbox/ssh-client', () => ({
-	sshClient: {
-		exec: vi.fn(),
-	},
-}))
-
 vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { sshClient } from '@/lib/recalbox/ssh-client'
 import { getSystemStats } from '@/lib/recalbox/system-stats'
+import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 
-const mockExec = vi.mocked(sshClient.exec)
+function makeMockSsh(impl?: (cmd: string) => Promise<string>): SshClientLike & { exec: ReturnType<typeof vi.fn> } {
+	const ssh = { exec: vi.fn() }
+	if (impl) ssh.exec.mockImplementation(impl)
+	return ssh
+}
 
 beforeEach(() => {
 	vi.clearAllMocks()
@@ -22,7 +20,7 @@ beforeEach(() => {
 describe('getSystemStats', () => {
 	it('parses CPU temperature from millidegrees', async () => {
 		// Pi5 real output: 57123 → 57.123°C
-		mockExec.mockImplementation((cmd: string) => {
+		const ssh = makeMockSsh((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('57123')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
 			if (cmd.includes('free'))
@@ -33,14 +31,14 @@ describe('getSystemStats', () => {
 			return Promise.resolve('')
 		})
 
-		const stats = await getSystemStats()
+		const stats = await getSystemStats(ssh)
 
 		expect(stats.cpuTemp).toBeCloseTo(57.123, 2)
 	})
 
 	it('parses RAM usage from free -m output', async () => {
 		// Typical Pi5 free -m output line
-		mockExec.mockImplementation((cmd: string) => {
+		const ssh = makeMockSsh((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('50000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
 			if (cmd.includes('free'))
@@ -51,14 +49,14 @@ describe('getSystemStats', () => {
 			return Promise.resolve('')
 		})
 
-		const stats = await getSystemStats()
+		const stats = await getSystemStats(ssh)
 
 		expect(stats.ramTotalMb).toBe(7976)
 		expect(stats.ramUsedMb).toBe(2048)
 	})
 
 	it('parses uptime from /proc/uptime', async () => {
-		mockExec.mockImplementation((cmd: string) => {
+		const ssh = makeMockSsh((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('45000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  1000 0 500 8000 0 0 0 0 0 0')
 			if (cmd.includes('free'))
@@ -69,15 +67,16 @@ describe('getSystemStats', () => {
 			return Promise.resolve('')
 		})
 
-		const stats = await getSystemStats()
+		const stats = await getSystemStats(ssh)
 
 		expect(stats.uptimeSec).toBe(172800)
 	})
 
 	it('returns null fields when SSH commands fail', async () => {
-		mockExec.mockRejectedValue(new Error('SSH connection refused'))
+		const ssh = makeMockSsh()
+		ssh.exec.mockRejectedValue(new Error('SSH connection refused'))
 
-		const stats = await getSystemStats()
+		const stats = await getSystemStats(ssh)
 
 		expect(stats.cpuTemp).toBeNull()
 		expect(stats.ramUsedMb).toBeNull()
@@ -88,7 +87,7 @@ describe('getSystemStats', () => {
 	})
 
 	it('handles malformed /proc/stat gracefully', async () => {
-		mockExec.mockImplementation((cmd: string) => {
+		const ssh = makeMockSsh((cmd: string) => {
 			if (cmd.includes('thermal_zone0')) return Promise.resolve('42000')
 			if (cmd.includes('proc/stat')) return Promise.resolve('cpu  not valid data here')
 			if (cmd.includes('free'))
@@ -99,7 +98,7 @@ describe('getSystemStats', () => {
 			return Promise.resolve('')
 		})
 
-		const stats = await getSystemStats()
+		const stats = await getSystemStats(ssh)
 
 		expect(stats.cpuUsage).toBeNull()
 		expect(stats.cpuTemp).toBeCloseTo(42, 0)

@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger'
 import { shellQuote } from './shell'
-import { sshClient } from './ssh-client'
+import type { SshClientLike } from './ssh-client'
 
 export type GameSystem = {
 	id: string
@@ -102,13 +102,13 @@ let cache: { systems: GameSystem[]; expiresAt: number } | null = null
 const CACHE_TTL_MS = 5 * 60 * 1000
 
 /** List all Recalbox game systems that have a gamelist.xml, across all USB disks. */
-export async function listSystems(): Promise<GameSystem[]> {
+export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 	if (cache && Date.now() < cache.expiresAt) return cache.systems
 
 	const systems: GameSystem[] = []
 
 	// Discover mounted USB disks under /recalbox/share/externals/
-	const disksOutput = await sshClient.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
+	const disksOutput = await ssh.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
 	const disks = disksOutput
 		.split('\n')
 		.map((d) => d.trim())
@@ -116,7 +116,7 @@ export async function listSystems(): Promise<GameSystem[]> {
 
 	for (const disk of disks) {
 		const romsBase = `/recalbox/share/externals/${disk}/recalbox/roms`
-		const dirsOutput = await sshClient.exec(`ls -1 ${shellQuote(romsBase)} 2>/dev/null`)
+		const dirsOutput = await ssh.exec(`ls -1 ${shellQuote(romsBase)} 2>/dev/null`)
 		const dirs = dirsOutput
 			.split('\n')
 			.map((d) => d.trim())
@@ -127,7 +127,7 @@ export async function listSystems(): Promise<GameSystem[]> {
 			if (dir === 'ports' || dir.startsWith('.')) continue
 
 			const gamelistPath = `${romsBase}/${dir}/gamelist.xml`
-			const exists = await sshClient.exec(
+			const exists = await ssh.exec(
 				`test -f ${shellQuote(gamelistPath)} && echo yes || echo no`,
 			)
 			if (exists === 'yes') {

@@ -1,5 +1,7 @@
 import { getRecentSnapshots, insertSystemSnapshot } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { getSystemStats } from '@/lib/recalbox/system-stats'
 import { NextResponse } from 'next/server'
 
@@ -9,16 +11,23 @@ export async function GET(request: Request): Promise<NextResponse> {
 	const { searchParams } = new URL(request.url)
 	const historyMinutes = Number.parseInt(searchParams.get('history') ?? '0', 10)
 
+	const recalboxId = await getActiveRecalboxId()
+	if (!recalboxId) {
+		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+	}
+
+	const ssh = getSshClient(recalboxId)
+
 	let stats
 	try {
-		stats = await getSystemStats()
+		stats = await getSystemStats(ssh)
 	} catch (err) {
 		logger.error('Failed to fetch system stats via SSH', err)
 		return NextResponse.json({ error: 'Recalbox unreachable via SSH' }, { status: 503 })
 	}
 
 	try {
-		await insertSystemSnapshot(stats)
+		await insertSystemSnapshot(stats, recalboxId)
 	} catch (err) {
 		logger.warn('Failed to persist system snapshot', err)
 	}

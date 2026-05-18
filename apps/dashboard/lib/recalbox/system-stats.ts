@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger'
-import { sshClient } from '@/lib/recalbox/ssh-client'
+import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 
 export type SystemStats = {
 	cpuTemp: number | null
@@ -31,11 +31,11 @@ function parseProcStat(raw: string): ProcStatLine | null {
 }
 
 /** Compute CPU usage % from two /proc/stat snapshots 200 ms apart. */
-async function getCpuUsage(): Promise<number | null> {
+async function getCpuUsage(ssh: SshClientLike): Promise<number | null> {
 	try {
-		const raw1 = await sshClient.exec('head -1 /proc/stat')
+		const raw1 = await ssh.exec('head -1 /proc/stat')
 		await new Promise((r) => setTimeout(r, 200))
-		const raw2 = await sshClient.exec('head -1 /proc/stat')
+		const raw2 = await ssh.exec('head -1 /proc/stat')
 
 		const s1 = parseProcStat(raw1)
 		const s2 = parseProcStat(raw2)
@@ -69,21 +69,21 @@ function parseUptime(raw: string): number | null {
 }
 
 /** Retrieve current system stats from the Recalbox via SSH. Partial results on failure. */
-export async function getSystemStats(): Promise<SystemStats> {
+export async function getSystemStats(ssh: SshClientLike): Promise<SystemStats> {
 	const [tempRaw, ramRaw, uptimeRaw, cpuUsage] = await Promise.all([
-		sshClient.exec('cat /sys/class/thermal/thermal_zone0/temp').catch((err) => {
+		ssh.exec('cat /sys/class/thermal/thermal_zone0/temp').catch((err) => {
 			logger.warn('cpuTemp fetch failed', err)
 			return null
 		}),
-		sshClient.exec('free -m | grep Mem').catch((err) => {
+		ssh.exec('free -m | grep Mem').catch((err) => {
 			logger.warn('RAM fetch failed', err)
 			return null
 		}),
-		sshClient.exec('cat /proc/uptime').catch((err) => {
+		ssh.exec('cat /proc/uptime').catch((err) => {
 			logger.warn('uptime fetch failed', err)
 			return null
 		}),
-		getCpuUsage(),
+		getCpuUsage(ssh),
 	])
 
 	const ram = ramRaw ? parseRam(ramRaw) : null
