@@ -3,7 +3,8 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, Circle } from 'lucide-react'
+import { Bell, CheckCircle2, Circle, Clock, Palette, Plug, Server, Smartphone, Trophy } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
 	Form,
 	FormControl,
@@ -22,7 +23,6 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { useInstallPrompt } from '@/hooks/use-install-prompt'
 import { registerServiceWorker, subscribeToPush, unsubscribeFromPush } from '@/lib/notifications/client'
@@ -31,6 +31,7 @@ import type { AppConfig } from '@/lib/settings/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -890,12 +891,70 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 	)
 }
 
+// ─── Sidebar Nav ─────────────────────────────────────────────────────────────
+
+type NavItem = { value: string; icon: LucideIcon; label: string; mobileLabel: string }
+
+function SidebarNav({
+	items,
+	active,
+	onSelect,
+}: {
+	items: NavItem[]
+	active: string
+	onSelect: (value: string) => void
+}) {
+	return (
+		<>
+			<nav className="hidden md:flex flex-col gap-1 w-52 shrink-0">
+				{items.map((item) => (
+					<button
+						key={item.value}
+						type="button"
+						onClick={() => onSelect(item.value)}
+						aria-current={active === item.value ? 'page' : undefined}
+						className={cn(
+							'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-left transition-colors',
+							active === item.value
+								? 'bg-accent text-accent-foreground'
+								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+						)}
+					>
+						<item.icon className="h-4 w-4 shrink-0" />
+						{item.label}
+					</button>
+				))}
+			</nav>
+			<nav className="flex md:hidden gap-1 overflow-x-auto pb-2 shrink-0">
+				{items.map((item) => (
+					<button
+						key={item.value}
+						type="button"
+						onClick={() => onSelect(item.value)}
+						aria-current={active === item.value ? 'page' : undefined}
+						className={cn(
+							'flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap shrink-0 transition-colors',
+							active === item.value
+								? 'bg-accent text-accent-foreground'
+								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+						)}
+					>
+						<item.icon className="h-4 w-4 shrink-0" />
+						{item.mobileLabel}
+					</button>
+				))}
+			</nav>
+		</>
+	)
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
 	const t = useTranslations('settings')
 	const [config, setConfig] = useState<AppConfig | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [active, setActive] = useState('recalbox')
 
 	useEffect(() => {
 		fetch('/api/settings')
@@ -907,6 +966,16 @@ export default function SettingsPage() {
 			.catch(() => setLoading(false))
 	}, [])
 
+	const navItems: NavItem[] = [
+		{ value: 'recalbox', icon: Server, label: t('tabs.recalbox'), mobileLabel: 'Recalbox' },
+		{ value: 'scrobble', icon: Clock, label: t('tabs.scrobble'), mobileLabel: 'Scrobble' },
+		{ value: 'interface', icon: Palette, label: t('tabs.interface'), mobileLabel: 'UI' },
+		{ value: 'retroachievements', icon: Trophy, label: t('tabs.retroachievements'), mobileLabel: 'Retro' },
+		{ value: 'integrations', icon: Plug, label: t('tabs.integrations'), mobileLabel: 'Intégr.' },
+		{ value: 'notifications', icon: Bell, label: t('tabs.notifications'), mobileLabel: 'Notifs' },
+		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
+	]
+
 	if (loading) {
 		return <div className="p-8 text-muted-foreground text-sm">{t('loading')}</div>
 	}
@@ -916,91 +985,83 @@ export default function SettingsPage() {
 	}
 
 	return (
-		<div className="container max-w-2xl mx-auto p-6 space-y-6">
+		<div className="container max-w-4xl mx-auto p-6 space-y-6">
 			<div>
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
-			<Tabs defaultValue="recalbox">
-				<TabsList className="grid w-full grid-cols-7">
-					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
-					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
-					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
-					<TabsTrigger value="retroachievements">{t('tabs.retroachievements')}</TabsTrigger>
-					<TabsTrigger value="integrations">{t('tabs.integrations')}</TabsTrigger>
-					<TabsTrigger value="notifications">{t('tabs.notifications')}</TabsTrigger>
-					<TabsTrigger value="app">{t('tabs.app')}</TabsTrigger>
-				</TabsList>
-				<TabsContent value="recalbox" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('recalbox.cardTitle')}</CardTitle>
-							<CardDescription>{t('recalbox.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<RecalboxTab config={config} />
-						</CardContent>
-					</Card>
-				</TabsContent>
-				<TabsContent value="scrobble" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('scrobble.cardTitle')}</CardTitle>
-							<CardDescription>{t('scrobble.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<ScrobbleTab config={config} />
-						</CardContent>
-					</Card>
-				</TabsContent>
-				<TabsContent value="interface" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('interface.cardTitle')}</CardTitle>
-							<CardDescription>{t('interface.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<UiTab config={config} />
-						</CardContent>
-					</Card>
-				</TabsContent>
-				<TabsContent value="retroachievements" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('retroachievements.cardTitle')}</CardTitle>
-							<CardDescription>{t('retroachievements.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<RetroAchievementsTab config={config} />
-						</CardContent>
-					</Card>
-				</TabsContent>
-				<TabsContent value="integrations" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('integrations.cardTitle')}</CardTitle>
-							<CardDescription>{t('integrations.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<IntegrationsTab config={config} />
-						</CardContent>
-					</Card>
-				</TabsContent>
-				<TabsContent value="notifications" className="mt-6">
-					<NotificationsTab />
-				</TabsContent>
-				<TabsContent value="app" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('app.cardTitle')}</CardTitle>
-							<CardDescription>{t('app.cardDescription')}</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<AppTab />
-						</CardContent>
-					</Card>
-				</TabsContent>
-			</Tabs>
+			<div className="flex flex-col md:flex-row gap-8">
+				<SidebarNav items={navItems} active={active} onSelect={setActive} />
+				<div className="flex-1 min-w-0">
+					{active === 'recalbox' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('recalbox.cardTitle')}</CardTitle>
+								<CardDescription>{t('recalbox.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<RecalboxTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'scrobble' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('scrobble.cardTitle')}</CardTitle>
+								<CardDescription>{t('scrobble.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<ScrobbleTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'interface' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('interface.cardTitle')}</CardTitle>
+								<CardDescription>{t('interface.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<UiTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'retroachievements' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('retroachievements.cardTitle')}</CardTitle>
+								<CardDescription>{t('retroachievements.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<RetroAchievementsTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'integrations' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('integrations.cardTitle')}</CardTitle>
+								<CardDescription>{t('integrations.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<IntegrationsTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'notifications' && <NotificationsTab />}
+					{active === 'app' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('app.cardTitle')}</CardTitle>
+								<CardDescription>{t('app.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<AppTab />
+							</CardContent>
+						</Card>
+					)}
+				</div>
+			</div>
 		</div>
 	)
 }
