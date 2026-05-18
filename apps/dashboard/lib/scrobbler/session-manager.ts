@@ -21,13 +21,14 @@ export class SessionManager {
 	}
 
 	private async insert(opts: {
+		recalboxId: string
 		startedAt: Date
 		system: string
 		romPath: string
 	}): Promise<number> {
 		const rows = await this.db
 			.insert(sessions)
-			.values({ startedAt: opts.startedAt, system: opts.system, romPath: opts.romPath })
+			.values({ recalboxId: opts.recalboxId, startedAt: opts.startedAt, system: opts.system, romPath: opts.romPath })
 			.returning({ id: sessions.id })
 		const row = rows[0]
 		if (!row) throw new Error('Failed to insert session')
@@ -55,7 +56,7 @@ export class SessionManager {
 		await this.db.delete(sessions).where(eq(sessions.id, id))
 	}
 
-	async openSession(event: GameStartEvent): Promise<void> {
+	async openSession(event: GameStartEvent, recalboxId: string): Promise<void> {
 		const open = await this.getOpen()
 
 		for (const existing of open) {
@@ -77,6 +78,7 @@ export class SessionManager {
 		}
 
 		const id = await this.insert({
+			recalboxId,
 			startedAt: event.startedAt,
 			system: event.system,
 			romPath: event.romPath,

@@ -49,7 +49,7 @@ describe('SessionManager', () => {
 		const startedAt = new Date(Date.now() - 30_000)
 		const stoppedAt = new Date()
 
-		await manager.openSession(startEvent('/roms/mario.sfc', startedAt))
+		await manager.openSession(startEvent('/roms/mario.sfc', startedAt), 'rb1')
 		await manager.closeSession(stopEvent('/roms/mario.sfc', stoppedAt))
 
 		const rows = db.select().from(schema.sessions).all()
@@ -65,8 +65,8 @@ describe('SessionManager', () => {
 		const firstStart = new Date(Date.now() - 60_000)
 		const secondStart = new Date()
 
-		await manager.openSession(startEvent('/roms/mario.sfc', firstStart))
-		await manager.openSession(startEvent('/roms/zelda.sfc', secondStart))
+		await manager.openSession(startEvent('/roms/mario.sfc', firstStart), 'rb1')
+		await manager.openSession(startEvent('/roms/zelda.sfc', secondStart), 'rb1')
 
 		const rows = db.select().from(schema.sessions).all()
 		expect(rows).toHaveLength(2)
@@ -90,7 +90,7 @@ describe('SessionManager', () => {
 		const startedAt = new Date(Date.now() - 5_000)
 		const stoppedAt = new Date()
 
-		await manager.openSession(startEvent('/roms/mario.sfc', startedAt))
+		await manager.openSession(startEvent('/roms/mario.sfc', startedAt), 'rb1')
 		await manager.closeSession(stopEvent('/roms/mario.sfc', stoppedAt))
 
 		const rows = db.select().from(schema.sessions).all()
@@ -124,7 +124,7 @@ describe('SessionManager', () => {
 
 	it('crash recovery: after restart, recoverOrphanSessions handles all orphans', async () => {
 		const orphanStart = new Date(Date.now() - 20 * 3600 * 1000)
-		await manager.openSession(startEvent('/roms/orphan.sfc', orphanStart))
+		await manager.openSession(startEvent('/roms/orphan.sfc', orphanStart), 'rb1')
 
 		// simulate daemon restart by creating a new manager with same db
 		const newManager = new SessionManager(db)
