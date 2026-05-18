@@ -1,9 +1,9 @@
+import path from 'node:path'
 import { db } from '@/lib/db'
 import { raGameMapping } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { getGameList } from '@retroachievements/api'
-import { eq } from 'drizzle-orm'
-import path from 'node:path'
+import { and, eq } from 'drizzle-orm'
 import { getAuth } from './auth'
 import { getCached, getTtlSeconds, setCached } from './cache'
 import { withRateLimit } from './rate-limiter'
@@ -84,8 +84,16 @@ async function getGameListCached(consoleId: number) {
 	return simplified
 }
 
-export async function findRaGameForRom(romPath: string, system: string): Promise<number | null> {
-	const existing = db.select().from(raGameMapping).where(eq(raGameMapping.romPath, romPath)).get()
+export async function findRaGameForRom(
+	recalboxId: string,
+	romPath: string,
+	system: string,
+): Promise<number | null> {
+	const existing = db
+		.select()
+		.from(raGameMapping)
+		.where(and(eq(raGameMapping.recalboxId, recalboxId), eq(raGameMapping.romPath, romPath)))
+		.get()
 	if (existing) return existing.raGameId
 
 	const consoleId = SYSTEM_TO_RA_CONSOLE_ID[system.toLowerCase()]
@@ -109,13 +117,14 @@ export async function findRaGameForRom(romPath: string, system: string): Promise
 		if (bestScore >= 0.8 && bestId !== null) {
 			db.insert(raGameMapping)
 				.values({
+					recalboxId,
 					romPath,
 					raGameId: bestId,
 					matchKind: 'auto',
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
-					target: raGameMapping.romPath,
+					target: [raGameMapping.recalboxId, raGameMapping.romPath],
 					set: { raGameId: bestId, matchKind: 'auto', updatedAt: new Date() },
 				})
 				.run()
@@ -128,11 +137,15 @@ export async function findRaGameForRom(romPath: string, system: string): Promise
 	return null
 }
 
-export async function setManualMapping(romPath: string, raGameId: number): Promise<void> {
+export async function setManualMapping(
+	recalboxId: string,
+	romPath: string,
+	raGameId: number,
+): Promise<void> {
 	db.insert(raGameMapping)
-		.values({ romPath, raGameId, matchKind: 'manual', updatedAt: new Date() })
+		.values({ recalboxId, romPath, raGameId, matchKind: 'manual', updatedAt: new Date() })
 		.onConflictDoUpdate({
-			target: raGameMapping.romPath,
+			target: [raGameMapping.recalboxId, raGameMapping.romPath],
 			set: { raGameId, matchKind: 'manual', updatedAt: new Date() },
 		})
 		.run()

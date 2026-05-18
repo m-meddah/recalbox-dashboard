@@ -1,11 +1,13 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSendNotification, mockSetVapidDetails, mockDeleteSub, mockSelectAll } = vi.hoisted(() => ({
-	mockSendNotification: vi.fn(),
-	mockSetVapidDetails: vi.fn(),
-	mockDeleteSub: vi.fn(),
-	mockSelectAll: vi.fn(),
-}))
+const { mockSendNotification, mockSetVapidDetails, mockDeleteSub, mockSelectAll } = vi.hoisted(
+	() => ({
+		mockSendNotification: vi.fn(),
+		mockSetVapidDetails: vi.fn(),
+		mockDeleteSub: vi.fn(),
+		mockSelectAll: vi.fn(),
+	}),
+)
 
 vi.mock('web-push', () => ({
 	default: {
@@ -41,8 +43,8 @@ vi.mock('@/lib/notifications/vapid', () => ({
 	}),
 }))
 
-import { buildPushPayload, sendWebPush } from '../web-push'
 import type { Notification } from '../types'
+import { buildPushPayload, sendWebPush } from '../web-push'
 
 function makeNotif(type: string, data: object): Notification {
 	return {
@@ -53,6 +55,7 @@ function makeNotif(type: string, data: object): Notification {
 		readAt: null,
 		pushedInApp: false,
 		pushedWeb: false,
+		recalboxId: null,
 	}
 }
 

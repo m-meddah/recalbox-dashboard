@@ -1,4 +1,5 @@
 import { updateGameSrInfo } from '@/lib/db/queries'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { setCached } from '@/lib/super-retrogamers/cache'
 import { srClient } from '@/lib/super-retrogamers/client'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
 	}
 	const { slugs, romPaths } = parsed.data
 
+	const recalboxId = await getActiveRecalboxId()
 	const results = await srClient.bulkLookup(slugs)
 
 	for (let i = 0; i < slugs.length; i++) {
@@ -34,8 +36,8 @@ export async function POST(req: NextRequest) {
 
 		setCached(`exists:${slug}`, result.exists)
 
-		if (romPath) {
-			updateGameSrInfo(romPath, slug, result.exists, result.url ?? null)
+		if (romPath && recalboxId) {
+			updateGameSrInfo(recalboxId, romPath, slug, result.exists, result.url ?? null)
 		}
 	}
 

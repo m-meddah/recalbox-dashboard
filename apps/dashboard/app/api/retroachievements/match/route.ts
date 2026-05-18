@@ -1,5 +1,6 @@
 import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { findRaGameForRom, setManualMapping } from '@/lib/retroachievements/matching'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -26,8 +27,11 @@ export async function GET(request: Request) {
 		return NextResponse.json({ error: 'Missing romPath or system' }, { status: 400 })
 	}
 
+	const recalboxId = await getActiveRecalboxId()
+	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+
 	try {
-		const raGameId = await findRaGameForRom(romPath, system)
+		const raGameId = await findRaGameForRom(recalboxId, romPath, system)
 		return NextResponse.json({ romPath, raGameId })
 	} catch (err) {
 		logger.error('RA matching failed', err)
@@ -48,6 +52,9 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 	}
 
-	await setManualMapping(parsed.data.romPath, parsed.data.raGameId)
+	const recalboxId = await getActiveRecalboxId()
+	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+
+	await setManualMapping(recalboxId, parsed.data.romPath, parsed.data.raGameId)
 	return NextResponse.json({ ok: true })
 }
