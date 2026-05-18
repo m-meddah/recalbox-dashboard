@@ -1,13 +1,30 @@
 import { EventEmitter } from 'node:events'
 import { deleteSettingsByPrefix, getAllSettings, upsertSetting } from '@/lib/db/queries'
+import {
+	deleteRecalbox,
+	getDefaultRecalbox,
+	getRecalbox,
+	insertRecalbox,
+	listRecalboxes,
+	setDefaultRecalbox,
+	type RecalboxRow,
+	updateRecalbox,
+} from '@/lib/db/recalbox-queries'
 import { getDefaults } from '@/lib/settings/defaults'
-import { type AppConfig, type DeepPartial, SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
+import {
+	type AppConfig,
+	type DeepPartial,
+	type RecalboxInstance,
+	SETUP_COMPLETED_KEY,
+} from '@/lib/settings/schemas'
+import { randomUUID } from 'node:crypto'
 
-const SINGLETON_VERSION = 1
+const SINGLETON_VERSION = 2
 
 function flattenConfig(cfg: AppConfig): Record<string, string> {
 	const flat: Record<string, string> = {}
 	for (const [scope, values] of Object.entries(cfg)) {
+		if (scope === 'recalbox') continue
 		for (const [key, value] of Object.entries(values as Record<string, unknown>)) {
 			flat[`${scope}.${key}`] = String(value)
 		}
@@ -18,7 +35,7 @@ function flattenConfig(cfg: AppConfig): Record<string, string> {
 function mergeDbIntoDefaults(defaults: AppConfig, dbRows: Record<string, string>): AppConfig {
 	const result = structuredClone(defaults) as AppConfig & Record<string, Record<string, unknown>>
 	for (const [flatKey, rawValue] of Object.entries(dbRows)) {
-		if (flatKey.startsWith('__')) continue
+		if (flatKey.startsWith('__') || flatKey.startsWith('recalbox.')) continue
 		const dotIdx = flatKey.indexOf('.')
 		if (dotIdx === -1) continue
 		const scope = flatKey.slice(0, dotIdx) as keyof AppConfig
@@ -43,10 +60,7 @@ function deepMerge<T extends object>(target: T, partial: DeepPartial<T>): T {
 		if (pVal === undefined) continue
 		const tVal = (target as Record<keyof T, unknown>)[key]
 		if (tVal !== null && typeof tVal === 'object' && typeof pVal === 'object') {
-			;(result as Record<keyof T, unknown>)[key] = deepMerge(
-				tVal as object,
-				pVal as DeepPartial<object>,
-			) as T[keyof T]
+			;(result as Record<keyof T, unknown>)[key] = deepMerge(tVal as object, pVal as DeepPartial<object>) as T[keyof T]
 		} else {
 			;(result as Record<keyof T, unknown>)[key] = pVal as T[keyof T]
 		}
@@ -57,11 +71,25 @@ function deepMerge<T extends object>(target: T, partial: DeepPartial<T>): T {
 function changedScopes(prev: AppConfig, next: AppConfig): (keyof AppConfig)[] {
 	const scopes: (keyof AppConfig)[] = []
 	for (const scope of Object.keys(prev) as (keyof AppConfig)[]) {
-		if (JSON.stringify(prev[scope]) !== JSON.stringify(next[scope])) {
-			scopes.push(scope)
-		}
+		if (JSON.stringify(prev[scope]) !== JSON.stringify(next[scope])) scopes.push(scope)
 	}
 	return scopes
+}
+
+function rowToInstance(row: RecalboxRow): RecalboxInstance {
+	return {
+		id: row.id,
+		name: row.name,
+		host: row.host,
+		sshUser: row.sshUser,
+		sshPassword: row.sshPassword,
+		sshPort: row.sshPort,
+		mqttPort: row.mqttPort,
+		color: row.color,
+		iconEmoji: row.iconEmoji,
+		isDefault: row.isDefault ?? false,
+		archived: row.archived ?? false,
+	}
 }
 
 interface ConfigStoreEvents {
@@ -70,15 +98,15 @@ interface ConfigStoreEvents {
 	'changed:scrobble': (config: AppConfig) => void
 	'changed:ui': (config: AppConfig) => void
 	'changed:retroachievements': (config: AppConfig) => void
+	'recalbox:added': (payload: { recalbox: RecalboxInstance }) => void
+	'recalbox:updated': (payload: { recalbox: RecalboxInstance }) => void
+	'recalbox:removed': (payload: { id: string }) => void
 }
 
 declare interface ConfigStore {
 	on<K extends keyof ConfigStoreEvents>(event: K, listener: ConfigStoreEvents[K]): this
 	off<K extends keyof ConfigStoreEvents>(event: K, listener: ConfigStoreEvents[K]): this
-	emit<K extends keyof ConfigStoreEvents>(
-		event: K,
-		...args: Parameters<ConfigStoreEvents[K]>
-	): boolean
+	emit<K extends keyof ConfigStoreEvents>(event: K, ...args: Parameters<ConfigStoreEvents[K]>): boolean
 }
 
 class ConfigStore extends EventEmitter {
@@ -86,40 +114,41 @@ class ConfigStore extends EventEmitter {
 
 	get(): AppConfig {
 		if (!this.config) {
-			this.config = mergeDbIntoDefaults(getDefaults(), getAllSettings())
+			const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
+			const first = listRecalboxes().find((r) => !r.archived)
+			if (first) base.recalbox = { host: first.host, sshUser: first.sshUser, sshPassword: first.sshPassword, sshPort: first.sshPort, mqttPort: first.mqttPort }
+			this.config = base
 		}
 		return this.config
+	}
+
+	getForRecalbox(id: string): AppConfig {
+		const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
+		const row = getRecalbox(id)
+		if (row) base.recalbox = { host: row.host, sshUser: row.sshUser, sshPassword: row.sshPassword, sshPort: row.sshPort, mqttPort: row.mqttPort }
+		return base
 	}
 
 	update(partial: DeepPartial<AppConfig>): AppConfig {
 		const prev = this.get()
 		const next = deepMerge(prev, partial)
 		const flat = flattenConfig(next)
-
 		const prevFlat = flattenConfig(prev)
 		for (const [k, v] of Object.entries(flat)) {
-			if (prevFlat[k] !== v) {
-				upsertSetting(k, v)
-			}
+			if (prevFlat[k] !== v) upsertSetting(k, v)
 		}
-
 		const scopes = changedScopes(prev, next)
 		this.config = next
-
 		if (scopes.length > 0) {
 			this.emit('changed', next)
-			for (const scope of scopes) {
-				this.emit(`changed:${scope}` as keyof ConfigStoreEvents, next)
-			}
+			for (const scope of scopes) this.emit(`changed:${scope}` as keyof ConfigStoreEvents, next)
 		}
-
 		return next
 	}
 
 	reset(scope?: keyof AppConfig): AppConfig {
 		const defaults = getDefaults()
 		const prev = this.get()
-
 		if (scope) {
 			deleteSettingsByPrefix(`${scope}.`)
 			const next = { ...prev, [scope]: defaults[scope] }
@@ -130,38 +159,89 @@ class ConfigStore extends EventEmitter {
 			}
 			return next
 		}
-
-		for (const s of Object.keys(defaults) as (keyof AppConfig)[]) {
-			deleteSettingsByPrefix(`${s}.`)
-		}
+		for (const s of Object.keys(defaults) as (keyof AppConfig)[]) deleteSettingsByPrefix(`${s}.`)
 		this.config = defaults
 		const scopes = changedScopes(prev, defaults)
 		if (scopes.length > 0) {
 			this.emit('changed', defaults)
-			for (const s of scopes) {
-				this.emit(`changed:${s}` as keyof ConfigStoreEvents, defaults)
-			}
+			for (const s of scopes) this.emit(`changed:${s}` as keyof ConfigStoreEvents, defaults)
 		}
 		return defaults
 	}
 
 	reload(): AppConfig {
-		const prev = this.config
-		this.config = mergeDbIntoDefaults(getDefaults(), getAllSettings())
-		if (prev) {
-			const scopes = changedScopes(prev, this.config)
-			if (scopes.length > 0) {
-				this.emit('changed', this.config)
-				for (const scope of scopes) {
-					this.emit(`changed:${scope}` as keyof ConfigStoreEvents, this.config)
-				}
-			}
-		}
-		return this.config
+		this.config = null
+		return this.get()
 	}
 
 	markSetupComplete(): void {
 		upsertSetting(SETUP_COMPLETED_KEY, 'true')
+	}
+
+	getRecalboxes(): RecalboxInstance[] {
+		return listRecalboxes().map(rowToInstance)
+	}
+
+	getRecalbox(id: string): RecalboxInstance | null {
+		const row = getRecalbox(id)
+		return row ? rowToInstance(row) : null
+	}
+
+	getDefaultRecalbox(): RecalboxInstance | null {
+		const row = getDefaultRecalbox()
+		if (row) return rowToInstance(row)
+		const all = listRecalboxes()
+		const first = all[0]
+		return first ? rowToInstance(first) : null
+	}
+
+	addRecalbox(config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived'>): RecalboxInstance {
+		const all = listRecalboxes()
+		const id = randomUUID()
+		const row = { id, ...config, isDefault: all.length === 0, archived: false, createdAt: new Date() }
+		insertRecalbox(row)
+		const instance = rowToInstance({ ...row, color: config.color ?? null, iconEmoji: config.iconEmoji ?? null, lastConnectedAt: null })
+		this.emit('recalbox:added', { recalbox: instance })
+		if (instance.isDefault) {
+			this.config = null
+			this.emit('changed:recalbox', this.get())
+		}
+		return instance
+	}
+
+	updateRecalboxConfig(id: string, patch: Partial<Omit<RecalboxInstance, 'id'>>): void {
+		updateRecalbox(id, {
+			...(patch.name !== undefined && { name: patch.name }),
+			...(patch.host !== undefined && { host: patch.host }),
+			...(patch.sshUser !== undefined && { sshUser: patch.sshUser }),
+			...(patch.sshPassword !== undefined && { sshPassword: patch.sshPassword }),
+			...(patch.sshPort !== undefined && { sshPort: patch.sshPort }),
+			...(patch.mqttPort !== undefined && { mqttPort: patch.mqttPort }),
+			...(patch.color !== undefined && { color: patch.color }),
+			...(patch.iconEmoji !== undefined && { iconEmoji: patch.iconEmoji }),
+			...(patch.archived !== undefined && { archived: patch.archived }),
+		})
+		const updated = getRecalbox(id)
+		if (!updated) return
+		const instance = rowToInstance(updated)
+		this.emit('recalbox:updated', { recalbox: instance })
+		this.config = null
+		this.emit('changed:recalbox', this.get())
+	}
+
+	removeRecalbox(id: string): void {
+		deleteRecalbox(id)
+		this.config = null
+		this.emit('recalbox:removed', { id })
+		this.emit('changed:recalbox', this.get())
+	}
+
+	setDefaultRecalbox(id: string): void {
+		setDefaultRecalbox(id)
+		this.config = null
+		const instance = this.getRecalbox(id)
+		if (instance) this.emit('recalbox:updated', { recalbox: instance })
+		this.emit('changed:recalbox', this.get())
 	}
 }
 
