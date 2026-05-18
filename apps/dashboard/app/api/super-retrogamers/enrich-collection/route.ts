@@ -1,4 +1,5 @@
 import { listUncheckedGames, updateGameSrInfo } from '@/lib/db/queries'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { srClient } from '@/lib/super-retrogamers/client'
 import { gameToSlugVariants } from '@/lib/super-retrogamers/slug'
 
@@ -23,7 +24,12 @@ export async function POST() {
 		async start(controller) {
 			const write = (e: EnrichEvent) => controller.enqueue(encoder.encode(ndjson(e)))
 			try {
-				const allUnchecked = listUncheckedGames(10_000)
+				const recalboxId = await getActiveRecalboxId()
+				if (!recalboxId) {
+					write({ type: 'error', message: 'No Recalbox configured' })
+					return
+				}
+				const allUnchecked = listUncheckedGames(10_000, recalboxId)
 				write({ type: 'start', total: allUnchecked.length })
 				let done = 0
 				let matched = 0
@@ -44,7 +50,13 @@ export async function POST() {
 
 					for (const entry of slugEntries) {
 						const result = results[entry.slug] ?? { exists: false }
-						updateGameSrInfo(entry.romPath, entry.slug, result.exists, result.url ?? null)
+						updateGameSrInfo(
+							recalboxId,
+							entry.romPath,
+							entry.slug,
+							result.exists,
+							result.url ?? null,
+						)
 						if (result.exists) matched++
 					}
 
