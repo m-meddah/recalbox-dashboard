@@ -28,7 +28,7 @@ CREATE TABLE `__new_ra_game_mapping` (
 	PRIMARY KEY(`recalbox_id`, `rom_path`)
 );
 --> statement-breakpoint
-INSERT INTO `__new_ra_game_mapping`("recalbox_id", "rom_path", "ra_game_id", "match_kind", "updated_at") SELECT "recalbox_id", "rom_path", "ra_game_id", "match_kind", "updated_at" FROM `ra_game_mapping`;--> statement-breakpoint
+INSERT INTO `__new_ra_game_mapping`("recalbox_id", "rom_path", "ra_game_id", "match_kind", "updated_at") SELECT '' AS "recalbox_id", "rom_path", "ra_game_id", "match_kind", "updated_at" FROM `ra_game_mapping`;--> statement-breakpoint
 DROP TABLE `ra_game_mapping`;--> statement-breakpoint
 ALTER TABLE `__new_ra_game_mapping` RENAME TO `ra_game_mapping`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
