@@ -129,7 +129,8 @@
       "scrobble": "Scrobble",
       "interface": "Interface",
       "retroachievements": "RetroAchievements",
-      "integrations": "Integrations"
+      "integrations": "Integrations",
+      "notifications": "Notifications"
     },
     "recalbox": {
       "cardTitle": "Recalbox Connection",
@@ -223,6 +224,39 @@
       "enrichError": "Enrichment failed",
       "saved": "Saved",
       "saveError": "Failed to save"
+    },
+    "notificationsTab": {
+      "cardTitle": "Notifications",
+      "cardDescription": "Manage how and when you receive notifications.",
+      "enabled": "Enable notifications",
+      "enabledHint": "Master switch for all notifications",
+      "channels": "Channels",
+      "inApp": "In-app (toasts)",
+      "webPush": "Web Push (background)",
+      "vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
+      "enable": "Enable",
+      "disable": "Disable",
+      "types": "Notification types",
+      "achievementUnlocked": "Achievement unlocked",
+      "hardcoreOnly": "Hardcore achievements only",
+      "gameStarted": "Game started",
+      "streakMilestone": "Streak milestone",
+      "wrappedAvailable": "Annual Wrapped available",
+      "systemAlerts": "System alerts",
+      "quietHours": "Quiet hours",
+      "quietHoursEnabled": "Enable quiet hours",
+      "from": "From",
+      "to": "to",
+      "devices": "Connected devices",
+      "test": "Test notification",
+      "testSent": "Test notification sent",
+      "regenerateVapid": "Regenerate VAPID keys",
+      "regenerateConfirm": "This will disconnect all devices. Continue?",
+      "regenerated": "VAPID keys regenerated — all devices disconnected",
+      "saved": "Notification preferences saved",
+      "saving": "Saving…",
+      "swError": "Could not register service worker",
+      "pushDenied": "Notification permission denied"
     }
   },
   "achievements": {
@@ -285,6 +319,39 @@
       "mqttPort": "MQTT port",
       "showPassword": "Show",
       "hidePassword": "Hide"
+    },
+    "notifications": {
+      "cardTitle": "Notifications",
+      "cardDescription": "Manage how and when you receive notifications.",
+      "enabled": "Enable notifications",
+      "enabledHint": "Master switch for all notifications",
+      "channels": "Channels",
+      "inApp": "In-app (toasts)",
+      "webPush": "Web Push (background)",
+      "vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
+      "enable": "Enable",
+      "disable": "Disable",
+      "types": "Notification types",
+      "achievementUnlocked": "Achievement unlocked",
+      "hardcoreOnly": "Hardcore achievements only",
+      "gameStarted": "Game started",
+      "streakMilestone": "Streak milestone",
+      "wrappedAvailable": "Annual Wrapped available",
+      "systemAlerts": "System alerts",
+      "quietHours": "Quiet hours",
+      "quietHoursEnabled": "Enable quiet hours",
+      "from": "From",
+      "to": "to",
+      "devices": "Connected devices",
+      "test": "Test notification",
+      "testSent": "Test notification sent",
+      "regenerateVapid": "Regenerate VAPID keys",
+      "regenerateConfirm": "This will disconnect all devices. Continue?",
+      "regenerated": "VAPID keys regenerated — all devices disconnected",
+      "saved": "Notification preferences saved",
+      "saving": "Saving…",
+      "swError": "Could not register service worker",
+      "pushDenied": "Notification permission denied"
     }
   },
   "time": {
@@ -405,5 +472,15 @@
       "text": "Your {year} Wrapped is taking shape — {hours}h · {topGame} in the lead",
       "cta": "View my Wrapped"
     }
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "empty": "No notifications",
+    "markAllRead": "Mark all as read",
+    "achievementUnlocked": "🏆 Achievement unlocked",
+    "streakMilestone": "🔥 Streak milestone",
+    "wrappedAvailable": "🎮 Wrapped available",
+    "gameStarted": "▶️ Game started",
+    "systemAlert": "📢 System alert"
   }
 }

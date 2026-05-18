@@ -1,3 +1,5 @@
+import type { Notification } from '@/lib/notifications/types'
+import { getNotificationService } from '@/lib/notifications/service'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
 import { getMqttClient } from '@/lib/recalbox/mqtt-client'
 
@@ -6,6 +8,7 @@ export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
 	const mqttClient = getMqttClient()
+	const notifService = getNotificationService()
 
 	const stream = new ReadableStream({
 		start(controller) {
@@ -14,6 +17,16 @@ export async function GET(request: Request) {
 			const sendEvent = (event: RecalboxEvent) => {
 				try {
 					controller.enqueue(encode(`data: ${JSON.stringify(event)}\n\n`))
+				} catch {
+					// Client already disconnected
+				}
+			}
+
+			const sendNotification = (notif: Notification) => {
+				try {
+					controller.enqueue(
+						encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`),
+					)
 				} catch {
 					// Client already disconnected
 				}
@@ -36,6 +49,11 @@ export async function GET(request: Request) {
 			// ── Subscribe to future events ────────────────────────────────────────
 			const onConnectionUp = () => sendConnectionStatus(true)
 			const onConnectionDown = () => sendConnectionStatus(false)
+			const onNotificationCreated = (notif: Notification) => {
+				notifService.markPushedInApp(notif.id).then((claimed) => {
+					if (claimed) sendNotification(notif)
+				})
+			}
 
 			mqttClient.on('game:start', sendEvent)
 			mqttClient.on('game:stop', sendEvent)
@@ -43,6 +61,21 @@ export async function GET(request: Request) {
 			mqttClient.on('system:info', sendEvent)
 			mqttClient.on('connection:up', onConnectionUp)
 			mqttClient.on('connection:down', onConnectionDown)
+			notifService.on('created', onNotificationCreated)
+
+			// ── Poll DB for notifications from external processes (scrobbler) ─────
+			const pollNotifications = async () => {
+				try {
+					const unpushed = await notifService.getUnpushedInApp(0)
+					for (const notif of unpushed) {
+						const claimed = await notifService.markPushedInApp(notif.id)
+						if (claimed) sendNotification(notif)
+					}
+				} catch {
+					// Ignore poll errors
+				}
+			}
+			const pollInterval = setInterval(pollNotifications, 5000)
 
 			// Keep connection alive — proxies and Next.js dev server drop idle SSE streams
 			const heartbeat = setInterval(() => {
@@ -55,12 +88,14 @@ export async function GET(request: Request) {
 
 			request.signal.addEventListener('abort', () => {
 				clearInterval(heartbeat)
+				clearInterval(pollInterval)
 				mqttClient.off('game:start', sendEvent)
 				mqttClient.off('game:stop', sendEvent)
 				mqttClient.off('system:change', sendEvent)
 				mqttClient.off('system:info', sendEvent)
 				mqttClient.off('connection:up', onConnectionUp)
 				mqttClient.off('connection:down', onConnectionDown)
+				notifService.off('created', onNotificationCreated)
 				controller.close()
 			})
 		},

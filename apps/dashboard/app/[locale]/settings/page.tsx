@@ -23,6 +23,8 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { registerServiceWorker, subscribeToPush, unsubscribeFromPush } from '@/lib/notifications/client'
+import { DEFAULT_PREFERENCES, type NotificationPreferences } from '@/lib/notifications/types'
 import type { AppConfig } from '@/lib/settings/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
@@ -918,12 +920,13 @@ export default function SettingsPage() {
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<Tabs defaultValue="recalbox">
-				<TabsList className="grid w-full grid-cols-5">
+				<TabsList className="grid w-full grid-cols-6">
 					<TabsTrigger value="recalbox">{t('tabs.recalbox')}</TabsTrigger>
 					<TabsTrigger value="scrobble">{t('tabs.scrobble')}</TabsTrigger>
 					<TabsTrigger value="interface">{t('tabs.interface')}</TabsTrigger>
 					<TabsTrigger value="retroachievements">{t('tabs.retroachievements')}</TabsTrigger>
 					<TabsTrigger value="integrations">{t('tabs.integrations')}</TabsTrigger>
+					<TabsTrigger value="notifications">{t('tabs.notifications')}</TabsTrigger>
 				</TabsList>
 				<TabsContent value="recalbox" className="mt-6">
 					<Card>
@@ -980,7 +983,204 @@ export default function SettingsPage() {
 						</CardContent>
 					</Card>
 				</TabsContent>
+				<TabsContent value="notifications" className="mt-6">
+					<NotificationsTab />
+				</TabsContent>
 			</Tabs>
+		</div>
+	)
+}
+
+// ─── Notifications Tab ───────────────────────────────────────────────────────
+
+type PushSubscription = {
+	id: number
+	endpoint: string
+	userAgent: string | null
+	createdAt: string | Date
+}
+
+function NotificationsTab() {
+	const t = useTranslations('settings')
+	const tCommon = useTranslations('common')
+	const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFERENCES)
+	const [devices, setDevices] = useState<PushSubscription[]>([])
+	const [isPushSubscribed, setIsPushSubscribed] = useState(false)
+	const [vapidAvailable, setVapidAvailable] = useState(true)
+	const [dirty, setDirty] = useState(false)
+	const [saving, setSaving] = useState(false)
+
+	useEffect(() => {
+		fetch('/api/notifications/preferences').then((r) => r.json()).then((p: NotificationPreferences) => setPrefs(p)).catch(() => {})
+		fetch('/api/notifications/subscriptions').then((r) => r.json()).then(setDevices).catch(() => {})
+		fetch('/api/notifications/vapid-public-key').then((r) => {
+			if (!r.ok) setVapidAvailable(false)
+		}).catch(() => setVapidAvailable(false))
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker.getRegistration('/sw.js').then((reg) => {
+				if (reg) reg.pushManager.getSubscription().then((sub) => setIsPushSubscribed(!!sub))
+			}).catch(() => {})
+		}
+	}, [])
+
+	const update = (patch: Partial<NotificationPreferences>) => {
+		setPrefs((p) => ({ ...p, ...patch }))
+		setDirty(true)
+	}
+
+	const updateTypes = (patch: Partial<NotificationPreferences['types']>) => {
+		setPrefs((p) => ({ ...p, types: { ...p.types, ...patch } }))
+		setDirty(true)
+	}
+
+	const updateQuietHours = (patch: Partial<NotificationPreferences['quietHours']>) => {
+		setPrefs((p) => ({ ...p, quietHours: { ...p.quietHours, ...patch } }))
+		setDirty(true)
+	}
+
+	const save = async () => {
+		setSaving(true)
+		await fetch('/api/notifications/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefs) })
+		setDirty(false)
+		setSaving(false)
+		toast.success(t('notificationsTab.saved'))
+	}
+
+	const enableWebPush = async () => {
+		const reg = await registerServiceWorker()
+		if (!reg) { toast.error(t('notificationsTab.swError')); return }
+		const sub = await subscribeToPush(reg)
+		if (!sub) { toast.error(t('notificationsTab.pushDenied')); return }
+		setIsPushSubscribed(true)
+		update({ webPush: true })
+		fetch('/api/notifications/subscriptions').then((r) => r.json()).then(setDevices).catch(() => {})
+	}
+
+	const disableWebPush = async () => {
+		const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+		if (reg) await unsubscribeFromPush(reg)
+		setIsPushSubscribed(false)
+		update({ webPush: false })
+		fetch('/api/notifications/subscriptions').then((r) => r.json()).then(setDevices).catch(() => {})
+	}
+
+	const removeDevice = async (endpoint: string) => {
+		await fetch(`/api/notifications/subscriptions?endpoint=${encodeURIComponent(endpoint)}`, { method: 'DELETE' })
+		setDevices((d) => d.filter((s) => s.endpoint !== endpoint))
+	}
+
+	const testNotification = async () => {
+		await fetch('/api/notifications/test', { method: 'POST' })
+		toast.success(t('notificationsTab.testSent'))
+	}
+
+	const regenerateVapid = async () => {
+		if (!confirm(t('notificationsTab.regenerateConfirm'))) return
+		await fetch('/api/notifications/vapid', { method: 'DELETE' })
+		setDevices([])
+		setIsPushSubscribed(false)
+		toast(t('notificationsTab.regenerated'))
+	}
+
+	return (
+		<div className="space-y-6">
+			{/* Global enable */}
+			<div className="flex items-center justify-between">
+				<div>
+					<p className="font-medium text-sm">{t('notificationsTab.enabled')}</p>
+					<p className="text-muted-foreground text-xs">{t('notificationsTab.enabledHint')}</p>
+				</div>
+				<Switch checked={prefs.enabled} onCheckedChange={(v) => update({ enabled: v })} />
+			</div>
+
+			{/* Channels */}
+			<div className="space-y-3">
+				<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('notificationsTab.channels')}</p>
+				<div className="flex items-center justify-between">
+					<p className="text-sm">{t('notificationsTab.inApp')}</p>
+					<Switch checked={prefs.inApp} onCheckedChange={(v) => update({ inApp: v })} />
+				</div>
+				<div className="flex items-center justify-between">
+					<div>
+						<p className="text-sm">{t('notificationsTab.webPush')}</p>
+						{!vapidAvailable && <p className="text-xs text-muted-foreground">{t('notificationsTab.vapidUnavailable')}</p>}
+					</div>
+					<div className="flex items-center gap-2">
+						{isPushSubscribed
+							? <Button variant="outline" size="sm" onClick={disableWebPush}>{t('notificationsTab.disable')}</Button>
+							: <Button variant="outline" size="sm" onClick={enableWebPush} disabled={!vapidAvailable}>{t('notificationsTab.enable')}</Button>
+						}
+					</div>
+				</div>
+			</div>
+
+			{/* Types */}
+			<div className="space-y-3">
+				<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('notificationsTab.types')}</p>
+				{([
+					['achievementUnlocked', t('notificationsTab.achievementUnlocked')],
+					['gameStarted', t('notificationsTab.gameStarted')],
+					['streakMilestone', t('notificationsTab.streakMilestone')],
+					['wrappedAvailable', t('notificationsTab.wrappedAvailable')],
+					['systemAlerts', t('notificationsTab.systemAlerts')],
+				] as [keyof NotificationPreferences['types'], string][]).map(([key, label]) => (
+					<div key={key} className="space-y-1">
+						<div className="flex items-center justify-between">
+							<p className="text-sm">{label}</p>
+							<Switch checked={prefs.types[key]} onCheckedChange={(v) => updateTypes({ [key]: v })} />
+						</div>
+						{key === 'achievementUnlocked' && prefs.types.achievementUnlocked && (
+							<div className="flex items-center justify-between pl-4">
+								<p className="text-xs text-muted-foreground">{t('notificationsTab.hardcoreOnly')}</p>
+								<Switch checked={prefs.types.achievementHardcoreOnly} onCheckedChange={(v) => updateTypes({ achievementHardcoreOnly: v })} />
+							</div>
+						)}
+					</div>
+				))}
+			</div>
+
+			{/* Quiet hours */}
+			<div className="space-y-3">
+				<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('notificationsTab.quietHours')}</p>
+				<div className="flex items-center justify-between">
+					<p className="text-sm">{t('notificationsTab.quietHoursEnabled')}</p>
+					<Switch checked={prefs.quietHours.enabled} onCheckedChange={(v) => updateQuietHours({ enabled: v })} />
+				</div>
+				{prefs.quietHours.enabled && (
+					<div className="flex items-center gap-3 pl-4">
+						<p className="text-sm text-muted-foreground">{t('notificationsTab.from')}</p>
+						<Select value={String(prefs.quietHours.startHour)} onValueChange={(v) => updateQuietHours({ startHour: Number(v) })}>
+							<SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+							<SelectContent>{Array.from({ length: 24 }, (_, i) => <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}h</SelectItem>)}</SelectContent>
+						</Select>
+						<p className="text-sm text-muted-foreground">{t('notificationsTab.to')}</p>
+						<Select value={String(prefs.quietHours.endHour)} onValueChange={(v) => updateQuietHours({ endHour: Number(v) })}>
+							<SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+							<SelectContent>{Array.from({ length: 24 }, (_, i) => <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}h</SelectItem>)}</SelectContent>
+						</Select>
+					</div>
+				)}
+			</div>
+
+			{/* Devices */}
+			{devices.length > 0 && (
+				<div className="space-y-3">
+					<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('notificationsTab.devices')}</p>
+					{devices.map((sub) => (
+						<div key={sub.id} className="flex items-center justify-between text-sm">
+							<p className="truncate text-muted-foreground max-w-xs">{sub.userAgent ?? sub.endpoint.slice(0, 40) + '…'}</p>
+							<Button variant="ghost" size="sm" onClick={() => removeDevice(sub.endpoint)}>✕</Button>
+						</div>
+					))}
+				</div>
+			)}
+
+			{/* Actions */}
+			<div className="flex items-center gap-2 flex-wrap">
+				<Button onClick={save} disabled={!dirty || saving}>{saving ? t('notificationsTab.saving') : tCommon('save')}</Button>
+				<Button variant="outline" onClick={testNotification}>{t('notificationsTab.test')}</Button>
+				<Button variant="destructive" onClick={regenerateVapid}>{t('notificationsTab.regenerateVapid')}</Button>
+			</div>
 		</div>
 	)
 }
