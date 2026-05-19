@@ -44,7 +44,7 @@ describe('maskedConfig', () => {
 			superRetrogamers: {
 				enabled: false,
 				apiUrl: '',
-				preferredRegion: '',
+				preferredRegion: '' as const,
 			},
 			mqttPublish: {
 				enabled: false,
@@ -79,7 +79,7 @@ describe('maskedConfig', () => {
 			superRetrogamers: {
 				enabled: false,
 				apiUrl: '',
-				preferredRegion: '',
+				preferredRegion: '' as const,
 			},
 			mqttPublish: {
 				enabled: false,
