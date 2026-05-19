@@ -101,6 +101,8 @@ interface ConfigStoreEvents {
 	'changed:scrobble': (config: AppConfig) => void
 	'changed:ui': (config: AppConfig) => void
 	'changed:retroachievements': (config: AppConfig) => void
+	'changed:superRetrogamers': (config: AppConfig) => void
+	'changed:mqttPublish': (config: AppConfig) => void
 	'recalbox:added': (payload: { recalbox: RecalboxInstance }) => void
 	'recalbox:updated': (payload: { recalbox: RecalboxInstance }) => void
 	'recalbox:removed': (payload: { id: string }) => void

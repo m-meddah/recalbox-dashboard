@@ -13,6 +13,13 @@ export const superRetrogamersConfigSchema = z.object({
 	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
 })
 
+export const mqttPublishConfigSchema = z.object({
+	enabled: z.boolean(),
+	brokerUrl: z.string().max(256),
+	topicPrefix: z.string().max(64),
+	homeAssistantDiscovery: z.boolean(),
+})
+
 export const recalboxConfigSchema = z.object({
 	host: z
 		.string()
@@ -42,6 +49,7 @@ export const appConfigSchema = z.object({
 	ui: uiConfigSchema,
 	retroachievements: retroachievementsConfigSchema,
 	superRetrogamers: superRetrogamersConfigSchema,
+	mqttPublish: mqttPublishConfigSchema,
 })
 
 export type RecalboxConfig = z.infer<typeof recalboxConfigSchema>
@@ -49,6 +57,7 @@ export type ScrobbleConfig = z.infer<typeof scrobbleConfigSchema>
 export type UiConfig = z.infer<typeof uiConfigSchema>
 export type RetroachievementsConfig = z.infer<typeof retroachievementsConfigSchema>
 export type SuperRetrogamersConfig = z.infer<typeof superRetrogamersConfigSchema>
+export type MqttPublishConfig = z.infer<typeof mqttPublishConfigSchema>
 export type AppConfig = z.infer<typeof appConfigSchema>
 
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T
