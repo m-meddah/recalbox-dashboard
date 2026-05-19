@@ -2,9 +2,12 @@ import { CollectionFilters } from '@/components/collection-filters'
 import { CollectionGrid } from '@/components/collection-grid'
 import { SyncButton } from '@/components/sync-button'
 import { SystemSelector } from '@/components/system-selector'
+import { buttonVariants } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
 import { getCollectionStats } from '@/lib/db/queries'
+import { Disc3 } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Suspense } from 'react'
 
@@ -37,7 +40,13 @@ export default async function CollectionPage({ params }: Props) {
 						{t('systemsCount', { count: sortedSystems.length })}
 					</p>
 				</div>
-				<SyncButton />
+				<div className="flex flex-wrap items-center gap-2">
+					<Link href="/collection/m3u" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+						<Disc3 className="mr-2 h-4 w-4" />
+						Multi-disc / .m3u
+					</Link>
+					<SyncButton />
+				</div>
 			</div>
 
 			<Separator />
