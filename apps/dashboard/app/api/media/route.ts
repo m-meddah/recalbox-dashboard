@@ -8,6 +8,11 @@ export const runtime = 'nodejs'
 // Paths must start with one of these prefixes to prevent path traversal
 const ALLOWED_PREFIXES = ['/recalbox/share/']
 
+// In-memory negative cache: avoids repeated SSH round-trips for missing scraper images.
+// Key: "<recalboxId>:<path>", value: expiry timestamp.
+const notFoundCache = new Map<string, number>()
+const NOT_FOUND_TTL_MS = 5 * 60 * 1000
+
 const CONTENT_TYPES: Record<string, string> = {
 	png: 'image/png',
 	jpg: 'image/jpeg',
@@ -40,6 +45,15 @@ export async function GET(request: Request) {
 		return new Response('No Recalbox configured', { status: 503 })
 	}
 
+	const cacheKey = `${recalboxId}:${filePath}`
+	const cachedExpiry = notFoundCache.get(cacheKey)
+	if (cachedExpiry && cachedExpiry > Date.now()) {
+		return new Response('Image not found', {
+			status: 404,
+			headers: { 'Cache-Control': 'public, max-age=300' },
+		})
+	}
+
 	const ssh = getSshClient(recalboxId)
 
 	const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
@@ -49,7 +63,11 @@ export async function GET(request: Request) {
 		// Verify file exists before fetching — avoids noisy base64 errors for missing scraper images
 		const exists = await ssh.exec(`test -f ${shellQuote(filePath)} && echo yes || echo no`)
 		if (exists !== 'yes') {
-			return new Response('Image not found', { status: 404 })
+			notFoundCache.set(cacheKey, Date.now() + NOT_FOUND_TTL_MS)
+			return new Response('Image not found', {
+				status: 404,
+				headers: { 'Cache-Control': 'public, max-age=300' },
+			})
 		}
 
 		// Fetch image binary via SSH as base64 to safely handle binary over text channel
@@ -66,6 +84,10 @@ export async function GET(request: Request) {
 			},
 		})
 	} catch {
-		return new Response('Image not found', { status: 404 })
+		notFoundCache.set(cacheKey, Date.now() + NOT_FOUND_TTL_MS)
+		return new Response('Image not found', {
+			status: 404,
+			headers: { 'Cache-Control': 'public, max-age=300' },
+		})
 	}
 }
