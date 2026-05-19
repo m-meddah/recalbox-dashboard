@@ -80,10 +80,11 @@ detectMultiDiscGames(ssh, system?) → MultiDiscGame[]
 
 1. Query `games` table: `SELECT system, rom_path FROM games [WHERE system = ?]`, filter to `MULTIDISC_SYSTEMS`
 2. For each row: extract filename via `path.basename(romPath)`, run disc regex patterns → `{ baseName, discNumber }` or null
-3. Group rows by `(system, path.dirname(romPath), baseName)` — grouping by directory handles collections spread across multiple USB disks. Discard groups with fewer than 2 entries.
-4. For each unique directory: SSH `ls *.m3u` → set of existing `.m3u` names in that directory
-5. Build `MultiDiscGame[]`: sort discs by `discNumber`, set `m3uAlreadyExists`, set `hasGap` (gaps in 1..maxDisc sequence)
-6. The `.m3u` deployment path is `path.join(romsDir, m3uFileName)` — derived directly from the ROM path, no need for `listSystems()`
+3. **baseName derivation: take the portion of the filename BEFORE the disc token** (not just strip the token from the middle). This correctly handles disc-specific qualifiers that follow the disc tag — e.g. `Biohazard 2 (Japan) (Disc 1) (Leon-hen).chd` and `Biohazard 2 (Japan) (Disc 2) (Claire-hen).chd` both yield baseName `Biohazard 2 (Japan)`. Confirmed against the real Recalbox collection (391 existing `.m3u` files follow this convention).
+4. Group rows by `(system, path.dirname(romPath), baseName)` — grouping by directory handles collections spread across multiple USB disks. Discard groups with fewer than 2 entries.
+5. For each unique directory: SSH `ls *.m3u` → set of existing `.m3u` names in that directory
+6. Build `MultiDiscGame[]`: sort discs by `discNumber`, set `m3uAlreadyExists`, set `hasGap` (gaps in 1..maxDisc sequence)
+7. The `.m3u` deployment path is `path.join(romsDir, m3uFileName)` — derived directly from the ROM path, no need for `listSystems()`
 
 ### Disc-capable systems
 
@@ -250,6 +251,8 @@ Add a "Multi-disc / .m3u" button on `/collection` page next to `SyncButton`. Lin
 - `"Super Mario World.sfc"` → `null`
 - `"007 - GoldenEye (USA).z64"` → `null`
 - `"Disc Jockey Simulator.chd"` → `null` (title contains "Disc" but no number after it)
+- `"Biohazard 2 (Japan) (Disc 1) (Leon-hen).chd"` → `{ baseName: "Biohazard 2 (Japan)", discNumber: 1 }` (disc-specific qualifier after tag is dropped)
+- `"Beat Mania (Japan) (Disc 1) (Arcade).chd"` → `{ baseName: "Beat Mania (Japan)", discNumber: 1 }`
 
 **Grouping:**
 
