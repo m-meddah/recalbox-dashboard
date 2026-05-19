@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generateHeatmap, getPeriodRange } from '../calculators'
+import { calculateStreaks, generateHeatmap, getPeriodRange } from '../calculators'
 import { formatDuration, formatRelativeDate, toDateKey } from '../formatters'
 
 // ─── formatDuration ──────────────────────────────────────────────────────────
@@ -149,5 +149,37 @@ describe('streak edge cases', () => {
 		const heatmap = generateHeatmap([{ date: today, playtimeSec: 3600, sessionCount: 1 }])
 		const cell = heatmap.flat().find((c) => c.dateKey === today)
 		expect(cell?.intensity).toBeGreaterThan(0)
+	})
+})
+
+// ─── calculateStreaks ─────────────────────────────────────────────────────────
+
+describe('calculateStreaks', () => {
+	it('returns zeros for empty input', () => {
+		expect(calculateStreaks([])).toEqual({ currentStreak: 0, longestStreak: 0 })
+	})
+
+	it('counts a single active day as streak of 1', () => {
+		const today = new Date().toISOString().slice(0, 10)
+		const result = calculateStreaks([{ date: today, playtimeSec: 120 }])
+		expect(result.currentStreak).toBe(1)
+		expect(result.longestStreak).toBe(1)
+	})
+
+	it('ignores days with less than 60s', () => {
+		const today = new Date().toISOString().slice(0, 10)
+		const result = calculateStreaks([{ date: today, playtimeSec: 59 }])
+		expect(result.currentStreak).toBe(0)
+		expect(result.longestStreak).toBe(0)
+	})
+
+	it('counts consecutive past days as longestStreak', () => {
+		const days = [2, 3, 4].map((offset) => {
+			const d = new Date(Date.now() - offset * 86400000)
+			return { date: d.toISOString().slice(0, 10), playtimeSec: 300 }
+		})
+		const result = calculateStreaks(days)
+		expect(result.longestStreak).toBe(3)
+		expect(result.currentStreak).toBe(0) // no play today or yesterday
 	})
 })
