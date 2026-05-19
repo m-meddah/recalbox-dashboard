@@ -37,3 +37,6 @@ pnpm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Git worktrees (managed by Claude Code)
+.claude/worktrees/
