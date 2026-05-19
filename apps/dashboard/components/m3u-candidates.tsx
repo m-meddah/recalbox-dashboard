@@ -72,21 +72,24 @@ export function M3uCandidates() {
 		const keys = games.map((g) => `${g.system}|${g.romsDir}|${g.baseName}`)
 		setGeneratingKeys((prev) => new Set([...prev, ...keys]))
 
-		const res = await fetch('/api/m3u/generate', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ games: games.map((g) => ({ ...g, force })) }),
-		}).then((r) => r.json())
+		try {
+			const res = await fetch('/api/m3u/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ games: games.map((g) => ({ ...g, force })) }),
+			}).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
 
-		const freshRes = await fetch('/api/m3u/candidates')
-		const fresh: CandidatesData = freshRes.ok
-			? await freshRes.json()
-			: { candidates: data?.candidates ?? [], systems: data?.systems ?? [] }
-		setData(fresh)
-		setGeneratingKeys(new Set())
+			const freshRes = await fetch('/api/m3u/candidates')
+			const fresh: CandidatesData = freshRes.ok
+				? await freshRes.json()
+				: { candidates: data?.candidates ?? [], systems: data?.systems ?? [] }
+			setData(fresh)
 
-		if (res.summary?.created > 0) setBanner(true)
-		return res
+			if (res.summary?.created > 0) setBanner(true)
+			return res
+		} finally {
+			setGeneratingKeys(new Set())
+		}
 	}
 
 	const handleUpdate = (g: MultiDiscGame) => {
