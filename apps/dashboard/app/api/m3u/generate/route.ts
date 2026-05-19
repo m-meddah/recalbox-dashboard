@@ -1,3 +1,4 @@
+import { resolve as pathResolve } from 'node:path'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { generateM3uContent, sanitizeM3uFileName } from '@/lib/recalbox/m3u-generator'
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
 		const { system, baseName, romsDir, discs, force = false } = gameReq
 		const m3uFileName = sanitizeM3uFileName(baseName)
 
-		if (!romsDir.startsWith('/recalbox/')) {
+		const normalizedDir = pathResolve(romsDir)
+		if (!normalizedDir.startsWith('/recalbox/')) {
 			results.push({ system, baseName, m3uFileName, status: 'error', error: 'Invalid romsDir' })
 			continue
 		}
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
 			hasGap: false,
 		}
 		const expectedContent = generateM3uContent(game)
-		const m3uPath = `${romsDir}/${m3uFileName}`
+		const m3uPath = `${normalizedDir}/${m3uFileName}`
 
 		try {
 			const existsOutput = await ssh.exec(
