@@ -1,0 +1,235 @@
+<h2>Placement du badge Super Retrogamers</h2>
+<p class="subtitle">Où afficher l'indicateur "fiche SR disponible" sur la jaquette ?</p>
+
+<style>
+  .cards-row {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 24px 0;
+  }
+  .game-card {
+    width: 160px;
+    background: #1c1c1e;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #2c2c2e;
+    font-family: system-ui, sans-serif;
+    cursor: default;
+  }
+  .cover-area {
+    position: relative;
+    width: 160px;
+    height: 213px; /* aspect-3/4 */
+    background: #2c2c2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+  }
+  /* Existing badges */
+  .badge-achievement {
+    position: absolute; top: 5px; left: 5px;
+    background: #f59e0b;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  .badge-favorite {
+    position: absolute; top: 5px; right: 5px;
+    background: #facc15;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  .badge-rating {
+    position: absolute; bottom: 5px; left: 5px;
+    background: rgba(0,0,0,.7);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+  }
+  /* Option A — coin bas-droit overlay */
+  .badge-sr-corner {
+    position: absolute; bottom: 5px; right: 5px;
+    background: #7c3aed;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .5px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  /* Option B — chip dans les métadonnées sous la jaquette */
+  .sr-chip-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #7c3aed22;
+    border: 1px solid #7c3aed66;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #a78bfa;
+    letter-spacing: .3px;
+  }
+  /* Option C — dot discret dans le titre */
+  .sr-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: #7c3aed;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .card-body {
+    padding: 8px;
+  }
+  .game-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f5f5f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+  }
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: #2c2c2e;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #8e8e93;
+    text-transform: uppercase;
+  }
+  .plays {
+    font-size: 10px;
+    color: #636366;
+    display: flex; align-items: center; gap: 2px;
+  }
+  .option-label {
+    font-size: 12px;
+    color: #8e8e93;
+    text-align: center;
+    margin-top: 8px;
+    font-family: system-ui, sans-serif;
+  }
+  .option-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+</style>
+
+<div class="cards-row">
+
+  <!-- Option A: corner overlay -->
+  <div class="option-wrapper">
+    <div class="game-card" style="border: 2px solid transparent" id="card-a">
+      <div class="cover-area">
+        🎮
+        <div class="badge-achievement">🏆</div>
+        <div class="badge-favorite">⭐</div>
+        <div class="badge-rating">85%</div>
+        <div class="badge-sr-corner">SR</div>
+      </div>
+      <div class="card-body">
+        <div class="game-name">Super Mario World</div>
+        <div class="meta-row">
+          <span class="chip">USA</span>
+          <span class="plays">▶ 12×</span>
+        </div>
+      </div>
+    </div>
+    <div class="option-label">A — Badge overlay<br>coin bas-droit</div>
+  </div>
+
+  <!-- Option B: chip in metadata -->
+  <div class="option-wrapper">
+    <div class="game-card" id="card-b">
+      <div class="cover-area">
+        🎮
+        <div class="badge-achievement">🏆</div>
+        <div class="badge-favorite">⭐</div>
+        <div class="badge-rating">85%</div>
+      </div>
+      <div class="card-body">
+        <div class="game-name">Super Mario World</div>
+        <div class="meta-row">
+          <span class="chip">USA</span>
+          <span class="plays">▶ 12×</span>
+          <span class="sr-chip-meta">SR ✓</span>
+        </div>
+      </div>
+    </div>
+    <div class="option-label">B — Chip dans les<br>métadonnées</div>
+  </div>
+
+  <!-- Option C: dot next to title -->
+  <div class="option-wrapper">
+    <div class="game-card" id="card-c">
+      <div class="cover-area">
+        🎮
+        <div class="badge-achievement">🏆</div>
+        <div class="badge-favorite">⭐</div>
+        <div class="badge-rating">85%</div>
+      </div>
+      <div class="card-body">
+        <div class="game-name">Super Mario World <span class="sr-dot" title="Fiche SR disponible"></span></div>
+        <div class="meta-row">
+          <span class="chip">USA</span>
+          <span class="plays">▶ 12×</span>
+        </div>
+      </div>
+    </div>
+    <div class="option-label">C — Point violet<br>dans le titre</div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="text-align:center; margin-top: 8px;">
+  Violet = badge SR présent · Achievement (🏆) et Favori (⭐) sont des badges existants
+</p>
+
+<div class="options" style="margin-top:16px;">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Badge overlay coin bas-droit</h3>
+      <p>Cohérent avec les autres overlays (achievement, favori, rating). Bien visible sur la jaquette. Pill violet "SR" en coin bas-droit.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Chip dans les métadonnées</h3>
+      <p>Discret, hors de la jaquette. Cohérent avec les chips "USA", "FR". Moins visible mais plus propre visuellement.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Point violet dans le titre</h3>
+      <p>Très discret. Minimaliste. Risque d'être ignoré ou incompris sans tooltip.</p>
+    </div>
+  </div>
+</div>
