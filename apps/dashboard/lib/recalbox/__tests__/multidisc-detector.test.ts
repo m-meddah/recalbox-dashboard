@@ -213,7 +213,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 1).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 2).chd' },
 		])
-		const ssh = makeMockSsh('Final Fantasy VII (USA).m3u\n')
+		const ssh = makeMockSsh('/roms/psx/Final Fantasy VII (USA).m3u\n')
 		const result = await detectMultiDiscGames(ssh)
 		expect(result[0].m3uAlreadyExists).toBe(true)
 	})
