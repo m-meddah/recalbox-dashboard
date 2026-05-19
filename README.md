@@ -127,6 +127,15 @@ pnpm dev          # http://localhost:3000
 | `pnpm scrobbler:dev` | Start MQTT scrobbler in watch mode |
 | `pnpm seed:dev` | Generate 200 fake sessions over 90 days |
 
+## Ecosystem
+
+The dashboard can publish analytics to MQTT so other tools can consume playtime and session data:
+
+- **Home Assistant** — enable **Home Assistant Discovery** in Settings → MQTT Publish to auto-register sensors (`playtime_today`, `playtime_week`, `streak_current`, etc.)
+- **Node-RED, any MQTT client** — subscribe to `RecalboxDashboard/#` topics (prefix configurable)
+
+See [docs/mqtt-api.md](docs/mqtt-api.md) for the full topic contract.
+
 ## Connections
 
 | Protocol | Port | Purpose |
