@@ -13,8 +13,8 @@ async function publishAnalyticsIfEnabled(): Promise<void> {
 		if (!configStore.get().mqttPublish.enabled) return
 		const snapshot = await computeAnalyticsSnapshot()
 		mqttPublisher.publishAnalytics(snapshot)
-	} catch {
-		// never propagate — publisher must not crash scrobbler
+	} catch (err) {
+		logger.warn('MQTT analytics publish failed', err)
 	}
 }
 
