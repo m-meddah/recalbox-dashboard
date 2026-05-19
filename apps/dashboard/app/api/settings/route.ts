@@ -59,6 +59,14 @@ const putBodySchema = z.object({
 			preferredRegion: z.enum(['US', 'EU', 'JP', '']).optional(),
 		})
 		.optional(),
+	mqttPublish: z
+		.object({
+			enabled: z.boolean().optional(),
+			brokerUrl: z.string().max(256).optional(),
+			topicPrefix: z.string().max(64).optional(),
+			homeAssistantDiscovery: z.boolean().optional(),
+		})
+		.optional(),
 })
 
 export async function PUT(req: NextRequest) {

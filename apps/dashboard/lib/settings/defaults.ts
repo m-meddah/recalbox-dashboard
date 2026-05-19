@@ -30,5 +30,11 @@ export function getDefaults(): AppConfig {
 			apiUrl: '',
 			preferredRegion: '',
 		},
+		mqttPublish: {
+			enabled: false,
+			brokerUrl: '',
+			topicPrefix: 'RecalboxDashboard/',
+			homeAssistantDiscovery: false,
+		},
 	}
 }
