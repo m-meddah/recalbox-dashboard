@@ -1,4 +1,4 @@
-import { resolve as pathResolve } from 'node:path'
+import { dirname, resolve as pathResolve } from 'node:path'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { generateM3uContent, sanitizeM3uFileName } from '@/lib/recalbox/m3u-generator'
@@ -22,8 +22,17 @@ type GenerateResult = {
 	baseName: string
 	m3uFileName: string
 	status: 'created' | 'skipped' | 'error'
-	reason?: 'already_identical' | 'already_exists'
+	reason?: 'already_exists'
 	error?: string
+}
+
+type WriteSpec = {
+	system: string
+	baseName: string
+	m3uFileName: string
+	m3uPath: string
+	content: string
+	force: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -38,12 +47,14 @@ export async function POST(req: NextRequest) {
 
 	const ssh = getSshClient(recalboxId)
 	const results: GenerateResult[] = []
+	const specs: WriteSpec[] = []
 
+	// Step 1: validate all games and compute write specs
 	for (const gameReq of body.games) {
 		const { system, baseName, romsDir, discs, force = false } = gameReq
 		const m3uFileName = sanitizeM3uFileName(baseName)
-
 		const normalizedDir = pathResolve(romsDir)
+
 		if (!normalizedDir.startsWith('/recalbox/')) {
 			results.push({ system, baseName, m3uFileName, status: 'error', error: 'Invalid romsDir' })
 			continue
@@ -58,35 +69,66 @@ export async function POST(req: NextRequest) {
 			m3uAlreadyExists: false,
 			hasGap: false,
 		}
-		const expectedContent = generateM3uContent(game)
-		const m3uPath = `${normalizedDir}/${m3uFileName}`
 
+		specs.push({
+			system,
+			baseName,
+			m3uFileName,
+			m3uPath: `${normalizedDir}/${m3uFileName}`,
+			content: generateM3uContent(game),
+			force,
+		})
+	}
+
+	if (specs.length === 0) {
+		const summary = { created: 0, skipped: 0, errors: results.length }
+		return NextResponse.json({ results, summary })
+	}
+
+	// Step 2: single SSH call to find which m3u files already exist
+	const existingFiles = new Set<string>()
+	try {
+		const uniqueDirs = [...new Set(specs.map((s) => dirname(s.m3uPath)))]
+		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
+		const output = await ssh.exec(
+			`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`,
+		)
+		for (const line of output.split('\n').map((s) => s.trim()).filter(Boolean)) {
+			existingFiles.add(line)
+		}
+	} catch (err) {
+		logger.error('m3u: failed to check existing files', err)
+		// fall through — treat all as new files
+	}
+
+	// Step 3: split specs into skip vs write
+	const toWrite: WriteSpec[] = []
+	for (const spec of specs) {
+		if (existingFiles.has(spec.m3uPath) && !spec.force) {
+			results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'skipped', reason: 'already_exists' })
+		} else {
+			toWrite.push(spec)
+		}
+	}
+
+	// Step 4: single SSH call to write all files that need writing
+	if (toWrite.length > 0) {
+		const writeCommands = toWrite.map((spec) => {
+			const b64 = Buffer.from(spec.content).toString('base64')
+			return `printf '%s' ${shellQuote(b64)} | base64 -d > ${shellQuote(spec.m3uPath)}`
+		})
 		try {
-			const existsOutput = await ssh.exec(
-				`test -f ${shellQuote(m3uPath)} && echo yes || echo no`,
-			)
-
-			if (existsOutput === 'yes' && !force) {
-				const existing = await ssh.exec(`cat ${shellQuote(m3uPath)}`)
-				const normalised = existing.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-				const clean = normalised.endsWith('\n') ? normalised : normalised + '\n'
-
-				if (clean === expectedContent) {
-					results.push({ system, baseName, m3uFileName, status: 'skipped', reason: 'already_identical' })
-					continue
-				}
-				results.push({ system, baseName, m3uFileName, status: 'skipped', reason: 'already_exists' })
-				continue
+			await ssh.exec(writeCommands.join(';'))
+			for (const spec of toWrite) {
+				logger.info(`m3u: created ${spec.m3uPath}`)
+				results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'created' })
 			}
-
-			const b64 = Buffer.from(expectedContent).toString('base64')
-			await ssh.exec(`printf '%s' ${shellQuote(b64)} | base64 -d > ${shellQuote(m3uPath)}`)
-			logger.info(`m3u: created ${m3uPath}`)
-			results.push({ system, baseName, m3uFileName, status: 'created' })
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err)
-			logger.error(`m3u: failed to write ${m3uPath}`, err)
-			results.push({ system, baseName, m3uFileName, status: 'error', error: message })
+			logger.error('m3u: batch write failed', err)
+			for (const spec of toWrite) {
+				results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'error', error: message })
+			}
 		}
 	}
 
