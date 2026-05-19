@@ -60,8 +60,9 @@ export function M3uCandidates() {
 
 	useEffect(() => {
 		fetch('/api/m3u/candidates')
-			.then((r) => r.json())
+			.then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
 			.then(setData)
+			.catch(() => setData({ candidates: [], systems: [] }))
 			.finally(() => setLoading(false))
 	}, [])
 
@@ -77,7 +78,10 @@ export function M3uCandidates() {
 			body: JSON.stringify({ games: games.map((g) => ({ ...g, force })) }),
 		}).then((r) => r.json())
 
-		const fresh: CandidatesData = await fetch('/api/m3u/candidates').then((r) => r.json())
+		const freshRes = await fetch('/api/m3u/candidates')
+		const fresh: CandidatesData = freshRes.ok
+			? await freshRes.json()
+			: { candidates: data?.candidates ?? [], systems: data?.systems ?? [] }
 		setData(fresh)
 		setGeneratingKeys(new Set())
 
@@ -194,7 +198,7 @@ export function M3uCandidates() {
 
 											{/* Preview popover */}
 											<Popover>
-												<PopoverTrigger className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+												<PopoverTrigger className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground" aria-label={t('preview')}>
 													<FileText className="h-3 w-3" />
 												</PopoverTrigger>
 												<PopoverContent className="w-auto max-w-sm">
