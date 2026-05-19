@@ -107,24 +107,33 @@ const POOL_VERSION = 1
 
 class SshPool {
 	private clients = new Map<string, SshClient>()
+	// tracks all pool keys for a given recalboxId so removeClient can clean up all variants
+	private idToKeys = new Map<string, Set<string>>()
 
-	getClient(recalboxId: string): SshClient {
-		let client = this.clients.get(recalboxId)
+	getClient(recalboxId: string, variant = 'default'): SshClient {
+		const key = variant === 'default' ? recalboxId : `${recalboxId}:${variant}`
+		let client = this.clients.get(key)
 		if (!client) {
 			client = new SshClient(recalboxId)
-			this.clients.set(recalboxId, client)
+			this.clients.set(key, client)
+			if (!this.idToKeys.has(recalboxId)) this.idToKeys.set(recalboxId, new Set())
+			this.idToKeys.get(recalboxId)!.add(key)
 		}
 		return client
 	}
 
 	removeClient(recalboxId: string): void {
-		this.clients.get(recalboxId)?.disconnect()
-		this.clients.delete(recalboxId)
+		for (const key of this.idToKeys.get(recalboxId) ?? []) {
+			this.clients.get(key)?.disconnect()
+			this.clients.delete(key)
+		}
+		this.idToKeys.delete(recalboxId)
 	}
 
 	async closeAll(): Promise<void> {
 		for (const client of this.clients.values()) client.disconnect()
 		this.clients.clear()
+		this.idToKeys.clear()
 	}
 }
 
@@ -149,8 +158,8 @@ export const sshPool = g.__sshPool
 
 export type SshClientLike = { exec: (cmd: string, timeoutMs?: number) => Promise<string> }
 
-export function getSshClient(recalboxId: string): SshClient {
-	return sshPool.getClient(recalboxId)
+export function getSshClient(recalboxId: string, variant?: string): SshClient {
+	return sshPool.getClient(recalboxId, variant)
 }
 
 export const sshClient = new Proxy({} as SshClient, {
