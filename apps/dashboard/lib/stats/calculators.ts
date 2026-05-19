@@ -148,7 +148,7 @@ export function generateHeatmap(
 	return weeks
 }
 
-function calculateStreaks(byDay: Array<{ date: string; playtimeSec: number }>) {
+export function calculateStreaks(byDay: Array<{ date: string; playtimeSec: number }>) {
 	const MIN_SEC = 60
 	const activeSet = new Set(byDay.filter((d) => d.playtimeSec >= MIN_SEC).map((d) => d.date))
 
