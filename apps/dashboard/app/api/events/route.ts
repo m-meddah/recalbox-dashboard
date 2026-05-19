@@ -1,8 +1,14 @@
-import type { Notification } from '@/lib/notifications/types'
-import { getNotificationService } from '@/lib/notifications/service'
-import type { RecalboxEvent, GameStartEvent, GameStopEvent, SystemChangeEvent, SystemInfoEvent } from '@/lib/recalbox/events'
-import { mqttPool } from '@/lib/recalbox/mqtt-client'
 import { configStore } from '@/lib/config-store'
+import { getNotificationService } from '@/lib/notifications/service'
+import type { Notification } from '@/lib/notifications/types'
+import type {
+	GameStartEvent,
+	GameStopEvent,
+	RecalboxEvent,
+	SystemChangeEvent,
+	SystemInfoEvent,
+} from '@/lib/recalbox/events'
+import { mqttPool } from '@/lib/recalbox/mqtt-client'
 import type { RecalboxMqttClient } from '@/lib/recalbox/mqtt-client'
 
 export const dynamic = 'force-dynamic'
@@ -19,24 +25,41 @@ export async function GET(request: Request) {
 
 			const sendEvent = (recalboxId: string, event: RecalboxEvent) => {
 				if (recalboxIdFilter && recalboxIdFilter !== recalboxId) return
-				try { controller.enqueue(encode(`data: ${JSON.stringify({ ...event, recalboxId })}\n\n`)) } catch {}
+				try {
+					controller.enqueue(encode(`data: ${JSON.stringify({ ...event, recalboxId })}\n\n`))
+				} catch {}
 			}
 
 			const sendNotification = (notif: Notification) => {
-				try { controller.enqueue(encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`)) } catch {}
+				try {
+					controller.enqueue(
+						encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`),
+					)
+				} catch {}
 			}
 
 			const sendConnectionStatus = (recalboxId: string, online: boolean) => {
 				if (recalboxIdFilter && recalboxIdFilter !== recalboxId) return
-				try { controller.enqueue(encode(`data: ${JSON.stringify({ type: 'connection', online, recalboxId })}\n\n`)) } catch {}
+				try {
+					controller.enqueue(
+						encode(`data: ${JSON.stringify({ type: 'connection', online, recalboxId })}\n\n`),
+					)
+				} catch {}
 			}
 
-			const recalboxIds = configStore.getRecalboxes().filter((r) => !r.archived).map((r) => r.id)
+			const recalboxIds = configStore
+				.getRecalboxes()
+				.filter((r) => !r.archived)
+				.map((r) => r.id)
 			const cleanups: Array<() => void> = []
 
 			for (const recalboxId of recalboxIds) {
 				let client: RecalboxMqttClient
-				try { client = mqttPool.getClient(recalboxId) } catch { continue }
+				try {
+					client = mqttPool.getClient(recalboxId)
+				} catch {
+					continue
+				}
 
 				sendConnectionStatus(recalboxId, client.isConnected)
 				if (client.lastKnownGame && (!recalboxIdFilter || recalboxIdFilter === recalboxId)) {
@@ -68,7 +91,9 @@ export async function GET(request: Request) {
 			}
 
 			const onNotificationCreated = (notif: Notification) => {
-				notifService.markPushedInApp(notif.id).then((claimed) => { if (claimed) sendNotification(notif) })
+				notifService.markPushedInApp(notif.id).then((claimed) => {
+					if (claimed) sendNotification(notif)
+				})
 			}
 			notifService.on('created', onNotificationCreated)
 
@@ -84,7 +109,11 @@ export async function GET(request: Request) {
 			const pollInterval = setInterval(pollNotifications, 5000)
 
 			const heartbeat = setInterval(() => {
-				try { controller.enqueue(encode(': heartbeat\n\n')) } catch { clearInterval(heartbeat) }
+				try {
+					controller.enqueue(encode(': heartbeat\n\n'))
+				} catch {
+					clearInterval(heartbeat)
+				}
 			}, 15000)
 
 			request.signal.addEventListener('abort', () => {

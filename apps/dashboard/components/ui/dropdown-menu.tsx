@@ -60,10 +60,7 @@ function DropdownMenuContent({
 	)
 }
 
-function DropdownMenuLabel({
-	className,
-	...props
-}: React.ComponentProps<'div'>) {
+function DropdownMenuLabel({ className, ...props }: React.ComponentProps<'div'>) {
 	return (
 		<div
 			data-slot="dropdown-menu-label"
@@ -96,11 +93,7 @@ function DropdownMenuItem({
 		)
 	}
 	return (
-		<MenuPrimitive.Item
-			data-slot="dropdown-menu-item"
-			className={itemClassName}
-			{...props}
-		>
+		<MenuPrimitive.Item data-slot="dropdown-menu-item" className={itemClassName} {...props}>
 			{children}
 		</MenuPrimitive.Item>
 	)
@@ -108,10 +101,7 @@ function DropdownMenuItem({
 
 function DropdownMenuSeparator({ className }: { className?: string }) {
 	return (
-		<div
-			data-slot="dropdown-menu-separator"
-			className={cn('my-1 h-px bg-border', className)}
-		/>
+		<div data-slot="dropdown-menu-separator" className={cn('my-1 h-px bg-border', className)} />
 	)
 }
 

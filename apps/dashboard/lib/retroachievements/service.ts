@@ -56,9 +56,7 @@ export async function getProfile(): Promise<RaProfile> {
 	const cached = getCached<RaProfile>(cacheKey)
 	if (cached) return cached
 
-	const raw = await withRateLimit(() =>
-		getUserProfile(getAuth(), { username: getAuth().username }),
-	)
+	const raw = await withRateLimit(() => getUserProfile(getAuth(), { username: getAuth().username }))
 
 	const profile: RaProfile = {
 		user: raw.user,
@@ -139,11 +137,7 @@ export async function getYearAchievements(): Promise<RaAchievement[]> {
 }
 
 export async function getAllGameProgress(): Promise<RaGameProgress[]> {
-	const rows = db
-		.select()
-		.from(raGameProgress)
-		.orderBy(desc(raGameProgress.numAwarded))
-		.all()
+	const rows = db.select().from(raGameProgress).orderBy(desc(raGameProgress.numAwarded)).all()
 
 	return rows.map((r) => ({
 		gameId: r.gameId,
@@ -166,9 +160,7 @@ export async function getLiveGameProgress(): Promise<RaGameProgress[]> {
 	const cached = getCached<RaGameProgress[]>(cacheKey)
 	if (cached) return cached
 
-	const raw = await withRateLimit(() =>
-		getUserCompletedGames(getAuth(), { username }),
-	)
+	const raw = await withRateLimit(() => getUserCompletedGames(getAuth(), { username }))
 
 	const byGameId = new Map<number, RaGameProgress>()
 	for (const entry of raw) {
@@ -216,7 +208,9 @@ export async function getGameProgress(gameId: number): Promise<RaGameProgress | 
 	}
 }
 
-export async function getRecentAchievementsFromDb(limit = 20): Promise<typeof raAchievements.$inferSelect[]> {
+export async function getRecentAchievementsFromDb(
+	limit = 20,
+): Promise<(typeof raAchievements.$inferSelect)[]> {
 	return db
 		.select()
 		.from(raAchievements)
@@ -226,10 +220,7 @@ export async function getRecentAchievementsFromDb(limit = 20): Promise<typeof ra
 }
 
 export async function getUnlockedGameIds(): Promise<Set<number>> {
-	const rows = db
-		.selectDistinct({ gameId: raAchievements.gameId })
-		.from(raAchievements)
-		.all()
+	const rows = db.selectDistinct({ gameId: raAchievements.gameId }).from(raAchievements).all()
 	return new Set(rows.map((r) => r.gameId))
 }
 

@@ -51,8 +51,8 @@ vi.mock('@/lib/db/queries', () => ({
 	upsertSetting: vi.fn(),
 }))
 
+import { isInQuietHours, shouldNotify } from '../preferences'
 import { DEFAULT_PREFERENCES, type NotificationPreferences } from '../types'
-import { shouldNotify, isInQuietHours } from '../preferences'
 
 describe('shouldNotify', () => {
 	it('returns false when notifications disabled', () => {
@@ -69,7 +69,15 @@ describe('shouldNotify', () => {
 			shouldNotify(
 				{
 					type: 'achievement.unlocked',
-					data: { achievementId: 1, title: 'x', points: 10, imageUrl: '', isHardcore: false, gameTitle: 'y', gameId: 1 },
+					data: {
+						achievementId: 1,
+						title: 'x',
+						points: 10,
+						imageUrl: '',
+						isHardcore: false,
+						gameTitle: 'y',
+						gameId: 1,
+					},
 				},
 				prefs,
 			),
@@ -79,13 +87,25 @@ describe('shouldNotify', () => {
 	it('filters non-hardcore when hardcoreOnly enabled', () => {
 		const prefs: NotificationPreferences = {
 			...DEFAULT_PREFERENCES,
-			types: { ...DEFAULT_PREFERENCES.types, achievementUnlocked: true, achievementHardcoreOnly: true },
+			types: {
+				...DEFAULT_PREFERENCES.types,
+				achievementUnlocked: true,
+				achievementHardcoreOnly: true,
+			},
 		}
 		expect(
 			shouldNotify(
 				{
 					type: 'achievement.unlocked',
-					data: { achievementId: 1, title: 'x', points: 10, imageUrl: '', isHardcore: false, gameTitle: 'y', gameId: 1 },
+					data: {
+						achievementId: 1,
+						title: 'x',
+						points: 10,
+						imageUrl: '',
+						isHardcore: false,
+						gameTitle: 'y',
+						gameId: 1,
+					},
 				},
 				prefs,
 			),
@@ -95,13 +115,25 @@ describe('shouldNotify', () => {
 	it('allows hardcore when hardcoreOnly enabled', () => {
 		const prefs: NotificationPreferences = {
 			...DEFAULT_PREFERENCES,
-			types: { ...DEFAULT_PREFERENCES.types, achievementUnlocked: true, achievementHardcoreOnly: true },
+			types: {
+				...DEFAULT_PREFERENCES.types,
+				achievementUnlocked: true,
+				achievementHardcoreOnly: true,
+			},
 		}
 		expect(
 			shouldNotify(
 				{
 					type: 'achievement.unlocked',
-					data: { achievementId: 1, title: 'x', points: 10, imageUrl: '', isHardcore: true, gameTitle: 'y', gameId: 1 },
+					data: {
+						achievementId: 1,
+						title: 'x',
+						points: 10,
+						imageUrl: '',
+						isHardcore: true,
+						gameTitle: 'y',
+						gameId: 1,
+					},
 				},
 				prefs,
 			),
@@ -110,7 +142,9 @@ describe('shouldNotify', () => {
 
 	it('returns false for gameStarted when disabled', () => {
 		const prefs = { ...DEFAULT_PREFERENCES }
-		expect(shouldNotify({ type: 'game.started', data: { system: 'nes', romPath: '/x' } }, prefs)).toBe(false)
+		expect(
+			shouldNotify({ type: 'game.started', data: { system: 'nes', romPath: '/x' } }, prefs),
+		).toBe(false)
 	})
 
 	it('returns true for streak milestones when enabled', () => {
@@ -121,14 +155,20 @@ describe('shouldNotify', () => {
 
 describe('isInQuietHours', () => {
 	it('returns false when quiet hours disabled', () => {
-		const prefs = { ...DEFAULT_PREFERENCES, quietHours: { enabled: false, startHour: 22, endHour: 8 } }
+		const prefs = {
+			...DEFAULT_PREFERENCES,
+			quietHours: { enabled: false, startHour: 22, endHour: 8 },
+		}
 		expect(isInQuietHours(prefs)).toBe(false)
 	})
 
 	it('detects quiet hours spanning midnight', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2024-01-01T23:30:00'))
-		const prefs = { ...DEFAULT_PREFERENCES, quietHours: { enabled: true, startHour: 22, endHour: 8 } }
+		const prefs = {
+			...DEFAULT_PREFERENCES,
+			quietHours: { enabled: true, startHour: 22, endHour: 8 },
+		}
 		expect(isInQuietHours(prefs)).toBe(true)
 		vi.useRealTimers()
 	})
@@ -136,7 +176,10 @@ describe('isInQuietHours', () => {
 	it('returns false outside quiet hours', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-		const prefs = { ...DEFAULT_PREFERENCES, quietHours: { enabled: true, startHour: 22, endHour: 8 } }
+		const prefs = {
+			...DEFAULT_PREFERENCES,
+			quietHours: { enabled: true, startHour: 22, endHour: 8 },
+		}
 		expect(isInQuietHours(prefs)).toBe(false)
 		vi.useRealTimers()
 	})
@@ -144,7 +187,10 @@ describe('isInQuietHours', () => {
 	it('detects quiet hours within same day', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2024-01-01T14:00:00'))
-		const prefs = { ...DEFAULT_PREFERENCES, quietHours: { enabled: true, startHour: 12, endHour: 18 } }
+		const prefs = {
+			...DEFAULT_PREFERENCES,
+			quietHours: { enabled: true, startHour: 12, endHour: 18 },
+		}
 		expect(isInQuietHours(prefs)).toBe(true)
 		vi.useRealTimers()
 	})

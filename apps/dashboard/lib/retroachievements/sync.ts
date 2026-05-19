@@ -1,13 +1,10 @@
 import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db'
 import { raAchievements, raGameProgress } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
-import { logger } from '@/lib/logger'
-import {
-	getGameInfoAndUserProgress,
-	getUserRecentAchievements,
-} from '@retroachievements/api'
+import { getGameInfoAndUserProgress, getUserRecentAchievements } from '@retroachievements/api'
 import { eq, inArray } from 'drizzle-orm'
 import { getAuth } from './auth'
 import { purgeExpiredCache } from './cache'
@@ -15,9 +12,7 @@ import { withRateLimit } from './rate-limiter'
 
 async function syncRecentAchievements(): Promise<void> {
 	const { username } = getAuth()
-	const recent = await withRateLimit(() =>
-		getUserRecentAchievements(getAuth(), { username }),
-	)
+	const recent = await withRateLimit(() => getUserRecentAchievements(getAuth(), { username }))
 
 	if (recent.length === 0) return
 
@@ -56,7 +51,11 @@ async function syncRecentAchievements(): Promise<void> {
 			.run()
 
 		if (isNew) {
-			const gameProgress = db.select().from(raGameProgress).where(eq(raGameProgress.gameId, a.gameId)).get()
+			const gameProgress = db
+				.select()
+				.from(raGameProgress)
+				.where(eq(raGameProgress.gameId, a.gameId))
+				.get()
 			notificationService
 				.create({
 					type: 'achievement.unlocked',

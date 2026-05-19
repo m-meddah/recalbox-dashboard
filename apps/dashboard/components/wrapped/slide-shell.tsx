@@ -19,7 +19,12 @@ export function SlideShell({ accent, children, className }: Props) {
 				}}
 			/>
 			{/* Glass card layer */}
-			<div className={cn('relative flex h-full w-full flex-col items-center justify-center gap-6 p-6', className)}>
+			<div
+				className={cn(
+					'relative flex h-full w-full flex-col items-center justify-center gap-6 p-6',
+					className,
+				)}
+			>
 				{children}
 			</div>
 			{/* Watermark */}

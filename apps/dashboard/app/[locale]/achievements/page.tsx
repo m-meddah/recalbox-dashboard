@@ -25,7 +25,10 @@ const INTENSITY_CLASS = {
 	4: 'bg-emerald-400',
 } as const
 
-function getMonthLabel(week: Array<{ date: Date; dateKey: string; count: number }>, locale: string): string | null {
+function getMonthLabel(
+	week: Array<{ date: Date; dateKey: string; count: number }>,
+	locale: string,
+): string | null {
 	const firstDay = week[0]?.date
 	if (!firstDay) return null
 	if (firstDay.getDate() <= 7) {
@@ -66,10 +69,13 @@ function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] })
 	}
 
 	const dayLabels = ['', 'M', '', 'W', '', 'F', ''].map((d) =>
-		d === 'M' ? new Date(2024, 0, 1).toLocaleString(locale, { weekday: 'narrow' }) :
-		d === 'W' ? new Date(2024, 0, 3).toLocaleString(locale, { weekday: 'narrow' }) :
-		d === 'F' ? new Date(2024, 0, 5).toLocaleString(locale, { weekday: 'narrow' }) :
-		''
+		d === 'M'
+			? new Date(2024, 0, 1).toLocaleString(locale, { weekday: 'narrow' })
+			: d === 'W'
+				? new Date(2024, 0, 3).toLocaleString(locale, { weekday: 'narrow' })
+				: d === 'F'
+					? new Date(2024, 0, 5).toLocaleString(locale, { weekday: 'narrow' })
+					: '',
 	)
 
 	return (
@@ -80,6 +86,7 @@ function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] })
 				<div className="flex flex-col gap-0.75 pt-5 shrink-0">
 					{dayLabels.map((label, i) => (
 						<div
+							// biome-ignore lint/suspicious/noArrayIndexKey: positional day labels, never reorder
 							key={i}
 							className="h-2.5 w-3 text-[9px] text-muted-foreground leading-none flex items-center"
 						>
@@ -93,6 +100,7 @@ function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] })
 					{weeks.map((week, wi) => {
 						const monthLabel = getMonthLabel(week, locale)
 						return (
+							// biome-ignore lint/suspicious/noArrayIndexKey: positional week columns, never reorder
 							<div key={wi} className="flex flex-col gap-0.75">
 								{/* Month label */}
 								<div className="h-4 text-[9px] text-muted-foreground leading-none whitespace-nowrap">
@@ -207,8 +215,12 @@ export default function AchievementsPage() {
 				<h1 className="text-2xl font-bold mb-4">{t('title')}</h1>
 				<Card>
 					<CardContent className="p-8 text-center">
-						<p className="text-destructive mb-4">{t('error')}: {state.message}</p>
-						<Button onClick={load} variant="outline">{t('retry')}</Button>
+						<p className="text-destructive mb-4">
+							{t('error')}: {state.message}
+						</p>
+						<Button onClick={load} variant="outline">
+							{t('retry')}
+						</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -220,9 +232,7 @@ export default function AchievementsPage() {
 		(a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime(),
 	)
 	const recent = sortedAchievements.slice(0, RECENT_DISPLAY_COUNT)
-	const topGames = [...progress]
-		.sort((a, b) => b.numAwarded - a.numAwarded)
-		.slice(0, 10)
+	const topGames = [...progress].sort((a, b) => b.numAwarded - a.numAwarded).slice(0, 10)
 
 	return (
 		<div className="container max-w-3xl mx-auto p-6 space-y-6">
@@ -258,13 +268,17 @@ export default function AchievementsPage() {
 								)}
 								{profile.totalSoftcorePoints > 0 && (
 									<span>
-										<span className="font-semibold">{profile.totalSoftcorePoints.toLocaleString()}</span>{' '}
+										<span className="font-semibold">
+											{profile.totalSoftcorePoints.toLocaleString()}
+										</span>{' '}
 										{t('softcorePoints')}
 									</span>
 								)}
 								{profile.totalTruePoints > 0 && (
 									<span>
-										<span className="font-semibold">{profile.totalTruePoints.toLocaleString()}</span>{' '}
+										<span className="font-semibold">
+											{profile.totalTruePoints.toLocaleString()}
+										</span>{' '}
 										{t('truePoints')}
 									</span>
 								)}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { computeUnlocks } from '../unlocks'
 import type { WrappedRawData } from '../types'
+import { computeUnlocks } from '../unlocks'
 
 function baseData(overrides: Partial<WrappedRawData> = {}): WrappedRawData {
 	return {
@@ -10,9 +10,27 @@ function baseData(overrides: Partial<WrappedRawData> = {}): WrappedRawData {
 		uniqueGamesCount: 20,
 		uniqueSystemsCount: 5,
 		topGames: [
-			{ gameName: 'Zelda', system: 'snes', playtimeSec: 40 * 3600, sessionCount: 20, imagePath: null },
-			{ gameName: 'Mario', system: 'nes', playtimeSec: 30 * 3600, sessionCount: 15, imagePath: null },
-			{ gameName: 'Sonic', system: 'megadrive', playtimeSec: 30 * 3600, sessionCount: 15, imagePath: null },
+			{
+				gameName: 'Zelda',
+				system: 'snes',
+				playtimeSec: 40 * 3600,
+				sessionCount: 20,
+				imagePath: null,
+			},
+			{
+				gameName: 'Mario',
+				system: 'nes',
+				playtimeSec: 30 * 3600,
+				sessionCount: 15,
+				imagePath: null,
+			},
+			{
+				gameName: 'Sonic',
+				system: 'megadrive',
+				playtimeSec: 30 * 3600,
+				sessionCount: 15,
+				imagePath: null,
+			},
 		],
 		bySystem: [
 			{ system: 'snes', playtimeSec: 40 * 3600 },
@@ -85,7 +103,15 @@ describe('computeUnlocks', () => {
 	it('unlocks monogame when top game > 50% of total time', () => {
 		const data = baseData({
 			totalDurationSec: 100 * 3600,
-			topGames: [{ gameName: 'Zelda', system: 'snes', playtimeSec: 51 * 3600, sessionCount: 30, imagePath: null }],
+			topGames: [
+				{
+					gameName: 'Zelda',
+					system: 'snes',
+					playtimeSec: 51 * 3600,
+					sessionCount: 30,
+					imagePath: null,
+				},
+			],
 		})
 		const ids = computeUnlocks(data).map((u) => u.id)
 		expect(ids).toContain('monogame')
@@ -133,8 +159,18 @@ describe('computeUnlocks', () => {
 
 	it('unlocks hardcore when > 80% of RA achievements are hardcore', () => {
 		const achievements = [
-			...Array.from({ length: 81 }, () => ({ title: 'h', points: 10, imageUrl: '', isHardcore: true })),
-			...Array.from({ length: 19 }, () => ({ title: 'n', points: 10, imageUrl: '', isHardcore: false })),
+			...Array.from({ length: 81 }, () => ({
+				title: 'h',
+				points: 10,
+				imageUrl: '',
+				isHardcore: true,
+			})),
+			...Array.from({ length: 19 }, () => ({
+				title: 'n',
+				points: 10,
+				imageUrl: '',
+				isHardcore: false,
+			})),
 		]
 		const ids = computeUnlocks(baseData({ raAchievements: achievements })).map((u) => u.id)
 		expect(ids).toContain('hardcore')

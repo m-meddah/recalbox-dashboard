@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
+import { CronJob } from 'cron'
 import { configStore } from '../lib/config-store'
 import { getLatestSettingUpdatedAt } from '../lib/db/queries'
 import { logger } from '../lib/logger'
 import { notificationService } from '../lib/notifications/service'
-import { sendWebPush } from '../lib/notifications/web-push'
 import { getOrCreateVapidKeys } from '../lib/notifications/vapid'
+import { sendWebPush } from '../lib/notifications/web-push'
 import { syncRetroAchievements } from '../lib/retroachievements/sync'
 import { startScrobbler } from '../lib/scrobbler'
-import { CronJob } from 'cron'
 
 async function main() {
 	logger.info('Starting Recalbox scrobbler daemon...')

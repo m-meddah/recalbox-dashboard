@@ -12,12 +12,14 @@ vi.mock('@/lib/config-store', () => ({
 	},
 }))
 
-import { cookies } from 'next/headers'
 import { configStore } from '@/lib/config-store'
+import { cookies } from 'next/headers'
 import { getActiveRecalboxId } from '../active'
 
 describe('getActiveRecalboxId', () => {
-	beforeEach(() => { vi.clearAllMocks() })
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
 
 	it('returns cookie value when Recalbox exists', async () => {
 		const jar = { get: vi.fn().mockReturnValue({ value: 'rb-123' }) }

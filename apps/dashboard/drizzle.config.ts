@@ -5,6 +5,6 @@ export default {
 	out: './drizzle/migrations',
 	dialect: 'sqlite',
 	dbCredentials: {
-		url: process.env['DATABASE_PATH'] ?? './recalbox.db',
+		url: process.env.DATABASE_PATH ?? './recalbox.db',
 	},
 } satisfies Config

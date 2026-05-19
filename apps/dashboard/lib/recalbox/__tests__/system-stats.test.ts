@@ -4,10 +4,12 @@ vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { getSystemStats } from '@/lib/recalbox/system-stats'
 import type { SshClientLike } from '@/lib/recalbox/ssh-client'
+import { getSystemStats } from '@/lib/recalbox/system-stats'
 
-function makeMockSsh(impl?: (cmd: string) => Promise<string>): SshClientLike & { exec: ReturnType<typeof vi.fn> } {
+function makeMockSsh(
+	impl?: (cmd: string) => Promise<string>,
+): SshClientLike & { exec: ReturnType<typeof vi.fn> } {
 	const ssh = { exec: vi.fn() }
 	if (impl) ssh.exec.mockImplementation(impl)
 	return ssh

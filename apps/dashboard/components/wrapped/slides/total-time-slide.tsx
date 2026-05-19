@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import type { TotalTimeSlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
 import { useTranslations } from 'next-intl'
+import { useEffect, useState } from 'react'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: TotalTimeSlide }
 
@@ -34,7 +34,9 @@ export function TotalTimeSlideView({ slide }: Props) {
 					<AnimatedHours target={slide.totalHours} />
 					<span className="text-3xl font-bold text-white/80 mb-2">h</span>
 				</div>
-				<p className="text-white/50 text-sm">{t('totalTime.subheadline', { sessions: slide.totalSessions })}</p>
+				<p className="text-white/50 text-sm">
+					{t('totalTime.subheadline', { sessions: slide.totalSessions })}
+				</p>
 			</GlassCard>
 			<p className="text-white/40 text-xs text-center max-w-xs">
 				{t('totalTime.comparison', { movies: slide.comparisonMovies })}

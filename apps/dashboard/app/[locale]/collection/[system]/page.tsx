@@ -1,10 +1,10 @@
-import { routing } from '@/i18n/routing'
 import { CollectionFilters } from '@/components/collection-filters'
 import { CollectionGrid } from '@/components/collection-grid'
 import { SyncButton } from '@/components/sync-button'
 import { SystemSelector } from '@/components/system-selector'
 import { Separator } from '@/components/ui/separator'
 import { Link } from '@/i18n/navigation'
+import type { routing } from '@/i18n/routing'
 import { getCollectionStats } from '@/lib/db/queries'
 import { ChevronRight } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
@@ -42,9 +42,7 @@ export default async function SystemCollectionPage({ params }: Props) {
 			<div className="flex flex-wrap items-start justify-between gap-4">
 				<div>
 					<h1 className="text-2xl font-bold capitalize">{system}</h1>
-					<p className="text-sm text-muted-foreground">
-						{t('totalGames', { count: gameCount })}
-					</p>
+					<p className="text-sm text-muted-foreground">{t('totalGames', { count: gameCount })}</p>
 				</div>
 				<SyncButton system={system} />
 			</div>

@@ -18,7 +18,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 	const ssh = getSshClient(recalboxId)
 
-	let stats
+	let stats: Awaited<ReturnType<typeof getSystemStats>>
 	try {
 		stats = await getSystemStats(ssh)
 	} catch (err) {
@@ -36,10 +36,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 	if (historyMinutes > 0) {
 		try {
-			body['history'] = await getRecentSnapshots(historyMinutes)
+			body.history = await getRecentSnapshots(historyMinutes)
 		} catch (err) {
 			logger.warn('Failed to fetch snapshot history', err)
-			body['history'] = []
+			body.history = []
 		}
 	}
 

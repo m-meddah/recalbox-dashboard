@@ -2,14 +2,10 @@
 
 import type { NotificationSSEEvent } from '@/app/recalbox-events-provider'
 import { useRecalboxEvents } from '@/app/recalbox-events-provider'
-import type { Notification } from '@/lib/notifications/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { Notification } from '@/lib/notifications/types'
 import { Bell } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 

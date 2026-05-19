@@ -26,6 +26,7 @@ declare interface NotificationService {
 	): boolean
 }
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: typed EventEmitter pattern
 class NotificationService extends EventEmitter {
 	async create(event: NotificationEvent): Promise<Notification | null> {
 		const prefs = await getPreferences()
@@ -39,7 +40,7 @@ class NotificationService extends EventEmitter {
 				type: event.type,
 				data: JSON.stringify(event.data),
 				createdAt: new Date(),
-				pushedInApp: inQuiet ? false : false,
+				pushedInApp: false,
 				pushedWeb: false,
 			})
 			.returning()
@@ -80,7 +81,12 @@ class NotificationService extends EventEmitter {
 		return db
 			.select()
 			.from(notifications)
-			.where(and(eq(notifications.pushedInApp, false), lt(notifications.id, sinceId === 0 ? 2147483647 : sinceId + 1)))
+			.where(
+				and(
+					eq(notifications.pushedInApp, false),
+					lt(notifications.id, sinceId === 0 ? 2147483647 : sinceId + 1),
+				),
+			)
 			.orderBy(desc(notifications.createdAt))
 			.limit(10)
 			.all()
@@ -110,5 +116,7 @@ if (!g.__notificationService || g.__notificationServiceVersion !== SINGLETON_VER
 export const notificationService = g.__notificationService
 
 export function getNotificationService(): NotificationService {
-	return g.__notificationService!
+	const svc = g.__notificationService
+	if (!svc) throw new Error('NotificationService not initialized')
+	return svc
 }

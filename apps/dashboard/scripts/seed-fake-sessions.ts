@@ -23,7 +23,10 @@ function rand(min: number, max: number) {
 }
 
 function pick<T>(arr: T[]): T {
-	return arr[Math.floor(Math.random() * arr.length)]!
+	const idx = Math.floor(Math.random() * arr.length)
+	const item = arr[idx]
+	if (item === undefined) throw new Error('pick called on empty array')
+	return item
 }
 
 const isClear = process.argv.includes('--clear')

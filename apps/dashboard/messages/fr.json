@@ -1,580 +1,580 @@
 {
-  "common": {
-    "save": "Enregistrer",
-    "cancel": "Annuler",
-    "back": "Retour",
-    "retry": "Réessayer",
-    "loading": "Chargement…",
-    "error": "Erreur"
-  },
-  "nav": {
-    "home": "🕹️ Recalbox",
-    "collection": "Collection",
-    "stats": "Stats",
-    "achievements": "Succès",
-    "settings": "Paramètres",
-    "wrapped": "Wrapped"
-  },
-  "dashboard": {
-    "nowPlaying": {
-      "title": "En cours"
-    },
-    "system": {
-      "title": "Système",
-      "loading": "Chargement…",
-      "offline": "Recalbox hors ligne — stats indisponibles",
-      "waitingData": "En attente de données…",
-      "cpuTemp": "Température CPU",
-      "cpuTempHistory": "Température CPU — {seconds} dernières secondes",
-      "tempNormal": "Normal",
-      "tempWarm": "Chaud",
-      "tempCritical": "Critique",
-      "ramUsed": "{percent}% utilisé",
-      "cpu": "CPU"
-    }
-  },
-  "nowPlaying": {
-    "mqttOffline": "MQTT hors ligne — Recalbox injoignable",
-    "noGame": "Aucun jeu en cours"
-  },
-  "collection": {
-    "title": "Collection",
-    "subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
-    "gamesCount": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
-    "favoritesCount": "{count, plural, =0 {Aucun favori} one {1 favori} other {# favoris}}",
-    "neverPlayedCount": "{count, plural, =0 {Aucun jamais joué} one {1 jamais joué} other {# jamais joués}}",
-    "systemsCount": "{count, plural, =0 {Aucun système} one {1 système} other {# systèmes}}",
-    "breadcrumb": "Collection",
-    "noGames": "Aucun jeu trouvé. Lance une synchronisation depuis la Recalbox.",
-    "totalGames": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
-    "pagination": {
-      "previous": "Précédent",
-      "next": "Suivant",
-      "page": "{page} / {total}"
-    },
-    "filters": {
-      "search": "Rechercher…",
-      "favorites": "Favoris",
-      "neverPlayed": "Jamais joué",
-      "sortName": "Nom",
-      "sortRating": "Note",
-      "sortLastPlayed": "Joué",
-      "sortYear": "Année"
-    },
-    "sync": {
-      "button": "Synchroniser depuis Recalbox",
-      "progress": "{done}/{total} · {games, plural, one {1 jeu} other {# jeux}}",
-      "done": "{count, plural, one {1 jeu synchronisé} other {# jeux synchronisés}} en {seconds}s",
-      "retry": "Réessayer"
-    }
-  },
-  "stats": {
-    "title": "Statistiques",
-    "periods": {
-      "week": "Cette semaine",
-      "month": "Ce mois",
-      "year": "Cette année",
-      "all": "Tout"
-    },
-    "kpi": {
-      "playtime": "Temps de jeu",
-      "gamesPlayed": "Jeux joués",
-      "sessions": "Sessions",
-      "currentStreak": "Série actuelle",
-      "streakDays": "{count, plural, one {1 jour} other {# jours}}",
-      "streakRecord": "Record : {days}",
-      "vsPrevious": "vs période précédente"
-    },
-    "sections": {
-      "activity": "Activité — 365 derniers jours",
-      "dailyPlaytime": "Temps de jeu par jour",
-      "topGames": "Top jeux",
-      "bySystem": "Par système",
-      "recentSessions": "Dernières sessions"
-    },
-    "heatmap": {
-      "empty": "Joue à des jeux pour voir ton activité",
-      "less": "Moins",
-      "more": "Plus",
-      "tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
-    },
-    "topGames": {
-      "empty": "Aucun jeu joué sur cette période",
-      "showMore": "Voir plus ({count} jeux)",
-      "showLess": "Voir moins"
-    },
-    "timeline": {
-      "empty": "Aucune session enregistrée"
-    },
-    "streak": {
-      "days": "{count, plural, one {jour consécutif} other {jours consécutifs}}",
-      "noStreak": "Commence une nouvelle série aujourd'hui !",
-      "record": "Record : {days, plural, one {1 jour} other {# jours}}"
-    },
-    "systemDistribution": {
-      "empty": "Aucune donnée disponible",
-      "others": "Autres"
-    },
-    "playtimeChart": {
-      "empty": "Aucune activité sur cette période"
-    }
-  },
-  "settings": {
-    "title": "Paramètres",
-    "subtitle": "Configurez votre Recalbox Dashboard",
-    "loading": "Chargement des paramètres…",
-    "loadError": "Impossible de charger les paramètres.",
-    "tabs": {
-      "recalbox": "Recalbox",
-      "scrobble": "Scrobble",
-      "interface": "Interface",
-      "retroachievements": "RetroAchievements",
-      "integrations": "Intégrations",
-      "notifications": "Notifications",
-      "app": "App"
-    },
-    "recalbox": {
-      "cardTitle": "Connexion Recalbox",
-      "cardDescription": "Paramètres de connectivité SSH et MQTT",
-      "passwordWarning": "Le mot de passe SSH est stocké en clair. Ce tableau de bord est conçu pour les réseaux locaux de confiance uniquement.",
-      "host": "Hôte / Adresse IP",
-      "sshUser": "Utilisateur SSH",
-      "sshPassword": "Mot de passe SSH",
-      "sshPasswordPlaceholder": "Laisser vide pour conserver l'actuel",
-      "sshPasswordHint": "Laisser vide pour conserver le mot de passe actuel",
-      "sshPort": "Port SSH",
-      "mqttPort": "Port MQTT",
-      "testConnection": "Tester la connexion",
-      "testing": "Test en cours…",
-      "saved": "Paramètres Recalbox enregistrés",
-      "saveError": "Impossible d'enregistrer les paramètres",
-      "testError": "Échec du test de connexion",
-      "showPassword": "Afficher",
-      "hidePassword": "Masquer"
-    },
-    "scrobble": {
-      "cardTitle": "Suivi des sessions",
-      "cardDescription": "Contrôlez l'enregistrement des sessions de jeu",
-      "minDuration": "Durée minimale de session (secondes)",
-      "minDurationHint": "Les sessions plus courtes sont ignorées",
-      "maxDuration": "Durée maximale de session (heures)",
-      "maxDurationHint": "Les sessions orphelines sont plafonnées à cette durée",
-      "orphanRecovery": "Seuil de récupération orphelin (heures)",
-      "orphanRecoveryHint": "Les sessions plus anciennes sans événement de fin sont considérées comme orphelines",
-      "saved": "Paramètres Scrobble enregistrés",
-      "saveError": "Impossible d'enregistrer les paramètres"
-    },
-    "interface": {
-      "cardTitle": "Interface",
-      "cardDescription": "Préférences d'affichage et de localisation",
-      "language": "Langue",
-      "locale": "Locale",
-      "theme": "Thème",
-      "themeSystem": "Système",
-      "themeLight": "Clair",
-      "themeDark": "Sombre",
-      "weekStartsOn": "La semaine commence le",
-      "weekMonday": "Lundi",
-      "weekSunday": "Dimanche",
-      "saved": "Paramètres d'interface enregistrés",
-      "saveError": "Impossible d'enregistrer les paramètres"
-    },
-    "retroachievements": {
-      "cardTitle": "RetroAchievements",
-      "cardDescription": "Suivi des succès et progression pour vos jeux",
-      "enabled": "Activer RetroAchievements",
-      "enabledHint": "Suivre la progression des succès dans votre bibliothèque de jeux",
-      "username": "Nom d'utilisateur",
-      "usernamePlaceholder": "Votre nom d'utilisateur RetroAchievements",
-      "usernameHint": "Rempli automatiquement depuis votre config Recalbox — cliquez sur 🔄 pour actualiser",
-      "fetchUsernameHint": "Détecter automatiquement depuis recalbox.conf",
-      "usernameNotFound": "Nom d'utilisateur introuvable dans recalbox.conf",
-      "usernameError": "Impossible de lire recalbox.conf",
-      "apiKey": "Clé API Web",
-      "apiKeyPlaceholder": "Votre clé API web",
-      "apiKeyHint": "Générez votre clé sur ",
-      "showApiKey": "Afficher",
-      "hideApiKey": "Masquer",
-      "autoSync": "Intervalle de synchronisation auto (minutes)",
-      "autoSyncHint": "Fréquence de synchronisation des succès en arrière-plan",
-      "testConnection": "Tester la connexion",
-      "testing": "Test en cours…",
-      "testSuccess": "Connecté en tant que {user}",
-      "testError": "Connexion échouée : {error}",
-      "testOk": "Connexion réussie",
-      "testFailed": "Connexion échouée — vérifiez votre nom d'utilisateur et votre clé API",
-      "saved": "Paramètres RetroAchievements enregistrés",
-      "saveError": "Impossible d'enregistrer les paramètres"
-    },
-    "integrations": {
-      "cardTitle": "Intégrations",
-      "cardDescription": "Connectez le dashboard à l'encyclopédie Super Retrogamers",
-      "enabled": "Activer l'intégration Super Retrogamers",
-      "enabledHint": "Affiche des liens et des aperçus pour les jeux disposant d'une fiche sur Super Retrogamers",
-      "preferredRegion": "Région préférée",
-      "regionDefault": "Aucune préférence",
-      "apiUrl": "URL de l'API (optionnel)",
-      "apiUrlHint": "Remplace l'URL par défaut de l'API Super Retrogamers",
-      "testConnection": "Tester la connexion",
-      "testing": "Test en cours…",
-      "testOk": "Connecté — {ms}ms",
-      "testFailed": "Connexion échouée",
-      "enrich": "Enrichir la collection",
-      "enriching": "Enrichissement…",
-      "enrichDone": "{matched} jeux référencés sur {total}",
-      "enrichError": "Enrichissement échoué",
-      "saved": "Enregistré",
-      "saveError": "Erreur lors de l'enregistrement"
-    },
-    "notificationsTab": {
-      "cardTitle": "Notifications",
-      "cardDescription": "Gérez comment et quand vous recevez des notifications.",
-      "enabled": "Activer les notifications",
-      "enabledHint": "Interrupteur principal pour toutes les notifications",
-      "channels": "Canaux",
-      "inApp": "Dans l’app (toasts)",
-      "webPush": "Web Push (en arrière-plan)",
-      "vapidUnavailable": "Clés VAPID non initialisées — redémarrez le scrobbler",
-      "enable": "Activer",
-      "disable": "Désactiver",
-      "types": "Types de notifications",
-      "achievementUnlocked": "Succès débloqué",
-      "hardcoreOnly": "Succès hardcore uniquement",
-      "gameStarted": "Partie démarrée",
-      "streakMilestone": "Palier de série",
-      "wrappedAvailable": "Wrapped annuel disponible",
-      "systemAlerts": "Alertes système",
-      "quietHours": "Heures silencieuses",
-      "quietHoursEnabled": "Activer les heures silencieuses",
-      "from": "De",
-      "to": "à",
-      "devices": "Appareils connectés",
-      "test": "Tester les notifications",
-      "testSent": "Notification de test envoyée",
-      "regenerateVapid": "Régénérer les clés VAPID",
-      "regenerateConfirm": "Cela déconnectera tous les appareils. Continuer ?",
-      "regenerated": "Clés VAPID régénérées — tous les appareils déconnectés",
-      "saved": "Préférences de notification enregistrées",
-      "saving": "Enregistrement…",
-      "swError": "Impossible d’enregistrer le service worker",
-      "pushDenied": "Permission de notification refusée"
-    },
-    "app": {
-      "cardTitle": "Application",
-      "cardDescription": "Installation et gestion du cache",
-      "installed": "Installée sur cet appareil",
-      "notInstalled": "Non installée",
-      "version": "Version {version}",
-      "clearCache": "Vider le cache",
-      "checkUpdates": "Vérifier les mises à jour",
-      "checkingUpdates": "Vérification…",
-      "cacheClearedSuccess": "Cache vidé",
-      "cacheClearError": "Impossible de vider le cache",
-      "updateChecked": "L’application est à jour",
-      "updateCheckError": "Impossible de vérifier les mises à jour",
-      "installInstructions": "Installer sur un autre appareil",
-      "installNow": "Installer",
-      "iosInstructions": "Ouvrir dans Safari → appuyer sur Partager (□↑) → Sur l’écran d’accueil",
-      "androidInstructions": "Ouvrir dans Chrome → menu (⋮) → Ajouter à l’écran d’accueil",
-      "desktopInstructions": "Cliquer sur l’icône d’installation (⊕) dans la barre d’adresse",
-      "webPushNote": "Les notifications Web Push sur iOS nécessitent que l’application soit installée en PWA."
-    }
-  },
-  "achievements": {
-    "title": "RetroAchievements",
-    "notConfigured": "RetroAchievements n'est pas configuré. Activez-le dans les Paramètres pour suivre votre progression.",
-    "goToSettings": "Aller aux paramètres",
-    "error": "Erreur",
-    "retry": "Réessayer",
-    "sync": "Synchroniser",
-    "syncing": "Synchronisation…",
-    "points": "pts hardcore",
-    "softcorePoints": "pts",
-    "truePoints": "pts réels",
-    "activityHeatmap": "Activité — 365 derniers jours",
-    "recentUnlocks": "Succès récents",
-    "topGames": "Meilleurs jeux par complétion",
-    "heatmap": {
-      "label": "Succès débloqués par jour",
-      "less": "Moins",
-      "more": "Plus"
-    }
-  },
-  "welcome": {
-    "title": "Bienvenue sur Recalbox Dashboard",
-    "subtitle": "Configurons tout en quelques étapes",
-    "steps": {
-      "configure": "Configurer Recalbox",
-      "test": "Tester la connexion",
-      "confirm": "Confirmer"
-    },
-    "step1": {
-      "title": "Connexion Recalbox",
-      "description": "Entrez les détails réseau de votre console Recalbox",
-      "next": "Suivant : Tester la connexion"
-    },
-    "step2": {
-      "title": "Tester la connexion",
-      "description": "Vérification de la connectivité SSH et MQTT vers votre Recalbox",
-      "testing": "Test en cours…",
-      "sshFailed": "SSH échoué : vérifiez l'hôte, le port, les identifiants. Le mot de passe par défaut est recalboxroot.",
-      "mqttFailed": "MQTT échoué : vérifiez que le broker MQTT est activé dans les paramètres Recalbox.",
-      "continue": "Continuer"
-    },
-    "step3": {
-      "title": "C'est prêt !",
-      "descriptionOk": "Connexion réussie. Votre tableau de bord est prêt.",
-      "descriptionPartial": "Vous pouvez terminer la configuration maintenant et corriger les problèmes de connexion plus tard dans les Paramètres.",
-      "host": "Hôte :",
-      "sshUser": "Utilisateur SSH :",
-      "sshPort": "Port SSH :",
-      "mqttPort": "Port MQTT :",
-      "saving": "Enregistrement…",
-      "finish": "Terminer"
-    },
-    "form": {
-      "host": "Hôte / Adresse IP",
-      "sshUser": "Utilisateur SSH",
-      "sshPassword": "Mot de passe SSH",
-      "sshPort": "Port SSH",
-      "mqttPort": "Port MQTT",
-      "showPassword": "Afficher",
-      "hidePassword": "Masquer"
-    },
-    "notifications": {
-      "cardTitle": "Notifications",
-      "cardDescription": "Gérez comment et quand vous recevez des notifications.",
-      "enabled": "Activer les notifications",
-      "enabledHint": "Interrupteur principal pour toutes les notifications",
-      "channels": "Canaux",
-      "inApp": "Dans l'app (toasts)",
-      "webPush": "Web Push (en arrière-plan)",
-      "vapidUnavailable": "Clés VAPID non initialisées — redémarrez le scrobbler",
-      "enable": "Activer",
-      "disable": "Désactiver",
-      "types": "Types de notifications",
-      "achievementUnlocked": "Succès débloqué",
-      "hardcoreOnly": "Succès hardcore uniquement",
-      "gameStarted": "Partie démarrée",
-      "streakMilestone": "Palier de série",
-      "wrappedAvailable": "Wrapped annuel disponible",
-      "systemAlerts": "Alertes système",
-      "quietHours": "Heures silencieuses",
-      "quietHoursEnabled": "Activer les heures silencieuses",
-      "from": "De",
-      "to": "à",
-      "devices": "Appareils connectés",
-      "test": "Tester les notifications",
-      "testSent": "Notification de test envoyée",
-      "regenerateVapid": "Régénérer les clés VAPID",
-      "regenerateConfirm": "Cela déconnectera tous les appareils. Continuer ?",
-      "regenerated": "Clés VAPID régénérées — tous les appareils déconnectés",
-      "saved": "Préférences de notification enregistrées",
-      "saving": "Enregistrement…",
-      "swError": "Impossible d'enregistrer le service worker",
-      "pushDenied": "Permission de notification refusée"
-    }
-  },
-  "time": {
-    "duration": {
-      "seconds": "{seconds}s",
-      "minutes": "{minutes}m",
-      "hoursMinutes": "{hours}h{minutes}"
-    }
-  },
-  "power": {
-    "shutdown": "Éteindre",
-    "reboot": "Redémarrer",
-    "confirmShutdownTitle": "Éteindre la Recalbox ?",
-    "confirmShutdownDescription": "La console va s'éteindre. Vous devrez la rallumer manuellement.",
-    "confirmRebootTitle": "Redémarrer la Recalbox ?",
-    "confirmRebootDescription": "La console va redémarrer. Cela interrompra toute session en cours.",
-    "shutdownToast": "Extinction en cours…",
-    "rebootToast": "Redémarrage en cours…"
-  },
-  "superRetrogamers": {
-    "viewOnSr": "Voir sur Super Retrogamers ↗",
-    "noPage": "Pas de fiche sur Super Retrogamers",
-    "check": "Vérifier",
-    "preview": {
-      "notFound": "Aucune fiche trouvée sur Super Retrogamers",
-      "error": "Impossible de charger la fiche",
-      "retry": "Réessayer",
-      "stale": "Données en cache — Super Retrogamers est inaccessible",
-      "readFull": "Lire l'article complet ↗"
-    }
-  },
-  "wrapped": {
-    "nav": {
-      "archive": "Mon Wrapped",
-      "regen": "Régénérer"
-    },
-    "intro": {
-      "title": "Ton année {year} en revue",
-      "subtitle": "Tout ce que tu as joué cette année"
-    },
-    "totalTime": {
-      "headline": "{hours}h de jeu",
-      "subheadline": "{sessions} sessions",
-      "comparison": "C'est comme regarder {movies} films d'affilée"
-    },
-    "mostPlayedGame": {
-      "title": "Ton jeu le plus joué",
-      "hours": "{hours}h jouées",
-      "sessions": "{sessions} sessions"
-    },
-    "topSystem": {
-      "title": "Ton système principal",
-      "percentage": "{percent}% de ton temps"
-    },
-    "topGamesList": {
-      "title": "Ton top jeux"
-    },
-    "longestSession": {
-      "title": "Ta plus longue session",
-      "headline": "{hours}h {minutes}min sur {game}"
-    },
-    "busiestDay": {
-      "title": "Ton jour le plus actif",
-      "headline": "{hours}h le {date}",
-      "sessions": "{sessions} sessions"
-    },
-    "streak": {
-      "title": "Ton record de streak",
-      "headline": "{days} jours consécutifs"
-    },
-    "achievements": {
-      "title": "Tes RetroAchievements",
-      "headline": "{count} succès débloqués",
-      "points": "{points} points",
-      "rarest": "Plus rare : {title}"
-    },
-    "unlocks": {
-      "title": "Tes badges secrets",
-      "rarity": {
-        "common": "Commun",
-        "uncommon": "Peu commun",
-        "rare": "Rare",
-        "legendary": "Légendaire"
-      }
-    },
-    "comparison": {
-      "title": "vs. les autres joueurs",
-      "headline": "Tu es dans le top {percent}%",
-      "disclaimer": "Chiffres estimés, pas de tracking",
-      "yourHours": "Toi : {hours}h",
-      "avgHours": "Moyenne : {hours}h"
-    },
-    "outro": {
-      "title": "À l'année prochaine !",
-      "share": "Partager mon Wrapped",
-      "archive": "Voir toutes les années"
-    },
-    "noData": {
-      "title": "Aucune session en {year}",
-      "subtitle": "Joue et reviens !",
-      "cta": "Aller aux stats"
-    },
-    "archive": {
-      "title": "Mon Wrapped",
-      "hoursPlayed": "{hours}h jouées",
-      "generatedOn": "Généré le {date}",
-      "view": "Voir"
-    },
-    "share": {
-      "title": "Partager ce slide",
-      "story": "Story (9:16)",
-      "square": "Carré (1:1)",
-      "landscape": "Paysage (1.91:1)",
-      "download": "Télécharger",
-      "shareNative": "Partager"
-    },
-    "statsBanner": {
-      "text": "Ton Wrapped {year} prend forme — {hours}h · {topGame} en tête",
-      "cta": "Voir mon Wrapped"
-    }
-  },
-  "notifications": {
-    "bell": "Notifications",
-    "empty": "Aucune notification",
-    "markAllRead": "Tout marquer comme lu",
-    "achievementUnlocked": "🏆 Succès débloqué",
-    "streakMilestone": "🔥 Palier de série",
-    "wrappedAvailable": "🎮 Wrapped disponible",
-    "gameStarted": "▶️ Partie démarrée",
-    "systemAlert": "📢 Alerte système"
-  },
-  "pwa": {
-    "installBanner": {
-      "title": "Installer Recalbox Dashboard",
-      "description": "Ajoutez à votre écran d'accueil pour la meilleure expérience.",
-      "installButton": "Installer",
-      "dismissButton": "Ignorer",
-      "iosInstructions": "Appuyer sur Partager (□↑) puis « Sur l'écran d'accueil »"
-    },
-    "update": {
-      "title": "Mise à jour disponible",
-      "description": "Une nouvelle version de l'application est prête.",
-      "action": "Mettre à jour"
-    }
-  },
-  "offline": {
-    "title": "Vous êtes hors-ligne",
-    "description": "Vérifiez votre connexion et réessayez.",
-    "retry": "Réessayer"
-  },
-  "recalboxes": {
-    "switcher": {
-      "label": "Changer de Recalbox",
-      "manage": "Gérer les Recalboxes",
-      "add": "Ajouter une Recalbox",
-      "viewAll": "Voir toutes les Recalboxes"
-    },
-    "allPage": {
-      "title": "Toutes les Recalboxes",
-      "totalPlaytime": "Temps de jeu total",
-      "totalSessions": "Sessions totales",
-      "recalboxes": "Recalboxes"
-    },
-    "page": {
-      "title": "Mes Recalboxes",
-      "add": "Ajouter une Recalbox",
-      "default": "défaut",
-      "active": "actif",
-      "edit": "Modifier",
-      "archived": "Archivées"
-    },
-    "form": {
-      "name": "Nom",
-      "icon": "Icône",
-      "host": "Nom d'hôte",
-      "sshUser": "Utilisateur SSH",
-      "sshPassword": "Mot de passe SSH",
-      "sshPort": "Port SSH",
-      "mqttPort": "Port MQTT",
-      "test": "Tester la connexion",
-      "testing": "Test en cours…",
-      "show": "Afficher",
-      "hide": "Masquer"
-    },
-    "add": {
-      "title": "Ajouter une Recalbox",
-      "submit": "Ajouter",
-      "success": "Recalbox ajoutée avec succès",
-      "error": "Échec de l'ajout de la Recalbox"
-    },
-    "edit": {
-      "title": "Modifier {name}",
-      "submit": "Enregistrer les modifications",
-      "success": "Recalbox mise à jour",
-      "error": "Échec de la mise à jour de la Recalbox",
-      "deleteConfirm": "Supprimer cette Recalbox ? Cette action est irréversible.",
-      "deleteError": "Échec de la suppression de la Recalbox",
-      "deleteSuccess": "Recalbox supprimée",
-      "archive": "Archiver",
-      "archived": "Recalbox archivée",
-      "delete": "Supprimer",
-      "loading": "Chargement…"
-    }
-  }
+	"common": {
+		"save": "Enregistrer",
+		"cancel": "Annuler",
+		"back": "Retour",
+		"retry": "Réessayer",
+		"loading": "Chargement…",
+		"error": "Erreur"
+	},
+	"nav": {
+		"home": "🕹️ Recalbox",
+		"collection": "Collection",
+		"stats": "Stats",
+		"achievements": "Succès",
+		"settings": "Paramètres",
+		"wrapped": "Wrapped"
+	},
+	"dashboard": {
+		"nowPlaying": {
+			"title": "En cours"
+		},
+		"system": {
+			"title": "Système",
+			"loading": "Chargement…",
+			"offline": "Recalbox hors ligne — stats indisponibles",
+			"waitingData": "En attente de données…",
+			"cpuTemp": "Température CPU",
+			"cpuTempHistory": "Température CPU — {seconds} dernières secondes",
+			"tempNormal": "Normal",
+			"tempWarm": "Chaud",
+			"tempCritical": "Critique",
+			"ramUsed": "{percent}% utilisé",
+			"cpu": "CPU"
+		}
+	},
+	"nowPlaying": {
+		"mqttOffline": "MQTT hors ligne — Recalbox injoignable",
+		"noGame": "Aucun jeu en cours"
+	},
+	"collection": {
+		"title": "Collection",
+		"subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
+		"gamesCount": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
+		"favoritesCount": "{count, plural, =0 {Aucun favori} one {1 favori} other {# favoris}}",
+		"neverPlayedCount": "{count, plural, =0 {Aucun jamais joué} one {1 jamais joué} other {# jamais joués}}",
+		"systemsCount": "{count, plural, =0 {Aucun système} one {1 système} other {# systèmes}}",
+		"breadcrumb": "Collection",
+		"noGames": "Aucun jeu trouvé. Lance une synchronisation depuis la Recalbox.",
+		"totalGames": "{count, plural, =0 {Aucun jeu} one {1 jeu} other {# jeux}}",
+		"pagination": {
+			"previous": "Précédent",
+			"next": "Suivant",
+			"page": "{page} / {total}"
+		},
+		"filters": {
+			"search": "Rechercher…",
+			"favorites": "Favoris",
+			"neverPlayed": "Jamais joué",
+			"sortName": "Nom",
+			"sortRating": "Note",
+			"sortLastPlayed": "Joué",
+			"sortYear": "Année"
+		},
+		"sync": {
+			"button": "Synchroniser depuis Recalbox",
+			"progress": "{done}/{total} · {games, plural, one {1 jeu} other {# jeux}}",
+			"done": "{count, plural, one {1 jeu synchronisé} other {# jeux synchronisés}} en {seconds}s",
+			"retry": "Réessayer"
+		}
+	},
+	"stats": {
+		"title": "Statistiques",
+		"periods": {
+			"week": "Cette semaine",
+			"month": "Ce mois",
+			"year": "Cette année",
+			"all": "Tout"
+		},
+		"kpi": {
+			"playtime": "Temps de jeu",
+			"gamesPlayed": "Jeux joués",
+			"sessions": "Sessions",
+			"currentStreak": "Série actuelle",
+			"streakDays": "{count, plural, one {1 jour} other {# jours}}",
+			"streakRecord": "Record : {days}",
+			"vsPrevious": "vs période précédente"
+		},
+		"sections": {
+			"activity": "Activité — 365 derniers jours",
+			"dailyPlaytime": "Temps de jeu par jour",
+			"topGames": "Top jeux",
+			"bySystem": "Par système",
+			"recentSessions": "Dernières sessions"
+		},
+		"heatmap": {
+			"empty": "Joue à des jeux pour voir ton activité",
+			"less": "Moins",
+			"more": "Plus",
+			"tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
+		},
+		"topGames": {
+			"empty": "Aucun jeu joué sur cette période",
+			"showMore": "Voir plus ({count} jeux)",
+			"showLess": "Voir moins"
+		},
+		"timeline": {
+			"empty": "Aucune session enregistrée"
+		},
+		"streak": {
+			"days": "{count, plural, one {jour consécutif} other {jours consécutifs}}",
+			"noStreak": "Commence une nouvelle série aujourd'hui !",
+			"record": "Record : {days, plural, one {1 jour} other {# jours}}"
+		},
+		"systemDistribution": {
+			"empty": "Aucune donnée disponible",
+			"others": "Autres"
+		},
+		"playtimeChart": {
+			"empty": "Aucune activité sur cette période"
+		}
+	},
+	"settings": {
+		"title": "Paramètres",
+		"subtitle": "Configurez votre Recalbox Dashboard",
+		"loading": "Chargement des paramètres…",
+		"loadError": "Impossible de charger les paramètres.",
+		"tabs": {
+			"recalbox": "Recalbox",
+			"scrobble": "Scrobble",
+			"interface": "Interface",
+			"retroachievements": "RetroAchievements",
+			"integrations": "Intégrations",
+			"notifications": "Notifications",
+			"app": "App"
+		},
+		"recalbox": {
+			"cardTitle": "Connexion Recalbox",
+			"cardDescription": "Paramètres de connectivité SSH et MQTT",
+			"passwordWarning": "Le mot de passe SSH est stocké en clair. Ce tableau de bord est conçu pour les réseaux locaux de confiance uniquement.",
+			"host": "Hôte / Adresse IP",
+			"sshUser": "Utilisateur SSH",
+			"sshPassword": "Mot de passe SSH",
+			"sshPasswordPlaceholder": "Laisser vide pour conserver l'actuel",
+			"sshPasswordHint": "Laisser vide pour conserver le mot de passe actuel",
+			"sshPort": "Port SSH",
+			"mqttPort": "Port MQTT",
+			"testConnection": "Tester la connexion",
+			"testing": "Test en cours…",
+			"saved": "Paramètres Recalbox enregistrés",
+			"saveError": "Impossible d'enregistrer les paramètres",
+			"testError": "Échec du test de connexion",
+			"showPassword": "Afficher",
+			"hidePassword": "Masquer"
+		},
+		"scrobble": {
+			"cardTitle": "Suivi des sessions",
+			"cardDescription": "Contrôlez l'enregistrement des sessions de jeu",
+			"minDuration": "Durée minimale de session (secondes)",
+			"minDurationHint": "Les sessions plus courtes sont ignorées",
+			"maxDuration": "Durée maximale de session (heures)",
+			"maxDurationHint": "Les sessions orphelines sont plafonnées à cette durée",
+			"orphanRecovery": "Seuil de récupération orphelin (heures)",
+			"orphanRecoveryHint": "Les sessions plus anciennes sans événement de fin sont considérées comme orphelines",
+			"saved": "Paramètres Scrobble enregistrés",
+			"saveError": "Impossible d'enregistrer les paramètres"
+		},
+		"interface": {
+			"cardTitle": "Interface",
+			"cardDescription": "Préférences d'affichage et de localisation",
+			"language": "Langue",
+			"locale": "Locale",
+			"theme": "Thème",
+			"themeSystem": "Système",
+			"themeLight": "Clair",
+			"themeDark": "Sombre",
+			"weekStartsOn": "La semaine commence le",
+			"weekMonday": "Lundi",
+			"weekSunday": "Dimanche",
+			"saved": "Paramètres d'interface enregistrés",
+			"saveError": "Impossible d'enregistrer les paramètres"
+		},
+		"retroachievements": {
+			"cardTitle": "RetroAchievements",
+			"cardDescription": "Suivi des succès et progression pour vos jeux",
+			"enabled": "Activer RetroAchievements",
+			"enabledHint": "Suivre la progression des succès dans votre bibliothèque de jeux",
+			"username": "Nom d'utilisateur",
+			"usernamePlaceholder": "Votre nom d'utilisateur RetroAchievements",
+			"usernameHint": "Rempli automatiquement depuis votre config Recalbox — cliquez sur 🔄 pour actualiser",
+			"fetchUsernameHint": "Détecter automatiquement depuis recalbox.conf",
+			"usernameNotFound": "Nom d'utilisateur introuvable dans recalbox.conf",
+			"usernameError": "Impossible de lire recalbox.conf",
+			"apiKey": "Clé API Web",
+			"apiKeyPlaceholder": "Votre clé API web",
+			"apiKeyHint": "Générez votre clé sur ",
+			"showApiKey": "Afficher",
+			"hideApiKey": "Masquer",
+			"autoSync": "Intervalle de synchronisation auto (minutes)",
+			"autoSyncHint": "Fréquence de synchronisation des succès en arrière-plan",
+			"testConnection": "Tester la connexion",
+			"testing": "Test en cours…",
+			"testSuccess": "Connecté en tant que {user}",
+			"testError": "Connexion échouée : {error}",
+			"testOk": "Connexion réussie",
+			"testFailed": "Connexion échouée — vérifiez votre nom d'utilisateur et votre clé API",
+			"saved": "Paramètres RetroAchievements enregistrés",
+			"saveError": "Impossible d'enregistrer les paramètres"
+		},
+		"integrations": {
+			"cardTitle": "Intégrations",
+			"cardDescription": "Connectez le dashboard à l'encyclopédie Super Retrogamers",
+			"enabled": "Activer l'intégration Super Retrogamers",
+			"enabledHint": "Affiche des liens et des aperçus pour les jeux disposant d'une fiche sur Super Retrogamers",
+			"preferredRegion": "Région préférée",
+			"regionDefault": "Aucune préférence",
+			"apiUrl": "URL de l'API (optionnel)",
+			"apiUrlHint": "Remplace l'URL par défaut de l'API Super Retrogamers",
+			"testConnection": "Tester la connexion",
+			"testing": "Test en cours…",
+			"testOk": "Connecté — {ms}ms",
+			"testFailed": "Connexion échouée",
+			"enrich": "Enrichir la collection",
+			"enriching": "Enrichissement…",
+			"enrichDone": "{matched} jeux référencés sur {total}",
+			"enrichError": "Enrichissement échoué",
+			"saved": "Enregistré",
+			"saveError": "Erreur lors de l'enregistrement"
+		},
+		"notificationsTab": {
+			"cardTitle": "Notifications",
+			"cardDescription": "Gérez comment et quand vous recevez des notifications.",
+			"enabled": "Activer les notifications",
+			"enabledHint": "Interrupteur principal pour toutes les notifications",
+			"channels": "Canaux",
+			"inApp": "Dans l’app (toasts)",
+			"webPush": "Web Push (en arrière-plan)",
+			"vapidUnavailable": "Clés VAPID non initialisées — redémarrez le scrobbler",
+			"enable": "Activer",
+			"disable": "Désactiver",
+			"types": "Types de notifications",
+			"achievementUnlocked": "Succès débloqué",
+			"hardcoreOnly": "Succès hardcore uniquement",
+			"gameStarted": "Partie démarrée",
+			"streakMilestone": "Palier de série",
+			"wrappedAvailable": "Wrapped annuel disponible",
+			"systemAlerts": "Alertes système",
+			"quietHours": "Heures silencieuses",
+			"quietHoursEnabled": "Activer les heures silencieuses",
+			"from": "De",
+			"to": "à",
+			"devices": "Appareils connectés",
+			"test": "Tester les notifications",
+			"testSent": "Notification de test envoyée",
+			"regenerateVapid": "Régénérer les clés VAPID",
+			"regenerateConfirm": "Cela déconnectera tous les appareils. Continuer ?",
+			"regenerated": "Clés VAPID régénérées — tous les appareils déconnectés",
+			"saved": "Préférences de notification enregistrées",
+			"saving": "Enregistrement…",
+			"swError": "Impossible d’enregistrer le service worker",
+			"pushDenied": "Permission de notification refusée"
+		},
+		"app": {
+			"cardTitle": "Application",
+			"cardDescription": "Installation et gestion du cache",
+			"installed": "Installée sur cet appareil",
+			"notInstalled": "Non installée",
+			"version": "Version {version}",
+			"clearCache": "Vider le cache",
+			"checkUpdates": "Vérifier les mises à jour",
+			"checkingUpdates": "Vérification…",
+			"cacheClearedSuccess": "Cache vidé",
+			"cacheClearError": "Impossible de vider le cache",
+			"updateChecked": "L’application est à jour",
+			"updateCheckError": "Impossible de vérifier les mises à jour",
+			"installInstructions": "Installer sur un autre appareil",
+			"installNow": "Installer",
+			"iosInstructions": "Ouvrir dans Safari → appuyer sur Partager (□↑) → Sur l’écran d’accueil",
+			"androidInstructions": "Ouvrir dans Chrome → menu (⋮) → Ajouter à l’écran d’accueil",
+			"desktopInstructions": "Cliquer sur l’icône d’installation (⊕) dans la barre d’adresse",
+			"webPushNote": "Les notifications Web Push sur iOS nécessitent que l’application soit installée en PWA."
+		}
+	},
+	"achievements": {
+		"title": "RetroAchievements",
+		"notConfigured": "RetroAchievements n'est pas configuré. Activez-le dans les Paramètres pour suivre votre progression.",
+		"goToSettings": "Aller aux paramètres",
+		"error": "Erreur",
+		"retry": "Réessayer",
+		"sync": "Synchroniser",
+		"syncing": "Synchronisation…",
+		"points": "pts hardcore",
+		"softcorePoints": "pts",
+		"truePoints": "pts réels",
+		"activityHeatmap": "Activité — 365 derniers jours",
+		"recentUnlocks": "Succès récents",
+		"topGames": "Meilleurs jeux par complétion",
+		"heatmap": {
+			"label": "Succès débloqués par jour",
+			"less": "Moins",
+			"more": "Plus"
+		}
+	},
+	"welcome": {
+		"title": "Bienvenue sur Recalbox Dashboard",
+		"subtitle": "Configurons tout en quelques étapes",
+		"steps": {
+			"configure": "Configurer Recalbox",
+			"test": "Tester la connexion",
+			"confirm": "Confirmer"
+		},
+		"step1": {
+			"title": "Connexion Recalbox",
+			"description": "Entrez les détails réseau de votre console Recalbox",
+			"next": "Suivant : Tester la connexion"
+		},
+		"step2": {
+			"title": "Tester la connexion",
+			"description": "Vérification de la connectivité SSH et MQTT vers votre Recalbox",
+			"testing": "Test en cours…",
+			"sshFailed": "SSH échoué : vérifiez l'hôte, le port, les identifiants. Le mot de passe par défaut est recalboxroot.",
+			"mqttFailed": "MQTT échoué : vérifiez que le broker MQTT est activé dans les paramètres Recalbox.",
+			"continue": "Continuer"
+		},
+		"step3": {
+			"title": "C'est prêt !",
+			"descriptionOk": "Connexion réussie. Votre tableau de bord est prêt.",
+			"descriptionPartial": "Vous pouvez terminer la configuration maintenant et corriger les problèmes de connexion plus tard dans les Paramètres.",
+			"host": "Hôte :",
+			"sshUser": "Utilisateur SSH :",
+			"sshPort": "Port SSH :",
+			"mqttPort": "Port MQTT :",
+			"saving": "Enregistrement…",
+			"finish": "Terminer"
+		},
+		"form": {
+			"host": "Hôte / Adresse IP",
+			"sshUser": "Utilisateur SSH",
+			"sshPassword": "Mot de passe SSH",
+			"sshPort": "Port SSH",
+			"mqttPort": "Port MQTT",
+			"showPassword": "Afficher",
+			"hidePassword": "Masquer"
+		},
+		"notifications": {
+			"cardTitle": "Notifications",
+			"cardDescription": "Gérez comment et quand vous recevez des notifications.",
+			"enabled": "Activer les notifications",
+			"enabledHint": "Interrupteur principal pour toutes les notifications",
+			"channels": "Canaux",
+			"inApp": "Dans l'app (toasts)",
+			"webPush": "Web Push (en arrière-plan)",
+			"vapidUnavailable": "Clés VAPID non initialisées — redémarrez le scrobbler",
+			"enable": "Activer",
+			"disable": "Désactiver",
+			"types": "Types de notifications",
+			"achievementUnlocked": "Succès débloqué",
+			"hardcoreOnly": "Succès hardcore uniquement",
+			"gameStarted": "Partie démarrée",
+			"streakMilestone": "Palier de série",
+			"wrappedAvailable": "Wrapped annuel disponible",
+			"systemAlerts": "Alertes système",
+			"quietHours": "Heures silencieuses",
+			"quietHoursEnabled": "Activer les heures silencieuses",
+			"from": "De",
+			"to": "à",
+			"devices": "Appareils connectés",
+			"test": "Tester les notifications",
+			"testSent": "Notification de test envoyée",
+			"regenerateVapid": "Régénérer les clés VAPID",
+			"regenerateConfirm": "Cela déconnectera tous les appareils. Continuer ?",
+			"regenerated": "Clés VAPID régénérées — tous les appareils déconnectés",
+			"saved": "Préférences de notification enregistrées",
+			"saving": "Enregistrement…",
+			"swError": "Impossible d'enregistrer le service worker",
+			"pushDenied": "Permission de notification refusée"
+		}
+	},
+	"time": {
+		"duration": {
+			"seconds": "{seconds}s",
+			"minutes": "{minutes}m",
+			"hoursMinutes": "{hours}h{minutes}"
+		}
+	},
+	"power": {
+		"shutdown": "Éteindre",
+		"reboot": "Redémarrer",
+		"confirmShutdownTitle": "Éteindre la Recalbox ?",
+		"confirmShutdownDescription": "La console va s'éteindre. Vous devrez la rallumer manuellement.",
+		"confirmRebootTitle": "Redémarrer la Recalbox ?",
+		"confirmRebootDescription": "La console va redémarrer. Cela interrompra toute session en cours.",
+		"shutdownToast": "Extinction en cours…",
+		"rebootToast": "Redémarrage en cours…"
+	},
+	"superRetrogamers": {
+		"viewOnSr": "Voir sur Super Retrogamers ↗",
+		"noPage": "Pas de fiche sur Super Retrogamers",
+		"check": "Vérifier",
+		"preview": {
+			"notFound": "Aucune fiche trouvée sur Super Retrogamers",
+			"error": "Impossible de charger la fiche",
+			"retry": "Réessayer",
+			"stale": "Données en cache — Super Retrogamers est inaccessible",
+			"readFull": "Lire l'article complet ↗"
+		}
+	},
+	"wrapped": {
+		"nav": {
+			"archive": "Mon Wrapped",
+			"regen": "Régénérer"
+		},
+		"intro": {
+			"title": "Ton année {year} en revue",
+			"subtitle": "Tout ce que tu as joué cette année"
+		},
+		"totalTime": {
+			"headline": "{hours}h de jeu",
+			"subheadline": "{sessions} sessions",
+			"comparison": "C'est comme regarder {movies} films d'affilée"
+		},
+		"mostPlayedGame": {
+			"title": "Ton jeu le plus joué",
+			"hours": "{hours}h jouées",
+			"sessions": "{sessions} sessions"
+		},
+		"topSystem": {
+			"title": "Ton système principal",
+			"percentage": "{percent}% de ton temps"
+		},
+		"topGamesList": {
+			"title": "Ton top jeux"
+		},
+		"longestSession": {
+			"title": "Ta plus longue session",
+			"headline": "{hours}h {minutes}min sur {game}"
+		},
+		"busiestDay": {
+			"title": "Ton jour le plus actif",
+			"headline": "{hours}h le {date}",
+			"sessions": "{sessions} sessions"
+		},
+		"streak": {
+			"title": "Ton record de streak",
+			"headline": "{days} jours consécutifs"
+		},
+		"achievements": {
+			"title": "Tes RetroAchievements",
+			"headline": "{count} succès débloqués",
+			"points": "{points} points",
+			"rarest": "Plus rare : {title}"
+		},
+		"unlocks": {
+			"title": "Tes badges secrets",
+			"rarity": {
+				"common": "Commun",
+				"uncommon": "Peu commun",
+				"rare": "Rare",
+				"legendary": "Légendaire"
+			}
+		},
+		"comparison": {
+			"title": "vs. les autres joueurs",
+			"headline": "Tu es dans le top {percent}%",
+			"disclaimer": "Chiffres estimés, pas de tracking",
+			"yourHours": "Toi : {hours}h",
+			"avgHours": "Moyenne : {hours}h"
+		},
+		"outro": {
+			"title": "À l'année prochaine !",
+			"share": "Partager mon Wrapped",
+			"archive": "Voir toutes les années"
+		},
+		"noData": {
+			"title": "Aucune session en {year}",
+			"subtitle": "Joue et reviens !",
+			"cta": "Aller aux stats"
+		},
+		"archive": {
+			"title": "Mon Wrapped",
+			"hoursPlayed": "{hours}h jouées",
+			"generatedOn": "Généré le {date}",
+			"view": "Voir"
+		},
+		"share": {
+			"title": "Partager ce slide",
+			"story": "Story (9:16)",
+			"square": "Carré (1:1)",
+			"landscape": "Paysage (1.91:1)",
+			"download": "Télécharger",
+			"shareNative": "Partager"
+		},
+		"statsBanner": {
+			"text": "Ton Wrapped {year} prend forme — {hours}h · {topGame} en tête",
+			"cta": "Voir mon Wrapped"
+		}
+	},
+	"notifications": {
+		"bell": "Notifications",
+		"empty": "Aucune notification",
+		"markAllRead": "Tout marquer comme lu",
+		"achievementUnlocked": "🏆 Succès débloqué",
+		"streakMilestone": "🔥 Palier de série",
+		"wrappedAvailable": "🎮 Wrapped disponible",
+		"gameStarted": "▶️ Partie démarrée",
+		"systemAlert": "📢 Alerte système"
+	},
+	"pwa": {
+		"installBanner": {
+			"title": "Installer Recalbox Dashboard",
+			"description": "Ajoutez à votre écran d'accueil pour la meilleure expérience.",
+			"installButton": "Installer",
+			"dismissButton": "Ignorer",
+			"iosInstructions": "Appuyer sur Partager (□↑) puis « Sur l'écran d'accueil »"
+		},
+		"update": {
+			"title": "Mise à jour disponible",
+			"description": "Une nouvelle version de l'application est prête.",
+			"action": "Mettre à jour"
+		}
+	},
+	"offline": {
+		"title": "Vous êtes hors-ligne",
+		"description": "Vérifiez votre connexion et réessayez.",
+		"retry": "Réessayer"
+	},
+	"recalboxes": {
+		"switcher": {
+			"label": "Changer de Recalbox",
+			"manage": "Gérer les Recalboxes",
+			"add": "Ajouter une Recalbox",
+			"viewAll": "Voir toutes les Recalboxes"
+		},
+		"allPage": {
+			"title": "Toutes les Recalboxes",
+			"totalPlaytime": "Temps de jeu total",
+			"totalSessions": "Sessions totales",
+			"recalboxes": "Recalboxes"
+		},
+		"page": {
+			"title": "Mes Recalboxes",
+			"add": "Ajouter une Recalbox",
+			"default": "défaut",
+			"active": "actif",
+			"edit": "Modifier",
+			"archived": "Archivées"
+		},
+		"form": {
+			"name": "Nom",
+			"icon": "Icône",
+			"host": "Nom d'hôte",
+			"sshUser": "Utilisateur SSH",
+			"sshPassword": "Mot de passe SSH",
+			"sshPort": "Port SSH",
+			"mqttPort": "Port MQTT",
+			"test": "Tester la connexion",
+			"testing": "Test en cours…",
+			"show": "Afficher",
+			"hide": "Masquer"
+		},
+		"add": {
+			"title": "Ajouter une Recalbox",
+			"submit": "Ajouter",
+			"success": "Recalbox ajoutée avec succès",
+			"error": "Échec de l'ajout de la Recalbox"
+		},
+		"edit": {
+			"title": "Modifier {name}",
+			"submit": "Enregistrer les modifications",
+			"success": "Recalbox mise à jour",
+			"error": "Échec de la mise à jour de la Recalbox",
+			"deleteConfirm": "Supprimer cette Recalbox ? Cette action est irréversible.",
+			"deleteError": "Échec de la suppression de la Recalbox",
+			"deleteSuccess": "Recalbox supprimée",
+			"archive": "Archiver",
+			"archived": "Recalbox archivée",
+			"delete": "Supprimer",
+			"loading": "Chargement…"
+		}
+	}
 }

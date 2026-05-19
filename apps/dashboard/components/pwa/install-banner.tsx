@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { useInstallPrompt } from '@/hooks/use-install-prompt'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { X, Download } from 'lucide-react'
+import { useInstallPrompt } from '@/hooks/use-install-prompt'
+import { Download, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 
 const DISMISS_KEY = 'install-banner-dismissed-at'
 const DISMISS_DAYS = 14
@@ -73,6 +73,7 @@ export function InstallBanner() {
 							)}
 						</div>
 						<button
+							type="button"
 							onClick={dismiss}
 							className="text-muted-foreground hover:text-foreground flex-shrink-0 -mt-0.5"
 							aria-label={t('dismissButton')}

@@ -1,4 +1,3 @@
-import { routing } from '@/i18n/routing'
 import { ActivityHeatmap } from '@/components/stats/activity-heatmap'
 import { KpiCard } from '@/components/stats/kpi-card'
 import { PlaytimeChart } from '@/components/stats/playtime-chart'
@@ -9,6 +8,7 @@ import { TopGames } from '@/components/stats/top-games'
 import { Separator } from '@/components/ui/separator'
 import { WrappedPreviewBanner } from '@/components/wrapped/wrapped-preview-banner'
 import { Link } from '@/i18n/navigation'
+import type { routing } from '@/i18n/routing'
 import { getDashboardStats } from '@/lib/stats/calculators'
 import type { Period } from '@/lib/stats/calculators'
 import { formatDuration } from '@/lib/stats/formatters'
@@ -41,7 +41,11 @@ export default async function StatsPage({ params }: Props) {
 		<div className="container mx-auto max-w-screen-xl space-y-8 px-4 py-8">
 			{/* Wrapped preview banner */}
 			{wrappedPreview && (
-				<WrappedPreviewBanner year={currentYear} hours={wrappedPreview.hours} topGame={wrappedPreview.topGame} />
+				<WrappedPreviewBanner
+					year={currentYear}
+					hours={wrappedPreview.hours}
+					topGame={wrappedPreview.topGame}
+				/>
 			)}
 
 			{/* Header + period tabs */}

@@ -19,16 +19,14 @@ export async function proxy(request: NextRequest) {
 	// Determine locale from path or default
 	const segments = pathname.split('/').filter(Boolean)
 	const firstSegment = segments[0]
-	const locale =
-		routing.locales.includes(firstSegment as (typeof routing.locales)[number])
-			? firstSegment
-			: routing.defaultLocale
+	const locale = routing.locales.includes(firstSegment as (typeof routing.locales)[number])
+		? firstSegment
+		: routing.defaultLocale
 
 	// Setup wizard redirect using the setup_done cookie
 	const setupDone = request.cookies.get('setup_done')?.value === '1'
 	if (!setupDone) {
-		const isWelcomePage =
-			pathname === `/${locale}/welcome` || pathname.endsWith('/welcome')
+		const isWelcomePage = pathname === `/${locale}/welcome` || pathname.endsWith('/welcome')
 		if (!isWelcomePage) {
 			return NextResponse.redirect(new URL(`/${locale}/welcome`, request.url))
 		}

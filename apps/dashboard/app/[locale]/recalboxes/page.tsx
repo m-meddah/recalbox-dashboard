@@ -1,10 +1,10 @@
-import { configStore } from '@/lib/config-store'
-import { getActiveRecalboxId } from '@/lib/recalbox/active'
-import { getTranslations } from 'next-intl/server'
-import { Link } from '@/i18n/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Link } from '@/i18n/navigation'
+import { configStore } from '@/lib/config-store'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { cn } from '@/lib/utils'
+import { getTranslations } from 'next-intl/server'
 
 export default async function RecalboxesPage() {
 	const t = await getTranslations('recalboxes')
@@ -28,11 +28,22 @@ export default async function RecalboxesPage() {
 							<CardTitle className="text-base flex items-center gap-2">
 								<span>{rb.iconEmoji ?? '🕹️'}</span>
 								<span>{rb.name}</span>
-								{rb.isDefault && <span className="text-xs text-muted-foreground border rounded px-1">{t('page.default')}</span>}
-								{rb.id === activeId && <span className="text-xs text-primary border border-primary rounded px-1">{t('page.active')}</span>}
+								{rb.isDefault && (
+									<span className="text-xs text-muted-foreground border rounded px-1">
+										{t('page.default')}
+									</span>
+								)}
+								{rb.id === activeId && (
+									<span className="text-xs text-primary border border-primary rounded px-1">
+										{t('page.active')}
+									</span>
+								)}
 							</CardTitle>
 							<div className="flex gap-2">
-								<Link href={`/recalboxes/${rb.id}/edit`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+								<Link
+									href={`/recalboxes/${rb.id}/edit`}
+									className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+								>
 									{t('page.edit')}
 								</Link>
 							</div>
@@ -49,8 +60,13 @@ export default async function RecalboxesPage() {
 					{archived.map((rb) => (
 						<Card key={rb.id} className="opacity-60">
 							<CardHeader className="flex flex-row items-center justify-between py-3">
-								<span className="text-sm">{rb.iconEmoji ?? '🕹️'} {rb.name}</span>
-								<Link href={`/recalboxes/${rb.id}/edit`} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+								<span className="text-sm">
+									{rb.iconEmoji ?? '🕹️'} {rb.name}
+								</span>
+								<Link
+									href={`/recalboxes/${rb.id}/edit`}
+									className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+								>
 									{t('page.edit')}
 								</Link>
 							</CardHeader>

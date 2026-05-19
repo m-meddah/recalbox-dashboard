@@ -63,7 +63,7 @@ function normaliseName(raw: string): string {
 			.trim()
 			// Decompose accents → strip diacritics
 			.normalize('NFD')
-			.replace(/[̀-ͯ]/g, '')
+			.replace(/\p{M}/gu, '')
 			.toLowerCase()
 			// Remove apostrophes and selected punctuation
 			.replace(/[''`]/g, '')

@@ -70,7 +70,10 @@ export function maskedConfig(cfg: AppConfig): AppConfig {
 export const recalboxInstanceSchema = z.object({
 	id: z.string().uuid(),
 	name: z.string().min(1).max(64),
-	host: z.string().min(1).regex(/^[a-zA-Z0-9.-]+$/),
+	host: z
+		.string()
+		.min(1)
+		.regex(/^[a-zA-Z0-9.-]+$/),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(1).max(128),
 	sshPort: z.number().int().min(1).max(65535),

@@ -1,7 +1,7 @@
 'use client'
 
-import { formatDuration } from '@/lib/stats/formatters'
 import { useRouter } from '@/i18n/navigation'
+import { formatDuration } from '@/lib/stats/formatters'
 import { useTranslations } from 'next-intl'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 

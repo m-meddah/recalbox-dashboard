@@ -39,7 +39,9 @@ export default async function AllRecalboxesPage() {
 			<div className="space-y-4">
 				{statsPerRb.map(({ rb, stats }) => (
 					<div key={rb.id} className="border rounded p-4 space-y-1">
-						<p className="font-medium">{rb.iconEmoji ?? '🕹️'} {rb.name}</p>
+						<p className="font-medium">
+							{rb.iconEmoji ?? '🕹️'} {rb.name}
+						</p>
 						<div className="text-sm text-muted-foreground flex gap-4">
 							<span>{formatDuration(stats.totalPlaytimeSec)}</span>
 							<span>{stats.totalSessions} sessions</span>

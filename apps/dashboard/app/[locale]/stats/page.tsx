@@ -1,5 +1,5 @@
-import { routing } from '@/i18n/routing'
 import { redirect } from '@/i18n/navigation'
+import type { routing } from '@/i18n/routing'
 import { setRequestLocale } from 'next-intl/server'
 
 type Props = {

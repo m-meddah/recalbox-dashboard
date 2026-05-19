@@ -369,7 +369,16 @@ export async function getOpenSessions(): Promise<Session[]> {
 export async function listSessions(
 	filters: SessionFilters = {},
 ): Promise<{ sessions: Session[]; total: number }> {
-	const { recalboxId, system, romPath, fromDate, toDate, autoClosed, page = 1, pageSize = 50 } = filters
+	const {
+		recalboxId,
+		system,
+		romPath,
+		fromDate,
+		toDate,
+		autoClosed,
+		page = 1,
+		pageSize = 50,
+	} = filters
 
 	const conditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
 	if (recalboxId) conditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
@@ -458,10 +467,10 @@ export async function getSessionStats(
 				srUrl: games.srUrl,
 			})
 			.from(sessions)
-			.leftJoin(games, and(
-				eq(sessions.recalboxId, games.recalboxId),
-				eq(sessions.romPath, games.romPath),
-			))
+			.leftJoin(
+				games,
+				and(eq(sessions.recalboxId, games.recalboxId), eq(sessions.romPath, games.romPath)),
+			)
 			.where(where)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
@@ -545,16 +554,14 @@ export function countSrStats(recalboxId?: string): { total: number; matched: num
 		? and(eq(games.recalboxId, recalboxId), eq(games.srHasPage, 1))
 		: eq(games.srHasPage, 1)
 	const total = db.select({ count: count() }).from(games).where(totalWhere).get()?.count ?? 0
-	const matched =
-		db
-			.select({ count: count() })
-			.from(games)
-			.where(matchedWhere)
-			.get()?.count ?? 0
+	const matched = db.select({ count: count() }).from(games).where(matchedWhere).get()?.count ?? 0
 	return { total, matched }
 }
 
-export function listUncheckedGames(limit: number, recalboxId?: string): Array<{
+export function listUncheckedGames(
+	limit: number,
+	recalboxId?: string,
+): Array<{
 	romPath: string
 	name: string
 	system: string

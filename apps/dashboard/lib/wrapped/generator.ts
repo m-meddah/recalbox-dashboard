@@ -1,33 +1,33 @@
+import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db/index'
 import { games, raAchievements, sessions } from '@/lib/db/schema'
-import { configStore } from '@/lib/config-store'
 import { asc, desc, sql } from 'drizzle-orm'
-import { computeUnlocks } from './unlocks'
 import type {
-	WrappedRawData,
+	AchievementsSummarySlide,
+	BusiestDaySlide,
+	ComparisonSlide,
+	LongestSessionSlide,
+	MostPlayedGameSlide,
+	OutroSlide,
+	StreakSlide,
+	TopGamesListSlide,
+	TopSystemSlide,
+	TotalTimeSlide,
+	UnlocksSlide,
 	Wrapped,
+	WrappedRawData,
 	WrappedSlide,
 	WrappedUnlock,
-	TotalTimeSlide,
-	MostPlayedGameSlide,
-	TopSystemSlide,
-	TopGamesListSlide,
-	LongestSessionSlide,
-	BusiestDaySlide,
-	StreakSlide,
-	AchievementsSummarySlide,
-	UnlocksSlide,
-	ComparisonSlide,
-	OutroSlide,
 } from './types'
+import { computeUnlocks } from './unlocks'
 
 // Estimated averages — no user tracking
 const PERCENTILE_THRESHOLDS = [
 	{ minHours: 500, percentile: 1 },
 	{ minHours: 200, percentile: 5 },
 	{ minHours: 100, percentile: 15 },
-	{ minHours: 50,  percentile: 30 },
-	{ minHours: 25,  percentile: 50 },
+	{ minHours: 50, percentile: 30 },
+	{ minHours: 25, percentile: 50 },
 ] as const
 
 const AVERAGE_HOURS_PER_YEAR = 40
@@ -49,12 +49,13 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 			type: 'total-time',
 			totalHours,
 			totalSessions: data.totalSessions,
-			comparisonMovies: Math.round(totalHours * 60 / 120),
+			comparisonMovies: Math.round((totalHours * 60) / 120),
 		}
 		slides.push(totalTimeSlide)
 	}
 
 	if (data.topGames.length > 0) {
+		// biome-ignore lint/style/noNonNullAssertion: guarded by length > 0 check
 		const g = data.topGames[0]!
 		const slide: MostPlayedGameSlide = {
 			type: 'most-played-game',
@@ -68,6 +69,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 	}
 
 	if (data.bySystem.length > 0 && total > 0) {
+		// biome-ignore lint/style/noNonNullAssertion: guarded by length > 0 check
 		const top = data.bySystem[0]!
 		const slide: TopSystemSlide = {
 			type: 'top-system',
@@ -122,7 +124,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 		let run = 0
 		let prev: Date | null = null
 		for (const day of data.activeDays) {
-			const date = new Date(day + 'T12:00:00Z')
+			const date = new Date(`${day}T12:00:00Z`)
 			if (prev) {
 				const diff = Math.round((date.getTime() - prev.getTime()) / 86400000)
 				run = diff === 1 ? run + 1 : 1

@@ -1,8 +1,8 @@
 'use client'
 
+import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { registerServiceWorker } from '@/lib/notifications/client'
 import type { AchievementUnlockedData } from '@/lib/notifications/types'
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { AchievementToast } from './achievement-toast'
@@ -62,7 +62,12 @@ export function NotificationListener() {
 					toast(`🎮 Votre Wrapped ${data.year} est disponible`, {
 						id: toastId,
 						description: 'Cliquez pour découvrir votre recap annuel',
-						action: { label: 'Voir', onClick: () => (window.location.href = '/wrapped') },
+						action: {
+							label: 'Voir',
+							onClick: () => {
+								window.location.href = '/wrapped'
+							},
+						},
 						duration: 8000,
 						onDismiss: cleanup,
 						onAutoClose: cleanup,

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useState } from 'react'
 
 type Format = 'story' | 'square' | 'landscape'
 
@@ -23,7 +23,9 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 		try {
 			const res = await fetch(imageUrl)
 			const blob = await res.blob()
-			const file = new File([blob], `wrapped-${year}-slide-${slideIndex}.png`, { type: 'image/png' })
+			const file = new File([blob], `wrapped-${year}-slide-${slideIndex}.png`, {
+				type: 'image/png',
+			})
 
 			if (navigator.canShare?.({ files: [file] })) {
 				await navigator.share({ files: [file], title: `Recalbox Wrapped ${year}` })
@@ -46,14 +48,17 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 		<div
 			className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm"
 			onClick={onClose}
+			onKeyDown={(e) => e.key === 'Escape' && onClose()}
+			role="presentation"
 		>
 			<div
 				className="w-full max-w-sm rounded-t-3xl border-t border-white/10 bg-[#111] p-6"
 				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="text-white font-bold">{t('title')}</h3>
-					<button onClick={onClose} className="text-white/50 hover:text-white">
+					<button type="button" onClick={onClose} className="text-white/50 hover:text-white">
 						<X className="h-5 w-5" />
 					</button>
 				</div>
@@ -62,11 +67,10 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 					{formats.map((f) => (
 						<button
 							key={f}
+							type="button"
 							onClick={() => setFormat(f)}
 							className={`flex-1 rounded-xl py-2 text-xs font-medium transition-colors ${
-								format === f
-									? 'bg-white text-black'
-									: 'bg-white/10 text-white/60 hover:bg-white/20'
+								format === f ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'
 							}`}
 						>
 							{t(f)}
@@ -75,18 +79,17 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 				</div>
 
 				<div className="mb-4 flex justify-center rounded-xl overflow-hidden bg-black border border-white/10 h-40">
-					<img
-						src={imageUrl}
-						alt="Preview"
-						className="h-full w-auto object-contain"
-					/>
+					<img src={imageUrl} alt="Preview" className="h-full w-auto object-contain" />
 				</div>
 
 				<button
+					type="button"
 					onClick={handleShare}
 					className="w-full rounded-xl bg-white py-3 text-sm font-bold text-black"
 				>
-					{typeof navigator !== 'undefined' && navigator.canShare?.({ files: [] }) ? t('shareNative') : t('download')}
+					{typeof navigator !== 'undefined' && navigator.canShare?.({ files: [] })
+						? t('shareNative')
+						: t('download')}
 				</button>
 			</div>
 		</div>

@@ -4,8 +4,8 @@ vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { executeSystemPower } from '@/lib/recalbox/system-power'
 import type { SshClientLike } from '@/lib/recalbox/ssh-client'
+import { executeSystemPower } from '@/lib/recalbox/system-power'
 
 function makeMockSsh(): SshClientLike & { exec: ReturnType<typeof vi.fn> } {
 	return { exec: vi.fn() }

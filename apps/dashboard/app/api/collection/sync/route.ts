@@ -23,7 +23,7 @@ type SyncEvent =
 	| { type: 'error'; message: string }
 
 function ndjson(event: SyncEvent): string {
-	return JSON.stringify(event) + '\n'
+	return `${JSON.stringify(event)}\n`
 }
 
 /**

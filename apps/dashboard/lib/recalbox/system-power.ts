@@ -10,7 +10,10 @@ function isExpectedDisconnect(err: unknown): boolean {
 	return CONNECTION_RESET_PATTERNS.some((p) => msg.includes(p))
 }
 
-export async function executeSystemPower(action: 'shutdown' | 'reboot', ssh: SshClientLike): Promise<void> {
+export async function executeSystemPower(
+	action: 'shutdown' | 'reboot',
+	ssh: SshClientLike,
+): Promise<void> {
 	const command = action === 'shutdown' ? 'poweroff' : 'reboot'
 	try {
 		await ssh.exec(command, POWER_TIMEOUT_MS)

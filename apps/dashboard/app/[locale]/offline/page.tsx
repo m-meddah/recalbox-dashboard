@@ -1,8 +1,8 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { hasLocale } from 'next-intl'
-import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
 import { WifiOff } from 'lucide-react'
+import { hasLocale } from 'next-intl'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { notFound } from 'next/navigation'
 import { RetryButton } from './_components/retry-button'
 
 type Props = { params: Promise<{ locale: string }> }

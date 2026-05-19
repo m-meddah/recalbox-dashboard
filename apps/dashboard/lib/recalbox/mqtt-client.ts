@@ -22,9 +22,13 @@ interface RecalboxClientEvents {
 declare interface RecalboxMqttClient {
 	on<K extends keyof RecalboxClientEvents>(event: K, listener: RecalboxClientEvents[K]): this
 	off<K extends keyof RecalboxClientEvents>(event: K, listener: RecalboxClientEvents[K]): this
-	emit<K extends keyof RecalboxClientEvents>(event: K, ...args: Parameters<RecalboxClientEvents[K]>): boolean
+	emit<K extends keyof RecalboxClientEvents>(
+		event: K,
+		...args: Parameters<RecalboxClientEvents[K]>
+	): boolean
 }
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: typed EventEmitter pattern
 class RecalboxMqttClient extends EventEmitter {
 	private client: mqtt.MqttClient | null = null
 	private reconnectAttempt = 0
@@ -33,7 +37,9 @@ class RecalboxMqttClient extends EventEmitter {
 	isConnected = false
 	lastKnownGame: GameStartEvent | null = null
 
-	constructor(private readonly brokerUrl: string) { super() }
+	constructor(private readonly brokerUrl: string) {
+		super()
+	}
 
 	connect(): void {
 		if (this.client) return
@@ -43,35 +49,43 @@ class RecalboxMqttClient extends EventEmitter {
 	private createConnection(): void {
 		logger.info(`MQTT connecting to ${this.brokerUrl}`)
 		this.client = mqtt.connect(this.brokerUrl, {
-			reconnectPeriod: 0, connectTimeout: 5000,
+			reconnectPeriod: 0,
+			connectTimeout: 5000,
 			clientId: `recalbox-dashboard-${Math.random().toString(16).slice(2, 10)}`,
 		})
 		this.client.on('connect', () => {
 			this.reconnectAttempt = 0
 			this.isConnected = true
 			logger.info(`MQTT connected to ${this.brokerUrl}`)
-			this.client!.subscribe(ES_EVENT_TOPIC, { qos: 0 })
-			this.client!.subscribe(SYSTEM_INFO_TOPIC, { qos: 0 })
+			this.client?.subscribe(ES_EVENT_TOPIC, { qos: 0 })
+			this.client?.subscribe(SYSTEM_INFO_TOPIC, { qos: 0 })
 			this.emit('connection:up')
 		})
 		this.client.on('message', (topic, payload) => {
 			const event = parseRecalboxMessage(topic, payload)
 			if (!event) return
 			if (event.type === 'game:start') {
-				this.currentSystem = event.system; this.lastKnownGame = event; this.emit('game:start', event)
+				this.currentSystem = event.system
+				this.lastKnownGame = event
+				this.emit('game:start', event)
 			} else if (event.type === 'game:stop') {
 				if (this.lastKnownGame?.romPath === event.romPath) this.lastKnownGame = null
 				this.emit('game:stop', event)
 			} else if (event.type === 'system:change') {
-				if (event.system !== this.currentSystem) { this.currentSystem = event.system; this.emit('system:change', event) }
+				if (event.system !== this.currentSystem) {
+					this.currentSystem = event.system
+					this.emit('system:change', event)
+				}
 			} else if (event.type === 'system:info') {
 				this.emit('system:info', event)
 			}
 		})
 		this.client.on('error', (err) => logger.error('MQTT error', err))
 		this.client.on('close', () => {
-			this.isConnected = false; logger.warn(`MQTT disconnected from ${this.brokerUrl}`)
-			this.emit('connection:down'); this.scheduleReconnect()
+			this.isConnected = false
+			logger.warn(`MQTT disconnected from ${this.brokerUrl}`)
+			this.emit('connection:down')
+			this.scheduleReconnect()
 		})
 	}
 
@@ -79,16 +93,27 @@ class RecalboxMqttClient extends EventEmitter {
 		if (this.reconnectTimer) return
 		const delay = BACKOFF_DELAYS_MS[Math.min(this.reconnectAttempt, BACKOFF_DELAYS_MS.length - 1)]
 		this.reconnectAttempt++
-		this.reconnectTimer = setTimeout(() => { this.reconnectTimer = null; this.client = null; this.createConnection() }, delay)
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = null
+			this.client = null
+			this.createConnection()
+		}, delay)
 	}
 
 	disconnect(): void {
-		if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
-		this.client?.end(); this.client = null; this.isConnected = false
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer)
+			this.reconnectTimer = null
+		}
+		this.client?.end()
+		this.client = null
+		this.isConnected = false
 	}
 
 	reconnect(): void {
-		this.disconnect(); this.reconnectAttempt = 0; this.createConnection()
+		this.disconnect()
+		this.reconnectAttempt = 0
+		this.createConnection()
 	}
 }
 
@@ -96,15 +121,16 @@ class MqttPool {
 	private clients = new Map<string, RecalboxMqttClient>()
 
 	getClient(recalboxId: string): RecalboxMqttClient {
-		if (!this.clients.has(recalboxId)) {
+		let client = this.clients.get(recalboxId)
+		if (!client) {
 			const rb = configStore.getRecalbox(recalboxId)
 			if (!rb) throw new Error(`Recalbox ${recalboxId} not found`)
 			const url = `mqtt://${rb.host}:${rb.mqttPort}`
-			const client = new RecalboxMqttClient(url)
+			client = new RecalboxMqttClient(url)
 			client.connect()
 			this.clients.set(recalboxId, client)
 		}
-		return this.clients.get(recalboxId)!
+		return client
 	}
 
 	removeClient(recalboxId: string): void {
@@ -145,9 +171,15 @@ if (!g.__mqttPool || g.__mqttPoolVersion !== SINGLETON_VERSION) {
 
 	try {
 		for (const rb of configStore.getRecalboxes().filter((r) => !r.archived)) {
-			try { g.__mqttPool.getClient(rb.id) } catch { /* ignore per-client failures */ }
+			try {
+				g.__mqttPool.getClient(rb.id)
+			} catch {
+				/* ignore per-client failures */
+			}
 		}
-	} catch { /* recalboxes table may not exist yet — migration runs at runtime */ }
+	} catch {
+		/* recalboxes table may not exist yet — migration runs at runtime */
+	}
 }
 
 export const mqttPool = g.__mqttPool
