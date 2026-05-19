@@ -27,6 +27,9 @@ type GenerateResult = {
 
 export async function POST(req: NextRequest) {
 	const body: GenerateRequest = await req.json()
+	if (!Array.isArray(body?.games)) {
+		return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+	}
 	const recalboxId = body.recalboxId ?? (await getActiveRecalboxId())
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
