@@ -19,7 +19,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 	useEffect(() => {
 		fetch(`/api/recalboxes/${id}`)
 			.then((r) => r.json())
-			.then(setRb)
+			.then((data) => setRb({ ...data, sshPassword: '' }))
 			.catch(() => {})
 	}, [id])
 
