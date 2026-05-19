@@ -60,9 +60,15 @@ export async function GET(request: Request) {
 	const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream'
 
 	try {
-		// Verify file exists before fetching — avoids noisy base64 errors for missing scraper images
-		const exists = await ssh.exec(`test -f ${shellQuote(filePath)} && echo yes || echo no`)
-		if (exists !== 'yes') {
+		// Single SSH round-trip: check existence and fetch in one command.
+		// __NF__ is a safe sentinel — it cannot appear in valid base64 output ([A-Za-z0-9+/=]).
+		const result = await ssh.exec(
+			`test -f ${shellQuote(filePath)} && base64 -w 0 ${shellQuote(filePath)} || printf '__NF__'`,
+			15_000,
+		)
+
+		if (!result || result === '__NF__') {
+			// File genuinely absent — safe to cache
 			notFoundCache.set(cacheKey, Date.now() + NOT_FOUND_TTL_MS)
 			return new Response('Image not found', {
 				status: 404,
@@ -70,10 +76,7 @@ export async function GET(request: Request) {
 			})
 		}
 
-		// Fetch image binary via SSH as base64 to safely handle binary over text channel
-		const b64 = await ssh.exec(`base64 -w 0 ${shellQuote(filePath)}`, 15_000)
-		if (!b64) return new Response('Image not found', { status: 404 })
-		const buffer = Buffer.from(b64, 'base64')
+		const buffer = Buffer.from(result, 'base64')
 		if (buffer.byteLength === 0) return new Response('Image not found', { status: 404 })
 
 		return new Response(buffer, {
@@ -84,10 +87,7 @@ export async function GET(request: Request) {
 			},
 		})
 	} catch {
-		notFoundCache.set(cacheKey, Date.now() + NOT_FOUND_TTL_MS)
-		return new Response('Image not found', {
-			status: 404,
-			headers: { 'Cache-Control': 'public, max-age=300' },
-		})
+		// Transient error (SSH timeout, connection drop) — do NOT cache, allow retry
+		return new Response('Image not found', { status: 404 })
 	}
 }
