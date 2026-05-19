@@ -1,28 +1,23 @@
-import {loadFont} from '@remotion/google-fonts/Inter';
-import {AbsoluteFill, spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import { loadFont } from '@remotion/google-fonts/Inter'
+import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from 'remotion'
 
-const {fontFamily} = loadFont();
+const { fontFamily } = loadFont()
 
-const COLOR_BAR = '#D4AF37';
-const COLOR_TEXT = '#ffffff';
-const COLOR_MUTED = '#888888';
-const COLOR_BG = '#0a0a0a';
-const COLOR_AXIS = '#333333';
+const COLOR_BAR = '#D4AF37'
+const COLOR_TEXT = '#ffffff'
+const COLOR_MUTED = '#888888'
+const COLOR_BG = '#0a0a0a'
+const COLOR_AXIS = '#333333'
 
 // Ideal composition size: 1280x720
 
-const Title: React.FC<{children: React.ReactNode}> = ({children}) => (
-	<div style={{textAlign: 'center', marginBottom: 40}}>
-		<div style={{color: COLOR_TEXT, fontSize: 48, fontWeight: 600}}>
-			{children}
-		</div>
+const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+	<div style={{ textAlign: 'center', marginBottom: 40 }}>
+		<div style={{ color: COLOR_TEXT, fontSize: 48, fontWeight: 600 }}>{children}</div>
 	</div>
-);
+)
 
-const YAxis: React.FC<{steps: number[]; height: number}> = ({
-	steps,
-	height,
-}) => (
+const YAxis: React.FC<{ steps: number[]; height: number }> = ({ steps, height }) => (
 	<div
 		style={{
 			display: 'flex',
@@ -48,12 +43,12 @@ const YAxis: React.FC<{steps: number[]; height: number}> = ({
 				</div>
 			))}
 	</div>
-);
+)
 
 const Bar: React.FC<{
-	height: number;
-	progress: number;
-}> = ({height, progress}) => (
+	height: number
+	progress: number
+}> = ({ height, progress }) => (
 	<div
 		style={{
 			flex: 1,
@@ -72,14 +67,14 @@ const Bar: React.FC<{
 			}}
 		/>
 	</div>
-);
+)
 
 const XAxis: React.FC<{
-	children: React.ReactNode;
-	labels: string[];
-	height: number;
-}> = ({children, labels, height}) => (
-	<div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+	children: React.ReactNode
+	labels: string[]
+	height: number
+}> = ({ children, labels, height }) => (
+	<div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 		<div
 			style={{
 				display: 'flex',
@@ -116,26 +111,26 @@ const XAxis: React.FC<{
 			))}
 		</div>
 	</div>
-);
+)
 
 export const MyAnimation = () => {
-	const frame = useCurrentFrame();
-	const {fps, height} = useVideoConfig();
+	const frame = useCurrentFrame()
+	const { fps, height } = useVideoConfig()
 
 	const data = [
-		{month: 'Jan', price: 2039},
-		{month: 'Mar', price: 2160},
-		{month: 'May', price: 2327},
-		{month: 'Jul', price: 2426},
-		{month: 'Sep', price: 2634},
-		{month: 'Nov', price: 2672},
-	];
+		{ month: 'Jan', price: 2039 },
+		{ month: 'Mar', price: 2160 },
+		{ month: 'May', price: 2327 },
+		{ month: 'Jul', price: 2426 },
+		{ month: 'Sep', price: 2634 },
+		{ month: 'Nov', price: 2672 },
+	]
 
-	const minPrice = 2000;
-	const maxPrice = 2800;
-	const priceRange = maxPrice - minPrice;
-	const chartHeight = height - 280;
-	const yAxisSteps = [2000, 2400, 2800];
+	const minPrice = 2000
+	const maxPrice = 2800
+	const priceRange = maxPrice - minPrice
+	const chartHeight = height - 280
+	const yAxisSteps = [2000, 2400, 2800]
 
 	return (
 		<AbsoluteFill
@@ -149,25 +144,22 @@ export const MyAnimation = () => {
 		>
 			<Title>Gold Price 2024</Title>
 
-			<div style={{display: 'flex', flex: 1}}>
+			<div style={{ display: 'flex', flex: 1 }}>
 				<YAxis steps={yAxisSteps} height={chartHeight} />
 				<XAxis height={chartHeight} labels={data.map((d) => d.month)}>
 					{data.map((item, i) => {
 						const progress = spring({
 							frame: frame - i * 5 - 10,
 							fps,
-							config: {damping: 18, stiffness: 80},
-						});
+							config: { damping: 18, stiffness: 80 },
+						})
 
-						const barHeight =
-							((item.price - minPrice) / priceRange) * chartHeight * progress;
+						const barHeight = ((item.price - minPrice) / priceRange) * chartHeight * progress
 
-						return (
-							<Bar key={item.month} height={barHeight} progress={progress} />
-						);
+						return <Bar key={item.month} height={barHeight} progress={progress} />
 					})}
 				</XAxis>
 			</div>
 		</AbsoluteFill>
-	);
-};
+	)
+}
