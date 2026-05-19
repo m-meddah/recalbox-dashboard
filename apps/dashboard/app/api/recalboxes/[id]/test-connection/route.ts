@@ -12,7 +12,7 @@ async function testSsh(host: string, user: string, password: string, port: numbe
 	const start = Date.now()
 	const ssh = new NodeSSH()
 	try {
-		await ssh.connect({ host, username: user, password, port, readyTimeout: 5000 })
+		await ssh.connect({ host, username: user, password, port, readyTimeout: 10000 })
 		await ssh.execCommand('echo ok')
 		ssh.dispose()
 		return { success: true, latencyMs: Date.now() - start }

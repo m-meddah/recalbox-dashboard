@@ -30,7 +30,7 @@ class SshClient {
 				username: cfg.sshUser,
 				password: cfg.sshPassword,
 				port: cfg.sshPort,
-				readyTimeout: EXEC_TIMEOUT_MS,
+				readyTimeout: CONNECT_TIMEOUT_MS + 2000,
 				keepaliveInterval: 10000,
 			})
 			const timeout = new Promise<never>((_, reject) =>
