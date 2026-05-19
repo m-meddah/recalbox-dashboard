@@ -4,16 +4,20 @@ import { NodeSSH } from 'node-ssh'
 
 const EXEC_TIMEOUT_MS = 5000
 const CONNECT_TIMEOUT_MS = 8000
-const MAX_CONCURRENT = 2
+
+type QueueItem = { resolve: () => void; reject: (err: Error) => void }
 
 class SshClient {
 	private ssh = new NodeSSH()
 	private connected = false
 	private connectingPromise: Promise<void> | null = null
 	private activeCount = 0
-	private readonly waitQueue: Array<() => void> = []
+	private readonly waitQueue: QueueItem[] = []
 
-	constructor(private readonly recalboxId: string) {}
+	constructor(
+		private readonly recalboxId: string,
+		private readonly maxConcurrent = 2,
+	) {}
 
 	private async connect(): Promise<void> {
 		if (this.connectingPromise) return this.connectingPromise
@@ -49,20 +53,27 @@ class SshClient {
 	}
 
 	private acquire(): Promise<void> {
-		if (this.activeCount < MAX_CONCURRENT) {
+		if (this.activeCount < this.maxConcurrent) {
 			this.activeCount++
 			return Promise.resolve()
 		}
-		return new Promise<void>((resolve) => this.waitQueue.push(resolve))
+		return new Promise<void>((resolve, reject) => this.waitQueue.push({ resolve, reject }))
 	}
 
 	private release(): void {
 		const next = this.waitQueue.shift()
 		if (next) {
-			next()
+			next.resolve()
 		} else {
 			this.activeCount--
 		}
+	}
+
+	// Fail all waiting items immediately instead of letting each one retry a broken connection.
+	// Prevents a cascade of N reconnect attempts when the connection is down.
+	private failQueue(err: Error): void {
+		const items = this.waitQueue.splice(0)
+		for (const item of items) item.reject(err)
 	}
 
 	private async runExec(command: string, timeoutMs: number): Promise<string> {
@@ -89,7 +100,13 @@ class SshClient {
 			try {
 				return await this.runExec(command, timeoutMs)
 			} catch {
-				await this.connect()
+				try {
+					await this.connect()
+				} catch (connectErr) {
+					const err = connectErr instanceof Error ? connectErr : new Error(String(connectErr))
+					this.failQueue(err)
+					throw err
+				}
 				return await this.runExec(command, timeoutMs)
 			}
 		} finally {
@@ -100,10 +117,11 @@ class SshClient {
 	disconnect(): void {
 		this.ssh.dispose()
 		this.connected = false
+		this.failQueue(new Error('SSH client disconnected'))
 	}
 }
 
-const POOL_VERSION = 2
+const POOL_VERSION = 3
 
 class SshPool {
 	private clients = new Map<string, SshClient>()
@@ -114,7 +132,9 @@ class SshPool {
 		const key = variant === 'default' ? recalboxId : `${recalboxId}:${variant}`
 		let client = this.clients.get(key)
 		if (!client) {
-			client = new SshClient(recalboxId)
+			// Media requests are high-volume; allow more parallelism on their dedicated connection
+			const maxConcurrent = variant === 'media' ? 5 : 2
+			client = new SshClient(recalboxId, maxConcurrent)
 			this.clients.set(key, client)
 			if (!this.idToKeys.has(recalboxId)) this.idToKeys.set(recalboxId, new Set())
 			this.idToKeys.get(recalboxId)!.add(key)
