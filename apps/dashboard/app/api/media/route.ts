@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 		})
 	}
 
-	const ssh = getSshClient(recalboxId)
+	const ssh = getSshClient(recalboxId, 'media')
 
 	const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
 	const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream'
