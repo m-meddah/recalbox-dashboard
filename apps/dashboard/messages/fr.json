@@ -130,6 +130,7 @@
 			"interface": "Interface",
 			"retroachievements": "RetroAchievements",
 			"integrations": "Intégrations",
+			"mqttPublish": "Publication MQTT",
 			"notifications": "Notifications",
 			"app": "App"
 		},
@@ -225,6 +226,20 @@
 			"enrichError": "Enrichissement échoué",
 			"saved": "Enregistré",
 			"saveError": "Erreur lors de l'enregistrement"
+		},
+		"mqttPublish": {
+			"cardTitle": "Publication MQTT",
+			"cardDescription": "Publiez des analytics sur MQTT pour Home Assistant et d'autres outils",
+			"enabled": "Activer la publication MQTT",
+			"enabledHint": "Publie le temps de jeu, les séries et les stats de sessions sur des topics MQTT",
+			"brokerUrl": "URL du broker",
+			"brokerUrlHint": "Laisser vide pour utiliser automatiquement le broker de la Recalbox",
+			"topicPrefix": "Préfixe des topics",
+			"topicPrefixHint": "Tous les topics sont publiés sous ce préfixe",
+			"haDiscovery": "Découverte Home Assistant",
+			"haDiscoveryHint": "Enregistre automatiquement les capteurs dans Home Assistant via MQTT Discovery",
+			"saved": "Paramètres MQTT enregistrés",
+			"saveError": "Impossible d'enregistrer les paramètres"
 		},
 		"notificationsTab": {
 			"cardTitle": "Notifications",

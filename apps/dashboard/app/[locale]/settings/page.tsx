@@ -39,6 +39,7 @@ import {
 	Clock,
 	Palette,
 	Plug,
+	Radio,
 	Server,
 	Smartphone,
 	Trophy,
@@ -92,6 +93,14 @@ const srFormSchema = z.object({
 	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
 })
 type SrForm = z.infer<typeof srFormSchema>
+
+const mqttPublishFormSchema = z.object({
+	enabled: z.boolean(),
+	brokerUrl: z.string().max(256),
+	topicPrefix: z.string().max(64),
+	homeAssistantDiscovery: z.boolean(),
+})
+type MqttPublishForm = z.infer<typeof mqttPublishFormSchema>
 
 type TestResult = {
 	ssh: { success: boolean; latencyMs: number; error?: string }
@@ -903,6 +912,117 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 	)
 }
 
+// ─── MQTT Publish tab ────────────────────────────────────────────────────────────
+
+function MqttPublishTab({ config }: { config: AppConfig }) {
+	const t = useTranslations('settings.mqttPublish')
+	const tc = useTranslations('common')
+
+	const form = useForm<MqttPublishForm>({
+		resolver: zodResolver(mqttPublishFormSchema),
+		defaultValues: {
+			enabled: config.mqttPublish.enabled,
+			brokerUrl: config.mqttPublish.brokerUrl,
+			topicPrefix: config.mqttPublish.topicPrefix,
+			homeAssistantDiscovery: config.mqttPublish.homeAssistantDiscovery,
+		},
+	})
+	const isDirty = form.formState.isDirty
+	const enabled = form.watch('enabled')
+
+	async function onSave(values: MqttPublishForm) {
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ mqttPublish: values }),
+			})
+			if (!res.ok) throw new Error()
+			form.reset(values)
+			toast.success(t('saved'))
+		} catch {
+			toast.error(t('saveError'))
+		}
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+				<FormField
+					control={form.control}
+					name="enabled"
+					render={({ field }) => (
+						<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+							<div className="space-y-0.5">
+								<FormLabel>{t('enabled')}</FormLabel>
+								<FormDescription>{t('enabledHint')}</FormDescription>
+							</div>
+							<FormControl>
+								<Switch checked={field.value} onCheckedChange={field.onChange} />
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+				{enabled && (
+					<>
+						<FormField
+							control={form.control}
+							name="brokerUrl"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>{t('brokerUrl')}</FormLabel>
+									<FormControl>
+										<Input placeholder="mqtt://<recalbox-host>:1883" {...field} />
+									</FormControl>
+									<FormDescription>{t('brokerUrlHint')}</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="topicPrefix"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>{t('topicPrefix')}</FormLabel>
+									<FormControl>
+										<Input placeholder="RecalboxDashboard/" {...field} />
+									</FormControl>
+									<FormDescription>{t('topicPrefixHint')}</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="homeAssistantDiscovery"
+							render={({ field }) => (
+								<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+									<div className="space-y-0.5">
+										<FormLabel>{t('haDiscovery')}</FormLabel>
+										<FormDescription>{t('haDiscoveryHint')}</FormDescription>
+									</div>
+									<FormControl>
+										<Switch checked={field.value} onCheckedChange={field.onChange} />
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+					</>
+				)}
+				<div className="flex gap-2">
+					<Button type="button" variant="outline" onClick={() => form.reset()} disabled={!isDirty}>
+						{tc('cancel')}
+					</Button>
+					<Button type="submit" disabled={!isDirty}>
+						{tc('save')}
+					</Button>
+				</div>
+			</form>
+		</Form>
+	)
+}
+
 // ─── Sidebar Nav ─────────────────────────────────────────────────────────────
 
 type NavItem = { value: string; icon: LucideIcon; label: string; mobileLabel: string }
@@ -989,6 +1109,7 @@ export default function SettingsPage() {
 			mobileLabel: 'Retro',
 		},
 		{ value: 'integrations', icon: Plug, label: t('tabs.integrations'), mobileLabel: 'Intégr.' },
+		{ value: 'mqttPublish', icon: Radio, label: t('tabs.mqttPublish'), mobileLabel: 'MQTT' },
 		{ value: 'notifications', icon: Bell, label: t('tabs.notifications'), mobileLabel: 'Notifs' },
 		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
 	]
@@ -1062,6 +1183,17 @@ export default function SettingsPage() {
 							</CardHeader>
 							<CardContent>
 								<IntegrationsTab config={config} />
+							</CardContent>
+						</Card>
+					)}
+					{active === 'mqttPublish' && (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('mqttPublish.cardTitle')}</CardTitle>
+								<CardDescription>{t('mqttPublish.cardDescription')}</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<MqttPublishTab config={config} />
 							</CardContent>
 						</Card>
 					)}
