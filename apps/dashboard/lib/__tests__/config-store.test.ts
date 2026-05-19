@@ -35,6 +35,23 @@ describe('maskedConfig', () => {
 			},
 			scrobble: { minDurationSec: 10, maxDurationHours: 1, orphanRecoveryHours: 12 },
 			ui: { locale: 'en', theme: 'system' as const, weekStartsOn: 1 as const },
+			retroachievements: {
+				enabled: false,
+				username: '',
+				apiKey: 'secret-key',
+				autoSyncMinutes: 60,
+			},
+			superRetrogamers: {
+				enabled: false,
+				apiUrl: '',
+				preferredRegion: '',
+			},
+			mqttPublish: {
+				enabled: false,
+				brokerUrl: '',
+				topicPrefix: 'RecalboxDashboard/',
+				homeAssistantDiscovery: false,
+			},
 		}
 		const masked = maskedConfig(cfg)
 		expect(masked.recalbox.sshPassword).toBe(PASSWORD_MASK)
@@ -53,6 +70,23 @@ describe('maskedConfig', () => {
 			},
 			scrobble: { minDurationSec: 10, maxDurationHours: 1, orphanRecoveryHours: 12 },
 			ui: { locale: 'en', theme: 'system' as const, weekStartsOn: 1 as const },
+			retroachievements: {
+				enabled: false,
+				username: '',
+				apiKey: 'secret-key',
+				autoSyncMinutes: 60,
+			},
+			superRetrogamers: {
+				enabled: false,
+				apiUrl: '',
+				preferredRegion: '',
+			},
+			mqttPublish: {
+				enabled: false,
+				brokerUrl: '',
+				topicPrefix: 'RecalboxDashboard/',
+				homeAssistantDiscovery: false,
+			},
 		}
 		maskedConfig(cfg)
 		expect(cfg.recalbox.sshPassword).toBe('secret')
