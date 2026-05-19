@@ -160,14 +160,14 @@ describe('calculateStreaks', () => {
 	})
 
 	it('counts a single active day as streak of 1', () => {
-		const today = new Date().toISOString().slice(0, 10)
+		const today = toDateKey(new Date())
 		const result = calculateStreaks([{ date: today, playtimeSec: 120 }])
 		expect(result.currentStreak).toBe(1)
 		expect(result.longestStreak).toBe(1)
 	})
 
 	it('ignores days with less than 60s', () => {
-		const today = new Date().toISOString().slice(0, 10)
+		const today = toDateKey(new Date())
 		const result = calculateStreaks([{ date: today, playtimeSec: 59 }])
 		expect(result.currentStreak).toBe(0)
 		expect(result.longestStreak).toBe(0)
@@ -176,7 +176,7 @@ describe('calculateStreaks', () => {
 	it('counts consecutive past days as longestStreak', () => {
 		const days = [2, 3, 4].map((offset) => {
 			const d = new Date(Date.now() - offset * 86400000)
-			return { date: d.toISOString().slice(0, 10), playtimeSec: 300 }
+			return { date: toDateKey(d), playtimeSec: 300 }
 		})
 		const result = calculateStreaks(days)
 		expect(result.longestStreak).toBe(3)
