@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { detectDiscInfo } from '../multidisc-detector'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { detectDiscInfo, detectMultiDiscGames } from '../multidisc-detector'
+import type { SshClientLike } from '../ssh-client'
 
 describe('detectDiscInfo', () => {
 	// ─── Standard Redump patterns ──────────────────────────────────────────────
@@ -111,5 +112,158 @@ describe('detectDiscInfo', () => {
 
 	it('returns null when baseName would be empty', () => {
 		expect(detectDiscInfo('(Disc 1).chd')).toBeNull()
+	})
+})
+
+// ─── DB mock ─────────────────────────────────────────────────────────────────
+
+type GameRow = { system: string; romPath: string }
+
+const mockState = vi.hoisted(() => {
+	let rows: GameRow[] = []
+	return {
+		setRows: (r: GameRow[]) => {
+			rows = r
+		},
+		getRows: () => rows,
+	}
+})
+
+vi.mock('@/lib/db/index', () => {
+	const fakeDb: Record<string, () => unknown> = {}
+	fakeDb.select = () => fakeDb
+	fakeDb.from = () => fakeDb
+	fakeDb.where = () => fakeDb
+	fakeDb.all = () => mockState.getRows()
+	return { db: fakeDb }
+})
+
+vi.mock('@/lib/db/schema', () => ({ games: { system: 'system', romPath: 'romPath' } }))
+
+// ─── SSH mock ─────────────────────────────────────────────────────────────────
+
+function makeMockSsh(lsOutput = ''): SshClientLike {
+	return { exec: vi.fn().mockResolvedValue(lsOutput) }
+}
+
+beforeEach(() => {
+	mockState.setRows([])
+	vi.clearAllMocks()
+})
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('detectMultiDiscGames', () => {
+	it('groups two-disc game correctly', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 2).chd' },
+		])
+		const ssh = makeMockSsh('')
+		const result = await detectMultiDiscGames(ssh)
+
+		expect(result).toHaveLength(1)
+		expect(result[0].baseName).toBe('Final Fantasy VII (USA)')
+		expect(result[0].system).toBe('psx')
+		expect(result[0].discs).toHaveLength(2)
+		expect(result[0].discs[0].discNumber).toBe(1)
+		expect(result[0].discs[1].discNumber).toBe(2)
+	})
+
+	it('sorts discs in ascending order', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result[0].discs.map((d) => d.discNumber)).toEqual([1, 2, 3])
+	})
+
+	it('discards single-disc groups', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Vagrant Story (USA).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result).toHaveLength(0)
+	})
+
+	it('detects hasGap when disc 2 is missing', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result[0].hasGap).toBe(true)
+	})
+
+	it('sets hasGap: false for consecutive discs', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result[0].hasGap).toBe(false)
+	})
+
+	it('sets m3uAlreadyExists when .m3u present in SSH ls output', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 2).chd' },
+		])
+		const ssh = makeMockSsh('Final Fantasy VII (USA).m3u\n')
+		const result = await detectMultiDiscGames(ssh)
+		expect(result[0].m3uAlreadyExists).toBe(true)
+	})
+
+	it('sets m3uAlreadyExists: false when .m3u absent', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Metal Gear Solid (USA) (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Metal Gear Solid (USA) (Disc 2).chd' },
+		])
+		const ssh = makeMockSsh('')
+		const result = await detectMultiDiscGames(ssh)
+		expect(result[0].m3uAlreadyExists).toBe(false)
+	})
+
+	it('groups games from different systems separately', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
+			{ system: 'saturn', romPath: '/roms/saturn/Game (Disc 1).chd' },
+			{ system: 'saturn', romPath: '/roms/saturn/Game (Disc 2).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result).toHaveLength(2)
+		expect(result.map((r) => r.system).sort()).toEqual(['psx', 'saturn'])
+	})
+
+	it('filters to specific system when provided', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
+			{ system: 'saturn', romPath: '/roms/saturn/Other (Disc 1).chd' },
+			{ system: 'saturn', romPath: '/roms/saturn/Other (Disc 2).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh(), 'psx')
+		expect(result).toHaveLength(1)
+		expect(result[0].system).toBe('psx')
+	})
+
+	it('returns [] for non-disc-capable system', async () => {
+		const result = await detectMultiDiscGames(makeMockSsh(), 'snes')
+		expect(result).toEqual([])
+	})
+
+	it('handles disc-specific qualifier — baseName is prefix before disc tag', async () => {
+		mockState.setRows([
+			{ system: 'psx', romPath: '/roms/psx/Biohazard 2 (Japan) (Disc 1) (Leon-hen).chd' },
+			{ system: 'psx', romPath: '/roms/psx/Biohazard 2 (Japan) (Disc 2) (Claire-hen).chd' },
+		])
+		const result = await detectMultiDiscGames(makeMockSsh())
+		expect(result).toHaveLength(1)
+		expect(result[0].baseName).toBe('Biohazard 2 (Japan)')
 	})
 })
