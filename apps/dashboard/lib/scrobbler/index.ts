@@ -27,8 +27,7 @@ export async function startScrobbler(): Promise<Scrobbler> {
 	const initialCfg = configStore.get().mqttPublish
 	if (initialCfg.enabled) {
 		const url =
-			initialCfg.brokerUrl ||
-			`mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
+			initialCfg.brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
 		mqttPublisher.connect(url, initialCfg.topicPrefix)
 	}
 
