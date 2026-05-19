@@ -37,6 +37,31 @@
 		"mqttOffline": "MQTT hors ligne — Recalbox injoignable",
 		"noGame": "Aucun jeu en cours"
 	},
+	"m3u": {
+		"title": "Multi-disques / .m3u",
+		"subtitle": "{games, plural, one {1 jeu} other {# jeux}} · {systems, plural, one {1 système} other {# systèmes}} · {missing, plural, =0 {tous les .m3u présents} one {1 manquant} other {# manquants}}",
+		"generateMissing": "Générer les manquants",
+		"generating": "Génération…",
+		"discs": "{count} disques",
+		"status": {
+			"ok": ".m3u OK",
+			"missing": "Manquant",
+			"gap": "Trou dans les disques",
+			"differs": "Contenu différent"
+		},
+		"actions": {
+			"generate": "Générer",
+			"update": "Mettre à jour",
+			"confirmUpdate": "Confirmer la mise à jour",
+			"cancel": "Annuler"
+		},
+		"preview": "Aperçu .m3u",
+		"rescanNote": "Un re-scan EmulationStation peut être nécessaire pour que les .m3u apparaissent dans Recalbox.",
+		"noGames": "Aucun jeu multi-disques détecté. Synchronisez votre collection d'abord.",
+		"breadcrumb": "Collection",
+		"diffCurrent": "Contenu actuel",
+		"diffExpected": "Nouveau contenu"
+	},
 	"collection": {
 		"title": "Collection",
 		"subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
