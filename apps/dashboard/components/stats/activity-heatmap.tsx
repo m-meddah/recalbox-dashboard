@@ -32,24 +32,26 @@ export function ActivityHeatmap({ heatmap }: Props) {
 
 	// Day labels: Mon, Wed, Fri abbreviated — locale-aware single letters
 	const dayLabels = ['', 'M', '', 'W', '', 'F', ''].map((d) =>
-		d === 'M' ? new Date(2024, 0, 1).toLocaleString(locale, { weekday: 'narrow' }) :
-		d === 'W' ? new Date(2024, 0, 3).toLocaleString(locale, { weekday: 'narrow' }) :
-		d === 'F' ? new Date(2024, 0, 5).toLocaleString(locale, { weekday: 'narrow' }) :
-		''
+		d === 'M'
+			? new Date(2024, 0, 1).toLocaleString(locale, { weekday: 'narrow' })
+			: d === 'W'
+				? new Date(2024, 0, 3).toLocaleString(locale, { weekday: 'narrow' })
+				: d === 'F'
+					? new Date(2024, 0, 5).toLocaleString(locale, { weekday: 'narrow' })
+					: '',
 	)
 
 	const isEmpty = heatmap.flat().every((c) => c.playtimeSec === 0)
 
 	return (
 		<div className="space-y-2">
-			{isEmpty && (
-				<p className="text-center text-sm text-muted-foreground py-2">{t('empty')}</p>
-			)}
+			{isEmpty && <p className="text-center text-sm text-muted-foreground py-2">{t('empty')}</p>}
 			<div className="flex gap-1 overflow-x-auto pb-2">
 				{/* Day labels column */}
 				<div className="flex flex-col gap-[3px] pt-5 shrink-0">
 					{dayLabels.map((label, i) => (
 						<div
+							// biome-ignore lint/suspicious/noArrayIndexKey: positional day labels, never reorder
 							key={i}
 							className="h-[10px] w-3 text-[9px] text-muted-foreground leading-none flex items-center"
 						>
@@ -63,6 +65,7 @@ export function ActivityHeatmap({ heatmap }: Props) {
 					{heatmap.map((week, wi) => {
 						const monthLabel = getMonthLabel(week, locale)
 						return (
+							// biome-ignore lint/suspicious/noArrayIndexKey: positional week columns, never reorder
 							<div key={wi} className="flex flex-col gap-[3px]">
 								{/* Month label */}
 								<div className="h-4 text-[9px] text-muted-foreground leading-none whitespace-nowrap">

@@ -1,6 +1,6 @@
-import { routing } from '@/i18n/routing'
 import { NowPlaying } from '@/components/now-playing'
 import { SystemStatsChart } from '@/components/system-stats-chart'
+import type { routing } from '@/i18n/routing'
 import { setRequestLocale } from 'next-intl/server'
 import { getTranslations } from 'next-intl/server'
 import { Suspense } from 'react'
@@ -26,9 +26,7 @@ export default async function Home({ params }: Props) {
 				</section>
 
 				<section>
-					<h2 className="text-lg font-semibold mb-4 text-muted-foreground">
-						{t('system.title')}
-					</h2>
+					<h2 className="text-lg font-semibold mb-4 text-muted-foreground">{t('system.title')}</h2>
 					<Suspense
 						fallback={
 							<div className="text-sm text-muted-foreground animate-pulse">

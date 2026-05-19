@@ -25,8 +25,5 @@ export async function GET(request: Request) {
 	const ssh = getSshClient(recalboxId)
 	const value = await readRecalboxConfValue(key, ssh)
 
-	return NextResponse.json(
-		{ key, value },
-		{ headers: { 'Cache-Control': 'private, max-age=60' } },
-	)
+	return NextResponse.json({ key, value }, { headers: { 'Cache-Control': 'private, max-age=60' } })
 }

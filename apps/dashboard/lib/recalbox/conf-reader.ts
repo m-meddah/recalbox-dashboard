@@ -28,7 +28,10 @@ function parseConfValue(output: string, key: string): string | null {
 
 const CONF_PATH = '/recalbox/share/system/recalbox.conf'
 
-export async function readRecalboxConfValue(key: string, ssh: SshClientLike): Promise<string | null> {
+export async function readRecalboxConfValue(
+	key: string,
+	ssh: SshClientLike,
+): Promise<string | null> {
 	if (!isAllowed(key)) {
 		throw new Error(`Key "${key}" is not in the allowed recalbox.conf whitelist`)
 	}

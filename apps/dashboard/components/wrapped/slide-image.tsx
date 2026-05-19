@@ -1,4 +1,4 @@
-import type { WrappedSlide, Wrapped } from '@/lib/wrapped/types'
+import type { Wrapped, WrappedSlide } from '@/lib/wrapped/types'
 import { SLIDE_ACCENTS } from './accents'
 
 type Props = {
@@ -14,14 +14,18 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
 					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>🕹️</div>
-					<div style={{ fontSize: 36, fontWeight: 700, color: '#ffffff', textAlign: 'center' }}>Recalbox Wrapped</div>
+					<div style={{ fontSize: 36, fontWeight: 700, color: '#ffffff', textAlign: 'center' }}>
+						Recalbox Wrapped
+					</div>
 				</div>
 			)
 		case 'total-time':
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80', fontWeight: 500 }}>Total gaming time</div>
-					<div style={{ fontSize: 96, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>{slide.totalHours}h</div>
+					<div style={{ fontSize: 96, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>
+						{slide.totalHours}h
+					</div>
 					<div style={{ fontSize: 16, color: '#ffffff60' }}>{slide.totalSessions} sessions</div>
 				</div>
 			)
@@ -29,8 +33,12 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Most played</div>
-					<div style={{ fontSize: 40, fontWeight: 900, color: '#ffffff', textAlign: 'center' }}>{slide.gameName}</div>
-					<div style={{ fontSize: 20, color: '#ffffff80' }}>{slide.playtimeHours}h · {slide.sessionCount} sessions</div>
+					<div style={{ fontSize: 40, fontWeight: 900, color: '#ffffff', textAlign: 'center' }}>
+						{slide.gameName}
+					</div>
+					<div style={{ fontSize: 20, color: '#ffffff80' }}>
+						{slide.playtimeHours}h · {slide.sessionCount} sessions
+					</div>
 				</div>
 			)
 		case 'top-games-list':
@@ -38,8 +46,13 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
 					<div style={{ fontSize: 20, color: '#ffffff80', marginBottom: 8 }}>Top games</div>
 					{slide.games.map((g) => (
-						<div key={g.gameName} style={{ display: 'flex', justifyContent: 'space-between', color: '#ffffff' }}>
-							<span style={{ fontWeight: 700 }}>#{g.rank} {g.gameName}</span>
+						<div
+							key={g.gameName}
+							style={{ display: 'flex', justifyContent: 'space-between', color: '#ffffff' }}
+						>
+							<span style={{ fontWeight: 700 }}>
+								#{g.rank} {g.gameName}
+							</span>
 							<span style={{ color: '#ffffff80' }}>{g.playtimeHours}h</span>
 						</div>
 					))}
@@ -49,7 +62,9 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Longest session</div>
-					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>{slide.durationHours}h {slide.durationMinutes}min</div>
+					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>
+						{slide.durationHours}h {slide.durationMinutes}min
+					</div>
 					<div style={{ fontSize: 20, color: '#ffffff' }}>{slide.gameName}</div>
 				</div>
 			)
@@ -58,14 +73,18 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Most active day</div>
 					<div style={{ fontSize: 32, fontWeight: 900, color: '#ffffff' }}>{slide.dateStr}</div>
-					<div style={{ fontSize: 24, color: '#ffffff80' }}>{slide.totalHours}h in {slide.sessionCount} sessions</div>
+					<div style={{ fontSize: 24, color: '#ffffff80' }}>
+						{slide.totalHours}h in {slide.sessionCount} sessions
+					</div>
 				</div>
 			)
 		case 'streak':
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Streak record</div>
-					<div style={{ fontSize: 80, fontWeight: 900, color: '#ffffff' }}>{slide.longestStreak}</div>
+					<div style={{ fontSize: 80, fontWeight: 900, color: '#ffffff' }}>
+						{slide.longestStreak}
+					</div>
 					<div style={{ fontSize: 24, color: '#ffffff80' }}>days in a row</div>
 				</div>
 			)
@@ -73,7 +92,9 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Top system</div>
-					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>{slide.system.toUpperCase()}</div>
+					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>
+						{slide.system.toUpperCase()}
+					</div>
 					<div style={{ fontSize: 24, color: '#ffffff80' }}>{slide.percentage}% of your time</div>
 				</div>
 			)
@@ -81,8 +102,12 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>RetroAchievements</div>
-					<div style={{ fontSize: 72, fontWeight: 900, color: '#ffffff' }}>{slide.totalUnlocked}</div>
-					<div style={{ fontSize: 18, color: '#ffffff80' }}>achievements · {slide.totalPoints} pts</div>
+					<div style={{ fontSize: 72, fontWeight: 900, color: '#ffffff' }}>
+						{slide.totalUnlocked}
+					</div>
+					<div style={{ fontSize: 18, color: '#ffffff80' }}>
+						achievements · {slide.totalPoints} pts
+					</div>
 				</div>
 			)
 		case 'unlocks':
@@ -101,16 +126,24 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>vs. other players</div>
-					<div style={{ fontSize: 60, fontWeight: 900, color: '#ffffff' }}>Top {slide.percentile}%</div>
-					<div style={{ fontSize: 18, color: '#ffffff60' }}>You: {slide.totalHours}h · Avg: {slide.averageHours}h</div>
+					<div style={{ fontSize: 60, fontWeight: 900, color: '#ffffff' }}>
+						Top {slide.percentile}%
+					</div>
+					<div style={{ fontSize: 18, color: '#ffffff60' }}>
+						You: {slide.totalHours}h · Avg: {slide.averageHours}h
+					</div>
 				</div>
 			)
 		case 'outro':
 			return (
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
 					<div style={{ fontSize: 48 }}>🎮</div>
-					<div style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', textAlign: 'center' }}>See you next year!</div>
-					<div style={{ fontSize: 20, color: '#ffffff80' }}>{slide.year} · {slide.totalHours}h played</div>
+					<div style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', textAlign: 'center' }}>
+						See you next year!
+					</div>
+					<div style={{ fontSize: 20, color: '#ffffff80' }}>
+						{slide.year} · {slide.totalHours}h played
+					</div>
 				</div>
 			)
 		default:

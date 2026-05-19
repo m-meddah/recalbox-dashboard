@@ -2,9 +2,9 @@
 
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { useRouter } from '@/i18n/navigation'
 import { CheckCircle, RefreshCw, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
 import { useState } from 'react'
 
 type SyncState =

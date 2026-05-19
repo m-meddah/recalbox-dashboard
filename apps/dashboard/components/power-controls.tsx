@@ -56,9 +56,7 @@ function PowerAction({ action }: { action: Action }) {
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-					<AlertDialogAction onClick={handleConfirm}>
-						{t(action)}
-					</AlertDialogAction>
+					<AlertDialogAction onClick={handleConfirm}>{t(action)}</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>

@@ -34,5 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		apply(t)
 	}
 
-	return <ThemeContext.Provider value={{ theme, setTheme: handleSet }}>{children}</ThemeContext.Provider>
+	return (
+		<ThemeContext.Provider value={{ theme, setTheme: handleSet }}>{children}</ThemeContext.Provider>
+	)
 }

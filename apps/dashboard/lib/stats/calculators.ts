@@ -74,7 +74,8 @@ export function getPeriodRange(period: Period): PeriodRange {
 
 function getPreviousPeriodRange(period: Period): PeriodRange {
 	if (period === 'all') return null
-	const range = getPeriodRange(period)!
+	const range = getPeriodRange(period)
+	if (!range) return null
 	const duration = range.toDate.getTime() - range.fromDate.getTime()
 	return {
 		fromDate: new Date(range.fromDate.getTime() - duration),
@@ -170,7 +171,7 @@ function calculateStreaks(byDay: Array<{ date: string; playtimeSec: number }>) {
 	let prev: Date | null = null
 
 	for (const ds of sortedDates) {
-		const date = new Date(ds + 'T12:00:00Z')
+		const date = new Date(`${ds}T12:00:00Z`)
 		if (prev) {
 			const diffDays = Math.round((date.getTime() - prev.getTime()) / 86400000)
 			run = diffDays === 1 ? run + 1 : 1

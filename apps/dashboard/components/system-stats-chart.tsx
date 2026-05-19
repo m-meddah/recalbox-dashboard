@@ -100,7 +100,11 @@ export function SystemStatsChart() {
 		current.memTotalMb > 0 ? Math.round((current.memUsedMb / current.memTotalMb) * 100) : null
 
 	const tempLabel =
-		current.tempCelsius < 60 ? t('tempNormal') : current.tempCelsius < 75 ? t('tempWarm') : t('tempCritical')
+		current.tempCelsius < 60
+			? t('tempNormal')
+			: current.tempCelsius < 75
+				? t('tempWarm')
+				: t('tempCritical')
 
 	return (
 		<div className="space-y-4">
@@ -168,9 +172,7 @@ export function SystemStatsChart() {
 				</CardHeader>
 				<CardContent>
 					{history.length < 2 ? (
-						<p className="text-sm text-muted-foreground text-center py-10">
-							{t('waitingData')}
-						</p>
+						<p className="text-sm text-muted-foreground text-center py-10">{t('waitingData')}</p>
 					) : (
 						<ResponsiveContainer width="100%" height={200}>
 							<LineChart data={history} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

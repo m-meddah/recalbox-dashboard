@@ -4,5 +4,5 @@
  * inserting an escaped quote, and restarting: ' → '\''
  */
 export function shellQuote(s: string): string {
-	return "'" + s.replace(/'/g, "'\\''") + "'"
+	return `'${s.replace(/'/g, "'\\''")}'`
 }

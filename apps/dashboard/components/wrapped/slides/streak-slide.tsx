@@ -1,10 +1,10 @@
 'use client'
 
-import { motion } from 'motion/react'
 import type { StreakSlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
+import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: StreakSlide }
 
@@ -13,7 +13,7 @@ export function StreakSlideView({ slide }: Props) {
 	const activeDaySet = new Set(slide.activeDays)
 
 	const firstDay = slide.activeDays[0]
-	const year = firstDay ? parseInt(firstDay.slice(0, 4)) : new Date().getFullYear()
+	const year = firstDay ? Number.parseInt(firstDay.slice(0, 4)) : new Date().getFullYear()
 	const days: string[] = []
 	for (let i = 0; i < 365; i++) {
 		const d = new Date(Date.UTC(year, 0, 1 + i))
@@ -21,10 +21,12 @@ export function StreakSlideView({ slide }: Props) {
 	}
 
 	return (
-		<SlideShell accent={SLIDE_ACCENTS['streak']}>
+		<SlideShell accent={SLIDE_ACCENTS.streak}>
 			<GlassCard className="text-center">
 				<p className="text-sm text-white/60 mb-2">{t('streak.title')}</p>
-				<p className="text-5xl font-black text-white">{t('streak.headline', { days: slide.longestStreak })}</p>
+				<p className="text-5xl font-black text-white">
+					{t('streak.headline', { days: slide.longestStreak })}
+				</p>
 			</GlassCard>
 			<div className="flex flex-wrap gap-0.5 max-w-sm justify-center">
 				{days.map((day, i) => (

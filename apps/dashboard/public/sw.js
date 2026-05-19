@@ -105,7 +105,9 @@ async function handleHtmlRequest(request, url) {
 		const cached = await caches.match(request)
 		if (cached) return cached
 		const locale = url.pathname.split('/')[1] ?? 'en'
-		const offlineUrl = OFFLINE_URLS.includes(`/${locale}/offline`) ? `/${locale}/offline` : '/en/offline'
+		const offlineUrl = OFFLINE_URLS.includes(`/${locale}/offline`)
+			? `/${locale}/offline`
+			: '/en/offline'
 		return (await caches.match(offlineUrl)) ?? new Response('Offline', { status: 503 })
 	}
 }

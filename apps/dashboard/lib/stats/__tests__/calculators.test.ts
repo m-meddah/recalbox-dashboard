@@ -67,6 +67,7 @@ describe('getPeriodRange', () => {
 	})
 
 	it('returns a 7-day range for week', () => {
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const range = getPeriodRange('week')!
 		expect(range).not.toBeNull()
 		const diffDays = (range.toDate.getTime() - range.fromDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -74,12 +75,14 @@ describe('getPeriodRange', () => {
 	})
 
 	it('returns a 30-day range for month', () => {
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const range = getPeriodRange('month')!
 		const diffDays = (range.toDate.getTime() - range.fromDate.getTime()) / (1000 * 60 * 60 * 24)
 		expect(diffDays).toBeCloseTo(30, 0)
 	})
 
 	it('returns a 365-day range for year', () => {
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const range = getPeriodRange('year')!
 		const diffDays = (range.toDate.getTime() - range.fromDate.getTime()) / (1000 * 60 * 60 * 24)
 		expect(diffDays).toBeCloseTo(365, 0)

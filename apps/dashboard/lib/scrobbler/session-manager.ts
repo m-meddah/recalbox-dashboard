@@ -1,14 +1,14 @@
 import type { DB } from '@/lib/db/index'
 import { sessions } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
-import { logger } from '@/lib/logger'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365]
 
-const MIN_DURATION_SEC = Number.parseInt(process.env['SCROBBLE_MIN_DURATION_SEC'] ?? '10', 10)
+const MIN_DURATION_SEC = Number.parseInt(process.env.SCROBBLE_MIN_DURATION_SEC ?? '10', 10)
 const MAX_DURATION_SEC = 3600
 
 type OpenSession = typeof sessions.$inferSelect
@@ -28,7 +28,12 @@ export class SessionManager {
 	}): Promise<number> {
 		const rows = await this.db
 			.insert(sessions)
-			.values({ recalboxId: opts.recalboxId, startedAt: opts.startedAt, system: opts.system, romPath: opts.romPath })
+			.values({
+				recalboxId: opts.recalboxId,
+				startedAt: opts.startedAt,
+				system: opts.system,
+				romPath: opts.romPath,
+			})
 			.returning({ id: sessions.id })
 		const row = rows[0]
 		if (!row) throw new Error('Failed to insert session')

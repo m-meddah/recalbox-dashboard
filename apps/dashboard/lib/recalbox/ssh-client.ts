@@ -22,11 +22,18 @@ class SshClient {
 			this.ssh = new NodeSSH()
 			const cfg = configStore.getForRecalbox(this.recalboxId).recalbox
 			const connectPromise = this.ssh.connect({
-				host: cfg.host, username: cfg.sshUser, password: cfg.sshPassword,
-				port: cfg.sshPort, readyTimeout: EXEC_TIMEOUT_MS, keepaliveInterval: 10000,
+				host: cfg.host,
+				username: cfg.sshUser,
+				password: cfg.sshPassword,
+				port: cfg.sshPort,
+				readyTimeout: EXEC_TIMEOUT_MS,
+				keepaliveInterval: 10000,
 			})
 			const timeout = new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error(`SSH connect timed out after ${CONNECT_TIMEOUT_MS}ms`)), CONNECT_TIMEOUT_MS),
+				setTimeout(
+					() => reject(new Error(`SSH connect timed out after ${CONNECT_TIMEOUT_MS}ms`)),
+					CONNECT_TIMEOUT_MS,
+				),
 			)
 			await Promise.race([connectPromise, timeout])
 			this.connected = true
@@ -35,18 +42,27 @@ class SshClient {
 				logger.error(`SSH [${this.recalboxId}] connection reset externally`, err)
 			})
 			logger.info(`SSH [${this.recalboxId}] connected to ${cfg.host}`)
-		})().finally(() => { this.connectingPromise = null })
+		})().finally(() => {
+			this.connectingPromise = null
+		})
 		return this.connectingPromise
 	}
 
 	private acquire(): Promise<void> {
-		if (this.activeCount < MAX_CONCURRENT) { this.activeCount++; return Promise.resolve() }
+		if (this.activeCount < MAX_CONCURRENT) {
+			this.activeCount++
+			return Promise.resolve()
+		}
 		return new Promise<void>((resolve) => this.waitQueue.push(resolve))
 	}
 
 	private release(): void {
 		const next = this.waitQueue.shift()
-		if (next) { next() } else { this.activeCount-- }
+		if (next) {
+			next()
+		} else {
+			this.activeCount--
+		}
 	}
 
 	private async runExec(command: string, timeoutMs: number): Promise<string> {
@@ -70,11 +86,15 @@ class SshClient {
 	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
 		await this.acquire()
 		try {
-			try { return await this.runExec(command, timeoutMs) } catch {
+			try {
+				return await this.runExec(command, timeoutMs)
+			} catch {
 				await this.connect()
 				return await this.runExec(command, timeoutMs)
 			}
-		} finally { this.release() }
+		} finally {
+			this.release()
+		}
 	}
 
 	disconnect(): void {
@@ -89,10 +109,12 @@ class SshPool {
 	private clients = new Map<string, SshClient>()
 
 	getClient(recalboxId: string): SshClient {
-		if (!this.clients.has(recalboxId)) {
-			this.clients.set(recalboxId, new SshClient(recalboxId))
+		let client = this.clients.get(recalboxId)
+		if (!client) {
+			client = new SshClient(recalboxId)
+			this.clients.set(recalboxId, client)
 		}
-		return this.clients.get(recalboxId)!
+		return client
 	}
 
 	removeClient(recalboxId: string): void {

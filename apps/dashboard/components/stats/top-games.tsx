@@ -24,9 +24,7 @@ export function TopGames({ games }: Props) {
 	const [showAll, setShowAll] = useState(false)
 
 	if (games.length === 0) {
-		return (
-			<p className="py-4 text-center text-sm text-muted-foreground">{t('empty')}</p>
-		)
+		return <p className="py-4 text-center text-sm text-muted-foreground">{t('empty')}</p>
 	}
 
 	const maxPlaytime = games[0]?.playtimeSec ?? 1
@@ -73,6 +71,7 @@ export function TopGames({ games }: Props) {
 
 			{games.length > 10 && (
 				<button
+					type="button"
 					onClick={() => setShowAll((v) => !v)}
 					className="mt-2 w-full rounded-lg py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
 				>

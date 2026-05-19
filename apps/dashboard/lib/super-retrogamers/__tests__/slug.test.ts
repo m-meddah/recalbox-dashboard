@@ -20,9 +20,7 @@ describe('gameToSlug', () => {
 		)
 	})
 	it('strips region tags', () => {
-		expect(gameToSlug('Mega Man 7 (USA).smc', 'snes')).toBe(
-			'mega-man-7-console-super-nintendo',
-		)
+		expect(gameToSlug('Mega Man 7 (USA).smc', 'snes')).toBe('mega-man-7-console-super-nintendo')
 	})
 	it('strips [!] quality tag', () => {
 		expect(gameToSlug('Castlevania - Symphony of the Night (USA) [!].bin', 'psx')).toBe(
@@ -30,9 +28,7 @@ describe('gameToSlug', () => {
 		)
 	})
 	it('strips version tags', () => {
-		expect(gameToSlug('Some Game (v1.0) (USA).nes', 'nes')).toBe(
-			'some-game-console-nes',
-		)
+		expect(gameToSlug('Some Game (v1.0) (USA).nes', 'nes')).toBe('some-game-console-nes')
 	})
 	it('strips Rev tags', () => {
 		expect(gameToSlug('Sonic the Hedgehog (Rev A) (USA).md', 'megadrive')).toBe(
@@ -40,9 +36,7 @@ describe('gameToSlug', () => {
 		)
 	})
 	it('normalises accents', () => {
-		expect(gameToSlug('Alerte à Malibu (France).nes', 'nes')).toBe(
-			'alerte-a-malibu-console-nes',
-		)
+		expect(gameToSlug('Alerte à Malibu (France).nes', 'nes')).toBe('alerte-a-malibu-console-nes')
 	})
 	it('handles apostrophes', () => {
 		expect(gameToSlug("Yoshi's Island - Super Mario World 2 (USA).smc", 'snes')).toBe(

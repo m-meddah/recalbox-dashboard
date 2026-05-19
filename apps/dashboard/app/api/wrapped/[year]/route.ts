@@ -6,9 +6,9 @@ type Params = { params: Promise<{ year: string }> }
 
 export async function POST(_req: Request, { params }: Params) {
 	const { year: yearStr } = await params
-	const year = parseInt(yearStr, 10)
+	const year = Number.parseInt(yearStr, 10)
 
-	if (isNaN(year) || year < 2000 || year > new Date().getFullYear() + 1) {
+	if (Number.isNaN(year) || year < 2000 || year > new Date().getFullYear() + 1) {
 		return NextResponse.json({ error: 'Invalid year' }, { status: 400 })
 	}
 

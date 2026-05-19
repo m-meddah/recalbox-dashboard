@@ -28,9 +28,7 @@ export async function SessionTimeline({ sessions }: Props) {
 	const [t, locale] = await Promise.all([getTranslations('stats.timeline'), getLocale()])
 
 	if (sessions.length === 0) {
-		return (
-			<p className="py-4 text-center text-sm text-muted-foreground">{t('empty')}</p>
-		)
+		return <p className="py-4 text-center text-sm text-muted-foreground">{t('empty')}</p>
 	}
 
 	return (

@@ -1,14 +1,14 @@
 import type { IntroSlide, Wrapped } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: IntroSlide; wrapped: Wrapped }
 
 export function IntroSlideView({ wrapped }: Props) {
 	const t = useTranslations('wrapped')
 	return (
-		<SlideShell accent={SLIDE_ACCENTS['intro']}>
+		<SlideShell accent={SLIDE_ACCENTS.intro}>
 			<div className="flex flex-col items-center gap-2 text-center">
 				<span className="text-6xl">🕹️</span>
 			</div>

@@ -1,6 +1,6 @@
+import { mkdirSync } from 'node:fs'
+import path from 'node:path'
 import sharp from 'sharp'
-import { mkdirSync } from 'fs'
-import path from 'path'
 
 const ROOT = process.cwd()
 const ICONS_DIR = path.join(ROOT, 'public/icons')
@@ -15,7 +15,12 @@ async function makeIcon(outputPath: string, size: number, maskable = false) {
 	const logoSize = Math.round(size * logoRatio)
 
 	const bg = await sharp({
-		create: { width: size, height: size, channels: 4, background: { r: 10, g: 10, b: 10, alpha: 255 } },
+		create: {
+			width: size,
+			height: size,
+			channels: 4,
+			background: { r: 10, g: 10, b: 10, alpha: 255 },
+		},
 	})
 		.png()
 		.toBuffer()
@@ -25,7 +30,10 @@ async function makeIcon(outputPath: string, size: number, maskable = false) {
 		.png()
 		.toBuffer()
 
-	await sharp(bg).composite([{ input: logo, gravity: 'center' }]).png().toFile(outputPath)
+	await sharp(bg)
+		.composite([{ input: logo, gravity: 'center' }])
+		.png()
+		.toFile(outputPath)
 	console.log(`✓ ${path.relative(ROOT, outputPath)}`)
 }
 

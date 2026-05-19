@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { KpiDelta } from '@/lib/stats/calculators'
-import { getTranslations } from 'next-intl/server'
 import type { LucideIcon } from 'lucide-react'
 import { TrendingDown, TrendingUp } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 
 type KpiCardProps = {
 	label: string

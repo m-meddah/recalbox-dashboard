@@ -127,9 +127,7 @@ export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 			if (dir === 'ports' || dir.startsWith('.')) continue
 
 			const gamelistPath = `${romsBase}/${dir}/gamelist.xml`
-			const exists = await ssh.exec(
-				`test -f ${shellQuote(gamelistPath)} && echo yes || echo no`,
-			)
+			const exists = await ssh.exec(`test -f ${shellQuote(gamelistPath)} && echo yes || echo no`)
 			if (exists === 'yes') {
 				const meta = systemMeta(dir)
 				systems.push({

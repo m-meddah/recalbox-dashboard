@@ -1,8 +1,8 @@
+import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db/index'
 import { logger } from '@/lib/logger'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
-import { mqttPool, getMqttClientFor } from '@/lib/recalbox/mqtt-client'
-import { configStore } from '@/lib/config-store'
+import { getMqttClientFor, mqttPool } from '@/lib/recalbox/mqtt-client'
 import { SessionManager } from './session-manager'
 
 export type Scrobbler = { stop: () => Promise<void> }
@@ -12,7 +12,10 @@ export async function startScrobbler(): Promise<Scrobbler> {
 	const recovered = await manager.recoverOrphanSessions()
 	if (recovered > 0) logger.info(`Recovered ${recovered} orphan session(s)`)
 
-	const subscriptions = new Map<string, { start: (e: GameStartEvent) => void; stop: (e: GameStopEvent) => void }>()
+	const subscriptions = new Map<
+		string,
+		{ start: (e: GameStartEvent) => void; stop: (e: GameStopEvent) => void }
+	>()
 
 	function subscribeToRecalbox(recalboxId: string): void {
 		if (subscriptions.has(recalboxId)) return
@@ -20,10 +23,18 @@ export async function startScrobbler(): Promise<Scrobbler> {
 		client.connect()
 
 		const onStart = async (event: GameStartEvent) => {
-			try { await manager.openSession(event, recalboxId) } catch (err) { logger.error(`Error opening session [${recalboxId}]`, err) }
+			try {
+				await manager.openSession(event, recalboxId)
+			} catch (err) {
+				logger.error(`Error opening session [${recalboxId}]`, err)
+			}
 		}
 		const onStop = async (event: GameStopEvent) => {
-			try { await manager.closeSession(event) } catch (err) { logger.error(`Error closing session [${recalboxId}]`, err) }
+			try {
+				await manager.closeSession(event)
+			} catch (err) {
+				logger.error(`Error closing session [${recalboxId}]`, err)
+			}
 		}
 
 		client.on('game:start', onStart)

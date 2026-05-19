@@ -1,10 +1,10 @@
 'use client'
 
-import { motion } from 'motion/react'
 import type { TopGamesListSlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
+import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: TopGamesListSlide }
 

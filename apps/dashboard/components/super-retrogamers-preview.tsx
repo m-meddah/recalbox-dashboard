@@ -47,9 +47,7 @@ export function SuperRetrogamersPreview({ slug }: Props) {
 	}
 
 	if (state.status === 'not-found') {
-		return (
-			<div className="p-4 text-center text-sm text-muted-foreground">{t('notFound')}</div>
-		)
+		return <div className="p-4 text-center text-sm text-muted-foreground">{t('notFound')}</div>
 	}
 
 	if (state.status === 'error') {

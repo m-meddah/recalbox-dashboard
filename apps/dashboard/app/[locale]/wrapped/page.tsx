@@ -1,10 +1,10 @@
+import { Link } from '@/i18n/navigation'
+import type { routing } from '@/i18n/routing'
 import { db } from '@/lib/db/index'
 import { sessions, wrappedCache } from '@/lib/db/schema'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { routing } from '@/i18n/routing'
-import { Link } from '@/i18n/navigation'
-import { sql, desc } from 'drizzle-orm'
+import { desc, sql } from 'drizzle-orm'
 import { ArrowLeft } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,8 +44,9 @@ async function getAvailableYears(locale: string) {
 				generatedAt: cached ? new Date(cached.generatedAt) : null,
 				totalHours: cached
 					? Math.floor(
-							(JSON.parse(cached.data) as { slides: Array<{ type: string; totalHours?: number }> })
-								.slides.find((s) => s.type === 'total-time')?.totalHours ?? 0,
+							(
+								JSON.parse(cached.data) as { slides: Array<{ type: string; totalHours?: number }> }
+							).slides.find((s) => s.type === 'total-time')?.totalHours ?? 0,
 						)
 					: null,
 			}
@@ -81,7 +82,9 @@ export default async function WrappedArchivePage({ params }: Props) {
 							<div>
 								<p className="text-2xl font-black text-white">{y.year}</p>
 								{y.totalHours !== null && (
-									<p className="text-sm text-white/60">{t('hoursPlayed', { hours: y.totalHours })}</p>
+									<p className="text-sm text-white/60">
+										{t('hoursPlayed', { hours: y.totalHours })}
+									</p>
 								)}
 								{y.generatedAt && (
 									<p className="text-xs text-white/30 mt-0.5">

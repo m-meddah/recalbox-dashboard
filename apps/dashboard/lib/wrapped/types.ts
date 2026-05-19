@@ -125,6 +125,11 @@ export type WrappedRawData = {
 	earlyBirdSec: number
 	weekendSec: number
 	throwbackGameSec: number
-	raAchievements: Array<{ title: string; points: number; imageUrl: string; isHardcore: boolean }> | null
+	raAchievements: Array<{
+		title: string
+		points: number
+		imageUrl: string
+		isHardcore: boolean
+	}> | null
 	userPseudo: string | undefined
 }

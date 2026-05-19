@@ -1,7 +1,7 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
 import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
+import { Card, CardContent } from '@/components/ui/card'
 import type { Game } from '@/lib/db/queries'
 import { cn } from '@/lib/utils'
 import { Play, Star, Trophy } from 'lucide-react'
@@ -50,7 +50,10 @@ export function GameCard({ game, hasAchievements }: Props) {
 
 				{/* Achievement badge */}
 				{hasAchievements && (
-					<div className="absolute left-1 top-1 rounded-full bg-amber-500 p-1 shadow" title="Has achievements">
+					<div
+						className="absolute left-1 top-1 rounded-full bg-amber-500 p-1 shadow"
+						title="Has achievements"
+					>
 						<Trophy className="h-3 w-3 fill-white text-white" />
 					</div>
 				)}
@@ -80,7 +83,7 @@ export function GameCard({ game, hasAchievements }: Props) {
 					{game.genre && (
 						<>
 							<span>·</span>
-							<span className="truncate">{game.genre!.split('/').at(0)?.trim()}</span>
+							<span className="truncate">{game.genre?.split('/').at(0)?.trim()}</span>
 						</>
 					)}
 				</div>

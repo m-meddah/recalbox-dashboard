@@ -1,10 +1,10 @@
 'use client'
 
-import { motion } from 'motion/react'
 import type { UnlocksSlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
+import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: UnlocksSlide }
 
@@ -18,7 +18,7 @@ const RARITY_COLORS: Record<string, string> = {
 export function UnlocksSlideView({ slide }: Props) {
 	const t = useTranslations('wrapped')
 	return (
-		<SlideShell accent={SLIDE_ACCENTS['unlocks']}>
+		<SlideShell accent={SLIDE_ACCENTS.unlocks}>
 			<GlassCard>
 				<p className="text-sm text-white/60 mb-4">{t('unlocks.title')}</p>
 				<div className="space-y-3">

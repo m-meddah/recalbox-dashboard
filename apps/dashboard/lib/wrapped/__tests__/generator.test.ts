@@ -32,15 +32,37 @@ function richData(): WrappedRawData {
 		uniqueGamesCount: 23,
 		uniqueSystemsCount: 8,
 		topGames: [
-			{ gameName: 'Mario', system: 'nes', playtimeSec: 40 * 3600, sessionCount: 30, imagePath: '/games/mario.png' },
-			{ gameName: 'Zelda', system: 'snes', playtimeSec: 30 * 3600, sessionCount: 20, imagePath: null },
-			{ gameName: 'Sonic', system: 'megadrive', playtimeSec: 20 * 3600, sessionCount: 15, imagePath: null },
+			{
+				gameName: 'Mario',
+				system: 'nes',
+				playtimeSec: 40 * 3600,
+				sessionCount: 30,
+				imagePath: '/games/mario.png',
+			},
+			{
+				gameName: 'Zelda',
+				system: 'snes',
+				playtimeSec: 30 * 3600,
+				sessionCount: 20,
+				imagePath: null,
+			},
+			{
+				gameName: 'Sonic',
+				system: 'megadrive',
+				playtimeSec: 20 * 3600,
+				sessionCount: 15,
+				imagePath: null,
+			},
 		],
 		bySystem: [
 			{ system: 'nes', playtimeSec: 40 * 3600 },
 			{ system: 'snes', playtimeSec: 30 * 3600 },
 		],
-		longestSession: { gameName: 'Mario', durationSec: 4 * 3600 + 12 * 60, startedAt: new Date('2026-02-14') },
+		longestSession: {
+			gameName: 'Mario',
+			durationSec: 4 * 3600 + 12 * 60,
+			startedAt: new Date('2026-02-14'),
+		},
 		busiestDay: { dateStr: '2026-02-14', totalSec: 8 * 3600, sessionCount: 5 },
 		activeDays: ['2026-02-14', '2026-02-15', '2026-02-16'],
 		shortSessionCount: 10,
@@ -67,7 +89,7 @@ describe('buildSlides', () => {
 
 	it('always includes outro as last slide', () => {
 		const slides = buildSlides(richData(), [])
-		expect(slides.at(-1)!.type).toBe('outro')
+		expect(slides.at(-1)?.type).toBe('outro')
 	})
 
 	it('includes total-time slide with correct hours', () => {
@@ -77,7 +99,7 @@ describe('buildSlides', () => {
 		if (slide?.type === 'total-time') {
 			expect(slide.totalHours).toBe(127)
 			expect(slide.totalSessions).toBe(100)
-			expect(slide.comparisonMovies).toBe(Math.round(127 * 60 / 120))
+			expect(slide.comparisonMovies).toBe(Math.round((127 * 60) / 120))
 		}
 	})
 
@@ -160,7 +182,12 @@ describe('buildSlides', () => {
 	})
 
 	it('includes unlocks slide before outro when unlocks are non-empty', () => {
-		const unlock = { id: 'marathon-man', title: 'Marathon Man', description: 'x', rarity: 'rare' as const }
+		const unlock = {
+			id: 'marathon-man',
+			title: 'Marathon Man',
+			description: 'x',
+			rarity: 'rare' as const,
+		}
 		const slides = buildSlides(richData(), [unlock])
 		const unlockIdx = slides.findIndex((s) => s.type === 'unlocks')
 		const outroIdx = slides.findIndex((s) => s.type === 'outro')
@@ -188,7 +215,9 @@ describe('buildSlides', () => {
 
 	it('top-games-list omitted when < 2 games played', () => {
 		const data = richData()
-		data.topGames = [{ gameName: 'Mario', system: 'nes', playtimeSec: 100, sessionCount: 1, imagePath: null }]
+		data.topGames = [
+			{ gameName: 'Mario', system: 'nes', playtimeSec: 100, sessionCount: 1, imagePath: null },
+		]
 		const slides = buildSlides(data, [])
 		expect(slides.find((s) => s.type === 'top-games-list')).toBeUndefined()
 	})

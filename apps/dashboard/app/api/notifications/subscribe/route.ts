@@ -32,7 +32,14 @@ export async function POST(req: Request) {
 	const now = new Date()
 
 	db.insert(pushSubscriptions)
-		.values({ endpoint, p256dh: keys.p256dh, auth: keys.auth, userAgent, createdAt: now, lastUsedAt: now })
+		.values({
+			endpoint,
+			p256dh: keys.p256dh,
+			auth: keys.auth,
+			userAgent,
+			createdAt: now,
+			lastUsedAt: now,
+		})
 		.onConflictDoUpdate({
 			target: pushSubscriptions.endpoint,
 			set: { p256dh: keys.p256dh, auth: keys.auth, lastUsedAt: now },

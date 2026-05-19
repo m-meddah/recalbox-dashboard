@@ -1,7 +1,7 @@
 import type { BusiestDaySlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: BusiestDaySlide }
 
@@ -13,7 +13,9 @@ export function BusiestDaySlideView({ slide }: Props) {
 				<p className="text-sm text-white/60 mb-2">{t('busiestDay.title')}</p>
 				<p className="text-3xl font-black text-white">{slide.dateStr}</p>
 				<p className="text-white/70 mt-3 text-2xl font-bold">{slide.totalHours}h</p>
-				<p className="text-white/40 text-xs mt-1">{t('busiestDay.sessions', { sessions: slide.sessionCount })}</p>
+				<p className="text-white/40 text-xs mt-1">
+					{t('busiestDay.sessions', { sessions: slide.sessionCount })}
+				</p>
 			</GlassCard>
 		</SlideShell>
 	)

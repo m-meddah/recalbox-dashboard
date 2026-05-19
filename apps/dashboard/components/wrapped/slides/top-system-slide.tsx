@@ -1,7 +1,7 @@
 import type { TopSystemSlide } from '@/lib/wrapped/types'
-import { SlideShell, GlassCard } from '../slide-shell'
-import { SLIDE_ACCENTS } from '../accents'
 import { useTranslations } from 'next-intl'
+import { SLIDE_ACCENTS } from '../accents'
+import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: TopSystemSlide }
 
@@ -12,7 +12,9 @@ export function TopSystemSlideView({ slide }: Props) {
 			<GlassCard className="text-center">
 				<p className="text-sm text-white/60 mb-2">{t('topSystem.title')}</p>
 				<h2 className="text-4xl font-black text-white uppercase tracking-wider">{slide.system}</h2>
-				<p className="text-white/60 mt-2 text-lg">{t('topSystem.percentage', { percent: slide.percentage })}</p>
+				<p className="text-white/60 mt-2 text-lg">
+					{t('topSystem.percentage', { percent: slide.percentage })}
+				</p>
 			</GlassCard>
 			<div className="w-full max-w-sm space-y-2">
 				{slide.breakdown.slice(0, 5).map((s) => (

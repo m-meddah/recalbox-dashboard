@@ -1,14 +1,14 @@
+import { SlideImage } from '@/components/wrapped/slide-image'
 import { getCachedWrapped } from '@/lib/wrapped/cache'
 import { getInterBoldFont } from '@/lib/wrapped/fonts'
-import { SlideImage } from '@/components/wrapped/slide-image'
 import { ImageResponse } from 'next/og'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
 const FORMATS = {
-	story:     [1080, 1920],
-	square:    [1080, 1080],
+	story: [1080, 1920],
+	square: [1080, 1080],
 	landscape: [1200, 630],
 } as const
 
@@ -16,10 +16,10 @@ type Params = { params: Promise<{ year: string; slide: string; locale: string }>
 
 export async function GET(req: NextRequest, { params }: Params) {
 	const { year: yearStr, slide: slideStr, locale } = await params
-	const year = parseInt(yearStr, 10)
-	const slideIndex = parseInt(slideStr, 10)
+	const year = Number.parseInt(yearStr, 10)
+	const slideIndex = Number.parseInt(slideStr, 10)
 
-	if (isNaN(year) || isNaN(slideIndex)) {
+	if (Number.isNaN(year) || Number.isNaN(slideIndex)) {
 		return NextResponse.json({ error: 'Invalid params' }, { status: 400 })
 	}
 

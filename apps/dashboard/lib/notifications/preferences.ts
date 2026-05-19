@@ -1,5 +1,5 @@
-import { upsertSetting } from '@/lib/db/queries'
 import { db } from '@/lib/db/index'
+import { upsertSetting } from '@/lib/db/queries'
 import { settings } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { DEFAULT_PREFERENCES, type NotificationEvent, type NotificationPreferences } from './types'

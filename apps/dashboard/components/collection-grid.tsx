@@ -23,6 +23,7 @@ function GridSkeleton() {
 	return (
 		<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 			{Array.from({ length: 18 }).map((_, i) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton with no identity
 				<div key={i} className="space-y-2">
 					<Skeleton className="aspect-[3/4] w-full rounded-md" />
 					<Skeleton className="h-4 w-3/4" />
@@ -53,6 +54,7 @@ function CollectionGridInner({ system }: Props) {
 		[searchParams, system],
 	)
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when search params change
 	useEffect(() => {
 		setPage(1)
 	}, [searchParams])
@@ -74,9 +76,7 @@ function CollectionGridInner({ system }: Props) {
 
 	if (loading) return <GridSkeleton />
 	if (!data || data.games.length === 0) {
-		return (
-			<div className="py-16 text-center text-muted-foreground">{t('noGames')}</div>
-		)
+		return <div className="py-16 text-center text-muted-foreground">{t('noGames')}</div>
 	}
 
 	const totalPages = Math.ceil(data.total / PAGE_SIZE)

@@ -278,9 +278,7 @@ export default function WelcomePage() {
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{testing && (
-								<p className="text-sm text-muted-foreground animate-pulse">
-									{t('step2.testing')}
-								</p>
+								<p className="text-sm text-muted-foreground animate-pulse">{t('step2.testing')}</p>
 							)}
 							{testResult && (
 								<div className="space-y-3">

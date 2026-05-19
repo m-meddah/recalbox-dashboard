@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -8,9 +9,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { Check } from 'lucide-react'
 import { Link, useRouter } from '@/i18n/navigation'
+import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -56,13 +56,15 @@ export function RecalboxSwitcher({ recalboxes, activeId }: Props) {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
 				<DropdownMenuLabel>{t('switcher.label')}</DropdownMenuLabel>
-				{recalboxes.filter((r) => !r.archived).map((rb) => (
-					<DropdownMenuItem key={rb.id} onClick={() => switchRecalbox(rb.id)}>
-						<span className="mr-2">{rb.iconEmoji ?? '🕹️'}</span>
-						<span className="flex-1">{rb.name}</span>
-						{rb.id === activeId && <Check className="h-4 w-4 ml-2" />}
-					</DropdownMenuItem>
-				))}
+				{recalboxes
+					.filter((r) => !r.archived)
+					.map((rb) => (
+						<DropdownMenuItem key={rb.id} onClick={() => switchRecalbox(rb.id)}>
+							<span className="mr-2">{rb.iconEmoji ?? '🕹️'}</span>
+							<span className="flex-1">{rb.name}</span>
+							{rb.id === activeId && <Check className="h-4 w-4 ml-2" />}
+						</DropdownMenuItem>
+					))}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
 					<Link href="/recalboxes">{t('switcher.manage')}</Link>

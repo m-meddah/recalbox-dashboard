@@ -54,6 +54,7 @@ describe('SessionManager', () => {
 
 		const rows = db.select().from(schema.sessions).all()
 		expect(rows).toHaveLength(1)
+		// biome-ignore lint/style/noNonNullAssertion: guarded by toHaveLength(1)
 		const row = rows[0]!
 		expect(row.romPath).toBe('/roms/mario.sfc')
 		expect(row.endedAt).not.toBeNull()
@@ -71,11 +72,13 @@ describe('SessionManager', () => {
 		const rows = db.select().from(schema.sessions).all()
 		expect(rows).toHaveLength(2)
 
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const first = rows.find((r) => r.romPath === '/roms/mario.sfc')!
 		expect(first.endedAt).not.toBeNull()
 		expect(first.autoClosed).toBe(true)
 		expect(first.closedReason).toBe('new_session_started')
 
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const second = rows.find((r) => r.romPath === '/roms/zelda.sfc')!
 		expect(second.endedAt).toBeNull()
 	})
@@ -113,11 +116,13 @@ describe('SessionManager', () => {
 		expect(recovered).toBe(1)
 
 		const rows = db.select().from(schema.sessions).all()
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const ancient = rows.find((r) => r.romPath === '/roms/ancient.sfc')!
 		expect(ancient.endedAt).not.toBeNull()
 		expect(ancient.durationSeconds).toBeLessThanOrEqual(3600)
 		expect(ancient.closedReason).toBe('orphan_recovery')
 
+		// biome-ignore lint/style/noNonNullAssertion: test context
 		const recent = rows.find((r) => r.romPath === '/roms/recent.sfc')!
 		expect(recent.endedAt).toBeNull()
 	})
@@ -132,7 +137,7 @@ describe('SessionManager', () => {
 		expect(recovered).toBe(1)
 
 		const rows = db.select().from(schema.sessions).all()
-		expect(rows[0]!.endedAt).not.toBeNull()
-		expect(rows[0]!.closedReason).toBe('orphan_recovery')
+		expect(rows[0]?.endedAt).not.toBeNull()
+		expect(rows[0]?.closedReason).toBe('orphan_recovery')
 	})
 })

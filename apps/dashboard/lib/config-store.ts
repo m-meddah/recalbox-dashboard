@@ -1,13 +1,14 @@
+import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { deleteSettingsByPrefix, getAllSettings, upsertSetting } from '@/lib/db/queries'
 import {
+	type RecalboxRow,
 	deleteRecalbox,
 	getDefaultRecalbox,
 	getRecalbox,
 	insertRecalbox,
 	listRecalboxes,
 	setDefaultRecalbox,
-	type RecalboxRow,
 	updateRecalbox,
 } from '@/lib/db/recalbox-queries'
 import { getDefaults } from '@/lib/settings/defaults'
@@ -17,7 +18,6 @@ import {
 	type RecalboxInstance,
 	SETUP_COMPLETED_KEY,
 } from '@/lib/settings/schemas'
-import { randomUUID } from 'node:crypto'
 
 const SINGLETON_VERSION = 2
 
@@ -60,7 +60,10 @@ function deepMerge<T extends object>(target: T, partial: DeepPartial<T>): T {
 		if (pVal === undefined) continue
 		const tVal = (target as Record<keyof T, unknown>)[key]
 		if (tVal !== null && typeof tVal === 'object' && typeof pVal === 'object') {
-			;(result as Record<keyof T, unknown>)[key] = deepMerge(tVal as object, pVal as DeepPartial<object>) as T[keyof T]
+			;(result as Record<keyof T, unknown>)[key] = deepMerge(
+				tVal as object,
+				pVal as DeepPartial<object>,
+			) as T[keyof T]
 		} else {
 			;(result as Record<keyof T, unknown>)[key] = pVal as T[keyof T]
 		}
@@ -106,9 +109,13 @@ interface ConfigStoreEvents {
 declare interface ConfigStore {
 	on<K extends keyof ConfigStoreEvents>(event: K, listener: ConfigStoreEvents[K]): this
 	off<K extends keyof ConfigStoreEvents>(event: K, listener: ConfigStoreEvents[K]): this
-	emit<K extends keyof ConfigStoreEvents>(event: K, ...args: Parameters<ConfigStoreEvents[K]>): boolean
+	emit<K extends keyof ConfigStoreEvents>(
+		event: K,
+		...args: Parameters<ConfigStoreEvents[K]>
+	): boolean
 }
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: typed EventEmitter pattern
 class ConfigStore extends EventEmitter {
 	private config: AppConfig | null = null
 
@@ -116,7 +123,14 @@ class ConfigStore extends EventEmitter {
 		if (!this.config) {
 			const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
 			const first = listRecalboxes().find((r) => !r.archived)
-			if (first) base.recalbox = { host: first.host, sshUser: first.sshUser, sshPassword: first.sshPassword, sshPort: first.sshPort, mqttPort: first.mqttPort }
+			if (first)
+				base.recalbox = {
+					host: first.host,
+					sshUser: first.sshUser,
+					sshPassword: first.sshPassword,
+					sshPort: first.sshPort,
+					mqttPort: first.mqttPort,
+				}
 			this.config = base
 		}
 		return this.config
@@ -125,7 +139,14 @@ class ConfigStore extends EventEmitter {
 	getForRecalbox(id: string): AppConfig {
 		const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
 		const row = getRecalbox(id)
-		if (row) base.recalbox = { host: row.host, sshUser: row.sshUser, sshPassword: row.sshPassword, sshPort: row.sshPort, mqttPort: row.mqttPort }
+		if (row)
+			base.recalbox = {
+				host: row.host,
+				sshUser: row.sshUser,
+				sshPassword: row.sshPassword,
+				sshPort: row.sshPort,
+				mqttPort: row.mqttPort,
+			}
 		return base
 	}
 
@@ -198,9 +219,20 @@ class ConfigStore extends EventEmitter {
 	addRecalbox(config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived'>): RecalboxInstance {
 		const all = listRecalboxes()
 		const id = randomUUID()
-		const row = { id, ...config, isDefault: all.length === 0, archived: false, createdAt: new Date() }
+		const row = {
+			id,
+			...config,
+			isDefault: all.length === 0,
+			archived: false,
+			createdAt: new Date(),
+		}
 		insertRecalbox(row)
-		const instance = rowToInstance({ ...row, color: config.color ?? null, iconEmoji: config.iconEmoji ?? null, lastConnectedAt: null })
+		const instance = rowToInstance({
+			...row,
+			color: config.color ?? null,
+			iconEmoji: config.iconEmoji ?? null,
+			lastConnectedAt: null,
+		})
 		this.emit('recalbox:added', { recalbox: instance })
 		if (instance.isDefault) {
 			this.config = null
