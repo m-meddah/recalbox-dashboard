@@ -259,6 +259,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 11 — Recalbox Wrapped: annual gaming recap at `/wrapped/:year` — glassmorphism slides, tap/swipe navigation, easter eggs, shareable PNG images, archive page
 - [x] Ticket 12 — Push notifications: in-app toasts via SSE + Web Push (background), achievement unlocks, streak milestones, annual Wrapped alert, notification center bell, quiet hours, per-type toggles
 - [x] Ticket 14 — Multi-Recalbox support: manage N Recalbox instances from one dashboard, per-user active switcher (cookie), SSH/MQTT connection pools, aggregated view, CRUD management UI
+- [x] Ticket 15 — MQTT Publish: push analytics (playtime, streaks, sessions, last game) to MQTT topics for Home Assistant, Node-RED and any MQTT client; Home Assistant Discovery auto-registers 8 sensors
 
 ## RetroAchievements integration
 
