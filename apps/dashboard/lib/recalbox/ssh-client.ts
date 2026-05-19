@@ -103,7 +103,7 @@ class SshClient {
 	}
 }
 
-const POOL_VERSION = 1
+const POOL_VERSION = 2
 
 class SshPool {
 	private clients = new Map<string, SshClient>()
