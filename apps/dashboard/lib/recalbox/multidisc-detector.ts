@@ -104,24 +104,22 @@ export async function detectMultiDiscGames(
 	if (candidates.length === 0) return []
 
 	const uniqueDirs = [...new Set(candidates.map((c) => c.dir))]
-	const existingM3uByDir = new Map<string, Set<string>>()
+	const existingM3uByDir = new Map<string, Set<string>>(uniqueDirs.map((d) => [d, new Set()]))
 
-	await Promise.all(
-		uniqueDirs.map(async (dir) => {
-			try {
-				const output = await ssh.exec(
-					`ls -1 ${shellQuote(dir)} 2>/dev/null | grep '\\.m3u$' || true`,
-				)
-				const files = output
-					.split('\n')
-					.map((s) => s.trim())
-					.filter((s) => s.endsWith('.m3u'))
-				existingM3uByDir.set(dir, new Set(files))
-			} catch {
-				existingM3uByDir.set(dir, new Set())
-			}
-		}),
-	)
+	try {
+		// Single SSH call for all directories instead of one per dir
+		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
+		const output = await ssh.exec(
+			`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`,
+		)
+		for (const line of output.split('\n').map((s) => s.trim()).filter(Boolean)) {
+			const dir = dirname(line)
+			const file = pathBasename(line)
+			existingM3uByDir.get(dir)?.add(file)
+		}
+	} catch {
+		// leave all dirs as empty sets — m3uAlreadyExists will be false
+	}
 
 	return candidates.map(({ system: sys, dir, baseName, discs }) => {
 		const sorted = [...discs].sort((a, b) => a.discNumber - b.discNumber)
