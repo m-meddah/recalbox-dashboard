@@ -53,7 +53,7 @@ export function detectDiscInfo(
 		const match = pattern.exec(stem)
 		if (!match) continue
 
-		const discNumber = parseInt(match[1], 10)
+		const discNumber = parseInt(match[1] ?? '', 10)
 		if (discNumber < 1 || discNumber > 10) return null
 
 		const baseName = stem.slice(0, match.index).trimEnd()
