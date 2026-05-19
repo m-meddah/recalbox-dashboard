@@ -33,12 +33,14 @@ const mockGetLastClosedSession = vi.mocked(getLastClosedSession)
 
 beforeEach(() => vi.clearAllMocks())
 
-function makeStats(overrides: Partial<{
-	totalPlaytimeSec: number
-	totalSessions: number
-	topGames: Array<{ gameName: string }>
-	byDay: Array<{ date: string; playtimeSec: number }>
-}> = {}) {
+function makeStats(
+	overrides: Partial<{
+		totalPlaytimeSec: number
+		totalSessions: number
+		topGames: Array<{ gameName: string }>
+		byDay: Array<{ date: string; playtimeSec: number }>
+	}> = {},
+) {
 	return {
 		totalPlaytimeSec: overrides.totalPlaytimeSec ?? 0,
 		totalSessions: overrides.totalSessions ?? 0,
@@ -86,7 +88,9 @@ describe('computeAnalyticsSnapshot', () => {
 	it('picks first topGame from weekStats', async () => {
 		mockGetSessionStats
 			.mockResolvedValueOnce(makeStats()) // today
-			.mockResolvedValueOnce(makeStats({ topGames: [{ gameName: 'Super Mario World' }, { gameName: 'Zelda' }] })) // week
+			.mockResolvedValueOnce(
+				makeStats({ topGames: [{ gameName: 'Super Mario World' }, { gameName: 'Zelda' }] }),
+			) // week
 			.mockResolvedValueOnce(makeStats()) // all-time
 
 		mockGetLastClosedSession.mockResolvedValue(null)

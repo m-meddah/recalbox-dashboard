@@ -55,7 +55,8 @@ class MqttPublisher {
 	connect(brokerUrl: string, topicPrefix: string): void {
 		this.disconnect()
 		this.topicPrefix = topicPrefix
-		this.resolvedUrl = brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
+		this.resolvedUrl =
+			brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
 		this.reconnectAttempt = 0
 		this.createConnection()
 	}
@@ -237,11 +238,10 @@ class MqttPublisher {
 			'status',
 		]
 		for (const id of sensorIds) {
-			this.client?.publish(
-				`homeassistant/sensor/recalbox_dashboard_${id}/config`,
-				'',
-				{ retain: true, qos: 1 },
-			)
+			this.client?.publish(`homeassistant/sensor/recalbox_dashboard_${id}/config`, '', {
+				retain: true,
+				qos: 1,
+			})
 		}
 	}
 }
