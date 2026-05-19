@@ -3,7 +3,7 @@ import { games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
-import { and, asc, count, desc, eq, gte, isNull, like, lte, max, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, like, lte, max, sql } from 'drizzle-orm'
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -575,4 +575,25 @@ export function listUncheckedGames(
 		.where(whereClause)
 		.limit(limit)
 		.all()
+}
+
+export async function getLastClosedSession(): Promise<{
+	gameName: string
+	system: string
+	durationSec: number
+} | null> {
+	const rows = await db
+		.select({
+			gameName: sql<string>`COALESCE(${games.name}, ${sessions.romPath})`,
+			system: sessions.system,
+			durationSec: sessions.durationSeconds,
+		})
+		.from(sessions)
+		.leftJoin(games, eq(sessions.romPath, games.romPath))
+		.where(isNotNull(sessions.endedAt))
+		.orderBy(desc(sessions.startedAt))
+		.limit(1)
+	const row = rows[0]
+	if (!row || row.durationSec === null) return null
+	return { gameName: row.gameName, system: row.system, durationSec: row.durationSec }
 }
