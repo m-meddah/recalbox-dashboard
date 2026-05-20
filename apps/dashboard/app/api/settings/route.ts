@@ -96,6 +96,16 @@ export async function PUT(req: NextRequest) {
 		partial.retroachievements = raWithoutKey
 	}
 
+	// Persist recalbox connection fields to the recalboxes table (the settings
+	// table intentionally skips the recalbox scope, so without this the password
+	// would only survive until the next server restart).
+	if (partial.recalbox && Object.keys(partial.recalbox).length > 0) {
+		const defaultRb = configStore.getDefaultRecalbox()
+		if (defaultRb) {
+			configStore.updateRecalboxConfig(defaultRb.id, partial.recalbox)
+		}
+	}
+
 	const updated = configStore.update(partial)
 	return NextResponse.json(maskedConfig(updated))
 }
