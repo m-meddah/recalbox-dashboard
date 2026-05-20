@@ -1,5 +1,6 @@
 import { listGames } from '@/lib/db/queries'
 import type { CollectionFilters } from '@/lib/db/queries'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -16,7 +17,10 @@ export async function GET(req: NextRequest) {
 	const page = Math.max(1, Number(p.get('page') ?? 1))
 	const pageSize = Math.min(200, Math.max(1, Number(p.get('pageSize') ?? 50)))
 
+	const recalboxId = await getActiveRecalboxId()
+
 	const filters: CollectionFilters = {
+		recalboxId: recalboxId ?? undefined,
 		system: p.get('system') ?? undefined,
 		favoritesOnly: p.get('favoritesOnly') === 'true',
 		neverPlayed: p.get('neverPlayed') === 'true',

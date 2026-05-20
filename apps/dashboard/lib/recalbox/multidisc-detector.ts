@@ -1,7 +1,7 @@
 import { basename as pathBasename, dirname } from 'node:path'
 import { db } from '@/lib/db/index'
 import { games } from '@/lib/db/schema'
-import { inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { sanitizeM3uFileName } from './m3u-generator'
 import { shellQuote } from './shell'
 import type { SshClientLike } from './ssh-client'
@@ -66,6 +66,7 @@ export function detectDiscInfo(
 
 export async function detectMultiDiscGames(
 	ssh: SshClientLike,
+	recalboxId: string,
 	system?: string,
 ): Promise<MultiDiscGame[]> {
 	const systemFilter = system ? (MULTIDISC_SYSTEMS.has(system) ? [system] : []) : [...MULTIDISC_SYSTEMS]
@@ -77,7 +78,7 @@ export async function detectMultiDiscGames(
 	const rows = db
 		.select({ system: games.system, romPath: games.romPath })
 		.from(games)
-		.where(inArray(games.system, systemFilter))
+		.where(and(inArray(games.system, systemFilter), eq(games.recalboxId, recalboxId)))
 		.all()
 
 	type Group = { system: string; dir: string; baseName: string; discs: DiscEntry[] }

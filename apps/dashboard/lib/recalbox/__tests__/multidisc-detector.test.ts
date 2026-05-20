@@ -138,7 +138,7 @@ vi.mock('@/lib/db/index', () => {
 	return { db: fakeDb }
 })
 
-vi.mock('@/lib/db/schema', () => ({ games: { system: 'system', romPath: 'romPath' } }))
+vi.mock('@/lib/db/schema', () => ({ games: { system: 'system', romPath: 'romPath', recalboxId: 'recalbox_id' } }))
 
 // ─── SSH mock ─────────────────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 2).chd' },
 		])
 		const ssh = makeMockSsh('')
-		const result = await detectMultiDiscGames(ssh)
+		const result = await detectMultiDiscGames(ssh, 'rb1')
 
 		expect(result).toHaveLength(1)
 		expect(result[0].baseName).toBe('Final Fantasy VII (USA)')
@@ -176,7 +176,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result[0].discs.map((d) => d.discNumber)).toEqual([1, 2, 3])
 	})
 
@@ -185,7 +185,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Vagrant Story (USA).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result).toHaveLength(0)
 	})
 
@@ -194,7 +194,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 1).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result[0].hasGap).toBe(true)
 	})
 
@@ -204,7 +204,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result[0].hasGap).toBe(false)
 	})
 
@@ -214,7 +214,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Final Fantasy VII (USA) (Disc 2).chd' },
 		])
 		const ssh = makeMockSsh('/roms/psx/Final Fantasy VII (USA).m3u\n')
-		const result = await detectMultiDiscGames(ssh)
+		const result = await detectMultiDiscGames(ssh, 'rb1')
 		expect(result[0].m3uAlreadyExists).toBe(true)
 	})
 
@@ -224,7 +224,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Metal Gear Solid (USA) (Disc 2).chd' },
 		])
 		const ssh = makeMockSsh('')
-		const result = await detectMultiDiscGames(ssh)
+		const result = await detectMultiDiscGames(ssh, 'rb1')
 		expect(result[0].m3uAlreadyExists).toBe(false)
 	})
 
@@ -235,7 +235,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'saturn', romPath: '/roms/saturn/Game (Disc 1).chd' },
 			{ system: 'saturn', romPath: '/roms/saturn/Game (Disc 2).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result).toHaveLength(2)
 		expect(result.map((r) => r.system).sort()).toEqual(['psx', 'saturn'])
 	})
@@ -247,13 +247,13 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'saturn', romPath: '/roms/saturn/Other (Disc 1).chd' },
 			{ system: 'saturn', romPath: '/roms/saturn/Other (Disc 2).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh(), 'psx')
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1', 'psx')
 		expect(result).toHaveLength(1)
 		expect(result[0].system).toBe('psx')
 	})
 
 	it('returns [] for non-disc-capable system', async () => {
-		const result = await detectMultiDiscGames(makeMockSsh(), 'snes')
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1', 'snes')
 		expect(result).toEqual([])
 	})
 
@@ -262,7 +262,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Biohazard 2 (Japan) (Disc 1) (Leon-hen).chd' },
 			{ system: 'psx', romPath: '/roms/psx/Biohazard 2 (Japan) (Disc 2) (Claire-hen).chd' },
 		])
-		const result = await detectMultiDiscGames(makeMockSsh())
+		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result).toHaveLength(1)
 		expect(result[0].baseName).toBe('Biohazard 2 (Japan)')
 	})

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 	}
 
 	const ssh = getSshClient(recalboxId)
-	const candidates = await detectMultiDiscGames(ssh, system)
+	const candidates = await detectMultiDiscGames(ssh, recalboxId, system)
 
 	const presentSystems = db
 		.select({ system: games.system })
