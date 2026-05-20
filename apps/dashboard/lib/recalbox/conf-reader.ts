@@ -8,6 +8,11 @@ const ALLOWED_CONF_KEYS = [
 	'global.retroachievements.hardcore',
 ] as const
 
+// Keys that may only be checked for presence — their value is NEVER returned via any API.
+// Reading these keys must go through dedicated modules (e.g. lib/recalbox/patron-status.ts)
+// that expose only derived booleans.
+export const PRESENCE_ONLY_CONF_KEYS = ['patron.privatekey'] as const
+
 type AllowedConfKey = (typeof ALLOWED_CONF_KEYS)[number]
 
 function isAllowed(key: string): key is AllowedConfKey {

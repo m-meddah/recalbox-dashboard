@@ -1,620 +1,641 @@
 {
-	"common": {
-		"save": "Save",
-		"cancel": "Cancel",
-		"back": "Back",
-		"retry": "Retry",
-		"loading": "Loading…",
-		"error": "Error"
-	},
-	"nav": {
-		"home": "🕹️ Recalbox",
-		"collection": "Collection",
-		"stats": "Stats",
-		"achievements": "Achievements",
-		"settings": "Settings",
-		"wrapped": "Wrapped"
-	},
-	"dashboard": {
-		"nowPlaying": {
-			"title": "Now Playing"
-		},
-		"system": {
-			"title": "System",
-			"loading": "Loading…",
-			"offline": "Recalbox offline — stats unavailable",
-			"waitingData": "Waiting for data…",
-			"cpuTemp": "CPU Temperature",
-			"cpuTempHistory": "CPU Temperature — last {seconds} seconds",
-			"tempNormal": "Normal",
-			"tempWarm": "Warm",
-			"tempCritical": "Critical",
-			"ramUsed": "{percent}% used",
-			"cpu": "CPU"
-		}
-	},
-	"nowPlaying": {
-		"mqttOffline": "MQTT offline — Recalbox unreachable",
-		"noGame": "No game playing"
-	},
-	"m3u": {
-		"title": "Multi-disc / .m3u",
-		"subtitle": "{games, plural, one {1 game} other {# games}} · {systems, plural, one {1 system} other {# systems}} · {missing, plural, =0 {all .m3u present} one {1 missing} other {# missing}}",
-		"generateMissing": "Generate missing",
-		"generating": "Generating…",
-		"discs": "{count} discs",
-		"status": {
-			"ok": ".m3u OK",
-			"missing": "Missing",
-			"gap": "Gap in discs",
-			"differs": "Content differs"
-		},
-		"actions": {
-			"generate": "Generate",
-			"update": "Update",
-			"confirmUpdate": "Confirm update",
-			"cancel": "Cancel"
-		},
-		"preview": "Preview .m3u",
-		"rescanNote": "A re-scan in EmulationStation may be needed for .m3u files to appear in Recalbox.",
-		"noGames": "No multi-disc games detected. Sync your collection first.",
-		"breadcrumb": "Collection",
-		"diffCurrent": "Current content",
-		"diffExpected": "New content"
-	},
-	"collection": {
-		"title": "Collection",
-		"subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
-		"gamesCount": "{count, plural, =0 {No games} one {1 game} other {# games}}",
-		"favoritesCount": "{count, plural, =0 {No favorites} one {1 favorite} other {# favorites}}",
-		"neverPlayedCount": "{count, plural, =0 {None never played} one {1 never played} other {# never played}}",
-		"systemsCount": "{count, plural, =0 {No systems} one {1 system} other {# systems}}",
-		"breadcrumb": "Collection",
-		"noGames": "No games found. Sync from your Recalbox.",
-		"totalGames": "{count, plural, =0 {No games} one {1 game} other {# games}}",
-		"pagination": {
-			"previous": "Previous",
-			"next": "Next",
-			"page": "{page} / {total}"
-		},
-		"filters": {
-			"search": "Search…",
-			"favorites": "Favorites",
-			"neverPlayed": "Never played",
-			"sortName": "Name",
-			"sortRating": "Rating",
-			"sortLastPlayed": "Played",
-			"sortYear": "Year"
-		},
-		"sync": {
-			"button": "Sync from Recalbox",
-			"progress": "{done}/{total} · {games, plural, one {1 game} other {# games}}",
-			"done": "{count, plural, one {1 game} other {# games}} synced in {seconds}s",
-			"retry": "Retry"
-		}
-	},
-	"stats": {
-		"title": "Statistics",
-		"periods": {
-			"week": "This week",
-			"month": "This month",
-			"year": "This year",
-			"all": "All time"
-		},
-		"kpi": {
-			"playtime": "Playtime",
-			"gamesPlayed": "Games played",
-			"sessions": "Sessions",
-			"currentStreak": "Current streak",
-			"streakDays": "{count, plural, one {1 day} other {# days}}",
-			"streakRecord": "Record: {days}",
-			"vsPrevious": "vs previous period"
-		},
-		"sections": {
-			"activity": "Activity — last 365 days",
-			"dailyPlaytime": "Daily playtime",
-			"topGames": "Top games",
-			"bySystem": "By system",
-			"recentSessions": "Recent sessions"
-		},
-		"heatmap": {
-			"empty": "Play some games to see your activity",
-			"less": "Less",
-			"more": "More",
-			"tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
-		},
-		"topGames": {
-			"empty": "No games played in this period",
-			"showMore": "Show more ({count} games)",
-			"showLess": "Show less"
-		},
-		"timeline": {
-			"empty": "No sessions recorded"
-		},
-		"streak": {
-			"days": "{count, plural, one {consecutive day} other {consecutive days}}",
-			"noStreak": "Start a new streak today!",
-			"record": "Record: {days, plural, one {1 day} other {# days}}"
-		},
-		"systemDistribution": {
-			"empty": "No data available",
-			"others": "Others"
-		},
-		"playtimeChart": {
-			"empty": "No activity in this period"
-		}
-	},
-	"settings": {
-		"title": "Settings",
-		"subtitle": "Configure your Recalbox Dashboard",
-		"loading": "Loading settings…",
-		"loadError": "Failed to load settings.",
-		"tabs": {
-			"recalbox": "Recalbox",
-			"scrobble": "Scrobble",
-			"interface": "Interface",
-			"retroachievements": "RetroAchievements",
-			"integrations": "Integrations",
-			"mqttPublish": "MQTT Publish",
-			"notifications": "Notifications",
-			"app": "App"
-		},
-		"recalbox": {
-			"cardTitle": "Recalbox Connection",
-			"cardDescription": "SSH and MQTT connectivity settings",
-			"passwordWarning": "SSH password is stored in plaintext. This dashboard is designed for trusted local networks only.",
-			"host": "Host / IP address",
-			"sshUser": "SSH user",
-			"sshPassword": "SSH password",
-			"sshPasswordPlaceholder": "Leave blank to keep current",
-			"sshPasswordHint": "Leave blank to keep the current password",
-			"sshPort": "SSH port",
-			"mqttPort": "MQTT port",
-			"testConnection": "Test Connection",
-			"testing": "Testing…",
-			"saved": "Recalbox settings saved",
-			"saveError": "Failed to save settings",
-			"testError": "Connection test failed",
-			"showPassword": "Show",
-			"hidePassword": "Hide"
-		},
-		"scrobble": {
-			"cardTitle": "Session Tracking",
-			"cardDescription": "Control how game sessions are recorded",
-			"minDuration": "Minimum session duration (seconds)",
-			"minDurationHint": "Sessions shorter than this are discarded",
-			"maxDuration": "Maximum session duration (hours)",
-			"maxDurationHint": "Orphan sessions are capped at this duration",
-			"orphanRecovery": "Orphan recovery threshold (hours)",
-			"orphanRecoveryHint": "Sessions older than this without an end event are considered orphans",
-			"saved": "Scrobble settings saved",
-			"saveError": "Failed to save settings"
-		},
-		"interface": {
-			"cardTitle": "Interface",
-			"cardDescription": "Display and localization preferences",
-			"language": "Language",
-			"locale": "Locale",
-			"theme": "Theme",
-			"themeSystem": "System",
-			"themeLight": "Light",
-			"themeDark": "Dark",
-			"weekStartsOn": "Week starts on",
-			"weekMonday": "Monday",
-			"weekSunday": "Sunday",
-			"saved": "Interface settings saved",
-			"saveError": "Failed to save settings"
-		},
-		"retroachievements": {
-			"cardTitle": "RetroAchievements",
-			"cardDescription": "Unlock tracking and achievement progress for your games",
-			"enabled": "Enable RetroAchievements",
-			"enabledHint": "Track achievement progress across your game library",
-			"username": "Username",
-			"usernamePlaceholder": "Your RetroAchievements username",
-			"usernameHint": "Auto-filled from your Recalbox config — click 🔄 to refresh",
-			"fetchUsernameHint": "Auto-detect from recalbox.conf",
-			"usernameNotFound": "Username not found in recalbox.conf",
-			"usernameError": "Failed to read recalbox.conf",
-			"apiKey": "Web API Key",
-			"apiKeyPlaceholder": "Your web API key",
-			"apiKeyHint": "Generate your key at ",
-			"showApiKey": "Show",
-			"hideApiKey": "Hide",
-			"autoSync": "Auto-sync interval (minutes)",
-			"autoSyncHint": "How often to sync achievement data in the background",
-			"testConnection": "Test Connection",
-			"testing": "Testing…",
-			"testSuccess": "Connected as {user}",
-			"testError": "Connection failed: {error}",
-			"testOk": "Connection successful",
-			"testFailed": "Connection failed — check your username and API key",
-			"saved": "RetroAchievements settings saved",
-			"saveError": "Failed to save settings"
-		},
-		"integrations": {
-			"cardTitle": "Integrations",
-			"cardDescription": "Connect the dashboard to Super Retrogamers encyclopedia",
-			"enabled": "Enable Super Retrogamers integration",
-			"enabledHint": "Show links and preview cards for games that have a page on Super Retrogamers",
-			"preferredRegion": "Preferred region",
-			"regionDefault": "No preference",
-			"apiUrl": "API URL (optional)",
-			"apiUrlHint": "Override the default Super Retrogamers API endpoint",
-			"testConnection": "Test connection",
-			"testing": "Testing…",
-			"testOk": "Connected — {ms}ms",
-			"testFailed": "Connection failed",
-			"enrich": "Enrich collection",
-			"enriching": "Enriching…",
-			"enrichDone": "{matched} matched out of {total} games",
-			"enrichError": "Enrichment failed",
-			"saved": "Saved",
-			"saveError": "Failed to save"
-		},
-		"mqttPublish": {
-			"cardTitle": "MQTT Publish",
-			"cardDescription": "Publish analytics to MQTT for Home Assistant and other tools",
-			"enabled": "Enable MQTT publishing",
-			"enabledHint": "Publish playtime, streak, and session stats to MQTT topics",
-			"brokerUrl": "Broker URL",
-			"brokerUrlHint": "Leave blank to use the Recalbox broker automatically",
-			"topicPrefix": "Topic prefix",
-			"topicPrefixHint": "All topics are published under this prefix",
-			"haDiscovery": "Home Assistant Discovery",
-			"haDiscoveryHint": "Auto-register sensors in Home Assistant via MQTT Discovery",
-			"saved": "MQTT publish settings saved",
-			"saveError": "Failed to save settings"
-		},
-		"notificationsTab": {
-			"cardTitle": "Notifications",
-			"cardDescription": "Manage how and when you receive notifications.",
-			"enabled": "Enable notifications",
-			"enabledHint": "Master switch for all notifications",
-			"channels": "Channels",
-			"inApp": "In-app (toasts)",
-			"webPush": "Web Push (background)",
-			"vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
-			"enable": "Enable",
-			"disable": "Disable",
-			"types": "Notification types",
-			"achievementUnlocked": "Achievement unlocked",
-			"hardcoreOnly": "Hardcore achievements only",
-			"gameStarted": "Game started",
-			"streakMilestone": "Streak milestone",
-			"wrappedAvailable": "Annual Wrapped available",
-			"systemAlerts": "System alerts",
-			"quietHours": "Quiet hours",
-			"quietHoursEnabled": "Enable quiet hours",
-			"from": "From",
-			"to": "to",
-			"devices": "Connected devices",
-			"test": "Test notification",
-			"testSent": "Test notification sent",
-			"regenerateVapid": "Regenerate VAPID keys",
-			"regenerateConfirm": "This will disconnect all devices. Continue?",
-			"regenerated": "VAPID keys regenerated — all devices disconnected",
-			"saved": "Notification preferences saved",
-			"saving": "Saving…",
-			"swError": "Could not register service worker",
-			"pushDenied": "Notification permission denied"
-		},
-		"app": {
-			"cardTitle": "App",
-			"cardDescription": "Installation and cache management",
-			"installed": "Installed on this device",
-			"notInstalled": "Not installed",
-			"version": "Version {version}",
-			"clearCache": "Clear cache",
-			"checkUpdates": "Check for updates",
-			"checkingUpdates": "Checking…",
-			"cacheClearedSuccess": "Cache cleared",
-			"cacheClearError": "Could not clear cache",
-			"updateChecked": "App is up to date",
-			"updateCheckError": "Could not check for updates",
-			"installInstructions": "Install on another device",
-			"installNow": "Install",
-			"iosInstructions": "Open in Safari → tap Share (□↑) → Add to Home Screen",
-			"androidInstructions": "Open in Chrome → tap menu (⋮) → Add to Home Screen",
-			"desktopInstructions": "Click the install icon (⊕) in the address bar",
-			"webPushNote": "Web Push notifications on iOS require the app to be installed as a PWA."
-		}
-	},
-	"achievements": {
-		"title": "RetroAchievements",
-		"notConfigured": "RetroAchievements is not configured. Enable it in Settings to track your achievement progress.",
-		"goToSettings": "Go to Settings",
-		"error": "Error",
-		"retry": "Retry",
-		"sync": "Sync now",
-		"syncing": "Syncing…",
-		"points": "hardcore pts",
-		"softcorePoints": "pts",
-		"truePoints": "true pts",
-		"activityHeatmap": "Activity — last 365 days",
-		"recentUnlocks": "Recent unlocks",
-		"topGames": "Top games by completion",
-		"heatmap": {
-			"label": "Achievements unlocked per day",
-			"less": "Less",
-			"more": "More"
-		}
-	},
-	"welcome": {
-		"title": "Welcome to Recalbox Dashboard",
-		"subtitle": "Let's get you set up in a few steps",
-		"steps": {
-			"configure": "Configure Recalbox",
-			"test": "Test Connection",
-			"confirm": "Confirm"
-		},
-		"step1": {
-			"title": "Recalbox Connection",
-			"description": "Enter the network details of your Recalbox console",
-			"next": "Next: Test Connection"
-		},
-		"step2": {
-			"title": "Test Connection",
-			"description": "Verifying SSH and MQTT connectivity to your Recalbox",
-			"testing": "Testing connection…",
-			"sshFailed": "SSH failed: check host, port, credentials. Default password is recalboxroot.",
-			"mqttFailed": "MQTT failed: check that the MQTT broker is enabled in Recalbox settings.",
-			"continue": "Continue"
-		},
-		"step3": {
-			"title": "All set!",
-			"descriptionOk": "Connection successful. Your dashboard is ready.",
-			"descriptionPartial": "You can complete setup now and fix any connection issues later in Settings.",
-			"host": "Host:",
-			"sshUser": "SSH user:",
-			"sshPort": "SSH port:",
-			"mqttPort": "MQTT port:",
-			"saving": "Saving…",
-			"finish": "Finish"
-		},
-		"form": {
-			"host": "Host / IP address",
-			"sshUser": "SSH user",
-			"sshPassword": "SSH password",
-			"sshPort": "SSH port",
-			"mqttPort": "MQTT port",
-			"showPassword": "Show",
-			"hidePassword": "Hide"
-		},
-		"notifications": {
-			"cardTitle": "Notifications",
-			"cardDescription": "Manage how and when you receive notifications.",
-			"enabled": "Enable notifications",
-			"enabledHint": "Master switch for all notifications",
-			"channels": "Channels",
-			"inApp": "In-app (toasts)",
-			"webPush": "Web Push (background)",
-			"vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
-			"enable": "Enable",
-			"disable": "Disable",
-			"types": "Notification types",
-			"achievementUnlocked": "Achievement unlocked",
-			"hardcoreOnly": "Hardcore achievements only",
-			"gameStarted": "Game started",
-			"streakMilestone": "Streak milestone",
-			"wrappedAvailable": "Annual Wrapped available",
-			"systemAlerts": "System alerts",
-			"quietHours": "Quiet hours",
-			"quietHoursEnabled": "Enable quiet hours",
-			"from": "From",
-			"to": "to",
-			"devices": "Connected devices",
-			"test": "Test notification",
-			"testSent": "Test notification sent",
-			"regenerateVapid": "Regenerate VAPID keys",
-			"regenerateConfirm": "This will disconnect all devices. Continue?",
-			"regenerated": "VAPID keys regenerated — all devices disconnected",
-			"saved": "Notification preferences saved",
-			"saving": "Saving…",
-			"swError": "Could not register service worker",
-			"pushDenied": "Notification permission denied"
-		}
-	},
-	"time": {
-		"duration": {
-			"seconds": "{seconds}s",
-			"minutes": "{minutes}m",
-			"hoursMinutes": "{hours}h{minutes}"
-		}
-	},
-	"power": {
-		"shutdown": "Shut down",
-		"reboot": "Reboot",
-		"confirmShutdownTitle": "Shut down Recalbox?",
-		"confirmShutdownDescription": "The console will power off. You will need to turn it back on manually.",
-		"confirmRebootTitle": "Reboot Recalbox?",
-		"confirmRebootDescription": "The console will restart. This will interrupt any ongoing session.",
-		"shutdownToast": "Shutting down…",
-		"rebootToast": "Rebooting…"
-	},
-	"superRetrogamers": {
-		"viewOnSr": "View on Super Retrogamers ↗",
-		"noPage": "No page on Super Retrogamers",
-		"check": "Check",
-		"preview": {
-			"notFound": "No page found on Super Retrogamers",
-			"error": "Could not load the page",
-			"retry": "Retry",
-			"stale": "Cached data — Super Retrogamers is unreachable",
-			"readFull": "Read full article ↗"
-		}
-	},
-	"wrapped": {
-		"nav": {
-			"archive": "My Wrapped",
-			"regen": "Regenerate"
-		},
-		"intro": {
-			"title": "Your {year} in review",
-			"subtitle": "Everything you played this year"
-		},
-		"totalTime": {
-			"headline": "{hours}h of gaming",
-			"subheadline": "{sessions} sessions",
-			"comparison": "That's like watching {movies} movies back-to-back"
-		},
-		"mostPlayedGame": {
-			"title": "Your most played game",
-			"hours": "{hours}h played",
-			"sessions": "{sessions} sessions"
-		},
-		"topSystem": {
-			"title": "Your top system",
-			"percentage": "{percent}% of your time"
-		},
-		"topGamesList": {
-			"title": "Your top games"
-		},
-		"longestSession": {
-			"title": "Your longest session",
-			"headline": "{hours}h {minutes}min on {game}"
-		},
-		"busiestDay": {
-			"title": "Your most active day",
-			"headline": "{hours}h on {date}",
-			"sessions": "{sessions} sessions"
-		},
-		"streak": {
-			"title": "Your streak record",
-			"headline": "{days} days in a row"
-		},
-		"achievements": {
-			"title": "Your RetroAchievements",
-			"headline": "{count} achievements unlocked",
-			"points": "{points} points",
-			"rarest": "Rarest: {title}"
-		},
-		"unlocks": {
-			"title": "Your secret badges",
-			"rarity": {
-				"common": "Common",
-				"uncommon": "Uncommon",
-				"rare": "Rare",
-				"legendary": "Legendary"
-			}
-		},
-		"comparison": {
-			"title": "vs. other players",
-			"headline": "You're in the top {percent}%",
-			"disclaimer": "Estimated averages — no tracking",
-			"yourHours": "You: {hours}h",
-			"avgHours": "Average: {hours}h"
-		},
-		"outro": {
-			"title": "See you next year!",
-			"share": "Share my Wrapped",
-			"archive": "See all years"
-		},
-		"noData": {
-			"title": "No sessions in {year}",
-			"subtitle": "Play some games and come back!",
-			"cta": "Go to stats"
-		},
-		"archive": {
-			"title": "My Wrapped",
-			"hoursPlayed": "{hours}h played",
-			"generatedOn": "Generated on {date}",
-			"view": "View"
-		},
-		"share": {
-			"title": "Share this slide",
-			"story": "Story (9:16)",
-			"square": "Square (1:1)",
-			"landscape": "Landscape (1.91:1)",
-			"download": "Download",
-			"shareNative": "Share"
-		},
-		"statsBanner": {
-			"text": "Your {year} Wrapped is taking shape — {hours}h · {topGame} in the lead",
-			"cta": "View my Wrapped"
-		}
-	},
-	"notifications": {
-		"bell": "Notifications",
-		"empty": "No notifications",
-		"markAllRead": "Mark all as read",
-		"achievementUnlocked": "🏆 Achievement unlocked",
-		"streakMilestone": "🔥 Streak milestone",
-		"wrappedAvailable": "🎮 Wrapped available",
-		"gameStarted": "▶️ Game started",
-		"systemAlert": "📢 System alert"
-	},
-	"pwa": {
-		"installBanner": {
-			"title": "Install Recalbox Dashboard",
-			"description": "Add to your home screen for the best experience.",
-			"installButton": "Install",
-			"dismissButton": "Dismiss",
-			"iosInstructions": "Tap Share (□↑) then \"Add to Home Screen\""
-		},
-		"update": {
-			"title": "Update available",
-			"description": "A new version of the app is ready.",
-			"action": "Update"
-		}
-	},
-	"offline": {
-		"title": "You're offline",
-		"description": "Check your connection and try again.",
-		"retry": "Retry"
-	},
-	"recalboxes": {
-		"switcher": {
-			"label": "Switch Recalbox",
-			"manage": "Manage Recalboxes",
-			"add": "Add Recalbox",
-			"viewAll": "View all Recalboxes"
-		},
-		"allPage": {
-			"title": "All Recalboxes",
-			"totalPlaytime": "Total Playtime",
-			"totalSessions": "Total Sessions",
-			"recalboxes": "Recalboxes"
-		},
-		"page": {
-			"title": "My Recalboxes",
-			"add": "Add Recalbox",
-			"default": "default",
-			"active": "active",
-			"edit": "Edit",
-			"archived": "Archived"
-		},
-		"form": {
-			"name": "Name",
-			"icon": "Icon",
-			"host": "Hostname",
-			"sshUser": "SSH User",
-			"sshPassword": "SSH Password",
-			"sshPort": "SSH Port",
-			"mqttPort": "MQTT Port",
-			"test": "Test connection",
-			"testing": "Testing…",
-			"show": "Show",
-			"hide": "Hide"
-		},
-		"add": {
-			"title": "Add Recalbox",
-			"submit": "Add",
-			"success": "Recalbox added successfully",
-			"error": "Failed to add Recalbox"
-		},
-		"edit": {
-			"title": "Edit {name}",
-			"submit": "Save changes",
-			"success": "Recalbox updated",
-			"error": "Failed to update Recalbox",
-			"deleteConfirm": "Delete this Recalbox? This cannot be undone.",
-			"deleteError": "Failed to delete Recalbox",
-			"deleteSuccess": "Recalbox deleted",
-			"archive": "Archive",
-			"archived": "Recalbox archived",
-			"delete": "Delete",
-			"loading": "Loading…"
-		}
-	}
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "retry": "Retry",
+    "loading": "Loading…",
+    "error": "Error"
+  },
+  "nav": {
+    "home": "🕹️ Recalbox",
+    "collection": "Collection",
+    "stats": "Stats",
+    "achievements": "Achievements",
+    "settings": "Settings",
+    "wrapped": "Wrapped"
+  },
+  "dashboard": {
+    "nowPlaying": {
+      "title": "Now Playing"
+    },
+    "system": {
+      "title": "System",
+      "loading": "Loading…",
+      "offline": "Recalbox offline — stats unavailable",
+      "waitingData": "Waiting for data…",
+      "cpuTemp": "CPU Temperature",
+      "cpuTempHistory": "CPU Temperature — last {seconds} seconds",
+      "tempNormal": "Normal",
+      "tempWarm": "Warm",
+      "tempCritical": "Critical",
+      "ramUsed": "{percent}% used",
+      "cpu": "CPU"
+    }
+  },
+  "nowPlaying": {
+    "mqttOffline": "MQTT offline — Recalbox unreachable",
+    "noGame": "No game playing"
+  },
+  "m3u": {
+    "title": "Multi-disc / .m3u",
+    "subtitle": "{games, plural, one {1 game} other {# games}} · {systems, plural, one {1 system} other {# systems}} · {missing, plural, =0 {all .m3u present} one {1 missing} other {# missing}}",
+    "generateMissing": "Generate missing",
+    "generating": "Generating…",
+    "discs": "{count} discs",
+    "status": {
+      "ok": ".m3u OK",
+      "missing": "Missing",
+      "gap": "Gap in discs",
+      "differs": "Content differs"
+    },
+    "actions": {
+      "generate": "Generate",
+      "update": "Update",
+      "confirmUpdate": "Confirm update",
+      "cancel": "Cancel"
+    },
+    "preview": "Preview .m3u",
+    "rescanNote": "A re-scan in EmulationStation may be needed for .m3u files to appear in Recalbox.",
+    "noGames": "No multi-disc games detected. Sync your collection first.",
+    "breadcrumb": "Collection",
+    "diffCurrent": "Current content",
+    "diffExpected": "New content"
+  },
+  "collection": {
+    "title": "Collection",
+    "subtitle": "{games} · {favorites} · {neverPlayed} · {systems}",
+    "gamesCount": "{count, plural, =0 {No games} one {1 game} other {# games}}",
+    "favoritesCount": "{count, plural, =0 {No favorites} one {1 favorite} other {# favorites}}",
+    "neverPlayedCount": "{count, plural, =0 {None never played} one {1 never played} other {# never played}}",
+    "systemsCount": "{count, plural, =0 {No systems} one {1 system} other {# systems}}",
+    "breadcrumb": "Collection",
+    "noGames": "No games found. Sync from your Recalbox.",
+    "totalGames": "{count, plural, =0 {No games} one {1 game} other {# games}}",
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "{page} / {total}"
+    },
+    "filters": {
+      "search": "Search…",
+      "favorites": "Favorites",
+      "neverPlayed": "Never played",
+      "sortName": "Name",
+      "sortRating": "Rating",
+      "sortLastPlayed": "Played",
+      "sortYear": "Year"
+    },
+    "sync": {
+      "button": "Sync from Recalbox",
+      "progress": "{done}/{total} · {games, plural, one {1 game} other {# games}}",
+      "done": "{count, plural, one {1 game} other {# games}} synced in {seconds}s",
+      "retry": "Retry"
+    }
+  },
+  "stats": {
+    "title": "Statistics",
+    "periods": {
+      "week": "This week",
+      "month": "This month",
+      "year": "This year",
+      "all": "All time"
+    },
+    "kpi": {
+      "playtime": "Playtime",
+      "gamesPlayed": "Games played",
+      "sessions": "Sessions",
+      "currentStreak": "Current streak",
+      "streakDays": "{count, plural, one {1 day} other {# days}}",
+      "streakRecord": "Record: {days}",
+      "vsPrevious": "vs previous period"
+    },
+    "sections": {
+      "activity": "Activity — last 365 days",
+      "dailyPlaytime": "Daily playtime",
+      "topGames": "Top games",
+      "bySystem": "By system",
+      "recentSessions": "Recent sessions"
+    },
+    "heatmap": {
+      "empty": "Play some games to see your activity",
+      "less": "Less",
+      "more": "More",
+      "tooltip": "{date} — {duration} ({count, plural, one {1 session} other {# sessions}})"
+    },
+    "topGames": {
+      "empty": "No games played in this period",
+      "showMore": "Show more ({count} games)",
+      "showLess": "Show less"
+    },
+    "timeline": {
+      "empty": "No sessions recorded"
+    },
+    "streak": {
+      "days": "{count, plural, one {consecutive day} other {consecutive days}}",
+      "noStreak": "Start a new streak today!",
+      "record": "Record: {days, plural, one {1 day} other {# days}}"
+    },
+    "systemDistribution": {
+      "empty": "No data available",
+      "others": "Others"
+    },
+    "playtimeChart": {
+      "empty": "No activity in this period"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure your Recalbox Dashboard",
+    "loading": "Loading settings…",
+    "loadError": "Failed to load settings.",
+    "tabs": {
+      "recalbox": "Recalbox",
+      "scrobble": "Scrobble",
+      "interface": "Interface",
+      "retroachievements": "RetroAchievements",
+      "integrations": "Integrations",
+      "mqttPublish": "MQTT Publish",
+      "notifications": "Notifications",
+      "app": "App"
+    },
+    "recalbox": {
+      "cardTitle": "Recalbox Connection",
+      "cardDescription": "SSH and MQTT connectivity settings",
+      "passwordWarning": "SSH password is stored in plaintext. This dashboard is designed for trusted local networks only.",
+      "host": "Host / IP address",
+      "sshUser": "SSH user",
+      "sshPassword": "SSH password",
+      "sshPasswordPlaceholder": "Leave blank to keep current",
+      "sshPasswordHint": "Leave blank to keep the current password",
+      "sshPort": "SSH port",
+      "mqttPort": "MQTT port",
+      "testConnection": "Test Connection",
+      "testing": "Testing…",
+      "saved": "Recalbox settings saved",
+      "saveError": "Failed to save settings",
+      "testError": "Connection test failed",
+      "showPassword": "Show",
+      "hidePassword": "Hide"
+    },
+    "scrobble": {
+      "cardTitle": "Session Tracking",
+      "cardDescription": "Control how game sessions are recorded",
+      "minDuration": "Minimum session duration (seconds)",
+      "minDurationHint": "Sessions shorter than this are discarded",
+      "maxDuration": "Maximum session duration (hours)",
+      "maxDurationHint": "Orphan sessions are capped at this duration",
+      "orphanRecovery": "Orphan recovery threshold (hours)",
+      "orphanRecoveryHint": "Sessions older than this without an end event are considered orphans",
+      "saved": "Scrobble settings saved",
+      "saveError": "Failed to save settings"
+    },
+    "interface": {
+      "cardTitle": "Interface",
+      "cardDescription": "Display and localization preferences",
+      "language": "Language",
+      "locale": "Locale",
+      "theme": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "weekStartsOn": "Week starts on",
+      "weekMonday": "Monday",
+      "weekSunday": "Sunday",
+      "saved": "Interface settings saved",
+      "saveError": "Failed to save settings"
+    },
+    "retroachievements": {
+      "cardTitle": "RetroAchievements",
+      "cardDescription": "Unlock tracking and achievement progress for your games",
+      "enabled": "Enable RetroAchievements",
+      "enabledHint": "Track achievement progress across your game library",
+      "username": "Username",
+      "usernamePlaceholder": "Your RetroAchievements username",
+      "usernameHint": "Auto-filled from your Recalbox config — click 🔄 to refresh",
+      "fetchUsernameHint": "Auto-detect from recalbox.conf",
+      "usernameNotFound": "Username not found in recalbox.conf",
+      "usernameError": "Failed to read recalbox.conf",
+      "apiKey": "Web API Key",
+      "apiKeyPlaceholder": "Your web API key",
+      "apiKeyHint": "Generate your key at ",
+      "showApiKey": "Show",
+      "hideApiKey": "Hide",
+      "autoSync": "Auto-sync interval (minutes)",
+      "autoSyncHint": "How often to sync achievement data in the background",
+      "testConnection": "Test Connection",
+      "testing": "Testing…",
+      "testSuccess": "Connected as {user}",
+      "testError": "Connection failed: {error}",
+      "testOk": "Connection successful",
+      "testFailed": "Connection failed — check your username and API key",
+      "saved": "RetroAchievements settings saved",
+      "saveError": "Failed to save settings"
+    },
+    "integrations": {
+      "cardTitle": "Integrations",
+      "cardDescription": "Connect the dashboard to Super Retrogamers encyclopedia",
+      "enabled": "Enable Super Retrogamers integration",
+      "enabledHint": "Show links and preview cards for games that have a page on Super Retrogamers",
+      "preferredRegion": "Preferred region",
+      "regionDefault": "No preference",
+      "apiUrl": "API URL (optional)",
+      "apiUrlHint": "Override the default Super Retrogamers API endpoint",
+      "testConnection": "Test connection",
+      "testing": "Testing…",
+      "testOk": "Connected — {ms}ms",
+      "testFailed": "Connection failed",
+      "enrich": "Enrich collection",
+      "enriching": "Enriching…",
+      "enrichDone": "{matched} matched out of {total} games",
+      "enrichError": "Enrichment failed",
+      "saved": "Saved",
+      "saveError": "Failed to save"
+    },
+    "mqttPublish": {
+      "cardTitle": "MQTT Publish",
+      "cardDescription": "Publish analytics to MQTT for Home Assistant and other tools",
+      "enabled": "Enable MQTT publishing",
+      "enabledHint": "Publish playtime, streak, and session stats to MQTT topics",
+      "brokerUrl": "Broker URL",
+      "brokerUrlHint": "Leave blank to use the Recalbox broker automatically",
+      "topicPrefix": "Topic prefix",
+      "topicPrefixHint": "All topics are published under this prefix",
+      "haDiscovery": "Home Assistant Discovery",
+      "haDiscoveryHint": "Auto-register sensors in Home Assistant via MQTT Discovery",
+      "saved": "MQTT publish settings saved",
+      "saveError": "Failed to save settings"
+    },
+    "notificationsTab": {
+      "cardTitle": "Notifications",
+      "cardDescription": "Manage how and when you receive notifications.",
+      "enabled": "Enable notifications",
+      "enabledHint": "Master switch for all notifications",
+      "channels": "Channels",
+      "inApp": "In-app (toasts)",
+      "webPush": "Web Push (background)",
+      "vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
+      "enable": "Enable",
+      "disable": "Disable",
+      "types": "Notification types",
+      "achievementUnlocked": "Achievement unlocked",
+      "hardcoreOnly": "Hardcore achievements only",
+      "gameStarted": "Game started",
+      "streakMilestone": "Streak milestone",
+      "wrappedAvailable": "Annual Wrapped available",
+      "systemAlerts": "System alerts",
+      "quietHours": "Quiet hours",
+      "quietHoursEnabled": "Enable quiet hours",
+      "from": "From",
+      "to": "to",
+      "devices": "Connected devices",
+      "test": "Test notification",
+      "testSent": "Test notification sent",
+      "regenerateVapid": "Regenerate VAPID keys",
+      "regenerateConfirm": "This will disconnect all devices. Continue?",
+      "regenerated": "VAPID keys regenerated — all devices disconnected",
+      "saved": "Notification preferences saved",
+      "saving": "Saving…",
+      "swError": "Could not register service worker",
+      "pushDenied": "Notification permission denied"
+    },
+    "app": {
+      "cardTitle": "App",
+      "cardDescription": "Installation and cache management",
+      "installed": "Installed on this device",
+      "notInstalled": "Not installed",
+      "version": "Version {version}",
+      "clearCache": "Clear cache",
+      "checkUpdates": "Check for updates",
+      "checkingUpdates": "Checking…",
+      "cacheClearedSuccess": "Cache cleared",
+      "cacheClearError": "Could not clear cache",
+      "updateChecked": "App is up to date",
+      "updateCheckError": "Could not check for updates",
+      "installInstructions": "Install on another device",
+      "installNow": "Install",
+      "iosInstructions": "Open in Safari → tap Share (□↑) → Add to Home Screen",
+      "androidInstructions": "Open in Chrome → tap menu (⋮) → Add to Home Screen",
+      "desktopInstructions": "Click the install icon (⊕) in the address bar",
+      "webPushNote": "Web Push notifications on iOS require the app to be installed as a PWA."
+    }
+  },
+  "achievements": {
+    "title": "RetroAchievements",
+    "notConfigured": "RetroAchievements is not configured. Enable it in Settings to track your achievement progress.",
+    "goToSettings": "Go to Settings",
+    "error": "Error",
+    "retry": "Retry",
+    "sync": "Sync now",
+    "syncing": "Syncing…",
+    "points": "hardcore pts",
+    "softcorePoints": "pts",
+    "truePoints": "true pts",
+    "activityHeatmap": "Activity — last 365 days",
+    "recentUnlocks": "Recent unlocks",
+    "topGames": "Top games by completion",
+    "heatmap": {
+      "label": "Achievements unlocked per day",
+      "less": "Less",
+      "more": "More"
+    }
+  },
+  "welcome": {
+    "title": "Welcome to Recalbox Dashboard",
+    "subtitle": "Let's get you set up in a few steps",
+    "steps": {
+      "configure": "Configure Recalbox",
+      "test": "Test Connection",
+      "confirm": "Confirm"
+    },
+    "step1": {
+      "title": "Recalbox Connection",
+      "description": "Enter the network details of your Recalbox console",
+      "next": "Next: Test Connection"
+    },
+    "step2": {
+      "title": "Test Connection",
+      "description": "Verifying SSH and MQTT connectivity to your Recalbox",
+      "testing": "Testing connection…",
+      "sshFailed": "SSH failed: check host, port, credentials. Default password is recalboxroot.",
+      "mqttFailed": "MQTT failed: check that the MQTT broker is enabled in Recalbox settings.",
+      "continue": "Continue"
+    },
+    "step3": {
+      "title": "All set!",
+      "descriptionOk": "Connection successful. Your dashboard is ready.",
+      "descriptionPartial": "You can complete setup now and fix any connection issues later in Settings.",
+      "host": "Host:",
+      "sshUser": "SSH user:",
+      "sshPort": "SSH port:",
+      "mqttPort": "MQTT port:",
+      "saving": "Saving…",
+      "finish": "Finish"
+    },
+    "form": {
+      "host": "Host / IP address",
+      "sshUser": "SSH user",
+      "sshPassword": "SSH password",
+      "sshPort": "SSH port",
+      "mqttPort": "MQTT port",
+      "showPassword": "Show",
+      "hidePassword": "Hide"
+    },
+    "notifications": {
+      "cardTitle": "Notifications",
+      "cardDescription": "Manage how and when you receive notifications.",
+      "enabled": "Enable notifications",
+      "enabledHint": "Master switch for all notifications",
+      "channels": "Channels",
+      "inApp": "In-app (toasts)",
+      "webPush": "Web Push (background)",
+      "vapidUnavailable": "VAPID keys not initialized — restart the scrobbler",
+      "enable": "Enable",
+      "disable": "Disable",
+      "types": "Notification types",
+      "achievementUnlocked": "Achievement unlocked",
+      "hardcoreOnly": "Hardcore achievements only",
+      "gameStarted": "Game started",
+      "streakMilestone": "Streak milestone",
+      "wrappedAvailable": "Annual Wrapped available",
+      "systemAlerts": "System alerts",
+      "quietHours": "Quiet hours",
+      "quietHoursEnabled": "Enable quiet hours",
+      "from": "From",
+      "to": "to",
+      "devices": "Connected devices",
+      "test": "Test notification",
+      "testSent": "Test notification sent",
+      "regenerateVapid": "Regenerate VAPID keys",
+      "regenerateConfirm": "This will disconnect all devices. Continue?",
+      "regenerated": "VAPID keys regenerated — all devices disconnected",
+      "saved": "Notification preferences saved",
+      "saving": "Saving…",
+      "swError": "Could not register service worker",
+      "pushDenied": "Notification permission denied"
+    }
+  },
+  "time": {
+    "duration": {
+      "seconds": "{seconds}s",
+      "minutes": "{minutes}m",
+      "hoursMinutes": "{hours}h{minutes}"
+    }
+  },
+  "power": {
+    "shutdown": "Shut down",
+    "reboot": "Reboot",
+    "confirmShutdownTitle": "Shut down Recalbox?",
+    "confirmShutdownDescription": "The console will power off. You will need to turn it back on manually.",
+    "confirmRebootTitle": "Reboot Recalbox?",
+    "confirmRebootDescription": "The console will restart. This will interrupt any ongoing session.",
+    "shutdownToast": "Shutting down…",
+    "rebootToast": "Rebooting…"
+  },
+  "superRetrogamers": {
+    "viewOnSr": "View on Super Retrogamers ↗",
+    "noPage": "No page on Super Retrogamers",
+    "check": "Check",
+    "preview": {
+      "notFound": "No page found on Super Retrogamers",
+      "error": "Could not load the page",
+      "retry": "Retry",
+      "stale": "Cached data — Super Retrogamers is unreachable",
+      "readFull": "Read full article ↗"
+    }
+  },
+  "wrapped": {
+    "nav": {
+      "archive": "My Wrapped",
+      "regen": "Regenerate"
+    },
+    "intro": {
+      "title": "Your {year} in review",
+      "subtitle": "Everything you played this year"
+    },
+    "totalTime": {
+      "headline": "{hours}h of gaming",
+      "subheadline": "{sessions} sessions",
+      "comparison": "That's like watching {movies} movies back-to-back"
+    },
+    "mostPlayedGame": {
+      "title": "Your most played game",
+      "hours": "{hours}h played",
+      "sessions": "{sessions} sessions"
+    },
+    "topSystem": {
+      "title": "Your top system",
+      "percentage": "{percent}% of your time"
+    },
+    "topGamesList": {
+      "title": "Your top games"
+    },
+    "longestSession": {
+      "title": "Your longest session",
+      "headline": "{hours}h {minutes}min on {game}"
+    },
+    "busiestDay": {
+      "title": "Your most active day",
+      "headline": "{hours}h on {date}",
+      "sessions": "{sessions} sessions"
+    },
+    "streak": {
+      "title": "Your streak record",
+      "headline": "{days} days in a row"
+    },
+    "achievements": {
+      "title": "Your RetroAchievements",
+      "headline": "{count} achievements unlocked",
+      "points": "{points} points",
+      "rarest": "Rarest: {title}"
+    },
+    "unlocks": {
+      "title": "Your secret badges",
+      "rarity": {
+        "common": "Common",
+        "uncommon": "Uncommon",
+        "rare": "Rare",
+        "legendary": "Legendary"
+      }
+    },
+    "comparison": {
+      "title": "vs. other players",
+      "headline": "You're in the top {percent}%",
+      "disclaimer": "Estimated averages — no tracking",
+      "yourHours": "You: {hours}h",
+      "avgHours": "Average: {hours}h"
+    },
+    "outro": {
+      "title": "See you next year!",
+      "share": "Share my Wrapped",
+      "archive": "See all years"
+    },
+    "noData": {
+      "title": "No sessions in {year}",
+      "subtitle": "Play some games and come back!",
+      "cta": "Go to stats"
+    },
+    "archive": {
+      "title": "My Wrapped",
+      "hoursPlayed": "{hours}h played",
+      "generatedOn": "Generated on {date}",
+      "view": "View"
+    },
+    "share": {
+      "title": "Share this slide",
+      "story": "Story (9:16)",
+      "square": "Square (1:1)",
+      "landscape": "Landscape (1.91:1)",
+      "download": "Download",
+      "shareNative": "Share"
+    },
+    "statsBanner": {
+      "text": "Your {year} Wrapped is taking shape — {hours}h · {topGame} in the lead",
+      "cta": "View my Wrapped"
+    }
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "empty": "No notifications",
+    "markAllRead": "Mark all as read",
+    "achievementUnlocked": "🏆 Achievement unlocked",
+    "streakMilestone": "🔥 Streak milestone",
+    "wrappedAvailable": "🎮 Wrapped available",
+    "gameStarted": "▶️ Game started",
+    "systemAlert": "📢 System alert"
+  },
+  "pwa": {
+    "installBanner": {
+      "title": "Install Recalbox Dashboard",
+      "description": "Add to your home screen for the best experience.",
+      "installButton": "Install",
+      "dismissButton": "Dismiss",
+      "iosInstructions": "Tap Share (□↑) then \"Add to Home Screen\""
+    },
+    "update": {
+      "title": "Update available",
+      "description": "A new version of the app is ready.",
+      "action": "Update"
+    }
+  },
+  "offline": {
+    "title": "You're offline",
+    "description": "Check your connection and try again.",
+    "retry": "Retry"
+  },
+  "recalboxes": {
+    "switcher": {
+      "label": "Switch Recalbox",
+      "manage": "Manage Recalboxes",
+      "add": "Add Recalbox",
+      "viewAll": "View all Recalboxes"
+    },
+    "allPage": {
+      "title": "All Recalboxes",
+      "totalPlaytime": "Total Playtime",
+      "totalSessions": "Total Sessions",
+      "recalboxes": "Recalboxes"
+    },
+    "page": {
+      "title": "My Recalboxes",
+      "add": "Add Recalbox",
+      "default": "default",
+      "active": "active",
+      "edit": "Edit",
+      "archived": "Archived"
+    },
+    "form": {
+      "name": "Name",
+      "icon": "Icon",
+      "host": "Hostname",
+      "sshUser": "SSH User",
+      "sshPassword": "SSH Password",
+      "sshPort": "SSH Port",
+      "mqttPort": "MQTT Port",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "show": "Show",
+      "hide": "Hide"
+    },
+    "add": {
+      "title": "Add Recalbox",
+      "submit": "Add",
+      "success": "Recalbox added successfully",
+      "error": "Failed to add Recalbox"
+    },
+    "edit": {
+      "title": "Edit {name}",
+      "submit": "Save changes",
+      "success": "Recalbox updated",
+      "error": "Failed to update Recalbox",
+      "deleteConfirm": "Delete this Recalbox? This cannot be undone.",
+      "deleteError": "Failed to delete Recalbox",
+      "deleteSuccess": "Recalbox deleted",
+      "archive": "Archive",
+      "archived": "Recalbox archived",
+      "delete": "Delete",
+      "loading": "Loading…"
+    }
+  },
+  "health": {
+    "title": "Collection health",
+    "scraping": {
+      "label": "Scraped",
+      "allDone": "Your collection is fully scraped.",
+      "gamesWithoutMedia": "{count} of {total} games missing cover or description",
+      "bySystem": "By system",
+      "noImage": "No cover",
+      "noDesc": "No desc"
+    },
+    "patron": {
+      "active": "Active Patron",
+      "invalidKey": "Your Patron key seems missing or invalid. If you are a Patron, re-enter it via the Recalbox Web Manager:",
+      "webManagerLink": "Open Web Manager"
+    },
+    "recommendation": {
+      "allDone": "Your collection is fully scraped.",
+      "withPatron": "{count, plural, one {1 game} other {# games}} to scrape. As a Patron, use the scraper in EmulationStation (Menu → Scraper) — you’ll use Recalbox servers, much faster than ScreenScraper.",
+      "withoutPatron": "{count, plural, one {1 game} other {# games}} to scrape. Launch the scraper from EmulationStation (Menu → Scraper)."
+    }
+  }
 }
