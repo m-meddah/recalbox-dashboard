@@ -261,6 +261,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 14 — Multi-Recalbox support: manage N Recalbox instances from one dashboard, per-user active switcher (cookie), SSH/MQTT connection pools, aggregated view, CRUD management UI
 - [x] Ticket 15 — MQTT Publish: push analytics (playtime, streaks, sessions, last game) to MQTT topics for Home Assistant, Node-RED and any MQTT client; Home Assistant Discovery auto-registers 8 sensors
 - [x] Ticket 16 — Multi-disc / .m3u Generator: detect multi-disc games (PSX, Saturn, Sega CD…) from the synced collection, generate `.m3u` playlist files with LF line endings, deploy to Recalbox over SSH from a dedicated `/collection/m3u` page
+- [x] Ticket 17 — Collection health panel: scrape diagnostic (missing cover/description per system, collapsible game list) + Patron key presence check with contextualised scraping recommendations
 
 ## RetroAchievements integration
 
