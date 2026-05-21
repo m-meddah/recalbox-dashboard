@@ -24,9 +24,9 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80', fontWeight: 500 }}>Total gaming time</div>
 					<div style={{ fontSize: 96, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>
-						{slide.totalHours}h
+						{`${slide.totalHours}h`}
 					</div>
-					<div style={{ fontSize: 16, color: '#ffffff60' }}>{slide.totalSessions} sessions</div>
+					<div style={{ fontSize: 16, color: '#ffffff60' }}>{`${slide.totalSessions} sessions`}</div>
 				</div>
 			)
 		case 'most-played-game':
@@ -37,7 +37,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 						{slide.gameName}
 					</div>
 					<div style={{ fontSize: 20, color: '#ffffff80' }}>
-						{slide.playtimeHours}h · {slide.sessionCount} sessions
+						{`${slide.playtimeHours}h · ${slide.sessionCount} sessions`}
 					</div>
 				</div>
 			)
@@ -50,10 +50,8 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 							key={g.gameName}
 							style={{ display: 'flex', justifyContent: 'space-between', color: '#ffffff' }}
 						>
-							<span style={{ fontWeight: 700 }}>
-								#{g.rank} {g.gameName}
-							</span>
-							<span style={{ color: '#ffffff80' }}>{g.playtimeHours}h</span>
+							<span style={{ fontWeight: 700 }}>{`#${g.rank} ${g.gameName}`}</span>
+							<span style={{ color: '#ffffff80' }}>{`${g.playtimeHours}h`}</span>
 						</div>
 					))}
 				</div>
@@ -63,7 +61,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Longest session</div>
 					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>
-						{slide.durationHours}h {slide.durationMinutes}min
+						{`${slide.durationHours}h ${slide.durationMinutes}min`}
 					</div>
 					<div style={{ fontSize: 20, color: '#ffffff' }}>{slide.gameName}</div>
 				</div>
@@ -74,7 +72,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>Most active day</div>
 					<div style={{ fontSize: 32, fontWeight: 900, color: '#ffffff' }}>{slide.dateStr}</div>
 					<div style={{ fontSize: 24, color: '#ffffff80' }}>
-						{slide.totalHours}h in {slide.sessionCount} sessions
+						{`${slide.totalHours}h in ${slide.sessionCount} sessions`}
 					</div>
 				</div>
 			)
@@ -95,7 +93,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>
 						{slide.system.toUpperCase()}
 					</div>
-					<div style={{ fontSize: 24, color: '#ffffff80' }}>{slide.percentage}% of your time</div>
+					<div style={{ fontSize: 24, color: '#ffffff80' }}>{`${slide.percentage}% of your time`}</div>
 				</div>
 			)
 		case 'achievements-summary':
@@ -106,7 +104,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 						{slide.totalUnlocked}
 					</div>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>
-						achievements · {slide.totalPoints} pts
+						{`achievements · ${slide.totalPoints} pts`}
 					</div>
 				</div>
 			)
@@ -127,10 +125,10 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 					<div style={{ fontSize: 18, color: '#ffffff80' }}>vs. other players</div>
 					<div style={{ fontSize: 60, fontWeight: 900, color: '#ffffff' }}>
-						Top {slide.percentile}%
+						{`Top ${slide.percentile}%`}
 					</div>
 					<div style={{ fontSize: 18, color: '#ffffff60' }}>
-						You: {slide.totalHours}h · Avg: {slide.averageHours}h
+						{`You: ${slide.totalHours}h · Avg: ${slide.averageHours}h`}
 					</div>
 				</div>
 			)
@@ -142,7 +140,7 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 						See you next year!
 					</div>
 					<div style={{ fontSize: 20, color: '#ffffff80' }}>
-						{slide.year} · {slide.totalHours}h played
+						{`${slide.year} · ${slide.totalHours}h played`}
 					</div>
 				</div>
 			)
