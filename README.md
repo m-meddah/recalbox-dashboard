@@ -258,6 +258,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 10 — Super Retrogamers cross-project linking (slug matching, proxy routes, UI touchpoints, API spec — see [docs/super-retrogamers-api-spec.md](docs/super-retrogamers-api-spec.md))
 - [x] Ticket 11 — Recalbox Wrapped: annual gaming recap at `/wrapped/:year` — glassmorphism slides, tap/swipe navigation, easter eggs, shareable PNG images, archive page
 - [x] Ticket 12 — Push notifications: in-app toasts via SSE + Web Push (background), achievement unlocks, streak milestones, annual Wrapped alert, notification center bell, quiet hours, per-type toggles
+- [x] Ticket 13 — PWA installable: web app manifest, home screen icons, offline fallback page, service worker updater — enables Web Push on iOS (requires PWA install)
 - [x] Ticket 14 — Multi-Recalbox support: manage N Recalbox instances from one dashboard, per-user active switcher (cookie), SSH/MQTT connection pools, aggregated view, CRUD management UI
 - [x] Ticket 15 — MQTT Publish: push analytics (playtime, streaks, sessions, last game) to MQTT topics for Home Assistant, Node-RED and any MQTT client; Home Assistant Discovery auto-registers 8 sensors
 - [x] Ticket 16 — Multi-disc / .m3u Generator: detect multi-disc games (PSX, Saturn, Sega CD…) from the synced collection, generate `.m3u` playlist files with LF line endings, deploy to Recalbox over SSH from a dedicated `/collection/m3u` page
@@ -394,6 +395,10 @@ The sync reads both files and merges them — `.ini` values take priority over X
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
