@@ -6,6 +6,7 @@ import { Geist } from 'next/font/google'
 import { notFound } from 'next/navigation'
 import '../globals.css'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { MobileNav } from '@/components/mobile-nav'
 import { NotificationBell } from '@/components/notification-bell'
 import { NotificationListener } from '@/components/notification-listener'
 import { PowerControls } from '@/components/power-controls'
@@ -72,41 +73,46 @@ export default async function LocaleLayout({ children, params }: Props) {
 				<ThemeProvider>
 					<NextIntlClientProvider>
 						<RecalboxEventsProvider>
-							<header className="border-b px-6 py-3">
+							<header className="border-b px-4 py-3">
 								<nav className="flex items-center gap-6">
-									<Link href="/" className="text-sm font-semibold hover:text-primary">
-										{t('home')}
-									</Link>
-									<Link
-										href="/collection"
-										className="text-sm text-muted-foreground hover:text-foreground"
-									>
-										{t('collection')}
-									</Link>
-									<Link
-										href="/stats"
-										className="text-sm text-muted-foreground hover:text-foreground"
-									>
-										{t('stats')}
-									</Link>
-									<Link
-										href="/achievements"
-										className="text-sm text-muted-foreground hover:text-foreground"
-									>
-										{t('achievements')}
-									</Link>
-									<Link
-										href="/settings"
-										className="text-sm text-muted-foreground hover:text-foreground"
-									>
-										{t('settings')}
-									</Link>
-									<Link
-										href="/wrapped"
-										className="text-sm text-muted-foreground hover:text-foreground"
-									>
-										{t('wrapped')}
-									</Link>
+									{/* Desktop nav links */}
+									<div className="hidden md:flex items-center gap-6">
+										<Link href="/" className="text-sm font-semibold hover:text-primary">
+											{t('home')}
+										</Link>
+										<Link
+											href="/collection"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('collection')}
+										</Link>
+										<Link
+											href="/stats"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('stats')}
+										</Link>
+										<Link
+											href="/achievements"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('achievements')}
+										</Link>
+										<Link
+											href="/settings"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('settings')}
+										</Link>
+										<Link
+											href="/wrapped"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('wrapped')}
+										</Link>
+									</div>
+									{/* Mobile hamburger */}
+									<MobileNav />
 									<div className="ml-auto flex items-center gap-2">
 										<NotificationBell />
 										<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />

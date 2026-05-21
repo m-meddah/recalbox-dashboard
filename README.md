@@ -84,6 +84,17 @@ The dashboard is a Progressive Web App — you can install it on your home scree
 > **HTTPS required** — PWA installation and Web Push notifications require a secure context. See [docs/https-setup.md](docs/https-setup.md) for Caddy, Tailscale, and Cloudflare Tunnel options.
 > **Web Push on iOS** requires the app to be installed as a PWA first (iOS 16.4+).
 
+### Accessing from a phone on the local network
+
+Open `http://<machine-ip>:3000` in Chrome on Android (or Safari on iOS) — replace `<machine-ip>` with the IP of the machine running the dashboard (`ip addr` / `hostname -I` to find it). The setup wizard and the full UI work normally from a mobile browser.
+
+**Dev mode limitation** — `pnpm dev` uses Turbopack, which does not fully support React hydration when the app is accessed from an external device on the local network. Interactive elements (navigation, theme toggle, etc.) will not respond. Use one of these workarounds instead:
+
+| Goal | Command |
+| ---- | ------- |
+| Test on mobile with a stable build | `pnpm build && pnpm --filter @recalbox/dashboard start` |
+| Live dev with mobile testing | `pnpm --filter @recalbox/dashboard dev:mobile` (binds Turbopack to `0.0.0.0`) |
+
 ### From source
 
 See [Getting started](#getting-started) below.
@@ -119,7 +130,8 @@ pnpm dev          # http://localhost:3000
 
 | Command | Description |
 | ------- | ----------- |
-| `pnpm dev` | Start Next.js dev server with Turbopack |
+| `pnpm dev` | Start Next.js dev server with Turbopack (localhost only) |
+| `pnpm --filter @recalbox/dashboard dev:mobile` | Dev server accessible from phones on the local network |
 | `pnpm build` | Build all packages |
 | `pnpm lint` | Biome lint + check |
 | `pnpm format` | Biome format (write) |
