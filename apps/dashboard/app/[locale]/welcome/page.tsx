@@ -169,7 +169,12 @@ export default function WelcomePage() {
 						</CardHeader>
 						<CardContent>
 							<Form {...form}>
-								<form onSubmit={form.handleSubmit(handleStep1)} className="space-y-4">
+								<form
+									onSubmit={form.handleSubmit(handleStep1)}
+									action="/api/welcome-setup"
+									method="post"
+									className="space-y-4"
+								>
 									<FormField
 										control={form.control}
 										name="host"
