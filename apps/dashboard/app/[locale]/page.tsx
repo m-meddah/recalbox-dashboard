@@ -15,7 +15,7 @@ export default async function Home({ params }: Props) {
 	const t = await getTranslations('dashboard')
 
 	return (
-		<main className="p-8">
+		<main className="p-4 sm:p-8">
 			<h1 className="text-2xl font-bold mb-6">Recalbox Dashboard</h1>
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 				<section>

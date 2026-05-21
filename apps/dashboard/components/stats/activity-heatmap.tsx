@@ -46,7 +46,8 @@ export function ActivityHeatmap({ heatmap }: Props) {
 	return (
 		<div className="space-y-2">
 			{isEmpty && <p className="text-center text-sm text-muted-foreground py-2">{t('empty')}</p>}
-			<div className="flex gap-1 overflow-x-auto pb-2">
+			<div className="overflow-x-auto pb-2">
+				<div className="flex gap-1 w-max">
 				{/* Day labels column */}
 				<div className="flex flex-col gap-[3px] pt-5 shrink-0">
 					{dayLabels.map((label, i) => (
@@ -86,6 +87,7 @@ export function ActivityHeatmap({ heatmap }: Props) {
 							</div>
 						)
 					})}
+				</div>
 				</div>
 			</div>
 

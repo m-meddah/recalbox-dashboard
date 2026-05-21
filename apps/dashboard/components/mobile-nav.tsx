@@ -1,5 +1,7 @@
 'use client'
 
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Link, usePathname } from '@/i18n/navigation'
 import { Menu, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -56,6 +58,10 @@ export function MobileNav() {
 							</Link>
 						))}
 					</nav>
+					<div className="flex items-center gap-3 px-4 py-4 border-t">
+						<ThemeToggle />
+						<LanguageSwitcher />
+					</div>
 				</div>
 			)}
 		</>

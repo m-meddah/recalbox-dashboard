@@ -108,20 +108,20 @@ export function SystemStatsChart() {
 
 	return (
 		<div className="space-y-4">
-			<div className="grid grid-cols-3 gap-4">
+			<div className="grid grid-cols-3 gap-2 sm:gap-4">
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
+						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
 							{t('cpuTemp')}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className={`text-3xl font-bold tabular-nums ${tempColorClass(current.tempCelsius)}`}>
+						<p className={`text-xl sm:text-3xl font-bold tabular-nums ${tempColorClass(current.tempCelsius)}`}>
 							{current.tempCelsius.toFixed(1)}°C
 						</p>
 						<Badge
 							variant="outline"
-							className={`mt-1 text-xs ${tempColorClass(current.tempCelsius)}`}
+							className={`mt-1 text-[10px] sm:text-xs ${tempColorClass(current.tempCelsius)}`}
 						>
 							{tempLabel}
 						</Badge>
@@ -130,10 +130,10 @@ export function SystemStatsChart() {
 
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">{t('cpu')}</CardTitle>
+						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('cpu')}</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold tabular-nums">{current.cpuPercent.toFixed(1)}%</p>
+						<p className="text-xl sm:text-3xl font-bold tabular-nums">{current.cpuPercent.toFixed(1)}%</p>
 						<div className="mt-2">
 							<Progress value={current.cpuPercent} className="h-2" />
 						</div>
@@ -142,14 +142,15 @@ export function SystemStatsChart() {
 
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">RAM</CardTitle>
+						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">RAM</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold tabular-nums">
+						<p className="text-xl sm:text-3xl font-bold tabular-nums">
 							{current.memUsedMb}
-							<span className="text-base font-normal text-muted-foreground">
+							<span className="text-xs sm:text-base font-normal text-muted-foreground">
 								{' '}
-								/ {current.memTotalMb} MB
+								/ {current.memTotalMb}
+								<span className="hidden sm:inline"> MB</span>
 							</span>
 						</p>
 						{ramPercent != null && (

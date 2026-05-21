@@ -51,21 +51,23 @@ export default async function StatsPage({ params }: Props) {
 			{/* Header + period tabs */}
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
-				<nav className="flex gap-1 rounded-xl border bg-muted/40 p-1 w-fit">
-					{PERIODS.map((p) => (
-						<Link
-							key={p}
-							href={`/stats/${p}`}
-							className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-								p === period
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-							}`}
-						>
-							{t(`periods.${p}`)}
-						</Link>
-					))}
-				</nav>
+				<div className="overflow-x-auto">
+					<nav className="flex gap-1 rounded-xl border bg-muted/40 p-1 w-fit min-w-full sm:min-w-fit">
+						{PERIODS.map((p) => (
+							<Link
+								key={p}
+								href={`/stats/${p}`}
+								className={`rounded-lg px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+									p === period
+										? 'bg-background text-foreground shadow-sm'
+										: 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+								}`}
+							>
+								{t(`periods.${p}`)}
+							</Link>
+						))}
+					</nav>
+				</div>
 			</div>
 
 			{/* KPI cards */}
