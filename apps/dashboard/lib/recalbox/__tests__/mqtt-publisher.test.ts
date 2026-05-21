@@ -25,7 +25,7 @@ vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { getLastClosedSession, getSessionStats } from '@/lib/db/queries'
+import { type SessionStats, getLastClosedSession, getSessionStats } from '@/lib/db/queries'
 import { computeAnalyticsSnapshot, mqttPublisher } from '../mqtt-publisher'
 
 const mockGetSessionStats = vi.mocked(getSessionStats)
@@ -38,7 +38,7 @@ function makeStats(
 		totalPlaytimeSec: number
 		totalSessions: number
 		topGames: Array<{ gameName: string }>
-		byDay: Array<{ date: string; playtimeSec: number }>
+		byDay: Array<{ date: string; playtimeSec: number; sessionCount: number }>
 	}> = {},
 ) {
 	return {
@@ -46,9 +46,9 @@ function makeStats(
 		totalSessions: overrides.totalSessions ?? 0,
 		uniqueGames: 0,
 		avgSessionSec: 0,
-		topGames: overrides.topGames ?? [],
+		topGames: (overrides.topGames ?? []) as unknown as SessionStats['topGames'],
 		byDay: overrides.byDay ?? [],
-		bySystem: [],
+		bySystem: [] as SessionStats['bySystem'],
 	}
 }
 

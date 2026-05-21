@@ -163,11 +163,11 @@ describe('detectMultiDiscGames', () => {
 		const result = await detectMultiDiscGames(ssh, 'rb1')
 
 		expect(result).toHaveLength(1)
-		expect(result[0].baseName).toBe('Final Fantasy VII (USA)')
-		expect(result[0].system).toBe('psx')
-		expect(result[0].discs).toHaveLength(2)
-		expect(result[0].discs[0].discNumber).toBe(1)
-		expect(result[0].discs[1].discNumber).toBe(2)
+		expect(result[0]!.baseName).toBe('Final Fantasy VII (USA)')
+		expect(result[0]!.system).toBe('psx')
+		expect(result[0]!.discs).toHaveLength(2)
+		expect(result[0]!.discs[0]!.discNumber).toBe(1)
+		expect(result[0]!.discs[1]!.discNumber).toBe(2)
 	})
 
 	it('sorts discs in ascending order', async () => {
@@ -177,7 +177,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 2).chd' },
 		])
 		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
-		expect(result[0].discs.map((d) => d.discNumber)).toEqual([1, 2, 3])
+		expect(result[0]!.discs.map((d) => d.discNumber)).toEqual([1, 2, 3])
 	})
 
 	it('discards single-disc groups', async () => {
@@ -195,7 +195,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
 		])
 		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
-		expect(result[0].hasGap).toBe(true)
+		expect(result[0]!.hasGap).toBe(true)
 	})
 
 	it('sets hasGap: false for consecutive discs', async () => {
@@ -205,7 +205,7 @@ describe('detectMultiDiscGames', () => {
 			{ system: 'psx', romPath: '/roms/psx/Game (Disc 3).chd' },
 		])
 		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
-		expect(result[0].hasGap).toBe(false)
+		expect(result[0]!.hasGap).toBe(false)
 	})
 
 	it('sets m3uAlreadyExists when .m3u present in SSH ls output', async () => {
@@ -215,7 +215,7 @@ describe('detectMultiDiscGames', () => {
 		])
 		const ssh = makeMockSsh('/roms/psx/Final Fantasy VII (USA).m3u\n')
 		const result = await detectMultiDiscGames(ssh, 'rb1')
-		expect(result[0].m3uAlreadyExists).toBe(true)
+		expect(result[0]!.m3uAlreadyExists).toBe(true)
 	})
 
 	it('sets m3uAlreadyExists: false when .m3u absent', async () => {
@@ -225,7 +225,7 @@ describe('detectMultiDiscGames', () => {
 		])
 		const ssh = makeMockSsh('')
 		const result = await detectMultiDiscGames(ssh, 'rb1')
-		expect(result[0].m3uAlreadyExists).toBe(false)
+		expect(result[0]!.m3uAlreadyExists).toBe(false)
 	})
 
 	it('groups games from different systems separately', async () => {
@@ -249,7 +249,7 @@ describe('detectMultiDiscGames', () => {
 		])
 		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1', 'psx')
 		expect(result).toHaveLength(1)
-		expect(result[0].system).toBe('psx')
+		expect(result[0]!.system).toBe('psx')
 	})
 
 	it('returns [] for non-disc-capable system', async () => {
@@ -264,6 +264,6 @@ describe('detectMultiDiscGames', () => {
 		])
 		const result = await detectMultiDiscGames(makeMockSsh(), 'rb1')
 		expect(result).toHaveLength(1)
-		expect(result[0].baseName).toBe('Biohazard 2 (Japan)')
+		expect(result[0]!.baseName).toBe('Biohazard 2 (Japan)')
 	})
 })
