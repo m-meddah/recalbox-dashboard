@@ -72,6 +72,7 @@ The dashboard runs as two independent processes that share the same SQLite datab
 ### Key directories in `apps/dashboard/`
 
 - `app/` — Next.js App Router pages and API routes; pages live under `app/[locale]/`
+- `app/recalbox-events-provider.tsx` — app-level wrapper that opens the SSE connection and broadcasts MQTT events to all children via context
 - `lib/db/` — Drizzle ORM schema (`schema.ts`), queries (`queries.ts`), and db singleton (`index.ts`)
 - `lib/recalbox/` — All Recalbox integration: MQTT client, SSH client, gamelist XML parser, userdata `.ini` parser, system stats
 - `lib/scrobbler/` — Session manager for the scrobbler daemon
@@ -81,6 +82,7 @@ The dashboard runs as two independent processes that share the same SQLite datab
 - `lib/notifications/` — Web Push notification service, VAPID key management, push subscriptions; cross-process delivery uses a 5-second DB poll in the SSE endpoint (scrobbler writes, Next.js reads) with an atomic `pushedInApp` flag to prevent duplicate delivery
 - `lib/super-retrogamers/` — Super Retrogamers community site integration (game page lookup, slug matching)
 - `lib/wrapped/` — Annual recap generator (playtime heatmap, top games, shareable images via Remotion)
+- `lib/collection-health.ts` — standalone scrape diagnostic (missing cover/description per system)
 - `lib/config.ts` — Typed config façade; reads from DB via `config-store.ts` (env vars used as fallback at first run)
 - `components/` — React components; `components/ui/` is shadcn/ui
 - `messages/` — i18n translation files (`en.json`, `fr.json`)
@@ -90,10 +92,11 @@ The dashboard runs as two independent processes that share the same SQLite datab
 
 ```
 Recalbox MQTT broker
-  → lib/recalbox/mqtt-client.ts  (singleton EventEmitter, auto-reconnect)
-  → lib/recalbox/events.ts       (parseRecalboxMessage — stateless, never throws)
-  → app/api/events/route.ts      (SSE endpoint, Node.js runtime)
-  → components/now-playing.tsx   (EventSource, no polling)
+  → lib/recalbox/mqtt-client.ts       (singleton EventEmitter, auto-reconnect)
+  → lib/recalbox/events.ts            (parseRecalboxMessage — stateless, never throws)
+  → app/api/events/route.ts           (SSE endpoint, Node.js runtime)
+  → app/recalbox-events-provider.tsx  (app-level EventSource, context broadcast)
+  → components/now-playing.tsx        (consumes context, no direct polling)
 ```
 
 ### Media proxy
@@ -104,9 +107,18 @@ Recalbox MQTT broker
 
 All UI routes live under `app/[locale]/` (locales: `en`, `fr`; default: `en`). The middleware in `proxy.ts` handles both i18n routing (via `next-intl`) and the setup wizard redirect: if the `setup_done` cookie is absent, every request is redirected to `/{locale}/welcome`.
 
+### Multi-Recalbox support
+
+Each Recalbox instance is a row in the `recalboxes` table (host, SSH creds, MQTT port, color, emoji). All data tables (`sessions`, `games`, `system_snapshots`, `ra_game_mapping`, `notifications`) carry a `recalbox_id` foreign key.
+
+The active instance is selected via an `active_recalbox_id` cookie so each browser session can point to a different Recalbox independently. `SshPool` and `MqttPool` (`lib/recalbox/`) maintain one client per Recalbox on demand, reconnecting automatically. The scrobbler subscribes to all non-archived instances at startup and reacts to add/remove events in real-time.
+
+In Docker, both the Next.js app and the scrobbler run inside a **single container** managed by [s6-overlay](https://github.com/just-containers/s6-overlay); service definitions live in `docker/s6-rc.d/`.
+
 ### Database schema (SQLite via Drizzle)
 
-- `sessions` — game play sessions (start/end timestamps, romPath, system, duration)
+- `recalboxes` — registered Recalbox instances (connection params, color, emoji, archived flag)
+- `sessions` — game play sessions (start/end timestamps, romPath, system, duration, recalbox_id)
 - `games` — collection imported from `gamelist.xml` files via SSH (metadata, artwork paths, favorites, region)
 - `system_snapshots` — periodic CPU/RAM/temp snapshots from SSH
 - `settings` — flat key-value store for all app config (format: `scope.key`)
