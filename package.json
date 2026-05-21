@@ -9,7 +9,11 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"test": "pnpm -r test",
-		"scrobbler:dev": "pnpm --filter @recalbox/dashboard scrobbler:dev"
+		"scrobbler:dev": "pnpm --filter @recalbox/dashboard scrobbler:dev",
+		"seed:dev": "pnpm --filter @recalbox/dashboard seed:dev",
+		"seed:clear": "pnpm --filter @recalbox/dashboard seed:clear",
+		"gamelist:import": "pnpm --filter @recalbox/dashboard gamelist:import",
+		"gamelist:clear": "pnpm --filter @recalbox/dashboard gamelist:clear"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.0",

@@ -125,7 +125,10 @@ pnpm dev          # http://localhost:3000
 | `pnpm format` | Biome format (write) |
 | `pnpm test` | Run all tests |
 | `pnpm scrobbler:dev` | Start MQTT scrobbler in watch mode |
-| `pnpm seed:dev` | Generate 200 fake sessions over 90 days |
+| `pnpm seed:dev` | Generate 200 fake sessions (demo/testing only — not for production) |
+| `pnpm seed:clear` | Remove all fake sessions inserted by `seed:dev` |
+| `pnpm gamelist:import` | Bootstrap real sessions from `lastPlayed` data in your collection |
+| `pnpm gamelist:clear` | Remove sessions created by `gamelist:import` |
 
 ## Ecosystem
 
@@ -353,11 +356,21 @@ The scrobbler daemon and the Next.js app run as separate processes. Notification
 
 **Components:** KPI cards (playtime, games, sessions, streak) · GitHub-style heatmap · daily playtime chart · top 10 games · system distribution · last 20 sessions timeline
 
-**Test data:**
+**Test data** (demo/testing only — do not run in production):
 
 ```bash
-pnpm seed:dev              # Generate 200 sessions over 90 days
-pnpm seed:dev -- --clear   # Delete seeded data
+pnpm seed:dev        # Generate 200 fake sessions over 90 days
+pnpm seed:clear      # Remove all fake sessions
+```
+
+**Bootstrap from real collection data:**
+
+```bash
+# First run a collection sync in Settings → Collection to populate lastPlayed
+pnpm gamelist:import                 # Create one session per game from lastPlayed
+pnpm gamelist:import --dry-run       # Preview without writing
+pnpm gamelist:import --duration 3600 # Assume 1-hour sessions (default: 30 min)
+pnpm gamelist:clear                  # Undo the import
 ```
 
 ## Collection API
