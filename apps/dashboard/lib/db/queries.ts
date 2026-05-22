@@ -469,7 +469,10 @@ export async function getSessionStats(
 			.from(sessions)
 			.leftJoin(
 				games,
-				and(eq(sessions.recalboxId, games.recalboxId), eq(sessions.romPath, games.romPath)),
+				and(
+					sql`${sessions.recalboxId} IS ${games.recalboxId}`,
+					eq(sessions.romPath, games.romPath),
+				),
 			)
 			.where(where)
 			.groupBy(sessions.romPath)
