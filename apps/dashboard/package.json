@@ -5,6 +5,8 @@
 	"scripts": {
 		"dev": "next dev --turbopack",
 		"dev:mobile": "next dev --turbopack --hostname 0.0.0.0",
+		"dev:all": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack\" \"tsx watch scripts/start-scrobbler.ts\"",
+		"dev:all:mobile": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack --hostname 0.0.0.0\" \"tsx watch scripts/start-scrobbler.ts\"",
 		"build": "next build",
 		"start": "next start",
 		"scrobbler": "tsx scripts/start-scrobbler.ts",
@@ -56,6 +58,7 @@
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
 		"@types/web-push": "^3.6.4",
+		"concurrently": "^9.2.1",
 		"drizzle-kit": "^0.31.10",
 		"esbuild": "^0.25.0",
 		"sharp": "^0.33.5",

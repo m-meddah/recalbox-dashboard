@@ -14,7 +14,9 @@ pnpm dev
 ## Commands
 
 ```bash
-pnpm dev              # Next.js dev server (Turbopack) — http://localhost:3000
+pnpm dev:all          # Next.js + scrobbler daemon together (recommended for dev)
+pnpm dev:all:mobile   # Same + accessible sur le réseau local (0.0.0.0)
+pnpm dev              # Next.js dev server only (Turbopack) — http://localhost:3000
 pnpm build            # Build all packages
 pnpm start            # Production server (after build)
 pnpm lint             # Biome lint + check

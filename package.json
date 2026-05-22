@@ -5,6 +5,8 @@
 	"packageManager": "pnpm@10.26.2",
 	"scripts": {
 		"dev": "pnpm --filter @recalbox/dashboard dev",
+		"dev:all": "pnpm --filter @recalbox/dashboard dev:all",
+		"dev:all:mobile": "pnpm --filter @recalbox/dashboard dev:all:mobile",
 		"build": "pnpm -r build",
 		"lint": "biome check .",
 		"format": "biome format --write .",
