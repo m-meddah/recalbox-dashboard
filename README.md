@@ -81,6 +81,22 @@ The dashboard is a Progressive Web App — you can install it on your home scree
 | **Android** | Chrome → menu (⋮) → **Add to Home Screen** |
 | **Desktop** | Chrome/Edge → click the install icon (⊕) in the address bar |
 
+### Coexistence with the Recalbox Web Manager
+
+The dashboard PWA is fully independent from the Recalbox Web Manager. Both
+can live on the same phone without conflict — they're two distinct web apps
+served from different origins, each running in its own isolated container with
+separate cookies, cache, and notifications.
+
+| App | URL | Best for |
+| --- | --- | --- |
+| Recalbox Web Manager | `http://recalbox.local` | Operations: BIOS upload, config edits, screenshots, logs |
+| This dashboard | Your install URL (e.g. `http://nas.local:3000`) | Analytics: playtime history, achievements, stats, Wrapped |
+
+Add both to your home screen if you want — they won't interfere. The Web
+Manager is a classic responsive site; this dashboard is a true PWA with native
+app feel (splash screen, no browser chrome, optional push notifications).
+
 > **HTTPS required** — PWA installation and Web Push notifications require a secure context. See [docs/https-setup.md](docs/https-setup.md) for Caddy, Tailscale, and Cloudflare Tunnel options.
 > **Web Push on iOS** requires the app to be installed as a PWA first (iOS 16.4+).
 
