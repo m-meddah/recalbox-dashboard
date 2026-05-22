@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-22
+
+### Fixed
+
+- Favicon not reliably served as a PWA; added `app/icon.png` and `app/apple-icon.png` following Next.js file convention
+- Horizontal overflow and broken responsive layout on Android devices
+- Satori layout error in Wrapped `SlideImage` caused by string concatenation; fixed with template literals
+- Welcome setup form favicon metadata moved to root layout so it is served on all routes
+
+### Changed
+
+- Mobile navigation replaced with a hamburger drawer; desktop nav links hidden on small viewports
+- Welcome setup form works without JavaScript via a new `/api/welcome-setup` POST route (progressive enhancement)
+- Developer bootstrap scripts added: `seed:clear`, `gamelist:import`, `gamelist:clear` for initial data population from existing `gamelist.xml` data
+
 ## [1.0.0] - 2026-05-20
 
 First public release. Recalbox Dashboard is a companion analytics tool for
@@ -101,5 +116,6 @@ than replacing it.
 - English and French UI via next-intl, with locale-prefix routing (`/en/`, `/fr/`)
 - All user-facing strings translated; locale auto-detected from browser preferences
 
-[Unreleased]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/m-meddah/recalbox-dashboard/releases/tag/v1.0.0
