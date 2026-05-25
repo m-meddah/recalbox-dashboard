@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
 		short_name: 'Recalbox',
 		description:
 			'Companion analytics dashboard for your Recalbox — playtime history, achievement progress, and an annual recap.',
-		start_url: '/',
+		start_url: '/en/?source=pwa',
 		display: 'standalone',
 		background_color: '#0a0a0a',
 		theme_color: '#0a0a0a',

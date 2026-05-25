@@ -556,6 +556,10 @@
       "title": "Mise à jour disponible",
       "description": "Une nouvelle version de l'application est prête.",
       "action": "Mettre à jour"
+    },
+    "connection": {
+      "offline": "Vous êtes hors ligne",
+      "online": "Connexion rétablie"
     }
   },
   "offline": {

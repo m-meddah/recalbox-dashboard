@@ -5,7 +5,8 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 export function ServiceWorkerUpdater() {
-	const t = useTranslations('pwa.update')
+	const tUpdate = useTranslations('pwa.update')
+	const tConnection = useTranslations('pwa.connection')
 
 	useEffect(() => {
 		if (!('serviceWorker' in navigator)) return
@@ -19,10 +20,10 @@ export function ServiceWorkerUpdater() {
 
 				newWorker.addEventListener('statechange', () => {
 					if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-						toast.info(t('title'), {
-							description: t('description'),
+						toast.info(tUpdate('title'), {
+							description: tUpdate('description'),
 							action: {
-								label: t('action'),
+								label: tUpdate('action'),
 								onClick: () => {
 									newWorker.postMessage({ type: 'SKIP_WAITING' })
 									window.location.reload()
@@ -36,7 +37,20 @@ export function ServiceWorkerUpdater() {
 
 			return () => clearInterval(interval)
 		})
-	}, [t])
+	}, [tUpdate])
+
+	useEffect(() => {
+		const onOffline = () => toast.warning(tConnection('offline'), { id: 'connection-status' })
+		const onOnline = () =>
+			toast.success(tConnection('online'), { id: 'connection-status', duration: 3000 })
+
+		window.addEventListener('offline', onOffline)
+		window.addEventListener('online', onOnline)
+		return () => {
+			window.removeEventListener('offline', onOffline)
+			window.removeEventListener('online', onOnline)
+		}
+	}, [tConnection])
 
 	return null
 }

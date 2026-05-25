@@ -1,6 +1,7 @@
 const CACHE_VERSION = 'v1'
 const STATIC_CACHE = `recalbox-static-${CACHE_VERSION}`
 const RUNTIME_CACHE = `recalbox-runtime-${CACHE_VERSION}`
+const MAX_RUNTIME_ENTRIES = 50
 const OFFLINE_URLS = ['/en/offline', '/fr/offline']
 const PRECACHE_URLS = [...OFFLINE_URLS, '/icons/icon-192.png', '/icons/icon-512.png']
 
@@ -99,6 +100,7 @@ async function handleHtmlRequest(request, url) {
 		if (response.ok) {
 			const cache = await caches.open(RUNTIME_CACHE)
 			cache.put(request, response.clone())
+			trimCache(cache, MAX_RUNTIME_ENTRIES)
 		}
 		return response
 	} catch {
@@ -122,6 +124,13 @@ async function handleStaticRequest(request) {
 		cache.put(request, response.clone())
 	}
 	return response
+}
+
+async function trimCache(cache, maxEntries) {
+	const keys = await cache.keys()
+	if (keys.length > maxEntries) {
+		await Promise.all(keys.slice(0, keys.length - maxEntries).map((k) => cache.delete(k)))
+	}
 }
 
 function isStaticAsset(pathname) {

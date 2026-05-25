@@ -556,6 +556,10 @@
       "title": "Update available",
       "description": "A new version of the app is ready.",
       "action": "Update"
+    },
+    "connection": {
+      "offline": "You're offline",
+      "online": "Back online"
     }
   },
   "offline": {
