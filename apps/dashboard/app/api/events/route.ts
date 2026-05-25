@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 				try {
 					controller.enqueue(encode(`data: ${JSON.stringify({ ...event, recalboxId })}\n\n`))
 				} catch (err) {
-					logger.debug('SSE enqueue failed (client likely disconnected)', err)
+					logger.info('SSE enqueue failed (client likely disconnected)', err)
 				}
 			}
 
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 						encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`),
 					)
 				} catch (err) {
-					logger.debug('SSE notification enqueue failed (client likely disconnected)', err)
+					logger.info('SSE notification enqueue failed (client likely disconnected)', err)
 				}
 			}
 
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 						encode(`data: ${JSON.stringify({ type: 'connection', online, recalboxId })}\n\n`),
 					)
 				} catch (err) {
-					logger.debug('SSE connection status enqueue failed (client likely disconnected)', err)
+					logger.info('SSE connection status enqueue failed (client likely disconnected)', err)
 				}
 			}
 
