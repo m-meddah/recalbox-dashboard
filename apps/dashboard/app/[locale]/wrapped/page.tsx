@@ -63,38 +63,38 @@ export default async function WrappedArchivePage({ params }: Props) {
 		<div className="h-full overflow-y-auto">
 			<div className="mx-auto max-w-sm px-4 py-8">
 				<div className="mb-6 flex items-center gap-3">
-					<Link href="/stats" className="text-white/50 hover:text-white">
+					<Link href="/stats" className="text-muted-foreground hover:text-foreground">
 						<ArrowLeft className="h-5 w-5" />
 					</Link>
-					<h1 className="text-2xl font-black text-white">{t('title')}</h1>
+					<h1 className="text-2xl font-black">{t('title')}</h1>
 				</div>
 
 				{years.length === 0 && (
-					<p className="text-center text-white/40 mt-12">No wrapped years yet.</p>
+					<p className="text-center text-muted-foreground mt-12">No wrapped years yet.</p>
 				)}
 
 				<div className="space-y-3">
 					{years.map((y) => (
 						<div
 							key={y.year}
-							className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-between"
+							className="rounded-2xl border bg-card p-4 flex items-center justify-between"
 						>
 							<div>
-								<p className="text-2xl font-black text-white">{y.year}</p>
+								<p className="text-2xl font-black">{y.year}</p>
 								{y.totalHours !== null && (
-									<p className="text-sm text-white/60">
+									<p className="text-sm text-muted-foreground">
 										{t('hoursPlayed', { hours: y.totalHours })}
 									</p>
 								)}
 								{y.generatedAt && (
-									<p className="text-xs text-white/30 mt-0.5">
+									<p className="text-xs text-muted-foreground/60 mt-0.5">
 										{t('generatedOn', { date: y.generatedAt.toLocaleDateString(locale) })}
 									</p>
 								)}
 							</div>
 							<Link
 								href={`/wrapped/${y.year}`}
-								className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black"
+								className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
 							>
 								{t('view')}
 							</Link>
