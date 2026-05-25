@@ -43,6 +43,9 @@ export const metadata: Metadata = {
 		statusBarStyle: 'black-translucent',
 		title: 'Recalbox',
 	},
+	other: {
+		'apple-mobile-web-app-capable': 'yes',
+	},
 }
 
 export const viewport: Viewport = {
