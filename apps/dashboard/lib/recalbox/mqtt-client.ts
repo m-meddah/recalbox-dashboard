@@ -3,11 +3,18 @@ import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import mqtt from 'mqtt'
 import { parseRecalboxMessage } from './events'
-import type { GameStartEvent, GameStopEvent, SystemChangeEvent, SystemInfoEvent } from './events'
+import type {
+	GameStartEvent,
+	GameStopEvent,
+	ScreensaverStartEvent,
+	ScreensaverStopEvent,
+	SystemChangeEvent,
+	SystemInfoEvent,
+} from './events'
 
 const ES_EVENT_TOPIC = 'Recalbox/WebAPI/EmulationStation/Event'
 const SYSTEM_INFO_TOPIC = 'Recalbox/WebAPI/SystemInfo'
-const SINGLETON_VERSION = 7
+const SINGLETON_VERSION = 8
 const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000]
 
 interface RecalboxClientEvents {
@@ -15,6 +22,8 @@ interface RecalboxClientEvents {
 	'game:stop': (event: GameStopEvent) => void
 	'system:change': (event: SystemChangeEvent) => void
 	'system:info': (event: SystemInfoEvent) => void
+	'screensaver:start': (event: ScreensaverStartEvent) => void
+	'screensaver:stop': (event: ScreensaverStopEvent) => void
 	'connection:up': () => void
 	'connection:down': () => void
 }
@@ -36,6 +45,8 @@ class RecalboxMqttClient extends EventEmitter {
 	private currentSystem: string | null = null
 	isConnected = false
 	lastKnownGame: GameStartEvent | null = null
+	lastKnownBrowsing: SystemChangeEvent | null = null
+	isScreensaverActive = false
 
 	constructor(private readonly brokerUrl: string) {
 		super()
@@ -65,19 +76,29 @@ class RecalboxMqttClient extends EventEmitter {
 			const event = parseRecalboxMessage(topic, payload)
 			if (!event) return
 			if (event.type === 'game:start') {
+				const enriched: GameStartEvent = this.isScreensaverActive
+					? { ...event, fromScreensaver: true }
+					: event
 				this.currentSystem = event.system
-				this.lastKnownGame = event
-				this.emit('game:start', event)
+				this.lastKnownGame = enriched
+				this.isScreensaverActive = false
+				this.emit('game:start', enriched)
 			} else if (event.type === 'game:stop') {
 				if (this.lastKnownGame?.romPath === event.romPath) this.lastKnownGame = null
 				this.emit('game:stop', event)
 			} else if (event.type === 'system:change') {
-				if (event.system !== this.currentSystem) {
-					this.currentSystem = event.system
-					this.emit('system:change', event)
-				}
+				this.currentSystem = event.system
+				this.lastKnownBrowsing = event
+				this.isScreensaverActive = false
+				this.emit('system:change', event)
 			} else if (event.type === 'system:info') {
 				this.emit('system:info', event)
+			} else if (event.type === 'screensaver:start') {
+				this.isScreensaverActive = true
+				this.emit('screensaver:start', event)
+			} else if (event.type === 'screensaver:stop') {
+				this.isScreensaverActive = false
+				this.emit('screensaver:stop', event)
 			}
 		})
 		this.client.on('error', (err) => logger.error('MQTT error', err))

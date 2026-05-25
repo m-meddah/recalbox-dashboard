@@ -5,8 +5,8 @@ import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
-import { Gamepad2, WifiOff } from 'lucide-react'
+import type { GameStartEvent, GameStopEvent, SystemChangeEvent } from '@/lib/recalbox/events'
+import { Gamepad2, Monitor, Moon, WifiOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -43,6 +43,18 @@ function LiveBadge() {
 				<span className="relative inline-flex rounded-full size-2 bg-green-500" />
 			</span>
 			LIVE
+		</span>
+	)
+}
+
+function BrowsingBadge() {
+	return (
+		<span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-500">
+			<span className="relative flex size-2">
+				<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+				<span className="relative inline-flex rounded-full size-2 bg-blue-500" />
+			</span>
+			BROWSING
 		</span>
 	)
 }
@@ -109,6 +121,64 @@ function GameCard({ game }: { game: GameStartEvent }) {
 	)
 }
 
+function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
+	const t = useTranslations('nowPlaying')
+	const imageUrl = browsing.imagePath
+		? `/api/media?path=${encodeURIComponent(browsing.imagePath)}`
+		: null
+
+	return (
+		<Card className="overflow-hidden border-blue-500/20">
+			<CardContent className="p-0">
+				<div className="flex gap-4 p-4">
+					<div className="shrink-0 w-24 h-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+						{imageUrl ? (
+							// eslint-disable-next-line @next/next/no-img-element
+							<img
+								src={imageUrl}
+								alt={browsing.gameName ?? browsing.systemFullName}
+								className="w-full h-full object-cover"
+								onError={(e) => {
+									e.currentTarget.style.display = 'none'
+								}}
+							/>
+						) : (
+							<Monitor className="size-10 text-muted-foreground" />
+						)}
+					</div>
+					<div className="flex flex-col justify-between min-w-0">
+						<div className="space-y-1">
+							<BrowsingBadge />
+							{browsing.gameName ? (
+								<p className="font-semibold leading-tight truncate">{browsing.gameName}</p>
+							) : (
+								<p className="font-semibold leading-tight truncate text-muted-foreground">
+									{t('browsingSystem')}
+								</p>
+							)}
+							<Badge variant="outline" className="text-xs">
+								{browsing.systemFullName}
+							</Badge>
+						</div>
+					</div>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
+function ScreensaverCard() {
+	const t = useTranslations('nowPlaying')
+	return (
+		<Card className="border-dashed border-indigo-500/30">
+			<CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
+				<Moon className="size-10 text-indigo-400 opacity-70" />
+				<p className="text-muted-foreground text-sm">{t('screensaver')}</p>
+			</CardContent>
+		</Card>
+	)
+}
+
 function EmptyState() {
 	const t = useTranslations('nowPlaying')
 	return (
@@ -143,20 +213,39 @@ export function NowPlaying() {
 	const t = useTranslations('nowPlaying')
 	const { mqttOnline, subscribe } = useRecalboxEvents()
 	const [currentGame, setCurrentGame] = useState<GameStartEvent | null>(null)
+	const [browsing, setBrowsing] = useState<SystemChangeEvent | null>(null)
+	const [screensaver, setScreensaver] = useState(false)
 
 	const handleEvent = useCallback((event: { type: string } & Record<string, unknown>) => {
 		if (event.type === 'game:start') {
 			const e = event as unknown as GameStartEvent
 			setCurrentGame({ ...e, startedAt: new Date(e.startedAt) })
+			setScreensaver(false)
 		} else if (event.type === 'game:stop') {
 			const e = event as unknown as GameStopEvent
 			setCurrentGame((prev) => (prev?.romPath === e.romPath ? null : prev))
+		} else if (event.type === 'system:change') {
+			const e = event as unknown as SystemChangeEvent
+			setBrowsing(e)
+			setScreensaver(false)
+		} else if (event.type === 'screensaver:start') {
+			setScreensaver(true)
+		} else if (event.type === 'screensaver:stop') {
+			setScreensaver(false)
 		}
 	}, [])
 
 	useEffect(() => {
 		return subscribe(handleEvent)
 	}, [subscribe, handleEvent])
+
+	const content = () => {
+		if (mqttOnline === null) return <LoadingSkeleton />
+		if (currentGame) return <GameCard game={currentGame} />
+		if (screensaver) return <ScreensaverCard />
+		if (browsing) return <BrowsingCard browsing={browsing} />
+		return <EmptyState />
+	}
 
 	return (
 		<div className="space-y-3">
@@ -166,13 +255,7 @@ export function NowPlaying() {
 					<span>{t('mqttOffline')}</span>
 				</div>
 			)}
-			{mqttOnline === null ? (
-				<LoadingSkeleton />
-			) : currentGame ? (
-				<GameCard game={currentGame} />
-			) : (
-				<EmptyState />
-			)}
+			{content()}
 		</div>
 	)
 }

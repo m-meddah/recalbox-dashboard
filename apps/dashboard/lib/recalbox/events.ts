@@ -17,6 +17,8 @@ export type GameStartEvent = {
 	imagePath?: string
 	emulator?: string
 	startedAt: Date
+	/** True when the game was launched by the screensaver (demo/attractmode). Scrobbler ignores these. */
+	fromScreensaver?: boolean
 }
 
 export type GameStopEvent = {
@@ -30,6 +32,17 @@ export type GameStopEvent = {
 export type SystemChangeEvent = {
 	type: 'system:change'
 	system: string
+	systemFullName: string
+	gameName?: string
+	imagePath?: string
+}
+
+export type ScreensaverStartEvent = {
+	type: 'screensaver:start'
+}
+
+export type ScreensaverStopEvent = {
+	type: 'screensaver:stop'
 }
 
 export type SystemInfoEvent = {
@@ -42,7 +55,13 @@ export type SystemInfoEvent = {
 	tempCelsius: number
 }
 
-export type RecalboxEvent = GameStartEvent | GameStopEvent | SystemChangeEvent | SystemInfoEvent
+export type RecalboxEvent =
+	| GameStartEvent
+	| GameStopEvent
+	| SystemChangeEvent
+	| SystemInfoEvent
+	| ScreensaverStartEvent
+	| ScreensaverStopEvent
 
 // ── Recalbox/WebAPI/EmulationStation/Event shape ─────────────────────────────
 
@@ -186,7 +205,16 @@ function parseEmulationStationEvent(payload: Buffer): RecalboxEvent | null {
 			return {
 				type: 'system:change',
 				system: system.name,
+				systemFullName: system.fullname,
+				gameName: game.name || undefined,
+				imagePath: media.image || undefined,
 			}
+
+		case 'sleep':
+			return { type: 'screensaver:start' }
+
+		case 'wakeup':
+			return { type: 'screensaver:stop' }
 
 		default:
 			return null

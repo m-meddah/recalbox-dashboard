@@ -35,7 +35,9 @@
   },
   "nowPlaying": {
     "mqttOffline": "MQTT hors ligne — Recalbox injoignable",
-    "noGame": "Aucun jeu en cours"
+    "noGame": "Aucun jeu en cours",
+    "screensaver": "Économiseur d'écran actif",
+    "browsingSystem": "Navigation…"
   },
   "m3u": {
     "title": "Multi-disques / .m3u",

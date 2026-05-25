@@ -88,7 +88,7 @@ describe('endgame', () => {
 })
 
 describe('gamebrowsing', () => {
-	it('maps to system:change', () => {
+	it('maps to system:change with system and game info', () => {
 		const result = parseRecalboxMessage(
 			ES_TOPIC,
 			buf({
@@ -102,6 +102,44 @@ describe('gamebrowsing', () => {
 		expect(result?.type).toBe('system:change')
 		if (result?.type !== 'system:change') return
 		expect(result.system).toBe('neogeo')
+		expect(result.systemFullName).toBe('Neo-Geo AES')
+		expect(result.gameName).toBe('2020 Super Baseball')
+		expect(result.imagePath).toBe(baseMedia.image)
+	})
+
+	it('sets gameName and imagePath to undefined when empty', () => {
+		const result = parseRecalboxMessage(
+			ES_TOPIC,
+			buf({
+				event: 'gamebrowsing',
+				param: '',
+				system: baseSystem,
+				game: { ...baseGame, name: '' },
+				media: { ...baseMedia, image: '' },
+			}),
+		)
+		expect(result?.type).toBe('system:change')
+		if (result?.type !== 'system:change') return
+		expect(result.gameName).toBeUndefined()
+		expect(result.imagePath).toBeUndefined()
+	})
+})
+
+describe('sleep / wakeup', () => {
+	it('sleep maps to screensaver:start', () => {
+		const result = parseRecalboxMessage(
+			ES_TOPIC,
+			buf({ event: 'sleep', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
+		)
+		expect(result?.type).toBe('screensaver:start')
+	})
+
+	it('wakeup maps to screensaver:stop', () => {
+		const result = parseRecalboxMessage(
+			ES_TOPIC,
+			buf({ event: 'wakeup', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
+		)
+		expect(result?.type).toBe('screensaver:stop')
 	})
 })
 
@@ -110,7 +148,7 @@ describe('gamebrowsing', () => {
 it('returns null for unknown event string', () => {
 	const result = parseRecalboxMessage(
 		ES_TOPIC,
-		buf({ event: 'sleep', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
+		buf({ event: 'unknownevent', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
 	)
 	expect(result).toBeNull()
 })

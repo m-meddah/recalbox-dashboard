@@ -33,7 +33,11 @@ export async function startScrobbler(): Promise<Scrobbler> {
 
 	const subscriptions = new Map<
 		string,
-		{ start: (e: GameStartEvent) => void; stop: (e: GameStopEvent) => void }
+		{
+			start: (e: GameStartEvent) => void
+			stop: (e: GameStopEvent) => void
+			screensaverStop: () => void
+		}
 	>()
 
 	function subscribeToRecalbox(recalboxId: string): void {
@@ -42,6 +46,10 @@ export async function startScrobbler(): Promise<Scrobbler> {
 		client.connect()
 
 		const onStart = async (event: GameStartEvent) => {
+			if (event.fromScreensaver) {
+				logger.info(`Ignoring demo mode launch for ${event.romPath}`)
+				return
+			}
 			try {
 				await manager.openSession(event, recalboxId)
 			} catch (err) {
@@ -57,9 +65,28 @@ export async function startScrobbler(): Promise<Scrobbler> {
 			}
 		}
 
+		const onScreensaverStop = async () => {
+			// User pressed a button to take over a demo-mode game — open a real session from now.
+			// We check fromScreensaver on lastKnownGame: if the running game was launched by the
+			// screensaver and the user just woke it up, it's now a real play session.
+			if (!client.lastKnownGame?.fromScreensaver) return
+			const realEvent: GameStartEvent = {
+				...client.lastKnownGame,
+				fromScreensaver: false,
+				startedAt: new Date(),
+			}
+			try {
+				await manager.openSession(realEvent, recalboxId)
+				logger.info(`Opened takeover session for ${realEvent.romPath} (demo → real play)`)
+			} catch (err) {
+				logger.error(`Error opening takeover session [${recalboxId}]`, err)
+			}
+		}
+
 		client.on('game:start', onStart)
 		client.on('game:stop', onStop)
-		subscriptions.set(recalboxId, { start: onStart, stop: onStop })
+		client.on('screensaver:stop', onScreensaverStop)
+		subscriptions.set(recalboxId, { start: onStart, stop: onStop, screensaverStop: onScreensaverStop })
 		logger.info(`Scrobbler subscribed to Recalbox ${recalboxId}`)
 	}
 
@@ -70,6 +97,7 @@ export async function startScrobbler(): Promise<Scrobbler> {
 			const client = getMqttClientFor(recalboxId)
 			client.off('game:start', handlers.start)
 			client.off('game:stop', handlers.stop)
+			client.off('screensaver:stop', handlers.screensaverStop)
 		} catch {}
 		subscriptions.delete(recalboxId)
 		logger.info(`Scrobbler unsubscribed from Recalbox ${recalboxId}`)

@@ -35,7 +35,9 @@
   },
   "nowPlaying": {
     "mqttOffline": "MQTT offline — Recalbox unreachable",
-    "noGame": "No game playing"
+    "noGame": "No game playing",
+    "screensaver": "Screensaver active",
+    "browsingSystem": "Browsing…"
   },
   "m3u": {
     "title": "Multi-disc / .m3u",

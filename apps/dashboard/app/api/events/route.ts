@@ -6,6 +6,8 @@ import type {
 	GameStartEvent,
 	GameStopEvent,
 	RecalboxEvent,
+	ScreensaverStartEvent,
+	ScreensaverStopEvent,
 	SystemChangeEvent,
 	SystemInfoEvent,
 } from '@/lib/recalbox/events'
@@ -69,14 +71,22 @@ export async function GET(request: Request) {
 				}
 
 				sendConnectionStatus(recalboxId, client.isConnected)
-				if (client.lastKnownGame && (!recalboxIdFilter || recalboxIdFilter === recalboxId)) {
-					sendEvent(recalboxId, client.lastKnownGame)
+				if (!recalboxIdFilter || recalboxIdFilter === recalboxId) {
+					if (client.lastKnownGame) {
+						sendEvent(recalboxId, client.lastKnownGame)
+					} else if (client.isScreensaverActive) {
+						sendEvent(recalboxId, { type: 'screensaver:start' })
+					} else if (client.lastKnownBrowsing) {
+						sendEvent(recalboxId, client.lastKnownBrowsing)
+					}
 				}
 
 				const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
 				const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
 				const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
 				const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
+				const onScreensaverStart = (e: ScreensaverStartEvent) => sendEvent(recalboxId, e)
+				const onScreensaverStop = (e: ScreensaverStopEvent) => sendEvent(recalboxId, e)
 				const onUp = () => sendConnectionStatus(recalboxId, true)
 				const onDown = () => sendConnectionStatus(recalboxId, false)
 
@@ -84,6 +94,8 @@ export async function GET(request: Request) {
 				client.on('game:stop', onGameStop)
 				client.on('system:change', onSystemChange)
 				client.on('system:info', onSystemInfo)
+				client.on('screensaver:start', onScreensaverStart)
+				client.on('screensaver:stop', onScreensaverStop)
 				client.on('connection:up', onUp)
 				client.on('connection:down', onDown)
 
@@ -92,6 +104,8 @@ export async function GET(request: Request) {
 					client.off('game:stop', onGameStop)
 					client.off('system:change', onSystemChange)
 					client.off('system:info', onSystemInfo)
+					client.off('screensaver:start', onScreensaverStart)
+					client.off('screensaver:stop', onScreensaverStop)
 					client.off('connection:up', onUp)
 					client.off('connection:down', onDown)
 				})
