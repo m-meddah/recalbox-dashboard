@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { logger } from '@/lib/logger'
 import { getNotificationService } from '@/lib/notifications/service'
 import type { Notification } from '@/lib/notifications/types'
 import type {
@@ -27,7 +28,9 @@ export async function GET(request: Request) {
 				if (recalboxIdFilter && recalboxIdFilter !== recalboxId) return
 				try {
 					controller.enqueue(encode(`data: ${JSON.stringify({ ...event, recalboxId })}\n\n`))
-				} catch {}
+				} catch (err) {
+					logger.debug('SSE enqueue failed (client likely disconnected)', err)
+				}
 			}
 
 			const sendNotification = (notif: Notification) => {
@@ -35,7 +38,9 @@ export async function GET(request: Request) {
 					controller.enqueue(
 						encode(`data: ${JSON.stringify({ type: 'notification', notification: notif })}\n\n`),
 					)
-				} catch {}
+				} catch (err) {
+					logger.debug('SSE notification enqueue failed (client likely disconnected)', err)
+				}
 			}
 
 			const sendConnectionStatus = (recalboxId: string, online: boolean) => {
@@ -44,7 +49,9 @@ export async function GET(request: Request) {
 					controller.enqueue(
 						encode(`data: ${JSON.stringify({ type: 'connection', online, recalboxId })}\n\n`),
 					)
-				} catch {}
+				} catch (err) {
+					logger.debug('SSE connection status enqueue failed (client likely disconnected)', err)
+				}
 			}
 
 			const recalboxIds = configStore
@@ -104,7 +111,9 @@ export async function GET(request: Request) {
 						const claimed = await notifService.markPushedInApp(notif.id)
 						if (claimed) sendNotification(notif)
 					}
-				} catch {}
+				} catch (err) {
+					logger.error('Notification poll failed', err)
+				}
 			}
 			const pollInterval = setInterval(pollNotifications, 5000)
 

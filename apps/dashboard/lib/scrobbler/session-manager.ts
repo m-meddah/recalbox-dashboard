@@ -111,7 +111,7 @@ export class SessionManager {
 		await this.close(match.id, event.stoppedAt, durationSec)
 		logger.info(`Closed session ${match.id} (${durationSec}s) for ${event.romPath}`)
 
-		this.checkStreakMilestone().catch(() => {})
+		this.checkStreakMilestone().catch((err) => logger.error('Streak milestone check failed', err))
 	}
 
 	private async checkStreakMilestone(): Promise<void> {
@@ -149,7 +149,7 @@ export class SessionManager {
 				type: 'streak.milestone',
 				data: { days: streak },
 			})
-			if (notif) sendWebPush(notif).catch(() => {})
+			if (notif) sendWebPush(notif).catch((err) => logger.error('Web push delivery failed', err))
 		}
 	}
 

@@ -14,6 +14,13 @@ export async function GET(req: NextRequest) {
 	const toParam = params.get('toDate')
 	const autoClosedParam = params.get('autoClosed')
 
+	if (fromParam && Number.isNaN(new Date(fromParam).getTime())) {
+		return NextResponse.json({ error: 'Invalid fromDate' }, { status: 400 })
+	}
+	if (toParam && Number.isNaN(new Date(toParam).getTime())) {
+		return NextResponse.json({ error: 'Invalid toDate' }, { status: 400 })
+	}
+
 	const result = await listSessions({
 		system: params.get('system') ?? undefined,
 		romPath: params.get('romPath') ?? undefined,
