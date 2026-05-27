@@ -20,11 +20,14 @@ export async function getCachedWrapped(year: number, locale: string): Promise<Wr
 		.get()
 
 	if (row && !isCacheStale(row.generatedAt, year)) {
-		return JSON.parse(row.data, (key, value) => {
+		const parsed = JSON.parse(row.data, (key, value) => {
 			if (key === 'generatedAt' && typeof value === 'string') return new Date(value)
 			if (key === 'startedAt' && typeof value === 'string') return new Date(value)
 			return value
 		}) as Wrapped
+		const totalTimeSlide = parsed.slides.find((s) => s.type === 'total-time')
+		if (!totalTimeSlide || 'totalMinutes' in totalTimeSlide) return parsed
+		// stale shape — regenerate below
 	}
 
 	const wrapped = await generateWrapped(year, locale)

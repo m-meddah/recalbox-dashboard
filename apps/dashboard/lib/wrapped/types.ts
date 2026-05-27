@@ -10,6 +10,7 @@ export type IntroSlide = { type: 'intro' }
 export type TotalTimeSlide = {
 	type: 'total-time'
 	totalHours: number
+	totalMinutes: number
 	totalSessions: number
 	comparisonMovies: number
 }
@@ -19,6 +20,7 @@ export type MostPlayedGameSlide = {
 	gameName: string
 	system: string
 	playtimeHours: number
+	playtimeMinutes: number
 	sessionCount: number
 	imagePath: string | null
 }
@@ -32,7 +34,7 @@ export type TopSystemSlide = {
 
 export type TopGamesListSlide = {
 	type: 'top-games-list'
-	games: Array<{ gameName: string; system: string; playtimeHours: number; rank: number }>
+	games: Array<{ gameName: string; system: string; playtimeHours: number; playtimeMinutes: number; rank: number }>
 }
 
 export type LongestSessionSlide = {
@@ -47,6 +49,7 @@ export type BusiestDaySlide = {
 	type: 'busiest-day'
 	dateStr: string
 	totalHours: number
+	totalMinutes: number
 	sessionCount: number
 }
 
@@ -72,6 +75,7 @@ export type ComparisonSlide = {
 	type: 'comparison-vs-others'
 	percentile: number
 	totalHours: number
+	totalMinutes: number
 	averageHours: number
 }
 
@@ -79,6 +83,7 @@ export type OutroSlide = {
 	type: 'outro'
 	year: number
 	totalHours: number
+	totalMinutes: number
 }
 
 export type WrappedSlide =

@@ -16,7 +16,11 @@ export function ComparisonSlideView({ slide }: Props) {
 				</p>
 				<div className="mt-4 flex justify-center gap-6">
 					<div>
-						<p className="text-xl font-bold text-white">{slide.totalHours}h</p>
+						<p className="text-xl font-bold text-white">
+							{slide.totalHours > 0
+								? `${slide.totalHours}h${slide.totalMinutes > 0 ? ` ${slide.totalMinutes}m` : ''}`
+								: `${slide.totalMinutes}m`}
+						</p>
 						<p className="text-xs text-white/40">
 							{t('comparison.yourHours', { hours: '' }).trim()}
 						</p>

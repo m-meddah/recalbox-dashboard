@@ -48,8 +48,9 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 		const totalTimeSlide: TotalTimeSlide = {
 			type: 'total-time',
 			totalHours,
+			totalMinutes: Math.floor((total % 3600) / 60),
 			totalSessions: data.totalSessions,
-			comparisonMovies: Math.round((totalHours * 60) / 120),
+			comparisonMovies: Math.round(total / 7200),
 		}
 		slides.push(totalTimeSlide)
 	}
@@ -62,6 +63,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 			gameName: g.gameName,
 			system: g.system,
 			playtimeHours: Math.floor(g.playtimeSec / 3600),
+			playtimeMinutes: Math.floor((g.playtimeSec % 3600) / 60),
 			sessionCount: g.sessionCount,
 			imagePath: g.imagePath,
 		}
@@ -91,6 +93,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 				gameName: g.gameName,
 				system: g.system,
 				playtimeHours: Math.floor(g.playtimeSec / 3600),
+				playtimeMinutes: Math.floor((g.playtimeSec % 3600) / 60),
 				rank: i + 1,
 			})),
 		}
@@ -114,6 +117,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 			type: 'busiest-day',
 			dateStr: data.busiestDay.dateStr,
 			totalHours: Math.floor(data.busiestDay.totalSec / 3600),
+			totalMinutes: Math.floor((data.busiestDay.totalSec % 3600) / 60),
 			sessionCount: data.busiestDay.sessionCount,
 		}
 		slides.push(slide)
@@ -165,12 +169,13 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 			type: 'comparison-vs-others',
 			percentile: computePercentile(totalHours),
 			totalHours,
+			totalMinutes: Math.floor((total % 3600) / 60),
 			averageHours: AVERAGE_HOURS_PER_YEAR,
 		}
 		slides.push(slide)
 	}
 
-	const outro: OutroSlide = { type: 'outro', year: data.year, totalHours }
+	const outro: OutroSlide = { type: 'outro', year: data.year, totalHours, totalMinutes: Math.floor((total % 3600) / 60) }
 	slides.push(outro)
 
 	return slides

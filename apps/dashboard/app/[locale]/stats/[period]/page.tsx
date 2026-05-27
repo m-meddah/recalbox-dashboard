@@ -44,6 +44,7 @@ export default async function StatsPage({ params }: Props) {
 				<WrappedPreviewBanner
 					year={currentYear}
 					hours={wrappedPreview.hours}
+					minutes={wrappedPreview.minutes}
 					topGame={wrappedPreview.topGame}
 				/>
 			)}

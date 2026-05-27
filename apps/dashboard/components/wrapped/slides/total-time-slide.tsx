@@ -8,7 +8,8 @@ import { GlassCard, SlideShell } from '../slide-shell'
 
 type Props = { slide: TotalTimeSlide }
 
-function AnimatedHours({ target }: { target: number }) {
+function AnimatedValue({ target }: { target: number }) {
+	const safeTarget = Number.isFinite(target) ? target : 0
 	const [current, setCurrent] = useState(0)
 	useEffect(() => {
 		const duration = 2000
@@ -16,23 +17,38 @@ function AnimatedHours({ target }: { target: number }) {
 		let i = 0
 		const id = setInterval(() => {
 			i++
-			setCurrent(Math.min(target, Math.round((target / steps) * i)))
+			setCurrent(Math.min(safeTarget, Math.round((safeTarget / steps) * i)))
 			if (i >= steps) clearInterval(id)
 		}, duration / steps)
 		return () => clearInterval(id)
-	}, [target])
+	}, [safeTarget])
 	return <span className="text-8xl font-black text-white tabular-nums">{current}</span>
 }
 
 export function TotalTimeSlideView({ slide }: Props) {
 	const t = useTranslations('wrapped')
+	const hours = slide.totalHours ?? 0
+	const minutes = slide.totalMinutes ?? 0
+	const showHours = hours > 0
 	return (
 		<SlideShell accent={SLIDE_ACCENTS['total-time']}>
 			<GlassCard className="flex flex-col items-center gap-3 text-center">
 				<p className="text-sm text-white/60">{t('totalTime.headline', { hours: '' }).trim()}</p>
 				<div className="flex items-end gap-1">
-					<AnimatedHours target={slide.totalHours} />
-					<span className="text-3xl font-bold text-white/80 mb-2">h</span>
+					{showHours ? (
+						<>
+							<AnimatedValue target={hours} />
+							<span className="text-3xl font-bold text-white/80 mb-2">h</span>
+							{minutes > 0 && (
+								<span className="text-3xl font-bold text-white/60 mb-2 ml-1">{minutes}m</span>
+							)}
+						</>
+					) : (
+						<>
+							<AnimatedValue target={minutes} />
+							<span className="text-3xl font-bold text-white/80 mb-2">m</span>
+						</>
+					)}
 				</div>
 				<p className="text-white/50 text-sm">
 					{t('totalTime.subheadline', { sessions: slide.totalSessions })}

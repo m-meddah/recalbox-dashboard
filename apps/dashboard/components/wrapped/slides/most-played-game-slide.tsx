@@ -24,7 +24,11 @@ export function MostPlayedGameSlideView({ slide }: Props) {
 				<p className="text-white/50 text-xs mt-1 uppercase tracking-widest">{slide.system}</p>
 				<div className="mt-4 flex justify-center gap-6">
 					<div className="text-center">
-						<p className="text-2xl font-bold text-white">{slide.playtimeHours}h</p>
+						<p className="text-2xl font-bold text-white">
+							{slide.playtimeHours > 0
+								? `${slide.playtimeHours}h${slide.playtimeMinutes > 0 ? ` ${slide.playtimeMinutes}m` : ''}`
+								: `${slide.playtimeMinutes}m`}
+						</p>
 						<p className="text-xs text-white/40">played</p>
 					</div>
 					<div className="text-center">

@@ -532,7 +532,7 @@
       "shareNative": "Share"
     },
     "statsBanner": {
-      "text": "Your {year} Wrapped is taking shape — {hours}h · {topGame} in the lead",
+      "text": "Your {year} Wrapped is taking shape — {duration} · {topGame} in the lead",
       "cta": "View my Wrapped"
     }
   },

@@ -4,6 +4,7 @@ import { desc, sql } from 'drizzle-orm'
 
 export type WrappedPreview = {
 	hours: number
+	minutes: number
 	topGame: string | null
 }
 
@@ -39,6 +40,7 @@ export async function getWrappedPreview(year: number): Promise<WrappedPreview | 
 
 	return {
 		hours: Math.floor(totalSec / 3600),
+		minutes: Math.floor((totalSec % 3600) / 60),
 		topGame: topGameRow?.gameName ?? null,
 	}
 }

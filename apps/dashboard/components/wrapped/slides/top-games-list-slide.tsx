@@ -30,7 +30,11 @@ export function TopGamesListSlideView({ slide }: Props) {
 									<p className="text-xs text-white/40 uppercase mt-0.5">{game.system}</p>
 								</div>
 							</div>
-							<span className="text-sm font-bold text-white/70">{game.playtimeHours}h</span>
+							<span className="text-sm font-bold text-white/70">
+								{game.playtimeHours > 0
+									? `${game.playtimeHours}h${game.playtimeMinutes > 0 ? ` ${game.playtimeMinutes}m` : ''}`
+									: `${game.playtimeMinutes}m`}
+							</span>
 						</motion.div>
 					))}
 				</div>

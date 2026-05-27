@@ -532,7 +532,7 @@
       "shareNative": "Partager"
     },
     "statsBanner": {
-      "text": "Ton Wrapped {year} prend forme — {hours}h · {topGame} en tête",
+      "text": "Ton Wrapped {year} prend forme — {duration} · {topGame} en tête",
       "cta": "Voir mon Wrapped"
     }
   },
