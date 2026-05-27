@@ -88,6 +88,9 @@ export const sessions = sqliteTable(
 		durationConfidence: text('duration_confidence', { enum: ['measured', 'estimated'] })
 			.notNull()
 			.default('measured'),
+		classification: text('classification', {
+			enum: ['noise', 'bounce', 'taste', 'meaningful', 'marathon'],
+		}),
 	},
 	(t) => ({
 		recalboxIdIdx: index('idx_sessions_recalbox_id').on(t.recalboxId),
@@ -95,6 +98,8 @@ export const sessions = sqliteTable(
 		startedAtIdx: index('idx_sessions_started_at').on(t.startedAt),
 		endedAtIdx: index('idx_sessions_ended_at').on(t.endedAt),
 		sourceIdx: index('idx_sessions_source').on(t.source),
+		classificationIdx: index('idx_sessions_classification').on(t.classification),
+		gameClassificationIdx: index('idx_sessions_game_classification').on(t.gameId, t.classification),
 	}),
 )
 

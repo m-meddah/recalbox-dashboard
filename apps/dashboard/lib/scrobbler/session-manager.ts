@@ -1,6 +1,7 @@
 import type { DB } from '@/lib/db/index'
 import { sessions } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
+import { classifySession } from '@/lib/sessions/classify'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
@@ -55,6 +56,7 @@ export class SessionManager {
 				durationSeconds,
 				autoClosed: opts?.autoClosed ?? false,
 				closedReason: opts?.closedReason ?? null,
+				classification: classifySession(durationSeconds),
 			})
 			.where(eq(sessions.id, id))
 	}

@@ -20,7 +20,8 @@ function createTestDb() {
       auto_closed INTEGER DEFAULT 0,
       closed_reason TEXT,
       source TEXT NOT NULL DEFAULT 'scrobbler',
-      duration_confidence TEXT NOT NULL DEFAULT 'measured'
+      duration_confidence TEXT NOT NULL DEFAULT 'measured',
+      classification TEXT
     );
   `)
 	return drizzle(sqlite, { schema })
