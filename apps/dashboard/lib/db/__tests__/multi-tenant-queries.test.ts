@@ -18,7 +18,9 @@ function createTestDb() {
       system TEXT NOT NULL,
       rom_path TEXT NOT NULL,
       auto_closed INTEGER DEFAULT 0,
-      closed_reason TEXT
+      closed_reason TEXT,
+      source TEXT NOT NULL DEFAULT 'scrobbler',
+      duration_confidence TEXT NOT NULL DEFAULT 'measured'
     );
   `)
 	return drizzle(sqlite, { schema })

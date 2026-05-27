@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import { index, int, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
 
 export const recalboxes = sqliteTable('recalboxes', {
@@ -81,12 +82,19 @@ export const sessions = sqliteTable(
 		romPath: text('rom_path').notNull(),
 		autoClosed: int('auto_closed', { mode: 'boolean' }).default(false),
 		closedReason: text('closed_reason'),
+		source: text('source', { enum: ['scrobbler', 'manual'] })
+			.notNull()
+			.default('scrobbler'),
+		durationConfidence: text('duration_confidence', { enum: ['measured', 'estimated'] })
+			.notNull()
+			.default('measured'),
 	},
 	(t) => ({
 		recalboxIdIdx: index('idx_sessions_recalbox_id').on(t.recalboxId),
 		romPathIdx: index('idx_sessions_rom_path').on(t.romPath),
 		startedAtIdx: index('idx_sessions_started_at').on(t.startedAt),
 		endedAtIdx: index('idx_sessions_ended_at').on(t.endedAt),
+		sourceIdx: index('idx_sessions_source').on(t.source),
 	}),
 )
 
@@ -202,3 +210,64 @@ export const pushSubscriptions = sqliteTable('push_subscriptions', {
 	createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
 	lastUsedAt: int('last_used_at', { mode: 'timestamp' }).notNull(),
 })
+
+/**
+ * Statistiques héritées de gamelist-userdata.ini (playCount, lastPlayed).
+ * Source of truth for the recommendation algorithm.
+ * One row per game, upserted on each collection sync.
+ */
+export const gameInheritedStats = sqliteTable(
+	'game_inherited_stats',
+	{
+		gameId: int('game_id').primaryKey(),
+		playCount: int('play_count').notNull().default(0),
+		lastPlayedAt: int('last_played_at', { mode: 'timestamp' }),
+		importedAt: int('imported_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+		lastSyncedAt: int('last_synced_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+	},
+	(t) => ({
+		playCountIdx: index('idx_inherited_play_count').on(t.playCount),
+		lastPlayedIdx: index('idx_inherited_last_played').on(t.lastPlayedAt),
+	}),
+)
+
+export type GameInheritedStats = typeof gameInheritedStats.$inferSelect
+export type NewGameInheritedStats = typeof gameInheritedStats.$inferInsert
+
+/**
+ * Manual or auto-inferred engagement verdict for a game based on inherited stats.
+ * Used by the recommendation algorithm to qualify historical play intent.
+ */
+export const gameCalibration = sqliteTable('game_calibration', {
+	gameId: int('game_id').primaryKey(),
+	engagement: text('engagement', { enum: ['high', 'medium', 'bounced', 'unknown'] }).notNull(),
+	source: text('source', { enum: ['user', 'auto_inferred'] }).notNull(),
+	calibratedAt: int('calibrated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+	notes: text('notes'),
+	snapshotPlayCount: int('snapshot_play_count').notNull(),
+	snapshotLastPlayed: int('snapshot_last_played', { mode: 'timestamp' }),
+})
+
+export type GameCalibration = typeof gameCalibration.$inferSelect
+export type NewGameCalibration = typeof gameCalibration.$inferInsert
+
+/**
+ * Lets the user defer calibration of a game to a later date.
+ * After skipCount reaches 3 the game is auto-calibrated as 'unknown'.
+ */
+export const gameCalibrationSkip = sqliteTable(
+	'game_calibration_skip',
+	{
+		gameId: int('game_id').primaryKey(),
+		skippedAt: int('skipped_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+		reappearAt: int('reappear_at', { mode: 'timestamp' }).notNull(),
+		skipCount: int('skip_count').notNull().default(1),
+	},
+	(t) => ({
+		reappearIdx: index('idx_calibration_skip_reappear').on(t.reappearAt),
+	}),
+)
+
+export type GameCalibrationSkip = typeof gameCalibrationSkip.$inferSelect

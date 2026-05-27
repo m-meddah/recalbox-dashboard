@@ -33,6 +33,8 @@ export class SessionManager {
 				startedAt: opts.startedAt,
 				system: opts.system,
 				romPath: opts.romPath,
+				source: 'scrobbler',
+				durationConfidence: 'measured',
 			})
 			.returning({ id: sessions.id })
 		const row = rows[0]

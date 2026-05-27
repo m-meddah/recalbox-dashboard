@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/index'
-import { games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
+import { gameInheritedStats, games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
@@ -198,32 +198,49 @@ export async function listGames(
 	if (recalboxId) conditions.push(eq(games.recalboxId, recalboxId))
 	if (system) conditions.push(eq(games.system, system))
 	if (favoritesOnly) conditions.push(eq(games.favorite, true))
-	if (neverPlayed) conditions.push(sql`${games.playCount} = 0 OR ${games.playCount} IS NULL`)
+	if (neverPlayed) {
+		// A game is "never played" when it has no inherited plays AND no closed scrobbler sessions.
+		conditions.push(sql`(${games.playCount} = 0 OR ${games.playCount} IS NULL)`)
+		conditions.push(
+			sql`NOT EXISTS (
+				SELECT 1 FROM ${sessions}
+				WHERE ${sessions.romPath} = ${games.romPath}
+				AND ${sessions.recalboxId} IS ${games.recalboxId}
+				AND ${sessions.source} = 'scrobbler'
+				AND ${sessions.endedAt} IS NOT NULL
+			)`,
+		)
+	}
 	if (developer) conditions.push(eq(games.developer, developer))
 	if (region) conditions.push(eq(games.region, region))
 	if (search) conditions.push(like(games.name, `%${search}%`))
 
 	const whereClause = sql.join(conditions, sql` AND `)
 
-	const orderCol =
-		sortBy === 'rating'
-			? games.rating
-			: sortBy === 'lastPlayed'
-				? games.lastPlayed
-				: sortBy === 'releaseDate'
-					? games.releaseDate
-					: games.name
-
 	const orderFn = sortDir === 'desc' ? desc : asc
 
+	// For lastPlayed, use the most recent of: inherited last played and last scrobbler session.
+	// This ensures games played via the scrobbler but not yet re-synced still sort correctly.
+	let orderExpr: ReturnType<typeof asc | typeof desc>
+	if (sortBy === 'lastPlayed') {
+		const lastPlayedExpr = sql`MAX(
+			COALESCE((
+				SELECT MAX(s.started_at) FROM sessions s
+				WHERE s.rom_path = ${games.romPath}
+				AND s.source = 'scrobbler'
+				AND s.ended_at IS NOT NULL
+			), 0),
+			COALESCE(${games.lastPlayed}, 0)
+		)`
+		orderExpr = orderFn(lastPlayedExpr)
+	} else {
+		const orderCol =
+			sortBy === 'rating' ? games.rating : sortBy === 'releaseDate' ? games.releaseDate : games.name
+		orderExpr = orderFn(orderCol)
+	}
+
 	const [rows, countRows] = await Promise.all([
-		db
-			.select()
-			.from(games)
-			.where(whereClause)
-			.orderBy(orderFn(orderCol))
-			.limit(limit)
-			.offset(offset),
+		db.select().from(games).where(whereClause).orderBy(orderExpr).limit(limit).offset(offset),
 		db.select({ value: count() }).from(games).where(whereClause),
 	])
 
@@ -417,7 +434,10 @@ export async function getSessionStats(
 ): Promise<SessionStats> {
 	const { recalboxId, fromDate, toDate, topGamesLimit = 10 } = opts
 
-	const baseConditions: ReturnType<typeof sql>[] = [sql`${sessions.endedAt} IS NOT NULL`]
+	const baseConditions: ReturnType<typeof sql>[] = [
+		sql`${sessions.endedAt} IS NOT NULL`,
+		sql`${sessions.source} = 'scrobbler'`,
+	]
 	if (recalboxId) baseConditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
 	if (fromDate)
 		baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
