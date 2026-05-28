@@ -7,6 +7,7 @@ import { scheduleProfileRecompute } from '@/lib/profile/scheduler'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
+import { matchGameAsync } from '@/lib/igdb/match-single'
 import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365]
@@ -116,6 +117,8 @@ export class SessionManager {
 
 		await this.close(match.id, event.stoppedAt, durationSec)
 		logger.info(`Closed session ${match.id} (${durationSec}s) for ${event.romPath}`)
+
+		if (match.gameId != null) matchGameAsync(match.gameId)
 
 		const classification = classifySession(durationSec)
 		if (classification === 'meaningful' || classification === 'marathon') {

@@ -361,3 +361,78 @@ export const userProfile = sqliteTable('user_profile', {
 })
 
 export type UserProfile = typeof userProfile.$inferSelect
+
+// ── IGDB integration (optional) ──────────────────────────────────────────────
+
+export const igdbCredentials = sqliteTable('igdb_credentials', {
+	id: int('id').primaryKey().default(1),
+	clientId: text('client_id'),
+	clientSecret: text('client_secret'),
+	accessToken: text('access_token'),
+	accessTokenExpiresAt: int('access_token_expires_at', { mode: 'timestamp' }),
+	enabled: int('enabled', { mode: 'boolean' }).notNull().default(false),
+	lastTestedAt: int('last_tested_at', { mode: 'timestamp' }),
+	lastTestStatus: text('last_test_status', {
+		enum: ['ok', 'invalid_credentials', 'network_error', 'unknown_error'],
+	}),
+	updatedAt: int('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`(unixepoch())`),
+})
+
+export type IgdbCredentials = typeof igdbCredentials.$inferSelect
+
+export const gameIgdbMapping = sqliteTable(
+	'game_igdb_mapping',
+	{
+		gameId: int('game_id').primaryKey(),
+		igdbId: int('igdb_id'),
+		igdbName: text('igdb_name'),
+		matchConfidence: real('match_confidence'),
+		matchMethod: text('match_method', {
+			enum: ['exact_name', 'cleaned_name', 'fuzzy', 'manual', 'not_found'],
+		}),
+		matchedAt: int('matched_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		needsReview: int('needs_review', { mode: 'boolean' }).notNull().default(false),
+	},
+	(t) => ({
+		igdbIdIdx: index('game_igdb_mapping_igdb_idx').on(t.igdbId),
+		reviewIdx: index('game_igdb_mapping_review_idx').on(t.needsReview),
+	}),
+)
+
+export type GameIgdbMapping = typeof gameIgdbMapping.$inferSelect
+
+export const igdbPlatformMapping = sqliteTable('igdb_platform_mapping', {
+	recalboxSystem: text('recalbox_system').primaryKey(),
+	igdbPlatformId: int('igdb_platform_id').notNull(),
+	igdbPlatformName: text('igdb_platform_name').notNull(),
+})
+
+export type IgdbPlatformMapping = typeof igdbPlatformMapping.$inferSelect
+
+export const igdbGameCache = sqliteTable(
+	'igdb_game_cache',
+	{
+		igdbId: int('igdb_id').primaryKey(),
+		name: text('name').notNull(),
+		similarGames: text('similar_games', { mode: 'json' }).$type<number[]>(),
+		themes: text('themes', { mode: 'json' }).$type<string[]>(),
+		gameModes: text('game_modes', { mode: 'json' }).$type<string[]>(),
+		playerPerspectives: text('player_perspectives', { mode: 'json' }).$type<string[]>(),
+		rating: real('rating'),
+		ratingCount: int('rating_count'),
+		rawPayload: text('raw_payload', { mode: 'json' }),
+		fetchedAt: int('fetched_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		expiresIdx: index('igdb_cache_expires_idx').on(t.expiresAt),
+	}),
+)
+
+export type IgdbGameCache = typeof igdbGameCache.$inferSelect

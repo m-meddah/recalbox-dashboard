@@ -2,7 +2,7 @@
 
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
 	Form,
@@ -37,6 +37,9 @@ import {
 	CheckCircle2,
 	Circle,
 	Clock,
+	Database,
+	ExternalLink,
+	Loader2,
 	Palette,
 	Plug,
 	Radio,
@@ -45,6 +48,7 @@ import {
 	Trophy,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -1111,6 +1115,7 @@ export default function SettingsPage() {
 		{ value: 'integrations', icon: Plug, label: t('tabs.integrations'), mobileLabel: 'Intégr.' },
 		{ value: 'mqttPublish', icon: Radio, label: t('tabs.mqttPublish'), mobileLabel: 'MQTT' },
 		{ value: 'notifications', icon: Bell, label: t('tabs.notifications'), mobileLabel: 'Notifs' },
+		{ value: 'igdb', icon: Database, label: 'IGDB', mobileLabel: 'IGDB' },
 		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
 	]
 
@@ -1198,6 +1203,7 @@ export default function SettingsPage() {
 						</Card>
 					)}
 					{active === 'notifications' && <NotificationsTab />}
+					{active === 'igdb' && <IgdbTab />}
 					{active === 'app' && (
 						<Card>
 							<CardHeader>
@@ -1212,6 +1218,253 @@ export default function SettingsPage() {
 				</div>
 			</div>
 		</div>
+	)
+}
+
+// ─── IGDB Tab ────────────────────────────────────────────────────────────────
+
+type IgdbStatus = {
+	enabled: boolean
+	hasCredentials: boolean
+	lastTestStatus: string | null
+	lastTestedAt: string | null
+	mapping: { totalGames: number; matched: number; notFound: number; needsReview: number }
+}
+
+type BatchProgress = {
+	total: number
+	done: number
+	matched: number
+	notFound: number
+	needsReview: number
+	errors: number
+	current?: string
+}
+
+function IgdbTab() {
+	const [status, setStatus] = useState<IgdbStatus | null>(null)
+	const [clientId, setClientId] = useState('')
+	const [clientSecret, setClientSecret] = useState('')
+	const [saving, setSaving] = useState(false)
+	const [saveError, setSaveError] = useState<string | null>(null)
+	const [matchProgress, setMatchProgress] = useState<BatchProgress | null>(null)
+
+	useEffect(() => {
+		refresh()
+	}, [])
+
+	async function refresh() {
+		const res = await fetch('/api/igdb/status')
+		setStatus(await res.json())
+	}
+
+	async function handleSave() {
+		setSaving(true)
+		setSaveError(null)
+		const res = await fetch('/api/igdb/credentials', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ clientId, clientSecret }),
+		})
+		setSaving(false)
+		if (res.ok) {
+			setClientId('')
+			setClientSecret('')
+			await refresh()
+			toast.success('IGDB activé avec succès')
+		} else {
+			const err = await res.json()
+			const errType = err.error?.type ?? err.error ?? 'unknown_error'
+			setSaveError(errType)
+		}
+	}
+
+	function pollProgress() {
+		const interval = setInterval(async () => {
+			const res = await fetch('/api/igdb/match/progress')
+			const data = await res.json()
+			setMatchProgress(data.progress)
+			if (!data.isRunning) {
+				clearInterval(interval)
+				setMatchProgress(null)
+				refresh()
+			}
+		}, 1000)
+	}
+
+	async function handleStartMatch(scope: 'played' | 'all') {
+		await fetch(`/api/igdb/match/start?scope=${scope}`, { method: 'POST' })
+		pollProgress()
+	}
+
+	if (!status) return null
+
+	return (
+		<Card>
+			<CardHeader>
+				<div className="flex items-center justify-between">
+					<CardTitle>IGDB (recommandations avancées)</CardTitle>
+					{status.enabled ? (
+						<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+							<CheckCircle2 className="w-3 h-3" /> Actif
+						</span>
+					) : (
+						<span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+							Désactivé
+						</span>
+					)}
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{!status.enabled && (
+					<>
+						<p className="text-sm text-muted-foreground">
+							IGDB améliore les recommandations en exploitant les jeux similaires calculés par sa
+							communauté. Nécessite un compte Twitch développeur (gratuit). Sans IGDB, les
+							recommandations fonctionnent quand même.
+						</p>
+
+						<details className="text-sm">
+							<summary className="cursor-pointer text-primary">
+								Comment obtenir mes identifiants ?
+							</summary>
+							<ol className="mt-2 ml-4 space-y-1 list-decimal text-muted-foreground">
+								<li>
+									Va sur{' '}
+									<a
+										href="https://dev.twitch.tv/console"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-primary inline-flex items-center gap-0.5"
+									>
+										dev.twitch.tv/console <ExternalLink className="w-3 h-3" />
+									</a>
+								</li>
+								<li>Register Your Application</li>
+								<li>OAuth Redirect URL : http://localhost</li>
+								<li>Category : Application Integration</li>
+								<li>Récupère le Client ID, génère un Client Secret</li>
+							</ol>
+						</details>
+
+						<div className="space-y-3">
+							<div>
+								<label
+									htmlFor="igdb-client-id"
+									className="block text-sm font-medium mb-1"
+								>
+									Client ID
+								</label>
+								<Input
+									id="igdb-client-id"
+									value={clientId}
+									onChange={(e) => setClientId(e.target.value)}
+									placeholder="abcdef1234567890"
+								/>
+							</div>
+							<div>
+								<label
+									htmlFor="igdb-client-secret"
+									className="block text-sm font-medium mb-1"
+								>
+									Client Secret
+								</label>
+								<Input
+									id="igdb-client-secret"
+									type="password"
+									value={clientSecret}
+									onChange={(e) => setClientSecret(e.target.value)}
+									placeholder="••••••••••••••••"
+								/>
+							</div>
+							{saveError && (
+								<p className="text-sm text-destructive">
+									Échec :{' '}
+									{saveError === 'invalid_credentials'
+										? 'Identifiants invalides'
+										: saveError === 'network_error'
+											? 'Erreur réseau'
+											: saveError}
+								</p>
+							)}
+							<Button
+								onClick={handleSave}
+								disabled={saving || !clientId || !clientSecret}
+							>
+								{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+								Activer IGDB
+							</Button>
+						</div>
+					</>
+				)}
+
+				{status.enabled && (
+					<>
+						<div className="rounded-md bg-muted/30 p-3 space-y-2 text-sm">
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Jeux matchés</span>
+								<span className="font-medium">{status.mapping.matched}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Non trouvés</span>
+								<span className="font-medium">{status.mapping.notFound}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">À vérifier</span>
+								<span className="font-medium">{status.mapping.needsReview}</span>
+							</div>
+							<p className="text-xs text-muted-foreground pt-1">
+								Total collection : {status.mapping.totalGames} jeux. Seuls les jeux joués sont
+								matchés par défaut.
+							</p>
+						</div>
+
+						{matchProgress ? (
+							<div className="space-y-1 text-sm">
+								<p className="text-muted-foreground">
+									Matching : {matchProgress.done} / {matchProgress.total}
+								</p>
+								{matchProgress.current && (
+									<p className="text-xs italic truncate">{matchProgress.current}</p>
+								)}
+							</div>
+						) : (
+							<div className="space-y-3">
+								<Button onClick={() => handleStartMatch('played')}>
+									Matcher mes jeux joués
+								</Button>
+								<p className="text-xs text-muted-foreground">
+									Ne matche que les jeux déjà joués (sessions, historique, favoris).
+								</p>
+								{status.mapping.needsReview > 0 && (
+									<Link
+										href="/settings/igdb/review"
+										className={buttonVariants({ variant: 'outline' })}
+									>
+										Vérifier {status.mapping.needsReview} match
+										{status.mapping.needsReview > 1 ? 'es' : ''}
+									</Link>
+								)}
+								<details className="text-xs text-muted-foreground">
+									<summary className="cursor-pointer hover:text-foreground">
+										Options avancées
+									</summary>
+									<div className="mt-2 space-y-2">
+										<Button variant="outline" size="sm" onClick={() => handleStartMatch('all')}>
+											Matcher toute la collection
+										</Button>
+										<p>
+											Lance le matching sur les {status.mapping.totalGames} jeux. Très long sur
+											une grosse collection. Non nécessaire — préférer le matching à la demande.
+										</p>
+									</div>
+								</details>
+							</div>
+						)}
+					</>
+				)}
+			</CardContent>
+		</Card>
 	)
 }
 

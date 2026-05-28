@@ -92,6 +92,13 @@
       "when": 1779999963673,
       "tag": "0012_perpetual_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1780004835606,
+      "tag": "0013_boring_shatterstar",
+      "breakpoints": true
     }
   ]
 }
