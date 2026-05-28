@@ -114,6 +114,12 @@ export default async function LocaleLayout({ children, params }: Props) {
 										>
 											{t('wrapped')}
 										</Link>
+										<Link
+											href="/profile"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('profile')}
+										</Link>
 									</div>
 									{/* Mobile hamburger */}
 									<MobileNav />

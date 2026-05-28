@@ -9,6 +9,7 @@ import { getOrCreateVapidKeys } from '../lib/notifications/vapid'
 import { sendWebPush } from '../lib/notifications/web-push'
 import { syncRetroAchievements } from '../lib/retroachievements/sync'
 import { startScrobbler } from '../lib/scrobbler'
+import { startProfileScheduler } from '../lib/profile/scheduler'
 
 async function main() {
 	logger.info('Starting Recalbox scrobbler daemon...')
@@ -71,6 +72,9 @@ async function main() {
 		if (raSyncInterval) clearInterval(raSyncInterval)
 		raSyncInterval = scheduleRaSync()
 	})
+
+	// Profile recompute — startup + every 6h
+	startProfileScheduler()
 
 	// Wrapped available — fires December 1st at 9am
 	const wrappedCron = new CronJob(

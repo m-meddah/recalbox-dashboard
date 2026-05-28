@@ -31,6 +31,7 @@ export function MobileNav() {
 		{ href: '/achievements' as const, label: t('achievements') },
 		{ href: '/settings' as const, label: t('settings') },
 		{ href: '/wrapped' as const, label: t('wrapped') },
+		{ href: '/profile' as const, label: t('profile') },
 	]
 
 	return (

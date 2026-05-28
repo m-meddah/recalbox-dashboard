@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
 
 	try {
 		const { ratingApplied } = await feedbackService.respond(feedbackId, response)
+
+		if (ratingApplied) {
+			import('@/lib/profile/compute-profile')
+				.then(({ computeUserProfile }) => computeUserProfile())
+				.catch((err) => console.error('[profile] Recompute after rating failed:', err))
+		}
+
 		return NextResponse.json({ ok: true, ratingApplied })
 	} catch (err) {
 		if (err instanceof Error && err.message === 'Feedback not found') {

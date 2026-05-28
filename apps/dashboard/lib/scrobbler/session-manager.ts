@@ -3,6 +3,7 @@ import { games, pendingFeedback, sessions } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { classifySession } from '@/lib/sessions/classify'
 import { shouldPromptForFeedback } from '@/lib/feedback/should-prompt'
+import { scheduleProfileRecompute } from '@/lib/profile/scheduler'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
@@ -115,6 +116,11 @@ export class SessionManager {
 
 		await this.close(match.id, event.stoppedAt, durationSec)
 		logger.info(`Closed session ${match.id} (${durationSec}s) for ${event.romPath}`)
+
+		const classification = classifySession(durationSec)
+		if (classification === 'meaningful' || classification === 'marathon') {
+			scheduleProfileRecompute({ reason: 'significant_session' })
+		}
 
 		this.checkStreakMilestone().catch((err) => logger.error('Streak milestone check failed', err))
 		this.maybeCreateFeedbackPrompt(match.id, event.romPath, match.recalboxId, durationSec).catch(

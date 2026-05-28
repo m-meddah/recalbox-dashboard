@@ -317,3 +317,47 @@ export const pendingFeedback = sqliteTable(
 )
 
 export type PendingFeedback = typeof pendingFeedback.$inferSelect
+
+export type WeightedItem = {
+	key: string
+	weight: number
+	rawScore: number
+}
+
+/**
+ * Singleton profil de goûts inféré automatiquement depuis les sessions,
+ * stats héritées et ratings. Recalculé en arrière-plan (id = 1, toujours).
+ */
+export const userProfile = sqliteTable('user_profile', {
+	id: int('id').primaryKey(),
+	systemsWeights: text('systems_weights', { mode: 'json' })
+		.$type<WeightedItem[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	genresWeights: text('genres_weights', { mode: 'json' })
+		.$type<WeightedItem[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	decadesWeights: text('decades_weights', { mode: 'json' })
+		.$type<WeightedItem[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	developersWeights: text('developers_weights', { mode: 'json' })
+		.$type<WeightedItem[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	comfortGames: text('comfort_games', { mode: 'json' })
+		.$type<number[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	bouncerGames: text('bouncer_games', { mode: 'json' })
+		.$type<number[]>()
+		.notNull()
+		.default(sql`'[]'`),
+	totalSignalSessions: int('total_signal_sessions').notNull().default(0),
+	profileMaturity: real('profile_maturity').notNull().default(0),
+	computedAt: int('computed_at', { mode: 'timestamp' }),
+	computeDurationMs: int('compute_duration_ms'),
+})
+
+export type UserProfile = typeof userProfile.$inferSelect
