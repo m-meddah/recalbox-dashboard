@@ -44,7 +44,8 @@ export async function getPatronStatus(ssh: SshClientLike): Promise<PatronStatus>
 		const { present, looksValid: valid } = parsePresence(output)
 		return { isPatron: present && valid, keyPresent: present, keyLooksValid: valid }
 	} catch (err) {
-		logger.warn('Failed to read patron status from recalbox.conf', err)
+		const msg = err instanceof Error ? err.message : String(err)
+		logger.warn(`Failed to read patron status from recalbox.conf: ${msg}`)
 		return { isPatron: false, keyPresent: false, keyLooksValid: false }
 	}
 }
