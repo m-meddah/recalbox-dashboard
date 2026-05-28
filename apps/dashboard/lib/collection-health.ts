@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/index'
 import { games } from '@/lib/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { and, asc, count, eq, isNull, or, sql } from 'drizzle-orm'
 
 export type ScrapeStatus = {
 	romPath: string
@@ -79,22 +79,66 @@ export function computeCollectionHealth(rows: GameRow[]): CollectionHealth {
 	}
 }
 
+// Max unscraped games returned in the health panel list. The panel collapses them
+// in a <details> element — returning all 6K+ would be wasteful.
+const UNSCRAPED_LIMIT = 200
+
 export async function getCollectionHealth(recalboxId?: string): Promise<CollectionHealth> {
 	const conditions = [eq(games.hidden, false)]
 	if (recalboxId) conditions.push(eq(games.recalboxId, recalboxId))
 	const where = conditions.length > 1 ? and(...conditions) : conditions[0]
 
-	const rows = await db
-		.select({
-			system: games.system,
-			romPath: games.romPath,
-			name: games.name,
-			imagePath: games.imagePath,
-			description: games.description,
-			videoPath: games.videoPath,
-		})
-		.from(games)
-		.where(where)
+	const missingCritical = or(isNull(games.imagePath), isNull(games.description))!
 
-	return computeCollectionHealth(rows)
+	const [totalsRows, bySystemRows, unscrapedRows] = await Promise.all([
+		db
+			.select({
+				totalGames: count(),
+				fullyScraped: sql<number>`sum(case when ${games.imagePath} is not null and ${games.description} is not null then 1 else 0 end)`,
+				missingMedia: sql<number>`sum(case when ${games.imagePath} is null or ${games.description} is null then 1 else 0 end)`,
+			})
+			.from(games)
+			.where(where),
+		db
+			.select({
+				system: games.system,
+				total: count(),
+				missingMedia: sql<number>`sum(case when ${games.imagePath} is null or ${games.description} is null then 1 else 0 end)`,
+			})
+			.from(games)
+			.where(where)
+			.groupBy(games.system),
+		db
+			.select({
+				system: games.system,
+				romPath: games.romPath,
+				name: games.name,
+				imagePath: games.imagePath,
+				description: games.description,
+				videoPath: games.videoPath,
+			})
+			.from(games)
+			.where(and(where, missingCritical))
+			.orderBy(asc(games.name))
+			.limit(UNSCRAPED_LIMIT),
+	])
+
+	const totals = totalsRows[0]
+
+	return {
+		totalGames: totals?.totalGames ?? 0,
+		fullyScraped: totals?.fullyScraped ?? 0,
+		missingMedia: totals?.missingMedia ?? 0,
+		bySystem: bySystemRows
+			.map((r) => ({ system: r.system, total: r.total, missingMedia: r.missingMedia }))
+			.sort((a, b) => b.missingMedia - a.missingMedia),
+		unscrapedGames: unscrapedRows.map((g) => ({
+			romPath: g.romPath,
+			name: g.name,
+			system: g.system,
+			missingImage: !g.imagePath,
+			missingDescription: !g.description,
+			missingVideo: !g.videoPath,
+		})),
+	}
 }

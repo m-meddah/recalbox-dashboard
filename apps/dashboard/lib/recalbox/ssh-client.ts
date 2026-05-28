@@ -3,7 +3,9 @@ import { logger } from '@/lib/logger'
 import { NodeSSH } from 'node-ssh'
 
 const EXEC_TIMEOUT_MS = 5000
-const CONNECT_TIMEOUT_MS = 8000
+const CONNECT_TIMEOUT_MS = 3000
+// After a failed connect, reject all attempts for this duration before retrying.
+const CONNECT_BACKOFF_MS = 15_000
 
 type QueueItem = { resolve: () => void; reject: (err: Error) => void }
 
@@ -11,6 +13,7 @@ class SshClient {
 	private ssh = new NodeSSH()
 	private connected = false
 	private connectingPromise: Promise<void> | null = null
+	private backoffUntil = 0
 	private activeCount = 0
 	private readonly waitQueue: QueueItem[] = []
 
@@ -20,7 +23,12 @@ class SshClient {
 	) {}
 
 	private async connect(): Promise<void> {
+		// Join an in-progress attempt rather than starting a second one.
 		if (this.connectingPromise) return this.connectingPromise
+		// Fail fast while the host is known to be unreachable.
+		if (Date.now() < this.backoffUntil) {
+			throw new Error(`SSH [${this.recalboxId}] in backoff until ${new Date(this.backoffUntil).toISOString()}`)
+		}
 		this.connectingPromise = (async () => {
 			this.ssh.dispose()
 			this.ssh = new NodeSSH()
@@ -39,7 +47,13 @@ class SshClient {
 					CONNECT_TIMEOUT_MS,
 				),
 			)
-			await Promise.race([connectPromise, timeout])
+			try {
+				await Promise.race([connectPromise, timeout])
+			} catch (err) {
+				this.backoffUntil = Date.now() + CONNECT_BACKOFF_MS
+				throw err
+			}
+			this.backoffUntil = 0
 			this.connected = true
 			this.ssh.connection?.on('error', (err: unknown) => {
 				this.connected = false
@@ -117,6 +131,7 @@ class SshClient {
 	disconnect(): void {
 		this.ssh.dispose()
 		this.connected = false
+		this.backoffUntil = 0
 		this.failQueue(new Error('SSH client disconnected'))
 	}
 }
