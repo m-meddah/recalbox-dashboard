@@ -1,7 +1,8 @@
 import type { DB } from '@/lib/db/index'
-import { sessions } from '@/lib/db/schema'
+import { games, pendingFeedback, sessions } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { classifySession } from '@/lib/sessions/classify'
+import { shouldPromptForFeedback } from '@/lib/feedback/should-prompt'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
@@ -116,6 +117,50 @@ export class SessionManager {
 		logger.info(`Closed session ${match.id} (${durationSec}s) for ${event.romPath}`)
 
 		this.checkStreakMilestone().catch((err) => logger.error('Streak milestone check failed', err))
+		this.maybeCreateFeedbackPrompt(match.id, event.romPath, match.recalboxId, durationSec).catch(
+			(err) => logger.error('Feedback prompt creation failed', err),
+		)
+	}
+
+	private async maybeCreateFeedbackPrompt(
+		sessionId: number,
+		romPath: string,
+		recalboxId: string | null,
+		durationSeconds: number,
+	): Promise<void> {
+		const classification = classifySession(durationSeconds)
+
+		const game = await this.db
+			.select({ id: games.id })
+			.from(games)
+			.where(
+				and(
+					eq(games.romPath, romPath),
+					recalboxId ? eq(games.recalboxId, recalboxId) : isNull(games.recalboxId),
+				),
+			)
+			.get()
+
+		if (!game) return
+
+		const should = await shouldPromptForFeedback({ gameId: game.id, classification })
+		if (!should) return
+
+		const expiresAt = new Date()
+		expiresAt.setHours(expiresAt.getHours() + 24)
+
+		await this.db
+			.insert(pendingFeedback)
+			.values({
+				sessionId,
+				gameId: game.id,
+				durationSeconds,
+				classification,
+				expiresAt,
+			})
+			.onConflictDoNothing()
+
+		logger.info(`Created feedback prompt for session ${sessionId} (${classification}, game ${game.id})`)
 	}
 
 	private async checkStreakMilestone(): Promise<void> {

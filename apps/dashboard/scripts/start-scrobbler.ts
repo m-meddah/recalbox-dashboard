@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { CronJob } from 'cron'
 import { configStore } from '../lib/config-store'
+import { cleanupExpiredFeedback } from '../lib/feedback/cleanup'
 import { getLatestSettingUpdatedAt } from '../lib/db/queries'
 import { logger } from '../lib/logger'
 import { notificationService } from '../lib/notifications/service'
@@ -20,6 +21,17 @@ async function main() {
 		logger.warn('Failed to initialize VAPID keys', err)
 	}
 	const scrobbler = await startScrobbler()
+
+	// Cleanup expired feedback entries at startup and hourly
+	cleanupExpiredFeedback()
+		.then((n) => { if (n > 0) logger.info(`[feedback] Startup cleanup: removed ${n} expired entries`) })
+		.catch((err) => logger.error('[feedback] Startup cleanup failed', err))
+
+	const feedbackCleanupInterval = setInterval(() => {
+		cleanupExpiredFeedback()
+			.then((n) => { if (n > 0) logger.info(`[feedback] Hourly cleanup: removed ${n} expired entries`) })
+			.catch((err) => logger.error('[feedback] Hourly cleanup failed', err))
+	}, 60 * 60 * 1000)
 
 	// Initialize config and track last known update timestamp
 	configStore.get()
@@ -77,6 +89,7 @@ async function main() {
 		logger.info(`Received ${signal}, shutting down...`)
 		wrappedCron.stop()
 		clearInterval(configPollInterval)
+		clearInterval(feedbackCleanupInterval)
 		if (raSyncInterval) clearInterval(raSyncInterval)
 		await scrobbler.stop()
 		process.exit(0)

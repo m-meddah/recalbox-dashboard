@@ -276,3 +276,44 @@ export const gameCalibrationSkip = sqliteTable(
 )
 
 export type GameCalibrationSkip = typeof gameCalibrationSkip.$inferSelect
+
+export const gameRatings = sqliteTable(
+	'game_ratings',
+	{
+		gameId: int('game_id').primaryKey(),
+		rating: text('rating', { enum: ['love', 'like', 'dislike', 'unknown'] }).notNull(),
+		source: text('source', { enum: ['post_session', 'manual'] }).notNull(),
+		ratedAt: int('rated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+		triggeredBySessionId: int('triggered_by_session_id'),
+	},
+	(t) => ({
+		ratingIdx: index('idx_game_ratings_rating').on(t.rating),
+		sourceIdx: index('idx_game_ratings_source').on(t.source),
+	}),
+)
+
+export type GameRating = typeof gameRatings.$inferSelect
+export type NewGameRating = typeof gameRatings.$inferInsert
+
+export const pendingFeedback = sqliteTable(
+	'pending_feedback',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		sessionId: int('session_id').notNull().unique(),
+		gameId: int('game_id').notNull(),
+		durationSeconds: int('duration_seconds').notNull(),
+		classification: text('classification').notNull(),
+		createdAt: int('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+		shownAt: int('shown_at', { mode: 'timestamp' }),
+		respondedAt: int('responded_at', { mode: 'timestamp' }),
+		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
+		pushedInApp: int('pushed_in_app', { mode: 'boolean' }).notNull().default(false),
+	},
+	(t) => ({
+		pendingIdx: index('idx_pending_feedback_pending').on(t.respondedAt, t.expiresAt),
+		gameIdx: index('idx_pending_feedback_game').on(t.gameId),
+		pushedIdx: index('idx_pending_feedback_pushed').on(t.pushedInApp),
+	}),
+)
+
+export type PendingFeedback = typeof pendingFeedback.$inferSelect

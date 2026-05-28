@@ -20,6 +20,7 @@ import { routing } from '@/i18n/routing'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { cn } from '@/lib/utils'
+import { FeedbackPromptProvider } from '@/components/feedback/feedback-prompt-provider'
 import { RecalboxEventsProvider } from '../recalbox-events-provider'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
@@ -127,7 +128,9 @@ export default async function LocaleLayout({ children, params }: Props) {
 									</div>
 								</nav>
 							</header>
-							{children}
+							<FeedbackPromptProvider>
+								{children}
+							</FeedbackPromptProvider>
 							<NotificationListener />
 							<ServiceWorkerUpdater />
 							<InstallBanner />

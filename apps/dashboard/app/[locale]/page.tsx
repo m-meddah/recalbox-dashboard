@@ -1,3 +1,4 @@
+import { FeedbackInboxNudge } from '@/components/feedback/feedback-inbox-nudge'
 import { NowPlaying } from '@/components/now-playing'
 import { SystemStatsChart } from '@/components/system-stats-chart'
 import type { routing } from '@/i18n/routing'
@@ -17,7 +18,8 @@ export default async function Home({ params }: Props) {
 	return (
 		<main className="p-4 sm:p-8">
 			<h1 className="text-2xl font-bold mb-6">Recalbox Dashboard</h1>
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+			<FeedbackInboxNudge />
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
 				<section>
 					<h2 className="text-lg font-semibold mb-4 text-muted-foreground">
 						{t('nowPlaying.title')}

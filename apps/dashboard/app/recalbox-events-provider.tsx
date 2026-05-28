@@ -6,7 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
 export type NotificationSSEEvent = { type: 'notification'; notification: Notification }
-export type SSEEvent = RecalboxEvent | ConnectionEvent | NotificationSSEEvent
+export type FeedbackNewEvent = { type: 'feedback:new'; feedbackId: number }
+export type SSEEvent = RecalboxEvent | ConnectionEvent | NotificationSSEEvent | FeedbackNewEvent
 
 type Handler = (event: SSEEvent) => void
 

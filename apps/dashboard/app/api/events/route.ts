@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { feedbackService } from '@/lib/feedback/service'
 import { logger } from '@/lib/logger'
 import { getNotificationService } from '@/lib/notifications/service'
 import type { Notification } from '@/lib/notifications/types'
@@ -131,6 +132,30 @@ export async function GET(request: Request) {
 			}
 			const pollInterval = setInterval(pollNotifications, 5000)
 
+			const sendFeedback = (feedbackId: number) => {
+				try {
+					controller.enqueue(
+						encode(`data: ${JSON.stringify({ type: 'feedback:new', feedbackId })}\n\n`),
+					)
+				} catch (err) {
+					logger.info('SSE feedback enqueue failed (client likely disconnected)', err)
+				}
+			}
+
+			const pollFeedback = async () => {
+				try {
+					const unpushed = await feedbackService.getUnpushed()
+					for (const f of unpushed) {
+						await feedbackService.markPushed(f.id)
+						sendFeedback(f.id)
+					}
+				} catch (err) {
+					logger.error('Feedback poll failed', err)
+				}
+			}
+			const feedbackPollInterval = setInterval(pollFeedback, 5000)
+			pollFeedback()
+
 			const heartbeat = setInterval(() => {
 				try {
 					controller.enqueue(encode(': heartbeat\n\n'))
@@ -142,6 +167,7 @@ export async function GET(request: Request) {
 			request.signal.addEventListener('abort', () => {
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
+				clearInterval(feedbackPollInterval)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
 				controller.close()
