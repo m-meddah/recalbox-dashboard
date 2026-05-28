@@ -4,7 +4,10 @@ import { gameInheritedStats, gameRatings, games, sessions, userProfile, type Wei
 
 const HALF_LIFE_DAYS = 90
 
-const CLASSIFICATION_WEIGHTS: Record<string, number> = {
+type ClassificationKey = 'noise' | 'bounce' | 'taste' | 'meaningful' | 'marathon'
+type RatingKey = 'love' | 'like' | 'dislike' | 'unknown'
+
+const CLASSIFICATION_WEIGHTS: Record<ClassificationKey, number> = {
 	noise: 0,
 	bounce: -0.5,
 	taste: 0.3,
@@ -12,7 +15,7 @@ const CLASSIFICATION_WEIGHTS: Record<string, number> = {
 	marathon: 2.0,
 }
 
-const RATING_WEIGHTS: Record<string, number> = {
+const RATING_WEIGHTS: Record<RatingKey, number> = {
 	love: 2.0,
 	like: 1.3,
 	unknown: 1.0,
