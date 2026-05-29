@@ -13,7 +13,7 @@ export default function PlayTonightPage() {
 	const [requestId, setRequestId] = useState(0)
 
 	return (
-		<div className="container max-w-4xl py-8 space-y-6">
+		<div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
 			<header className="space-y-1">
 				<h1 className="text-2xl sm:text-3xl font-bold">Que jouer ce soir ?</h1>
 				<p className="text-muted-foreground">
