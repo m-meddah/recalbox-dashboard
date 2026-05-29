@@ -1115,7 +1115,7 @@ export default function SettingsPage() {
 		{ value: 'integrations', icon: Plug, label: t('tabs.integrations'), mobileLabel: 'Intégr.' },
 		{ value: 'mqttPublish', icon: Radio, label: t('tabs.mqttPublish'), mobileLabel: 'MQTT' },
 		{ value: 'notifications', icon: Bell, label: t('tabs.notifications'), mobileLabel: 'Notifs' },
-		{ value: 'igdb', icon: Database, label: 'IGDB', mobileLabel: 'IGDB' },
+		{ value: 'igdb', icon: Database, label: t('tabs.igdb'), mobileLabel: 'IGDB' },
 		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
 	]
 
@@ -1242,6 +1242,7 @@ type BatchProgress = {
 }
 
 function IgdbTab() {
+	const t = useTranslations('settings')
 	const [status, setStatus] = useState<IgdbStatus | null>(null)
 	const [clientId, setClientId] = useState('')
 	const [clientSecret, setClientSecret] = useState('')
@@ -1271,7 +1272,7 @@ function IgdbTab() {
 			setClientId('')
 			setClientSecret('')
 			await refresh()
-			toast.success('IGDB activé avec succès')
+			toast.success(t('igdb.savedSuccess'))
 		} else {
 			const err = await res.json()
 			const errType = err.error?.type ?? err.error ?? 'unknown_error'
@@ -1303,14 +1304,14 @@ function IgdbTab() {
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
-					<CardTitle>IGDB (recommandations avancées)</CardTitle>
+					<CardTitle>{t('igdb.cardTitle')}</CardTitle>
 					{status.enabled ? (
 						<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-							<CheckCircle2 className="w-3 h-3" /> Actif
+							<CheckCircle2 className="w-3 h-3" /> {t('igdb.active')}
 						</span>
 					) : (
 						<span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-							Désactivé
+							{t('igdb.inactive')}
 						</span>
 					)}
 				</div>
@@ -1319,18 +1320,15 @@ function IgdbTab() {
 				{!status.enabled && (
 					<>
 						<p className="text-sm text-muted-foreground">
-							IGDB améliore les recommandations en exploitant les jeux similaires calculés par sa
-							communauté. Nécessite un compte Twitch développeur (gratuit). Sans IGDB, les
-							recommandations fonctionnent quand même.
+							{t('igdb.description')}
 						</p>
 
 						<details className="text-sm">
 							<summary className="cursor-pointer text-primary">
-								Comment obtenir mes identifiants ?
+								{t('igdb.credentialsHelp')}
 							</summary>
 							<ol className="mt-2 ml-4 space-y-1 list-decimal text-muted-foreground">
 								<li>
-									Va sur{' '}
 									<a
 										href="https://dev.twitch.tv/console"
 										target="_blank"
@@ -1343,7 +1341,7 @@ function IgdbTab() {
 								<li>Register Your Application</li>
 								<li>OAuth Redirect URL : http://localhost</li>
 								<li>Category : Application Integration</li>
-								<li>Récupère le Client ID, génère un Client Secret</li>
+								<li>{t('igdb.credentialsStep5')}</li>
 							</ol>
 						</details>
 
@@ -1379,11 +1377,10 @@ function IgdbTab() {
 							</div>
 							{saveError && (
 								<p className="text-sm text-destructive">
-									Échec :{' '}
 									{saveError === 'invalid_credentials'
-										? 'Identifiants invalides'
+										? t('igdb.errorInvalidCredentials')
 										: saveError === 'network_error'
-											? 'Erreur réseau'
+											? t('igdb.errorNetwork')
 											: saveError}
 								</p>
 							)}
@@ -1392,7 +1389,7 @@ function IgdbTab() {
 								disabled={saving || !clientId || !clientSecret}
 							>
 								{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-								Activer IGDB
+								{t('igdb.enableButton')}
 							</Button>
 						</div>
 					</>
@@ -1402,27 +1399,26 @@ function IgdbTab() {
 					<>
 						<div className="rounded-md bg-muted/30 p-3 space-y-2 text-sm">
 							<div className="flex justify-between">
-								<span className="text-muted-foreground">Jeux matchés</span>
+								<span className="text-muted-foreground">{t('igdb.matched')}</span>
 								<span className="font-medium">{status.mapping.matched}</span>
 							</div>
 							<div className="flex justify-between">
-								<span className="text-muted-foreground">Non trouvés</span>
+								<span className="text-muted-foreground">{t('igdb.notFound')}</span>
 								<span className="font-medium">{status.mapping.notFound}</span>
 							</div>
 							<div className="flex justify-between">
-								<span className="text-muted-foreground">À vérifier</span>
+								<span className="text-muted-foreground">{t('igdb.toReview')}</span>
 								<span className="font-medium">{status.mapping.needsReview}</span>
 							</div>
 							<p className="text-xs text-muted-foreground pt-1">
-								Total collection : {status.mapping.totalGames} jeux. Seuls les jeux joués sont
-								matchés par défaut.
+								{t('igdb.totalCollection', { count: status.mapping.totalGames })}
 							</p>
 						</div>
 
 						{matchProgress ? (
 							<div className="space-y-1 text-sm">
 								<p className="text-muted-foreground">
-									Matching : {matchProgress.done} / {matchProgress.total}
+									{t('igdb.matchingProgress', { done: matchProgress.done, total: matchProgress.total })}
 								</p>
 								{matchProgress.current && (
 									<p className="text-xs italic truncate">{matchProgress.current}</p>
@@ -1431,31 +1427,29 @@ function IgdbTab() {
 						) : (
 							<div className="space-y-3">
 								<Button onClick={() => handleStartMatch('played')}>
-									Matcher mes jeux joués
+									{t('igdb.matchPlayed')}
 								</Button>
 								<p className="text-xs text-muted-foreground">
-									Ne matche que les jeux déjà joués (sessions, historique, favoris).
+									{t('igdb.matchPlayedHint')}
 								</p>
 								{status.mapping.needsReview > 0 && (
 									<Link
 										href="/settings/igdb/review"
 										className={buttonVariants({ variant: 'outline' })}
 									>
-										Vérifier {status.mapping.needsReview} match
-										{status.mapping.needsReview > 1 ? 'es' : ''}
+										{t('igdb.reviewMatches', { count: status.mapping.needsReview })}
 									</Link>
 								)}
 								<details className="text-xs text-muted-foreground">
 									<summary className="cursor-pointer hover:text-foreground">
-										Options avancées
+										{t('igdb.advancedOptions')}
 									</summary>
 									<div className="mt-2 space-y-2">
 										<Button variant="outline" size="sm" onClick={() => handleStartMatch('all')}>
-											Matcher toute la collection
+											{t('igdb.matchAll')}
 										</Button>
 										<p>
-											Lance le matching sur les {status.mapping.totalGames} jeux. Très long sur
-											une grosse collection. Non nécessaire — préférer le matching à la demande.
+											{t('igdb.matchAllHint', { count: status.mapping.totalGames })}
 										</p>
 									</div>
 								</details>

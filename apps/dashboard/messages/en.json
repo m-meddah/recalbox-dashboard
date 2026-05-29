@@ -161,6 +161,7 @@
       "integrations": "Integrations",
       "mqttPublish": "MQTT Publish",
       "notifications": "Notifications",
+      "igdb": "IGDB",
       "app": "App"
     },
     "recalbox": {
@@ -322,6 +323,37 @@
       "androidInstructions": "Open in Chrome → tap menu (⋮) → Add to Home Screen",
       "desktopInstructions": "Click the install icon (⊕) in the address bar",
       "webPushNote": "Web Push notifications on iOS require the app to be installed as a PWA."
+    },
+    "igdb": {
+      "cardTitle": "IGDB (advanced recommendations)",
+      "active": "Active",
+      "inactive": "Disabled",
+      "description": "IGDB improves recommendations by leveraging similar games calculated by its community. Requires a free Twitch developer account. Recommendations still work without IGDB.",
+      "credentialsHelp": "How to get my credentials?",
+      "credentialsStep5": "Get the Client ID, generate a Client Secret",
+      "enableButton": "Enable IGDB",
+      "errorInvalidCredentials": "Invalid credentials",
+      "errorNetwork": "Network error",
+      "savedSuccess": "IGDB enabled successfully",
+      "matched": "Matched games",
+      "notFound": "Not found",
+      "toReview": "To review",
+      "totalCollection": "Total collection: {count} games. Only played games are matched by default.",
+      "matchingProgress": "Matching: {done} / {total}",
+      "matchPlayed": "Match my played games",
+      "matchPlayedHint": "Only matches games already played (sessions, history, favorites).",
+      "reviewMatches": "{count, plural, one {Review 1 match} other {Review # matches}}",
+      "advancedOptions": "Advanced options",
+      "matchAll": "Match entire collection",
+      "matchAllHint": "Starts matching on all {count} games. Very slow for large collections. Not necessary — prefer on-demand matching."
+    },
+    "igdbReview": {
+      "back": "Back",
+      "title": "Review IGDB matches",
+      "subtitle": "These matches have low confidence. Confirm or reject them.",
+      "loading": "Loading…",
+      "allGood": "No matches to review. Everything is in order.",
+      "pendingTitle": "{count, plural, one {1 match to review} other {# matches to review}}"
     }
   },
   "achievements": {
@@ -722,6 +754,26 @@
         "backToRecs": "Back to recommendations"
       }
     }
+  },
+  "profile": {
+    "loading": "Loading…",
+    "title": "Your gamer profile",
+    "subtitle": "Inferred automatically from your sessions. Updated on {date}.",
+    "lastUpdateNever": "never",
+    "recompute": "Recompute",
+    "maturityLabel": "Profile maturity",
+    "maturityYoung": "Young profile: play more to improve recommendations.",
+    "maturityBuilding": "Profile growing: recommendations are getting sharper.",
+    "maturityMature": "Mature profile: recommendations are well-calibrated.",
+    "sessions": "{count, plural, one {1 significant session} other {# significant sessions}}",
+    "noData": "Not enough data yet.",
+    "systemsTitle": "Favorite systems",
+    "genresTitle": "Favorite genres",
+    "decadesTitle": "Favorite decades",
+    "developersTitle": "Favorite developers",
+    "comfortGamesTitle": "Your comfort games",
+    "comfortGamesDesc": "Games you return to most often and play the longest",
+    "bouncersTitle": "Your 'bouncers'",
+    "bouncersDesc": "Games you launch but quit quickly — the algorithm will avoid suggesting them"
   }
-}
 }

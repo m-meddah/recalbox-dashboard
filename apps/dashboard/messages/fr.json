@@ -161,6 +161,7 @@
       "integrations": "Intégrations",
       "mqttPublish": "Publication MQTT",
       "notifications": "Notifications",
+      "igdb": "IGDB",
       "app": "App"
     },
     "recalbox": {
@@ -322,6 +323,37 @@
       "androidInstructions": "Ouvrir dans Chrome → menu (⋮) → Ajouter à l’écran d’accueil",
       "desktopInstructions": "Cliquer sur l’icône d’installation (⊕) dans la barre d’adresse",
       "webPushNote": "Les notifications Web Push sur iOS nécessitent que l’application soit installée en PWA."
+    },
+    "igdb": {
+      "cardTitle": "IGDB (recommandations avancées)",
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "description": "IGDB améliore les recommandations en exploitant les jeux similaires calculés par sa communauté. Nécessite un compte Twitch développeur (gratuit). Sans IGDB, les recommandations fonctionnent quand même.",
+      "credentialsHelp": "Comment obtenir mes identifiants ?",
+      "credentialsStep5": "Récupère le Client ID, génère un Client Secret",
+      "enableButton": "Activer IGDB",
+      "errorInvalidCredentials": "Identifiants invalides",
+      "errorNetwork": "Erreur réseau",
+      "savedSuccess": "IGDB activé avec succès",
+      "matched": "Jeux matchés",
+      "notFound": "Non trouvés",
+      "toReview": "À vérifier",
+      "totalCollection": "Total collection : {count} jeux. Seuls les jeux joués sont matchés par défaut.",
+      "matchingProgress": "Matching : {done} / {total}",
+      "matchPlayed": "Matcher mes jeux joués",
+      "matchPlayedHint": "Ne matche que les jeux déjà joués (sessions, historique, favoris).",
+      "reviewMatches": "{count, plural, one {Vérifier 1 match} other {Vérifier # matchs}}",
+      "advancedOptions": "Options avancées",
+      "matchAll": "Matcher toute la collection",
+      "matchAllHint": "Lance le matching sur les {count} jeux. Très long sur une grosse collection. Non nécessaire — préférer le matching à la demande."
+    },
+    "igdbReview": {
+      "back": "Retour",
+      "title": "Vérification des matchs IGDB",
+      "subtitle": "Ces matchs ont une confiance faible. Confirmez ou rejetez-les.",
+      "loading": "Chargement…",
+      "allGood": "Aucun match à vérifier. Tout est en ordre.",
+      "pendingTitle": "{count, plural, one {1 match à vérifier} other {# matchs à vérifier}}"
     }
   },
   "achievements": {
@@ -722,5 +754,26 @@
         "backToRecs": "Retour aux recos"
       }
     }
+  },
+  "profile": {
+    "loading": "Chargement…",
+    "title": "Ton profil de joueur",
+    "subtitle": "Inféré automatiquement depuis tes sessions. Mis à jour le {date}.",
+    "lastUpdateNever": "jamais",
+    "recompute": "Recalculer",
+    "maturityLabel": "Maturité du profil",
+    "maturityYoung": "Profil jeune : joue plus pour améliorer les recommandations.",
+    "maturityBuilding": "Profil en construction : les recos se précisent.",
+    "maturityMature": "Profil mature : recommandations bien calibrées.",
+    "sessions": "{count, plural, one {1 session significative} other {# sessions significatives}}",
+    "noData": "Pas encore assez de données.",
+    "systemsTitle": "Systèmes préférés",
+    "genresTitle": "Genres préférés",
+    "decadesTitle": "Décennies préférées",
+    "developersTitle": "Développeurs préférés",
+    "comfortGamesTitle": "Tes comfort games",
+    "comfortGamesDesc": "Les jeux où tu reviens le plus souvent et joues le plus longtemps",
+    "bouncersTitle": "Tes 'bouncers'",
+    "bouncersDesc": "Les jeux que tu lances mais quittes vite — l'algo évitera de te les proposer"
   }
 }

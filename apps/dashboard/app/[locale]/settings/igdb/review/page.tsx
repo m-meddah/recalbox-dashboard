@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Check, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -17,6 +18,7 @@ type ReviewItem = {
 }
 
 export default function IgdbReviewPage() {
+	const t = useTranslations('settings')
 	const router = useRouter()
 	const [items, setItems] = useState<ReviewItem[]>([])
 	const [loading, setLoading] = useState(true)
@@ -48,22 +50,22 @@ export default function IgdbReviewPage() {
 			<div className="flex items-center gap-3">
 				<Button variant="ghost" size="sm" onClick={() => router.back()}>
 					<ArrowLeft className="w-4 h-4 mr-1" />
-					Retour
+					{t('igdbReview.back')}
 				</Button>
 				<div>
-					<h1 className="text-2xl font-bold">Vérification des matchs IGDB</h1>
+					<h1 className="text-2xl font-bold">{t('igdbReview.title')}</h1>
 					<p className="text-sm text-muted-foreground">
-						Ces matchs ont une confiance faible. Confirmez ou rejetez-les.
+						{t('igdbReview.subtitle')}
 					</p>
 				</div>
 			</div>
 
-			{loading && <p className="text-muted-foreground text-sm">Chargement…</p>}
+			{loading && <p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>}
 
 			{!loading && items.length === 0 && (
 				<Card>
 					<CardContent className="py-8 text-center text-muted-foreground text-sm">
-						Aucun match à vérifier. Tout est en ordre.
+						{t('igdbReview.allGood')}
 					</CardContent>
 				</Card>
 			)}
@@ -71,7 +73,7 @@ export default function IgdbReviewPage() {
 			{!loading && items.length > 0 && (
 				<Card>
 					<CardHeader>
-						<CardTitle>{items.length} match{items.length > 1 ? 'es' : ''} à vérifier</CardTitle>
+						<CardTitle>{t('igdbReview.pendingTitle', { count: items.length })}</CardTitle>
 					</CardHeader>
 					<CardContent className="p-0">
 						<div className="divide-y">

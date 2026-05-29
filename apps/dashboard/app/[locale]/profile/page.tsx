@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
 import { Loader2, RotateCw } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 type WeightedItem = { key: string; weight: number; rawScore: number }
@@ -23,6 +24,8 @@ type ProfileData = {
 }
 
 export default function ProfilePage() {
+	const t = useTranslations('profile')
+	const locale = useLocale()
 	const [profile, setProfile] = useState<ProfileData | null>(null)
 	const [recomputing, setRecomputing] = useState(false)
 
@@ -43,24 +46,24 @@ export default function ProfilePage() {
 	}
 
 	if (!profile) {
-		return <div className="container py-8 text-muted-foreground">Chargement…</div>
+		return <div className="container py-8 text-muted-foreground">{t('loading')}</div>
 	}
 
 	const maturityPercent = Math.round(profile.profileMaturity * 100)
 	const lastUpdate = profile.computedAt
-		? new Date(profile.computedAt).toLocaleString('fr-FR', {
+		? new Date(profile.computedAt).toLocaleString(locale, {
 				dateStyle: 'short',
 				timeStyle: 'short',
 			})
-		: 'jamais'
+		: t('lastUpdateNever')
 
 	return (
 		<div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
 			<header className="flex items-start justify-between gap-4">
 				<div className="space-y-1">
-					<h1 className="text-2xl font-bold">Ton profil de joueur</h1>
+					<h1 className="text-2xl font-bold">{t('title')}</h1>
 					<p className="text-muted-foreground text-sm">
-						Inféré automatiquement depuis tes sessions. Mis à jour le {lastUpdate}.
+						{t('subtitle', { date: lastUpdate })}
 					</p>
 				</div>
 				<Button variant="outline" size="sm" onClick={handleRecompute} disabled={recomputing}>
@@ -69,45 +72,43 @@ export default function ProfilePage() {
 					) : (
 						<RotateCw className="w-4 h-4 mr-2" />
 					)}
-					Recalculer
+					{t('recompute')}
 				</Button>
 			</header>
 
 			<Card>
 				<CardContent className="py-4 space-y-2">
 					<Progress value={maturityPercent}>
-						<ProgressLabel>Maturité du profil</ProgressLabel>
+						<ProgressLabel>{t('maturityLabel')}</ProgressLabel>
 						<ProgressValue />
 					</Progress>
 					<p className="text-xs text-muted-foreground">
-						{profile.totalSignalSessions} session
-						{profile.totalSignalSessions > 1 ? 's' : ''} significative
-						{profile.totalSignalSessions > 1 ? 's' : ''} —{' '}
+						{t('sessions', { count: profile.totalSignalSessions })} —{' '}
 						{maturityPercent < 30
-							? 'Profil jeune : joue plus pour améliorer les recommandations.'
+							? t('maturityYoung')
 							: maturityPercent < 70
-								? 'Profil en construction : les recos se précisent.'
-								: 'Profil mature : recommandations bien calibrées.'}
+								? t('maturityBuilding')
+								: t('maturityMature')}
 					</p>
 				</CardContent>
 			</Card>
 
 			<div className="grid md:grid-cols-2 gap-4">
-				<WeightedSection title="Systèmes préférés" items={profile.systemsWeights} />
-				<WeightedSection title="Genres préférés" items={profile.genresWeights} />
-				<WeightedSection title="Décennies préférées" items={profile.decadesWeights} />
-				<WeightedSection title="Développeurs préférés" items={profile.developersWeights} />
+				<WeightedSection title={t('systemsTitle')} items={profile.systemsWeights} noDataText={t('noData')} />
+				<WeightedSection title={t('genresTitle')} items={profile.genresWeights} noDataText={t('noData')} />
+				<WeightedSection title={t('decadesTitle')} items={profile.decadesWeights} noDataText={t('noData')} />
+				<WeightedSection title={t('developersTitle')} items={profile.developersWeights} noDataText={t('noData')} />
 			</div>
 
 			<GameList
-				title="Tes comfort games"
-				description="Les jeux où tu reviens le plus souvent et joues le plus longtemps"
+				title={t('comfortGamesTitle')}
+				description={t('comfortGamesDesc')}
 				games={profile.comfortGames}
 			/>
 
 			<GameList
-				title="Tes 'bouncers'"
-				description="Les jeux que tu lances mais quittes vite — l'algo évitera de te les proposer"
+				title={t('bouncersTitle')}
+				description={t('bouncersDesc')}
 				games={profile.bouncerGames}
 				muted
 			/>
@@ -117,7 +118,7 @@ export default function ProfilePage() {
 	)
 }
 
-function WeightedSection({ title, items }: { title: string; items: WeightedItem[] }) {
+function WeightedSection({ title, items, noDataText }: { title: string; items: WeightedItem[]; noDataText: string }) {
 	if (items.length === 0) {
 		return (
 			<Card>
@@ -125,7 +126,7 @@ function WeightedSection({ title, items }: { title: string; items: WeightedItem[
 					<CardTitle className="text-base">{title}</CardTitle>
 				</CardHeader>
 				<CardContent className="text-sm text-muted-foreground">
-					Pas encore assez de données.
+					{noDataText}
 				</CardContent>
 			</Card>
 		)
