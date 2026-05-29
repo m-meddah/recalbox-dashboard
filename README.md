@@ -22,7 +22,7 @@ retrogaming.
 | Edit `recalbox.conf` | Activity heatmap (GitHub-style) |
 | Upload BIOS / ROMs | Top games, streaks, sessions timeline |
 | Screenshots and logs | Game collection browsable & filterable |
-| Mobile-friendly | Mobile-friendly + PWA installable (coming) |
+| Mobile-friendly | Mobile-friendly + PWA installable |
 
 ### Where this fits in the Recalbox ecosystem
 
@@ -147,7 +147,9 @@ pnpm dev          # http://localhost:3000
 | Command | Description |
 | ------- | ----------- |
 | `pnpm dev` | Start Next.js dev server with Turbopack (localhost only) |
-| `pnpm --filter @recalbox/dashboard dev:mobile` | Dev server accessible from phones on the local network |
+| `pnpm dev:all` | Start Next.js + scrobbler together (recommended for dev) |
+| `pnpm dev:all:mobile` | Same, accessible from phones on the local network (binds to `0.0.0.0`) |
+| `pnpm --filter @recalbox/dashboard dev:mobile` | Dev server only, accessible from phones on the local network |
 | `pnpm build` | Build all packages |
 | `pnpm lint` | Biome lint + check |
 | `pnpm format` | Biome format (write) |
@@ -199,7 +201,7 @@ Recalbox MQTT broker
   → lib/recalbox/mqtt-client.ts  (singleton, typed EventEmitter, auto-reconnect)
   → lib/recalbox/events.ts       (parseRecalboxMessage — stateless, never throws)
   → app/api/events/route.ts      (SSE endpoint, NodeJS runtime)
-  → components/now-playing.tsx   (EventSource, no polling)
+  → components/now-playing.tsx   (EventSource, no polling; shows active game, ES browsing state, and screensaver)
 ```
 
 **Relevant topic:** `Recalbox/WebAPI/EmulationStation/Event`
@@ -294,6 +296,11 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 15 — MQTT Publish: push analytics (playtime, streaks, sessions, last game) to MQTT topics for Home Assistant, Node-RED and any MQTT client; Home Assistant Discovery auto-registers 8 sensors
 - [x] Ticket 16 — Multi-disc / .m3u Generator: detect multi-disc games (PSX, Saturn, Sega CD…) from the synced collection, generate `.m3u` playlist files with LF line endings, deploy to Recalbox over SSH from a dedicated `/collection/m3u` page
 - [x] Ticket 17 — Collection health panel: scrape diagnostic (missing cover/description per system, collapsible game list) + Patron key presence check with contextualised scraping recommendations
+- [x] Ticket 18 — Session engagement classification: noise / bounce / taste / meaningful / marathon (duration-based, feeds profile and recommendations)
+- [x] Ticket 19 — Post-session feedback prompts: love / like / dislike ratings surfaced as toasts, collected at `/feedback`, feed into recommendation scoring
+- [x] Ticket 20 — IGDB integration: lazy background matching, critic ratings, similarity graph for recommendation boost; manual review UI in Settings
+- [x] Ticket 21 — Taste Profile (`/profile`): inferred weights per system / genre / decade / developer, comfort games, maturity score, 30-day quality metrics
+- [x] Ticket 22 — "What to Play Tonight" (`/play-tonight`): mood + time-aware content-based recommendation engine with skip, launch, and confidence levels
 
 ## RetroAchievements integration
 
@@ -400,6 +407,32 @@ pnpm gamelist:import --dry-run       # Preview without writing
 pnpm gamelist:import --duration 3600 # Assume 1-hour sessions (default: 30 min)
 pnpm gamelist:clear                  # Undo the import
 ```
+
+## What to Play Tonight (`/play-tonight`)
+
+The recommendation engine scores every non-hidden game in the collection and picks the best match for right now, given:
+
+- **Mood** — chill, challenge, nostalgia, discovery, finish (resume an in-progress game), or surprise
+- **Available time** — 30 min, 1 h, 2 h, or 4 h; the engine favours games that fit the slot (arcade for short sessions, RPGs for long ones)
+- **Taste profile** — system, genre, decade, and developer weights inferred from session history and ratings
+- **Session history** — recently played games are deprioritised; bounced games are excluded; comfort games get a boost in chill / nostalgia mood
+- **IGDB similarity** — when IGDB is enabled, games similar to your top comfort games receive an extra boost
+- **User ratings** — love / like / dislike ratings from post-session feedback directly affect the score
+
+Each recommendation card shows up to 3 human-readable reasons and a confidence level (high / medium / exploration). Users can skip a suggestion (excluded for 24 h) or launch the game directly from the dashboard.
+
+See [docs/recommendations.md](docs/recommendations.md) for the full algorithm description.
+
+## Taste Profile (`/profile`)
+
+The profile page shows the preferences inferred from your play history:
+
+- **Weights per dimension** — systems, genres, decades, developers; each weight is relative to your most-played category (max = 1.0)
+- **Comfort games** — top 10 games by weighted engagement score; used as anchors for IGDB similarity matching
+- **Maturity score** — how much signal the engine has collected (0 → 100 %, target: 50 signal sessions); recommendations improve as the score grows
+- **Quality metrics** — launch rate, hit rate, and bounce rate for recommendations over 30 days, broken down by mood and confidence level
+
+The profile is recomputed in background each time a meaningful or marathon session closes. A manual recompute is available from the profile page.
 
 ## Collection API
 
