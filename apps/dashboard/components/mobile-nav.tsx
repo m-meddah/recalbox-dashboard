@@ -26,6 +26,7 @@ export function MobileNav() {
 
 	const links = [
 		{ href: '/' as const, label: t('home') },
+		{ href: '/play-tonight' as const, label: t('playTonight') },
 		{ href: '/collection' as const, label: t('collection') },
 		{ href: '/stats' as const, label: t('stats') },
 		{ href: '/achievements' as const, label: t('achievements') },

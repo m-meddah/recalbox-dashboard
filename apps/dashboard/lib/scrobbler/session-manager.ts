@@ -1,5 +1,5 @@
 import type { DB } from '@/lib/db/index'
-import { games, pendingFeedback, sessions } from '@/lib/db/schema'
+import { games, pendingFeedback, recommendationLog, sessions } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { classifySession } from '@/lib/sessions/classify'
 import { shouldPromptForFeedback } from '@/lib/feedback/should-prompt'
@@ -8,7 +8,7 @@ import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import { matchGameAsync } from '@/lib/igdb/match-single'
-import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365]
 
@@ -96,6 +96,48 @@ export class SessionManager {
 			romPath: event.romPath,
 		})
 		logger.info(`Opened session ${id} for ${event.romPath} on ${event.system}`)
+
+		this.linkRecoToSession(id, event.romPath, recalboxId).catch((err) =>
+			logger.error('Reco session link failed', err),
+		)
+	}
+
+	private async linkRecoToSession(
+		sessionId: number,
+		romPath: string,
+		recalboxId: string,
+	): Promise<void> {
+		const game = await this.db
+			.select({ id: games.id })
+			.from(games)
+			.where(
+				and(eq(games.romPath, romPath), eq(games.recalboxId, recalboxId)),
+			)
+			.get()
+
+		if (!game) return
+
+		const recentReco = await this.db
+			.select()
+			.from(recommendationLog)
+			.where(
+				and(
+					eq(recommendationLog.gameId, game.id),
+					eq(recommendationLog.launched, true),
+					isNull(recommendationLog.resultingSessionId),
+					gt(recommendationLog.launchedAt, new Date(Date.now() - 5 * 60_000)),
+				),
+			)
+			.orderBy(desc(recommendationLog.launchedAt))
+			.limit(1)
+			.get()
+
+		if (recentReco) {
+			await this.db
+				.update(recommendationLog)
+				.set({ resultingSessionId: sessionId })
+				.where(eq(recommendationLog.id, recentReco.id))
+		}
 	}
 
 	async closeSession(event: GameStopEvent): Promise<void> {

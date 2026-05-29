@@ -436,3 +436,48 @@ export const igdbGameCache = sqliteTable(
 )
 
 export type IgdbGameCache = typeof igdbGameCache.$inferSelect
+
+// ── Recommendations ──────────────────────────────────────────────────────────
+
+export const recommendationSkip = sqliteTable(
+	'recommendation_skip',
+	{
+		gameId: int('game_id').primaryKey(),
+		skippedAt: int('skipped_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		expiresIdx: index('recommendation_skip_expires_idx').on(t.expiresAt),
+	}),
+)
+
+export type RecommendationSkip = typeof recommendationSkip.$inferSelect
+
+export const recommendationLog = sqliteTable(
+	'recommendation_log',
+	{
+		id: int('id').primaryKey({ autoIncrement: true }),
+		presentedAt: int('presented_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		gameId: int('game_id').notNull(),
+		contextTimeMinutes: int('context_time_minutes').notNull(),
+		contextMood: text('context_mood').notNull(),
+		score: real('score').notNull(),
+		confidence: text('confidence').notNull(),
+		reasons: text('reasons', { mode: 'json' }).$type<string[]>(),
+		launched: int('launched', { mode: 'boolean' }).notNull().default(false),
+		launchedAt: int('launched_at', { mode: 'timestamp' }),
+		skipped: int('skipped', { mode: 'boolean' }).notNull().default(false),
+		skippedAt: int('skipped_at', { mode: 'timestamp' }),
+		resultingSessionId: int('resulting_session_id'),
+	},
+	(t) => ({
+		gameIdx: index('reco_log_game_idx').on(t.gameId),
+		presentedIdx: index('reco_log_presented_idx').on(t.presentedAt),
+	}),
+)
+
+export type RecommendationLog = typeof recommendationLog.$inferSelect

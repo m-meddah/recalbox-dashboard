@@ -120,6 +120,12 @@ export default async function LocaleLayout({ children, params }: Props) {
 										>
 											{t('profile')}
 										</Link>
+										<Link
+											href="/play-tonight"
+											className="text-sm font-semibold text-primary hover:text-primary/80"
+										>
+											{t('playTonight')}
+										</Link>
 									</div>
 									{/* Mobile hamburger */}
 									<MobileNav />
