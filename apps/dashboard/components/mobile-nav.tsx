@@ -27,12 +27,12 @@ export function MobileNav() {
 	const links = [
 		{ href: '/' as const, label: t('home') },
 		{ href: '/play-tonight' as const, label: t('playTonight') },
-		{ href: '/collection' as const, label: t('collection') },
 		{ href: '/stats' as const, label: t('stats') },
-		{ href: '/achievements' as const, label: t('achievements') },
-		{ href: '/settings' as const, label: t('settings') },
-		{ href: '/wrapped' as const, label: t('wrapped') },
+		{ href: '/collection' as const, label: t('collection') },
 		{ href: '/profile' as const, label: t('profile') },
+		{ href: '/achievements' as const, label: t('achievements') },
+		{ href: '/wrapped' as const, label: t('wrapped') },
+		{ href: '/settings' as const, label: t('settings') },
 	]
 
 	return (

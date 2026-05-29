@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { RecommendationQuality } from '@/components/profile/recommendation-quality'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
 import { Loader2, RotateCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 type WeightedItem = { key: string; weight: number; rawScore: number }
 type GameInfo = { id: number; name: string; system: string; imagePath: string | null }
@@ -110,6 +111,8 @@ export default function ProfilePage() {
 				games={profile.bouncerGames}
 				muted
 			/>
+
+			<RecommendationQuality />
 		</div>
 	)
 }

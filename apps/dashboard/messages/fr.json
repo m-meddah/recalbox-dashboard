@@ -645,5 +645,82 @@
       "withPatron": "{count, plural, one {1 jeu} other {# jeux}} à scraper. En tant que Patron, scrape depuis EmulationStation (Menu → Scraper) — tu utiliseras les serveurs Recalbox, bien plus rapides que ScreenScraper.",
       "withoutPatron": "{count, plural, one {1 jeu} other {# jeux}} à scraper. Lance le scraper depuis EmulationStation (Menu → Scraper)."
     }
+  },
+  "playTonight": {
+    "title": "Que jouer ce soir ?",
+    "subtitle": "Choisis ton humeur et le temps que tu as, je m'occupe du reste.",
+    "howItWorks": "Comment ça marche ?",
+    "debug": "Debug",
+    "controls": {
+      "timeLabel": "Temps disponible",
+      "moodLabel": "Humeur",
+      "submit": "Trouver 3 jeux",
+      "times": { "evening": "Soirée" },
+      "moods": {
+        "surprise": "Surprends-moi",
+        "chill": "Chill",
+        "challenge": "Défi",
+        "nostalgia": "Nostalgie",
+        "discovery": "Découverte",
+        "finish": "Finir un truc"
+      }
+    },
+    "results": {
+      "loading": "Recherche en cours…",
+      "empty": "Aucun jeu ne correspond à ces critères.",
+      "emptyHint": "Essaye un autre temps/humeur, ou joue plus pour enrichir ton profil.",
+      "reshuffle": "Proposer d'autres jeux"
+    },
+    "card": {
+      "launch": "Lancer",
+      "skip": "Passer 7 jours",
+      "confidence": {
+        "high": "Forte confiance",
+        "medium": "Pari raisonné",
+        "exploration": "Découverte"
+      }
+    },
+    "maturityBanner": {
+      "message": "Profil à <b>{pct}%</b> — joue plus pour des recos plus précises.",
+      "details": "Détails"
+    },
+    "about": {
+      "title": "Comment ça marche ?",
+      "subtitle": "Tout sur les recommandations.",
+      "loading": "Chargement…",
+      "algoStatus": {
+        "title": "Où en est ton algo ?",
+        "maturityLabel": "Maturité du profil",
+        "maturityHint": "Basé sur {count} session(s) significative(s). 50 sessions = profil mature.",
+        "igdbEnabled": "IGDB activé — recommandations enrichies",
+        "igdbDisabled": "IGDB désactivé —",
+        "igdbActivateLink": "activer pour de meilleures recos"
+      },
+      "sources": {
+        "title": "Sur quoi se basent les recommandations ?",
+        "sessions": { "title": "Tes sessions de jeu", "desc": "Ce que tu joues, combien de temps, à quelle fréquence. Les sessions récentes pèsent plus que les anciennes." },
+        "comfortGames": { "title": "Tes comfort games", "desc": "Les jeux où tu reviens souvent et restes longtemps. L'algo te propose des jeux similaires." },
+        "feedback": { "title": "Tes avis après session", "desc": "Les retours post-session pèsent fort. Un 'love' compte double, un 'dislike' coupe les recos." },
+        "igdb": { "title": "IGDB (jeux similaires)", "desc": "Pour tes comfort games, on récupère ce que la communauté IGDB a aimé d'autre, puis on cherche dans ta collection." },
+        "mood": { "title": "Humeur et temps disponible", "desc": "Les deux seuls inputs que tu donnes. Ils modulent les recos sans changer ton profil de fond." }
+      },
+      "confidence": {
+        "title": "Les niveaux de confiance",
+        "high": { "level": "Forte confiance", "desc": "Fortement aligné avec tes goûts (ou boosté par IGDB). Probablement un bon choix." },
+        "medium": { "level": "Pari raisonné", "desc": "Plusieurs signaux convergent sans être très forts. Tente le coup." },
+        "exploration": { "level": "Découverte", "desc": "Volontairement hors de tes habitudes. L'algo joue la diversité." }
+      },
+      "tips": {
+        "title": "Comment améliorer mes recos ?",
+        "play": "Joue. Le profil est inféré de tes vraies sessions, pas d'un questionnaire.",
+        "feedback": "Réponds aux retours post-session (un clic, signal très fort).",
+        "skip": "Passe les jeux qui ne t'intéressent pas (bouton ✕ = 7 jours sans réapparaître).",
+        "igdb": "Active IGDB dans <link>les paramètres</link> pour les recos communautaires."
+      },
+      "links": {
+        "profile": "Voir mon profil",
+        "backToRecs": "Retour aux recos"
+      }
+    }
   }
 }

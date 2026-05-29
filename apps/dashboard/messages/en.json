@@ -645,5 +645,83 @@
       "withPatron": "{count, plural, one {1 game} other {# games}} to scrape. As a Patron, use the scraper in EmulationStation (Menu → Scraper) — you’ll use Recalbox servers, much faster than ScreenScraper.",
       "withoutPatron": "{count, plural, one {1 game} other {# games}} to scrape. Launch the scraper from EmulationStation (Menu → Scraper)."
     }
+  },
+  "playTonight": {
+    "title": "What to play tonight?",
+    "subtitle": "Pick your mood and how much time you have — I'll handle the rest.",
+    "howItWorks": "How does it work?",
+    "debug": "Debug",
+    "controls": {
+      "timeLabel": "Available time",
+      "moodLabel": "Mood",
+      "submit": "Find 3 games",
+      "times": { "evening": "Evening" },
+      "moods": {
+        "surprise": "Surprise me",
+        "chill": "Chill",
+        "challenge": "Challenge",
+        "nostalgia": "Nostalgia",
+        "discovery": "Discovery",
+        "finish": "Finish something"
+      }
+    },
+    "results": {
+      "loading": "Searching…",
+      "empty": "No games match these criteria.",
+      "emptyHint": "Try a different time/mood, or play more to build your profile.",
+      "reshuffle": "Suggest other games"
+    },
+    "card": {
+      "launch": "Play",
+      "skip": "Skip 7 days",
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Calculated bet",
+        "exploration": "Discovery"
+      }
+    },
+    "maturityBanner": {
+      "message": "Profile at <b>{pct}%</b> — play more for better recommendations.",
+      "details": "Details"
+    },
+    "about": {
+      "title": "How does it work?",
+      "subtitle": "Everything about recommendations.",
+      "loading": "Loading…",
+      "algoStatus": {
+        "title": "Where is your algorithm at?",
+        "maturityLabel": "Profile maturity",
+        "maturityHint": "Based on {count} significant session(s). 50 sessions = mature profile.",
+        "igdbEnabled": "IGDB enabled — enriched recommendations",
+        "igdbDisabled": "IGDB disabled —",
+        "igdbActivateLink": "enable for better recommendations"
+      },
+      "sources": {
+        "title": "What are recommendations based on?",
+        "sessions": { "title": "Your play sessions", "desc": "What you play, how long, how often. Recent sessions weigh more than older ones." },
+        "comfortGames": { "title": "Your comfort games", "desc": "Games you return to often and play the longest. The algorithm suggests similar games." },
+        "feedback": { "title": "Your post-session feedback", "desc": "Post-session feedback counts a lot. A 'love' doubles the weight, a 'dislike' stops recommendations." },
+        "igdb": { "title": "IGDB (similar games)", "desc": "For your comfort games, we fetch what the IGDB community also enjoyed, then look for matches in your collection." },
+        "mood": { "title": "Mood and available time", "desc": "The only two inputs you provide. They shape recommendations without changing your core profile." }
+      },
+      "confidence": {
+        "title": "Confidence levels",
+        "high": { "level": "High confidence", "desc": "Strongly aligned with your tastes (or IGDB-boosted). Probably a good pick." },
+        "medium": { "level": "Calculated bet", "desc": "Several signals converge without being very strong. Give it a shot." },
+        "exploration": { "level": "Discovery", "desc": "Intentionally outside your usual habits. The algorithm plays for variety." }
+      },
+      "tips": {
+        "title": "How to improve my recommendations?",
+        "play": "Play. Your profile is inferred from real sessions, not a questionnaire.",
+        "feedback": "Respond to post-session prompts (one click, very strong signal).",
+        "skip": "Skip games you're not interested in (✕ button = 7 days without reappearing).",
+        "igdb": "Enable IGDB in <link>settings</link> for community-based recommendations."
+      },
+      "links": {
+        "profile": "View my profile",
+        "backToRecs": "Back to recommendations"
+      }
+    }
   }
+}
 }

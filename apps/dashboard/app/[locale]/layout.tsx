@@ -85,10 +85,10 @@ export default async function LocaleLayout({ children, params }: Props) {
 											{t('home')}
 										</Link>
 										<Link
-											href="/collection"
-											className="text-sm text-muted-foreground hover:text-foreground"
+											href="/play-tonight"
+											className="text-sm font-semibold text-primary hover:text-primary/80"
 										>
-											{t('collection')}
+											{t('playTonight')}
 										</Link>
 										<Link
 											href="/stats"
@@ -97,22 +97,10 @@ export default async function LocaleLayout({ children, params }: Props) {
 											{t('stats')}
 										</Link>
 										<Link
-											href="/achievements"
+											href="/collection"
 											className="text-sm text-muted-foreground hover:text-foreground"
 										>
-											{t('achievements')}
-										</Link>
-										<Link
-											href="/settings"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('settings')}
-										</Link>
-										<Link
-											href="/wrapped"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('wrapped')}
+											{t('collection')}
 										</Link>
 										<Link
 											href="/profile"
@@ -121,10 +109,22 @@ export default async function LocaleLayout({ children, params }: Props) {
 											{t('profile')}
 										</Link>
 										<Link
-											href="/play-tonight"
-											className="text-sm font-semibold text-primary hover:text-primary/80"
+											href="/achievements"
+											className="text-sm text-muted-foreground hover:text-foreground"
 										>
-											{t('playTonight')}
+											{t('achievements')}
+										</Link>
+										<Link
+											href="/wrapped"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('wrapped')}
+										</Link>
+										<Link
+											href="/settings"
+											className="text-sm text-muted-foreground hover:text-foreground"
+										>
+											{t('settings')}
 										</Link>
 									</div>
 									{/* Mobile hamburger */}

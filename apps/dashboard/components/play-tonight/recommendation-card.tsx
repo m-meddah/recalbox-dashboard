@@ -1,27 +1,17 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Target, HelpCircle, Sparkles, Play, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import type { ScoredGame } from '@/lib/recommendations/types'
+import { cn } from '@/lib/utils'
+import { HelpCircle, Play, Sparkles, Target, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
-const CONF = {
-	high: {
-		label: 'Forte confiance',
-		icon: Target,
-		cls: 'text-green-600 dark:text-green-400',
-		bg: 'bg-green-500/10',
-	},
-	medium: {
-		label: 'Pari raisonné',
-		icon: HelpCircle,
-		cls: 'text-blue-600 dark:text-blue-400',
-		bg: 'bg-blue-500/10',
-	},
+const CONF_STYLE = {
+	high: { icon: Target, cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10' },
+	medium: { icon: HelpCircle, cls: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10' },
 	exploration: {
-		label: 'Découverte',
 		icon: Sparkles,
 		cls: 'text-purple-600 dark:text-purple-400',
 		bg: 'bg-purple-500/10',
@@ -30,14 +20,17 @@ const CONF = {
 
 export function RecommendationCard({
 	game,
+	debugMode = false,
 	onSkip,
 	onLaunch,
 }: {
 	game: ScoredGame
+	debugMode?: boolean
 	onSkip: () => void
 	onLaunch: () => void
 }) {
-	const conf = CONF[game.confidence]
+	const t = useTranslations('playTonight.card')
+	const conf = CONF_STYLE[game.confidence]
 	const ConfIcon = conf.icon
 
 	return (
@@ -66,7 +59,7 @@ export function RecommendationCard({
 						conf.cls,
 					)}
 				>
-					<ConfIcon className="w-3 h-3" /> {conf.label}
+					<ConfIcon className="w-3 h-3" /> {t(`confidence.${game.confidence}`)}
 				</div>
 				{game.igdbBoosted && (
 					<div className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 backdrop-blur-sm">
@@ -90,8 +83,8 @@ export function RecommendationCard({
 				</div>
 				{game.reasons.length > 0 && (
 					<ul className="space-y-1 text-sm text-muted-foreground">
-						{game.reasons.map((r, i) => (
-							<li key={i} className="flex items-start gap-1">
+						{game.reasons.map((r) => (
+							<li key={r} className="flex items-start gap-1">
 								<span className="text-primary mt-0.5">•</span>
 								<span>{r}</span>
 							</li>
@@ -100,12 +93,40 @@ export function RecommendationCard({
 				)}
 				<div className="mt-auto pt-3 flex gap-2">
 					<Button onClick={onLaunch} className="flex-1">
-						<Play className="w-4 h-4 mr-1" /> Lancer
+						<Play className="w-4 h-4 mr-1" /> {t('launch')}
 					</Button>
-					<Button variant="outline" size="icon" onClick={onSkip} title="Passer 7 jours">
+					<Button variant="outline" size="icon" onClick={onSkip} title={t('skip')}>
 						<X className="w-4 h-4" />
 					</Button>
 				</div>
+				{debugMode && game.scoreBreakdown && (
+					<details className="mt-2 text-xs">
+						<summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+							Score : {game.score.toFixed(1)} ({game.confidence})
+						</summary>
+						<div className="mt-2 space-y-0.5 pl-2 border-l">
+							{Object.entries(game.scoreBreakdown)
+								.sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
+								.map(([key, value]) => (
+									<div key={key} className="flex justify-between font-mono">
+										<span className="text-muted-foreground">{key}</span>
+										<span
+											className={
+												value > 0
+													? 'text-green-600 dark:text-green-400'
+													: value < 0
+														? 'text-red-600 dark:text-red-400'
+														: ''
+											}
+										>
+											{value > 0 ? '+' : ''}
+											{value.toFixed(1)}
+										</span>
+									</div>
+								))}
+						</div>
+					</details>
+				)}
 			</CardContent>
 		</Card>
 	)
