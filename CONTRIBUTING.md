@@ -19,7 +19,7 @@ pnpm dev
 
 ## Project structure
 
-```
+```text
 apps/dashboard/        # Next.js app (UI + API routes)
 packages/scraper-core/ # Shared scraping lib (stub)
 docker/                # Container support (s6 services, migrations)
@@ -30,6 +30,8 @@ docker/                # Container support (s6 services, migrations)
 | Command | Description |
 | ------- | ----------- |
 | `pnpm dev` | Next.js dev server (port 3000) |
+| `pnpm dev:all` | Next.js + scrobbler together (recommended) |
+| `pnpm dev:all:mobile` | Same, accessible from phones on the local network |
 | `pnpm scrobbler:dev` | Scrobbler daemon with file watching |
 | `pnpm test` | Run Vitest tests |
 | `pnpm lint` | Biome lint check |
