@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-30
+
+### Added
+
+- **What to Play Tonight** (`/play-tonight`) — content-based recommendation engine that scores every game in the collection against the user's taste profile, current mood, and available time. Supports six moods: chill, challenge, nostalgia, discovery, finish, surprise.
+- **IGDB enrichment** — lazy matching links collection games to IGDB entries in the background, providing critic ratings and similarity data that feed into recommendations. Configurable in Settings → IGDB.
+- **Taste Profile** (`/profile`) — inferred preference weights (system, genre, decade, developer) computed in background from session history and ratings. Includes transparency metrics: maturity score, signal session count, quality charts.
+- **Post-session feedback prompts** — after sessions classified as bounce, taste, meaningful, or marathon, users are invited to rate the game (love / like / dislike). Ratings feed back into recommendation scoring.
+- **Session engagement classification** — every scrobbler session receives a classification based on duration: `noise` (< 2 min), `bounce` (2–10 min), `taste` (10–30 min), `meaningful` (30 min–2 h), `marathon` (> 2 h).
+- **`pnpm dev:all`** — launches Next.js and scrobbler together in one terminal (replaces the two-terminal workflow).
+- **`pnpm dev:all:mobile`** — same as `dev:all`, bound to `0.0.0.0` so the dev server is accessible from phones on the local network.
+- **Separate inherited userdata** — sessions created from `gamelist-userdata.ini` (via `gamelist:import`) are stored in a dedicated `game_inherited_stats` table and weighted separately from live scrobbler sessions in profile computation.
+- **Now Playing: browsing and screensaver state** — the Now Playing card shows when EmulationStation is in game browsing mode or when the screensaver is active, not just when a game is running.
+- English translations for Profile page and IGDB settings.
+
+### Fixed
+
+- PWA: missing `apple-mobile-web-app-capable` meta tag prevented proper iOS Safari fullscreen installation.
+- PWA: reliability and UX improvements (install prompt, service worker update detection).
+- Stats: total playtime query used `=` for `recalbox_id` NULL comparison; replaced with `IS` operator for correct NULL-safe behaviour.
+- Wrapped: playtime displayed in hours even when under 1 hour; now shows minutes correctly.
+- Wrapped: navbar and theme toggle were missing on the `/wrapped` archive page.
+- SSH: patron status check failures logged with full stack trace; reduced to a plain info message.
+- API: several routes lacked error logging and input validation; hardened.
+- API: `logger.debug` called in a module that only exposes `logger.info`; replaced.
+- Recommendations: `inArray` called with the full game collection exceeded SQLite's variable limit; query restructured.
+- Play Tonight / Profile: page containers were missing `mx-auto` and `px-4`, causing full-width overflow on large screens.
+
+### Performance
+
+- SSH circuit breaker — when a Recalbox instance is unreachable, subsequent SSH calls fail fast with a short timeout instead of waiting for the full connection timeout on every request.
+
 ## [1.0.1] - 2026-05-22
 
 ### Fixed
@@ -116,6 +148,7 @@ than replacing it.
 - English and French UI via next-intl, with locale-prefix routing (`/en/`, `/fr/`)
 - All user-facing strings translated; locale auto-detected from browser preferences
 
-[Unreleased]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/m-meddah/recalbox-dashboard/releases/tag/v1.0.0
