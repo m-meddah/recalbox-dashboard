@@ -7,7 +7,7 @@ import {
 	gameIgdbMapping,
 	igdbGameCache,
 } from '@/lib/db/schema'
-import { sql, eq, gt, and, isNotNull, inArray } from 'drizzle-orm'
+import { eq, gt, and, isNotNull } from 'drizzle-orm'
 import { getGamePlayStatsBatch } from '@/lib/games/play-stats'
 import { getUserProfile } from '@/lib/profile/get-profile'
 import { getSimilarityProvider } from './similarity-provider'
@@ -52,7 +52,7 @@ export async function recommend(
 		.where(eq(games.hidden, false))
 		.all()
 
-	const statsMap = await getGamePlayStatsBatch(gamesList.map((g) => g.gameId))
+	const statsMap = await getGamePlayStatsBatch()
 
 	const ratings = await db.select().from(gameRatings).all()
 	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
@@ -104,30 +104,14 @@ export async function recommend(
 }
 
 async function loadIgdbRatings(): Promise<Map<number, number>> {
-	const mappings = await db
-		.select({ gameId: gameIgdbMapping.gameId, igdbId: gameIgdbMapping.igdbId })
+	const rows = await db
+		.select({ gameId: gameIgdbMapping.gameId, rating: igdbGameCache.rating })
 		.from(gameIgdbMapping)
-		.where(isNotNull(gameIgdbMapping.igdbId))
+		.innerJoin(igdbGameCache, eq(igdbGameCache.igdbId, gameIgdbMapping.igdbId))
+		.where(isNotNull(igdbGameCache.rating))
 		.all()
 
-	if (mappings.length === 0) return new Map()
-
-	const igdbIds = mappings.map((m) => m.igdbId).filter((id): id is number => id !== null)
-	if (igdbIds.length === 0) return new Map()
-
-	const cached = await db
-		.select({ igdbId: igdbGameCache.igdbId, rating: igdbGameCache.rating })
-		.from(igdbGameCache)
-		.where(and(inArray(igdbGameCache.igdbId, igdbIds), isNotNull(igdbGameCache.rating)))
-		.all()
-
-	const ratingByIgdbId = new Map(cached.map((c) => [c.igdbId, c.rating as number]))
-	const result = new Map<number, number>()
-	for (const m of mappings) {
-		const r = m.igdbId !== null ? ratingByIgdbId.get(m.igdbId) : undefined
-		if (r != null) result.set(m.gameId, r)
-	}
-	return result
+	return new Map(rows.map((r) => [r.gameId, r.rating as number]))
 }
 
 async function triggerLazyMatching(gameIds: number[]): Promise<void> {
