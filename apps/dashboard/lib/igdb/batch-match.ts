@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { gameIgdbMapping, gameInheritedStats, games, sessions } from '@/lib/db/schema'
-import { eq, gt, inArray, or, sql } from 'drizzle-orm'
+import { eq, gt, or, sql } from 'drizzle-orm'
 import { matchGameToIgdb } from './match-game'
 
 export type BatchProgress = {
@@ -36,12 +36,7 @@ async function getPlayedGames(): Promise<GameRow[]> {
 
 async function filterUnmatched(gameRows: GameRow[]): Promise<GameRow[]> {
 	if (gameRows.length === 0) return []
-	const ids = gameRows.map((g) => g.id)
-	const existing = await db
-		.select({ gameId: gameIgdbMapping.gameId })
-		.from(gameIgdbMapping)
-		.where(inArray(gameIgdbMapping.gameId, ids))
-		.all()
+	const existing = await db.select({ gameId: gameIgdbMapping.gameId }).from(gameIgdbMapping).all()
 	const matched = new Set(existing.map((e) => e.gameId))
 	return gameRows.filter((g) => !matched.has(g.id))
 }
