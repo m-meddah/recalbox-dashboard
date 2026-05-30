@@ -6,6 +6,8 @@ import {
 	recommendationLog,
 	gameIgdbMapping,
 	igdbGameCache,
+	gameHltbMapping,
+	hltbCache,
 } from '@/lib/db/schema'
 import { eq, gt, and, isNotNull } from 'drizzle-orm'
 import { getGamePlayStatsBatch } from '@/lib/games/play-stats'
@@ -58,6 +60,7 @@ export async function recommend(
 	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
 
 	const igdbRatingsMap = await loadIgdbRatings()
+	const hltbDurationsMap = await loadHltbDurations()
 
 	const scoringCtx: ScoringContext = { profile, similarToComfortGames, recommendationCtx }
 
@@ -78,6 +81,7 @@ export async function recommend(
 			igdbRating: igdbRatingsMap.get(game.gameId) ?? null,
 			stats: statsMap.get(game.gameId) ?? null,
 			rating: ratingsMap.get(game.gameId) ?? null,
+			hltbDurations: hltbDurationsMap.get(game.gameId) ?? null,
 		}
 		const result = scoreGame(g, scoringCtx)
 		if (result) scored.push(result)
@@ -101,6 +105,33 @@ export async function recommend(
 	}
 
 	return finalists
+}
+
+type HltbDurations = {
+	mainStory: number | null
+	mainExtras: number | null
+	completionist: number | null
+}
+
+async function loadHltbDurations(): Promise<Map<number, HltbDurations>> {
+	const rows = await db
+		.select({
+			gameId: gameHltbMapping.gameId,
+			mainStory: hltbCache.mainStorySeconds,
+			mainExtras: hltbCache.mainExtrasSeconds,
+			completionist: hltbCache.completionistSeconds,
+		})
+		.from(gameHltbMapping)
+		.innerJoin(hltbCache, eq(hltbCache.hltbId, gameHltbMapping.hltbId))
+		.where(isNotNull(gameHltbMapping.hltbId))
+		.all()
+
+	return new Map(
+		rows.map((r) => [
+			r.gameId,
+			{ mainStory: r.mainStory, mainExtras: r.mainExtras, completionist: r.completionist },
+		]),
+	)
 }
 
 async function loadIgdbRatings(): Promise<Map<number, number>> {
