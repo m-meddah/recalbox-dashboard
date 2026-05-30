@@ -27,7 +27,9 @@ class SshClient {
 		if (this.connectingPromise) return this.connectingPromise
 		// Fail fast while the host is known to be unreachable.
 		if (Date.now() < this.backoffUntil) {
-			throw new Error(`SSH [${this.recalboxId}] in backoff until ${new Date(this.backoffUntil).toISOString()}`)
+			throw new Error(
+				`SSH [${this.recalboxId}] in backoff until ${new Date(this.backoffUntil).toISOString()}`,
+			)
 		}
 		this.connectingPromise = (async () => {
 			this.ssh.dispose()

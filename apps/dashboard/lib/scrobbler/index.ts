@@ -86,7 +86,11 @@ export async function startScrobbler(): Promise<Scrobbler> {
 		client.on('game:start', onStart)
 		client.on('game:stop', onStop)
 		client.on('screensaver:stop', onScreensaverStop)
-		subscriptions.set(recalboxId, { start: onStart, stop: onStop, screensaverStop: onScreensaverStop })
+		subscriptions.set(recalboxId, {
+			start: onStart,
+			stop: onStop,
+			screensaverStop: onScreensaverStop,
+		})
 		logger.info(`Scrobbler subscribed to Recalbox ${recalboxId}`)
 	}
 

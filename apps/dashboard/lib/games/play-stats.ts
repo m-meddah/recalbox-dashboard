@@ -70,8 +70,7 @@ export async function getGamePlayStats(gameId: number): Promise<GamePlayStats | 
 export async function getGamePlayStatsBatch(
 	gameIds?: number[],
 ): Promise<Map<number, GamePlayStats>> {
-	const gameFilter =
-		gameIds && gameIds.length > 0 ? inArray(sessions.gameId, gameIds) : undefined
+	const gameFilter = gameIds && gameIds.length > 0 ? inArray(sessions.gameId, gameIds) : undefined
 
 	// Session aggregates (scrobbler only)
 	const sessionAgg = await db
@@ -100,19 +99,12 @@ export async function getGamePlayStatsBatch(
 
 	// Inherited stats
 	const inheritedFilter =
-		gameIds && gameIds.length > 0
-			? inArray(gameInheritedStats.gameId, gameIds)
-			: undefined
-	const inheritedAll = await db
-		.select()
-		.from(gameInheritedStats)
-		.where(inheritedFilter)
+		gameIds && gameIds.length > 0 ? inArray(gameInheritedStats.gameId, gameIds) : undefined
+	const inheritedAll = await db.select().from(gameInheritedStats).where(inheritedFilter)
 
 	// Calibrations
 	const calibFilter =
-		gameIds && gameIds.length > 0
-			? inArray(gameCalibration.gameId, gameIds)
-			: undefined
+		gameIds && gameIds.length > 0 ? inArray(gameCalibration.gameId, gameIds) : undefined
 	const calibAll = await db.select().from(gameCalibration).where(calibFilter)
 
 	// Build lookup maps

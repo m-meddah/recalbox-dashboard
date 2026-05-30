@@ -138,7 +138,9 @@ vi.mock('@/lib/db/index', () => {
 	return { db: fakeDb }
 })
 
-vi.mock('@/lib/db/schema', () => ({ games: { system: 'system', romPath: 'romPath', recalboxId: 'recalbox_id' } }))
+vi.mock('@/lib/db/schema', () => ({
+	games: { system: 'system', romPath: 'romPath', recalboxId: 'recalbox_id' },
+}))
 
 // ─── SSH mock ─────────────────────────────────────────────────────────────────
 

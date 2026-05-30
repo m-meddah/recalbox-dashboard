@@ -175,7 +175,12 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 		slides.push(slide)
 	}
 
-	const outro: OutroSlide = { type: 'outro', year: data.year, totalHours, totalMinutes: Math.floor((total % 3600) / 60) }
+	const outro: OutroSlide = {
+		type: 'outro',
+		year: data.year,
+		totalHours,
+		totalMinutes: Math.floor((total % 3600) / 60),
+	}
 	slides.push(outro)
 
 	return slides

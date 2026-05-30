@@ -1,6 +1,13 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { gameInheritedStats, gameRatings, games, sessions, userProfile, type WeightedItem } from '@/lib/db/schema'
+import {
+	gameInheritedStats,
+	gameRatings,
+	games,
+	sessions,
+	userProfile,
+	type WeightedItem,
+} from '@/lib/db/schema'
 
 const HALF_LIFE_DAYS = 90
 

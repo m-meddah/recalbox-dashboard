@@ -34,7 +34,13 @@ export type TopSystemSlide = {
 
 export type TopGamesListSlide = {
 	type: 'top-games-list'
-	games: Array<{ gameName: string; system: string; playtimeHours: number; playtimeMinutes: number; rank: number }>
+	games: Array<{
+		gameName: string
+		system: string
+		playtimeHours: number
+		playtimeMinutes: number
+		rank: number
+	}>
 }
 
 export type LongestSessionSlide = {

@@ -17,7 +17,8 @@
 		"gamelist:import": "tsx scripts/import-gamelist-sessions.ts",
 		"gamelist:clear": "tsx scripts/import-gamelist-sessions.ts --clear",
 		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js",
-		"icons:generate": "tsx scripts/generate-icons.ts"
+		"icons:generate": "tsx scripts/generate-icons.ts",
+		"doctor": "npx react-doctor@latest"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.4.1",

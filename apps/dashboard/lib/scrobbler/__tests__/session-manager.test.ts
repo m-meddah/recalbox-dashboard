@@ -50,7 +50,11 @@ async function scrobblerOnScreensaverStop(
 	recalboxId = 'rb1',
 ): Promise<void> {
 	if (!lastKnownGame?.fromScreensaver) return
-	const realEvent: GameStartEvent = { ...lastKnownGame, fromScreensaver: false, startedAt: new Date() }
+	const realEvent: GameStartEvent = {
+		...lastKnownGame,
+		fromScreensaver: false,
+		startedAt: new Date(),
+	}
 	await manager.openSession(realEvent, recalboxId)
 }
 

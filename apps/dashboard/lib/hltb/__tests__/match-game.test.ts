@@ -72,7 +72,9 @@ describe('matchGameToHltb', () => {
 	})
 
 	it('returns not_found when search throws', async () => {
-		mockSearchHltb.mockImplementation(() => { throw new Error('network error') })
+		mockSearchHltb.mockImplementation(() => {
+			throw new Error('network error')
+		})
 		const result = await matchGameToHltb('Super Mario World')
 		expect(result.method).toBe('not_found')
 	})

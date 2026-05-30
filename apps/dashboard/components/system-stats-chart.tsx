@@ -116,7 +116,9 @@ export function SystemStatsChart() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className={`text-xl sm:text-3xl font-bold tabular-nums ${tempColorClass(current.tempCelsius)}`}>
+						<p
+							className={`text-xl sm:text-3xl font-bold tabular-nums ${tempColorClass(current.tempCelsius)}`}
+						>
 							{current.tempCelsius.toFixed(1)}°C
 						</p>
 						<Badge
@@ -130,10 +132,14 @@ export function SystemStatsChart() {
 
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('cpu')}</CardTitle>
+						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+							{t('cpu')}
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className="text-xl sm:text-3xl font-bold tabular-nums">{current.cpuPercent.toFixed(1)}%</p>
+						<p className="text-xl sm:text-3xl font-bold tabular-nums">
+							{current.cpuPercent.toFixed(1)}%
+						</p>
 						<div className="mt-2">
 							<Progress value={current.cpuPercent} className="h-2" />
 						</div>
@@ -142,7 +148,9 @@ export function SystemStatsChart() {
 
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">RAM</CardTitle>
+						<CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+							RAM
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="text-xl sm:text-3xl font-bold tabular-nums">

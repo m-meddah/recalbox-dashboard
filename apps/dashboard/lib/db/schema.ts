@@ -375,9 +375,7 @@ export const igdbCredentials = sqliteTable('igdb_credentials', {
 	lastTestStatus: text('last_test_status', {
 		enum: ['ok', 'invalid_credentials', 'network_error', 'unknown_error'],
 	}),
-	updatedAt: int('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`),
+	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 })
 
 export type IgdbCredentials = typeof igdbCredentials.$inferSelect
@@ -392,9 +390,7 @@ export const gameIgdbMapping = sqliteTable(
 		matchMethod: text('match_method', {
 			enum: ['exact_name', 'alt_name', 'cleaned_name', 'fuzzy', 'manual', 'not_found'],
 		}),
-		matchedAt: int('matched_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		matchedAt: int('matched_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		needsReview: int('needs_review', { mode: 'boolean' }).notNull().default(false),
 		candidates: text('candidates'),
 	},
@@ -426,9 +422,7 @@ export const igdbGameCache = sqliteTable(
 		rating: real('rating'),
 		ratingCount: int('rating_count'),
 		rawPayload: text('raw_payload', { mode: 'json' }),
-		fetchedAt: int('fetched_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		fetchedAt: int('fetched_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
 	},
 	(t) => ({
@@ -450,9 +444,7 @@ export const gameHltbMapping = sqliteTable(
 		matchMethod: text('match_method', {
 			enum: ['exact', 'cleaned', 'fuzzy', 'not_found'],
 		}),
-		matchedAt: int('matched_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		matchedAt: int('matched_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		needsReview: int('needs_review', { mode: 'boolean' }).notNull().default(false),
 	},
 	(t) => ({
@@ -470,9 +462,7 @@ export const hltbCache = sqliteTable(
 		mainStorySeconds: int('main_story_seconds'),
 		mainExtrasSeconds: int('main_extras_seconds'),
 		completionistSeconds: int('completionist_seconds'),
-		fetchedAt: int('fetched_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		fetchedAt: int('fetched_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
 	},
 	(t) => ({
@@ -488,9 +478,7 @@ export const recommendationSkip = sqliteTable(
 	'recommendation_skip',
 	{
 		gameId: int('game_id').primaryKey(),
-		skippedAt: int('skipped_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		skippedAt: int('skipped_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
 	},
 	(t) => ({
@@ -504,9 +492,7 @@ export const recommendationLog = sqliteTable(
 	'recommendation_log',
 	{
 		id: int('id').primaryKey({ autoIncrement: true }),
-		presentedAt: int('presented_at', { mode: 'timestamp' })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		presentedAt: int('presented_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		gameId: int('game_id').notNull(),
 		contextTimeMinutes: int('context_time_minutes').notNull(),
 		contextMood: text('context_mood').notNull(),

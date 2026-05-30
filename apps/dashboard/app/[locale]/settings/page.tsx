@@ -1321,14 +1321,10 @@ function IgdbTab() {
 			<CardContent className="space-y-4">
 				{!status.enabled && (
 					<>
-						<p className="text-sm text-muted-foreground">
-							{t('igdb.description')}
-						</p>
+						<p className="text-sm text-muted-foreground">{t('igdb.description')}</p>
 
 						<details className="text-sm">
-							<summary className="cursor-pointer text-primary">
-								{t('igdb.credentialsHelp')}
-							</summary>
+							<summary className="cursor-pointer text-primary">{t('igdb.credentialsHelp')}</summary>
 							<ol className="mt-2 ml-4 space-y-1 list-decimal text-muted-foreground">
 								<li>
 									<a
@@ -1349,10 +1345,7 @@ function IgdbTab() {
 
 						<div className="space-y-3">
 							<div>
-								<label
-									htmlFor="igdb-client-id"
-									className="block text-sm font-medium mb-1"
-								>
+								<label htmlFor="igdb-client-id" className="block text-sm font-medium mb-1">
 									Client ID
 								</label>
 								<Input
@@ -1363,10 +1356,7 @@ function IgdbTab() {
 								/>
 							</div>
 							<div>
-								<label
-									htmlFor="igdb-client-secret"
-									className="block text-sm font-medium mb-1"
-								>
+								<label htmlFor="igdb-client-secret" className="block text-sm font-medium mb-1">
 									Client Secret
 								</label>
 								<Input
@@ -1386,10 +1376,7 @@ function IgdbTab() {
 											: saveError}
 								</p>
 							)}
-							<Button
-								onClick={handleSave}
-								disabled={saving || !clientId || !clientSecret}
-							>
+							<Button onClick={handleSave} disabled={saving || !clientId || !clientSecret}>
 								{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
 								{t('igdb.enableButton')}
 							</Button>
@@ -1420,7 +1407,10 @@ function IgdbTab() {
 						{matchProgress ? (
 							<div className="space-y-1 text-sm">
 								<p className="text-muted-foreground">
-									{t('igdb.matchingProgress', { done: matchProgress.done, total: matchProgress.total })}
+									{t('igdb.matchingProgress', {
+										done: matchProgress.done,
+										total: matchProgress.total,
+									})}
 								</p>
 								{matchProgress.current && (
 									<p className="text-xs italic truncate">{matchProgress.current}</p>
@@ -1428,12 +1418,8 @@ function IgdbTab() {
 							</div>
 						) : (
 							<div className="space-y-3">
-								<Button onClick={() => handleStartMatch('played')}>
-									{t('igdb.matchPlayed')}
-								</Button>
-								<p className="text-xs text-muted-foreground">
-									{t('igdb.matchPlayedHint')}
-								</p>
+								<Button onClick={() => handleStartMatch('played')}>{t('igdb.matchPlayed')}</Button>
+								<p className="text-xs text-muted-foreground">{t('igdb.matchPlayedHint')}</p>
 								{status.mapping.needsReview > 0 && (
 									<Link
 										href="/settings/igdb/review"
@@ -1450,9 +1436,7 @@ function IgdbTab() {
 										<Button variant="outline" size="sm" onClick={() => handleStartMatch('all')}>
 											{t('igdb.matchAll')}
 										</Button>
-										<p>
-											{t('igdb.matchAllHint', { count: status.mapping.totalGames })}
-										</p>
+										<p>{t('igdb.matchAllHint', { count: status.mapping.totalGames })}</p>
 									</div>
 								</details>
 							</div>

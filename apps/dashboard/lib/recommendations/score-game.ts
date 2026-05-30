@@ -81,7 +81,9 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		reasons.push({ key: 'inProgress' })
 
 		const refSec =
-			game.hltbDurations.mainStory ?? game.hltbDurations.mainExtras ?? game.hltbDurations.completionist
+			game.hltbDurations.mainStory ??
+			game.hltbDurations.mainExtras ??
+			game.hltbDurations.completionist
 		if (refSec !== null) {
 			const ratio = refSec / 60 / availableMinutes
 			const formatted = formatHltbDuration(refSec)
@@ -124,7 +126,8 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		const pts = Math.round(25 * bestGenreWeight)
 		score += pts
 		breakdown.genreMatch = pts
-		if (bestGenreWeight >= 0.5 && bestGenre) reasons.push({ key: 'favoriteGenre', params: { genre: bestGenre } })
+		if (bestGenreWeight >= 0.5 && bestGenre)
+			reasons.push({ key: 'favoriteGenre', params: { genre: bestGenre } })
 	}
 
 	if (game.decade) {
@@ -285,8 +288,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		score,
 		confidence,
 		reasons: Array.from(new Set(reasons)).slice(0, 3),
-		lastPlayedAt:
-			game.stats?.lastMeaningfulPlayAt ?? game.stats?.inherited?.lastPlayedAt ?? null,
+		lastPlayedAt: game.stats?.lastMeaningfulPlayAt ?? game.stats?.inherited?.lastPlayedAt ?? null,
 		meaningfulSessionsCount: game.stats?.significantSessions ?? 0,
 		scoreBreakdown: breakdown,
 		igdbBoosted,

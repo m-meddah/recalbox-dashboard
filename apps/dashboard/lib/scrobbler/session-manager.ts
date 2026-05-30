@@ -110,9 +110,7 @@ export class SessionManager {
 		const game = await this.db
 			.select({ id: games.id })
 			.from(games)
-			.where(
-				and(eq(games.romPath, romPath), eq(games.recalboxId, recalboxId)),
-			)
+			.where(and(eq(games.romPath, romPath), eq(games.recalboxId, recalboxId)))
 			.get()
 
 		if (!game) return
@@ -211,7 +209,9 @@ export class SessionManager {
 			})
 			.onConflictDoNothing()
 
-		logger.info(`Created feedback prompt for session ${sessionId} (${classification}, game ${game.id})`)
+		logger.info(
+			`Created feedback prompt for session ${sessionId} (${classification}, game ${game.id})`,
+		)
 	}
 
 	private async checkStreakMilestone(): Promise<void> {

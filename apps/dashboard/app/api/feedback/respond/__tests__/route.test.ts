@@ -15,7 +15,9 @@ const testDb = drizzle(sqlite, { schema })
 migrate(testDb, { migrationsFolder: MIGRATIONS_FOLDER })
 
 vi.mock('@/lib/db/index', () => ({ db: testDb }))
-vi.mock('@/lib/profile/compute-profile', () => ({ computeUserProfile: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/profile/compute-profile', () => ({
+	computeUserProfile: vi.fn().mockResolvedValue(undefined),
+}))
 
 const { POST } = await import('../route')
 

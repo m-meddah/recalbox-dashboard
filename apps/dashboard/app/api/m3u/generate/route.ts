@@ -93,10 +93,11 @@ export async function POST(req: NextRequest) {
 	try {
 		const uniqueDirs = [...new Set(specs.map((s) => dirname(s.m3uPath)))]
 		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
-		const output = await ssh.exec(
-			`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`,
-		)
-		for (const line of output.split('\n').map((s) => s.trim()).filter(Boolean)) {
+		const output = await ssh.exec(`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`)
+		for (const line of output
+			.split('\n')
+			.map((s) => s.trim())
+			.filter(Boolean)) {
 			existingFiles.add(line)
 		}
 	} catch (err) {
@@ -108,7 +109,13 @@ export async function POST(req: NextRequest) {
 	const toWrite: WriteSpec[] = []
 	for (const spec of specs) {
 		if (existingFiles.has(spec.m3uPath) && !spec.force) {
-			results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'skipped', reason: 'already_exists' })
+			results.push({
+				system: spec.system,
+				baseName: spec.baseName,
+				m3uFileName: spec.m3uFileName,
+				status: 'skipped',
+				reason: 'already_exists',
+			})
 		} else {
 			toWrite.push(spec)
 		}
@@ -124,13 +131,24 @@ export async function POST(req: NextRequest) {
 			await ssh.exec(writeCommands.join(';'))
 			for (const spec of toWrite) {
 				logger.info(`m3u: created ${spec.m3uPath}`)
-				results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'created' })
+				results.push({
+					system: spec.system,
+					baseName: spec.baseName,
+					m3uFileName: spec.m3uFileName,
+					status: 'created',
+				})
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err)
 			logger.error('m3u: batch write failed', err)
 			for (const spec of toWrite) {
-				results.push({ system: spec.system, baseName: spec.baseName, m3uFileName: spec.m3uFileName, status: 'error', error: message })
+				results.push({
+					system: spec.system,
+					baseName: spec.baseName,
+					m3uFileName: spec.m3uFileName,
+					status: 'error',
+					error: message,
+				})
 			}
 		}
 	}

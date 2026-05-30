@@ -8,7 +8,12 @@ let pendingTimeout: NodeJS.Timeout | null = null
 let lastComputedAt = 0
 let isComputing = false
 
-export type RecomputeReason = 'significant_session' | 'new_rating' | 'manual' | 'periodic' | 'startup'
+export type RecomputeReason =
+	| 'significant_session'
+	| 'new_rating'
+	| 'manual'
+	| 'periodic'
+	| 'startup'
 
 /**
  * Planifie un recompute du profil avec debounce de 30s.

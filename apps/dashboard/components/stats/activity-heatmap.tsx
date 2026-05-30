@@ -48,46 +48,46 @@ export function ActivityHeatmap({ heatmap }: Props) {
 			{isEmpty && <p className="text-center text-sm text-muted-foreground py-2">{t('empty')}</p>}
 			<div className="overflow-x-auto pb-2">
 				<div className="flex gap-1 w-max">
-				{/* Day labels column */}
-				<div className="flex flex-col gap-[3px] pt-5 shrink-0">
-					{dayLabels.map((label, i) => (
-						<div
-							// biome-ignore lint/suspicious/noArrayIndexKey: positional day labels, never reorder
-							key={i}
-							className="h-[10px] w-3 text-[9px] text-muted-foreground leading-none flex items-center"
-						>
-							{label}
-						</div>
-					))}
-				</div>
-
-				{/* Grid */}
-				<div className="flex gap-[3px]">
-					{heatmap.map((week, wi) => {
-						const monthLabel = getMonthLabel(week, locale)
-						return (
-							// biome-ignore lint/suspicious/noArrayIndexKey: positional week columns, never reorder
-							<div key={wi} className="flex flex-col gap-[3px]">
-								{/* Month label */}
-								<div className="h-4 text-[9px] text-muted-foreground leading-none whitespace-nowrap">
-									{monthLabel ?? ''}
-								</div>
-								{/* Cells */}
-								{week.map((cell) => (
-									<div
-										key={cell.dateKey}
-										title={
-											cell.playtimeSec > 0
-												? `${cell.dateKey} — ${formatDuration(cell.playtimeSec)} (${cell.sessionCount} session${cell.sessionCount > 1 ? 's' : ''})`
-												: cell.dateKey
-										}
-										className={`h-[10px] w-[10px] rounded-[2px] ${INTENSITY_CLASS[cell.intensity]} transition-colors`}
-									/>
-								))}
+					{/* Day labels column */}
+					<div className="flex flex-col gap-[3px] pt-5 shrink-0">
+						{dayLabels.map((label, i) => (
+							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: positional day labels, never reorder
+								key={i}
+								className="h-[10px] w-3 text-[9px] text-muted-foreground leading-none flex items-center"
+							>
+								{label}
 							</div>
-						)
-					})}
-				</div>
+						))}
+					</div>
+
+					{/* Grid */}
+					<div className="flex gap-[3px]">
+						{heatmap.map((week, wi) => {
+							const monthLabel = getMonthLabel(week, locale)
+							return (
+								// biome-ignore lint/suspicious/noArrayIndexKey: positional week columns, never reorder
+								<div key={wi} className="flex flex-col gap-[3px]">
+									{/* Month label */}
+									<div className="h-4 text-[9px] text-muted-foreground leading-none whitespace-nowrap">
+										{monthLabel ?? ''}
+									</div>
+									{/* Cells */}
+									{week.map((cell) => (
+										<div
+											key={cell.dateKey}
+											title={
+												cell.playtimeSec > 0
+													? `${cell.dateKey} — ${formatDuration(cell.playtimeSec)} (${cell.sessionCount} session${cell.sessionCount > 1 ? 's' : ''})`
+													: cell.dateKey
+											}
+											className={`h-[10px] w-[10px] rounded-[2px] ${INTENSITY_CLASS[cell.intensity]} transition-colors`}
+										/>
+									))}
+								</div>
+							)
+						})}
+					</div>
 				</div>
 			</div>
 

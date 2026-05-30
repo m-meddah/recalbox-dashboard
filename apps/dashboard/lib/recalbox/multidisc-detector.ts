@@ -44,9 +44,7 @@ const DISC_PATTERNS: RegExp[] = [
 	/(?:^|[\s\-_])cd(\d+)(?=$|[\s\-_])/i,
 ]
 
-export function detectDiscInfo(
-	filename: string,
-): { baseName: string; discNumber: number } | null {
+export function detectDiscInfo(filename: string): { baseName: string; discNumber: number } | null {
 	const stem = filename.replace(/\.[^.]+$/, '')
 
 	for (const pattern of DISC_PATTERNS) {
@@ -69,7 +67,11 @@ export async function detectMultiDiscGames(
 	recalboxId: string,
 	system?: string,
 ): Promise<MultiDiscGame[]> {
-	const systemFilter = system ? (MULTIDISC_SYSTEMS.has(system) ? [system] : []) : [...MULTIDISC_SYSTEMS]
+	const systemFilter = system
+		? MULTIDISC_SYSTEMS.has(system)
+			? [system]
+			: []
+		: [...MULTIDISC_SYSTEMS]
 
 	if (systemFilter.length === 0) return []
 
@@ -110,10 +112,11 @@ export async function detectMultiDiscGames(
 	try {
 		// Single SSH call for all directories instead of one per dir
 		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
-		const output = await ssh.exec(
-			`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`,
-		)
-		for (const line of output.split('\n').map((s) => s.trim()).filter(Boolean)) {
+		const output = await ssh.exec(`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`)
+		for (const line of output
+			.split('\n')
+			.map((s) => s.trim())
+			.filter(Boolean)) {
 			const dir = dirname(line)
 			const file = pathBasename(line)
 			existingM3uByDir.get(dir)?.add(file)

@@ -25,14 +25,21 @@ async function main() {
 
 	// Cleanup expired feedback entries at startup and hourly
 	cleanupExpiredFeedback()
-		.then((n) => { if (n > 0) logger.info(`[feedback] Startup cleanup: removed ${n} expired entries`) })
+		.then((n) => {
+			if (n > 0) logger.info(`[feedback] Startup cleanup: removed ${n} expired entries`)
+		})
 		.catch((err) => logger.error('[feedback] Startup cleanup failed', err))
 
-	const feedbackCleanupInterval = setInterval(() => {
-		cleanupExpiredFeedback()
-			.then((n) => { if (n > 0) logger.info(`[feedback] Hourly cleanup: removed ${n} expired entries`) })
-			.catch((err) => logger.error('[feedback] Hourly cleanup failed', err))
-	}, 60 * 60 * 1000)
+	const feedbackCleanupInterval = setInterval(
+		() => {
+			cleanupExpiredFeedback()
+				.then((n) => {
+					if (n > 0) logger.info(`[feedback] Hourly cleanup: removed ${n} expired entries`)
+				})
+				.catch((err) => logger.error('[feedback] Hourly cleanup failed', err))
+		},
+		60 * 60 * 1000,
+	)
 
 	// Initialize config and track last known update timestamp
 	configStore.get()

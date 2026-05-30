@@ -15,9 +15,7 @@ export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 	const second = sorted.find((g) => !result.includes(g) && g.system !== first.system)
 	result.push(second ?? sorted[1] ?? first)
 
-	const exploration = sorted.find(
-		(g) => !result.includes(g) && g.confidence === 'exploration',
-	)
+	const exploration = sorted.find((g) => !result.includes(g) && g.confidence === 'exploration')
 	if (exploration) {
 		result.push(exploration)
 	} else {

@@ -39,10 +39,7 @@ async function seedGame(
 		.onConflictDoNothing()
 }
 
-async function insertSession(
-	gameId: number,
-	opts: { daysAgo: number; classification: string },
-) {
+async function insertSession(gameId: number, opts: { daysAgo: number; classification: string }) {
 	const startedAt = new Date(NOW.getTime() - opts.daysAgo * MS_PER_DAY)
 	await testDb.insert(schema.sessions).values({
 		gameId,

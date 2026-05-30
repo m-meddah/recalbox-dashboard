@@ -62,9 +62,7 @@ export default function ProfilePage() {
 			<header className="flex items-start justify-between gap-4">
 				<div className="space-y-1">
 					<h1 className="text-2xl font-bold">{t('title')}</h1>
-					<p className="text-muted-foreground text-sm">
-						{t('subtitle', { date: lastUpdate })}
-					</p>
+					<p className="text-muted-foreground text-sm">{t('subtitle', { date: lastUpdate })}</p>
 				</div>
 				<Button variant="outline" size="sm" onClick={handleRecompute} disabled={recomputing}>
 					{recomputing ? (
@@ -94,10 +92,26 @@ export default function ProfilePage() {
 			</Card>
 
 			<div className="grid md:grid-cols-2 gap-4">
-				<WeightedSection title={t('systemsTitle')} items={profile.systemsWeights} noDataText={t('noData')} />
-				<WeightedSection title={t('genresTitle')} items={profile.genresWeights} noDataText={t('noData')} />
-				<WeightedSection title={t('decadesTitle')} items={profile.decadesWeights} noDataText={t('noData')} />
-				<WeightedSection title={t('developersTitle')} items={profile.developersWeights} noDataText={t('noData')} />
+				<WeightedSection
+					title={t('systemsTitle')}
+					items={profile.systemsWeights}
+					noDataText={t('noData')}
+				/>
+				<WeightedSection
+					title={t('genresTitle')}
+					items={profile.genresWeights}
+					noDataText={t('noData')}
+				/>
+				<WeightedSection
+					title={t('decadesTitle')}
+					items={profile.decadesWeights}
+					noDataText={t('noData')}
+				/>
+				<WeightedSection
+					title={t('developersTitle')}
+					items={profile.developersWeights}
+					noDataText={t('noData')}
+				/>
 			</div>
 
 			<GameList
@@ -118,16 +132,18 @@ export default function ProfilePage() {
 	)
 }
 
-function WeightedSection({ title, items, noDataText }: { title: string; items: WeightedItem[]; noDataText: string }) {
+function WeightedSection({
+	title,
+	items,
+	noDataText,
+}: { title: string; items: WeightedItem[]; noDataText: string }) {
 	if (items.length === 0) {
 		return (
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-base">{title}</CardTitle>
 				</CardHeader>
-				<CardContent className="text-sm text-muted-foreground">
-					{noDataText}
-				</CardContent>
+				<CardContent className="text-sm text-muted-foreground">{noDataText}</CardContent>
 			</Card>
 		)
 	}

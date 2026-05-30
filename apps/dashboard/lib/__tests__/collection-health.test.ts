@@ -7,7 +7,13 @@ describe('computeCollectionHealth', () => {
 	it('counts fully scraped games (image + description present)', () => {
 		const rows = [
 			{ ...base, imagePath: '/img/game.png', description: 'A game', videoPath: null },
-			{ ...base, name: 'Game 2', imagePath: '/img/g2.png', description: 'Another', videoPath: '/v.mp4' },
+			{
+				...base,
+				name: 'Game 2',
+				imagePath: '/img/g2.png',
+				description: 'Another',
+				videoPath: '/v.mp4',
+			},
 		]
 		const health = computeCollectionHealth(rows)
 		expect(health.totalGames).toBe(2)
@@ -33,9 +39,7 @@ describe('computeCollectionHealth', () => {
 	})
 
 	it('missing video does NOT count as critical missing media', () => {
-		const rows = [
-			{ ...base, imagePath: '/img.png', description: 'A game', videoPath: null },
-		]
+		const rows = [{ ...base, imagePath: '/img.png', description: 'A game', videoPath: null }]
 		const health = computeCollectionHealth(rows)
 		expect(health.missingMedia).toBe(0)
 		expect(health.fullyScraped).toBe(1)
@@ -43,9 +47,7 @@ describe('computeCollectionHealth', () => {
 	})
 
 	it('tracks missing video on unscraped games (informational)', () => {
-		const rows = [
-			{ ...base, imagePath: null, description: null, videoPath: null },
-		]
+		const rows = [{ ...base, imagePath: null, description: null, videoPath: null }]
 		const health = computeCollectionHealth(rows)
 		expect(health.unscrapedGames[0]!.missingVideo).toBe(true)
 	})
@@ -53,7 +55,14 @@ describe('computeCollectionHealth', () => {
 	it('aggregates bySystem correctly', () => {
 		const rows = [
 			{ ...base, system: 'psx', imagePath: null, description: null, videoPath: null },
-			{ ...base, system: 'psx', name: 'G2', imagePath: '/img.png', description: 'ok', videoPath: null },
+			{
+				...base,
+				system: 'psx',
+				name: 'G2',
+				imagePath: '/img.png',
+				description: 'ok',
+				videoPath: null,
+			},
 			{ ...base, system: 'saturn', imagePath: null, description: 'ok', videoPath: null },
 		]
 		const health = computeCollectionHealth(rows)

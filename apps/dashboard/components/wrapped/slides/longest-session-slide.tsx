@@ -12,7 +12,8 @@ export function LongestSessionSlideView({ slide }: Props) {
 			<GlassCard className="text-center">
 				<p className="text-sm text-white/60 mb-2">{t('longestSession.title')}</p>
 				<div className="text-5xl font-black text-white">
-					{slide.durationHours > 0 ? `${slide.durationHours}h ` : ''}{slide.durationMinutes}min
+					{slide.durationHours > 0 ? `${slide.durationHours}h ` : ''}
+					{slide.durationMinutes}min
 				</div>
 				<p className="text-white/70 mt-3 font-semibold">{slide.gameName}</p>
 				<p className="text-white/40 text-xs mt-1">{slide.dateStr}</p>

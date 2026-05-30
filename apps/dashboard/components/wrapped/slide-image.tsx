@@ -26,7 +26,9 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 					<div style={{ fontSize: 96, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>
 						{`${slide.totalHours}h`}
 					</div>
-					<div style={{ fontSize: 16, color: '#ffffff60' }}>{`${slide.totalSessions} sessions`}</div>
+					<div
+						style={{ fontSize: 16, color: '#ffffff60' }}
+					>{`${slide.totalSessions} sessions`}</div>
 				</div>
 			)
 		case 'most-played-game':
@@ -93,7 +95,9 @@ function SlideContent({ slide }: { slide: WrappedSlide }) {
 					<div style={{ fontSize: 48, fontWeight: 900, color: '#ffffff' }}>
 						{slide.system.toUpperCase()}
 					</div>
-					<div style={{ fontSize: 24, color: '#ffffff80' }}>{`${slide.percentage}% of your time`}</div>
+					<div
+						style={{ fontSize: 24, color: '#ffffff80' }}
+					>{`${slide.percentage}% of your time`}</div>
 				</div>
 			)
 		case 'achievements-summary':

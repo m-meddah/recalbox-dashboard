@@ -32,9 +32,9 @@ function makeStats(overrides: Partial<GamePlayStats> = {}): GamePlayStats {
 
 describe('hasBouncedWithoutCommitting', () => {
 	it('returns true with 2+ bounces and 0 significant sessions', () => {
-		expect(
-			hasBouncedWithoutCommitting(makeStats({ bounceCount: 2, significantSessions: 0 })),
-		).toBe(true)
+		expect(hasBouncedWithoutCommitting(makeStats({ bounceCount: 2, significantSessions: 0 }))).toBe(
+			true,
+		)
 	})
 
 	it('returns false with 2 bounces but also a meaningful session', () => {
@@ -52,21 +52,15 @@ describe('hasBouncedWithoutCommitting', () => {
 
 describe('isConfirmedTaste', () => {
 	it('returns true with 3+ significant sessions', () => {
-		expect(
-			isConfirmedTaste(makeStats({ significantSessions: 3, meaningfulCount: 3 })),
-		).toBe(true)
+		expect(isConfirmedTaste(makeStats({ significantSessions: 3, meaningfulCount: 3 }))).toBe(true)
 	})
 
 	it('returns true with 1 marathon session', () => {
-		expect(
-			isConfirmedTaste(makeStats({ marathonCount: 1, significantSessions: 1 })),
-		).toBe(true)
+		expect(isConfirmedTaste(makeStats({ marathonCount: 1, significantSessions: 1 }))).toBe(true)
 	})
 
 	it('returns false with only 2 significant sessions and no marathon', () => {
-		expect(
-			isConfirmedTaste(makeStats({ significantSessions: 2, meaningfulCount: 2 })),
-		).toBe(false)
+		expect(isConfirmedTaste(makeStats({ significantSessions: 2, meaningfulCount: 2 }))).toBe(false)
 	})
 })
 
@@ -76,21 +70,19 @@ describe('isUntested', () => {
 	})
 
 	it('returns true when all measured sessions are noise', () => {
-		expect(
-			isUntested(makeStats({ measuredSessions: 3, noiseCount: 3 })),
-		).toBe(true)
+		expect(isUntested(makeStats({ measuredSessions: 3, noiseCount: 3 }))).toBe(true)
 	})
 
 	it('returns false when inherited playCount >= 3 and no measured sessions', () => {
-		expect(
-			isUntested(makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date() } })),
-		).toBe(false)
+		expect(isUntested(makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date() } }))).toBe(
+			false,
+		)
 	})
 
 	it('returns true when inherited playCount < 3 and no real sessions', () => {
-		expect(
-			isUntested(makeStats({ inherited: { playCount: 2, lastPlayedAt: new Date() } })),
-		).toBe(true)
+		expect(isUntested(makeStats({ inherited: { playCount: 2, lastPlayedAt: new Date() } }))).toBe(
+			true,
+		)
 	})
 })
 

@@ -7,12 +7,7 @@
  * - meaningful: 30 min - 2 h (genuine play session, positive signal)
  * - marathon: > 2 h (immersive session, strong positive signal)
  */
-export type SessionClassification =
-	| 'noise'
-	| 'bounce'
-	| 'taste'
-	| 'meaningful'
-	| 'marathon'
+export type SessionClassification = 'noise' | 'bounce' | 'taste' | 'meaningful' | 'marathon'
 
 /**
  * Thresholds in seconds. Exposed as constants so the backfill SQL
@@ -29,9 +24,7 @@ export const CLASSIFICATION_THRESHOLDS = {
  * Classifies a session by its duration in seconds.
  * null/undefined → 'noise' (no data means no signal).
  */
-export function classifySession(
-	durationSeconds: number | null | undefined,
-): SessionClassification {
+export function classifySession(durationSeconds: number | null | undefined): SessionClassification {
 	if (durationSeconds == null || durationSeconds < CLASSIFICATION_THRESHOLDS.noiseMax) {
 		return 'noise'
 	}

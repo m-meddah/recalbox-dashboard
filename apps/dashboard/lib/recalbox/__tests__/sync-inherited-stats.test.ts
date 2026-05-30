@@ -53,9 +53,7 @@ describe('syncInheritedStats', () => {
 	})
 
 	it('skips entries with playCount=0 and no lastPlayedAt', async () => {
-		const result = await syncInheritedStats(db, [
-			{ gameId: 99, playCount: 0, lastPlayedAt: null },
-		])
+		const result = await syncInheritedStats(db, [{ gameId: 99, playCount: 0, lastPlayedAt: null }])
 
 		expect(result.skipped).toBe(1)
 		expect(result.imported).toBe(0)

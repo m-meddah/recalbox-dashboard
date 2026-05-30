@@ -135,7 +135,10 @@ describe('scoreGame', () => {
 			const stats = makeStats({ significantSessions: 2, lastMeaningfulPlayAt: recentDate })
 			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
 			const result = scoreGame(
-				makeGame({ stats, hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null } }),
+				makeGame({
+					stats,
+					hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null },
+				}),
 				ctx,
 			)
 			expect(result).not.toBeNull()

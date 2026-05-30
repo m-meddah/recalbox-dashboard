@@ -140,9 +140,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 									</div>
 								</nav>
 							</header>
-							<FeedbackPromptProvider>
-								{children}
-							</FeedbackPromptProvider>
+							<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
 							<NotificationListener />
 							<ServiceWorkerUpdater />
 							<InstallBanner />

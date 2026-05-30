@@ -4,7 +4,14 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Link } from '@/i18n/navigation'
-import { AlertTriangle, CheckCircle2, ChevronDown, FileText, ImageOff, ShieldCheck } from 'lucide-react'
+import {
+	AlertTriangle,
+	CheckCircle2,
+	ChevronDown,
+	FileText,
+	ImageOff,
+	ShieldCheck,
+} from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
 type Props = {
@@ -124,14 +131,23 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 				) : patron.isPatron ? (
 					<div className="flex items-center gap-2">
 						<ShieldCheck className="h-4 w-4 text-green-500" />
-						<Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400">
+						<Badge
+							variant="outline"
+							className="border-green-500 text-green-600 dark:text-green-400"
+						>
 							{t('patron.active')}
 						</Badge>
 					</div>
 				) : null}
 
 				{/* Recommendation */}
-				<p className={allScraped ? 'text-sm text-green-600 dark:text-green-400' : 'text-sm text-muted-foreground'}>
+				<p
+					className={
+						allScraped
+							? 'text-sm text-green-600 dark:text-green-400'
+							: 'text-sm text-muted-foreground'
+					}
+				>
 					{allScraped
 						? t('recommendation.allDone')
 						: patron.isPatron

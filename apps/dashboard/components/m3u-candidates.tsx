@@ -10,25 +10,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
-	AlertTriangle,
-	CheckCircle2,
-	CircleDotDashed,
-	FileText,
-	XCircle,
-} from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { AlertTriangle, CheckCircle2, CircleDotDashed, FileText, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -164,12 +149,8 @@ export function M3uCandidates() {
 										<div key={key} className="flex items-center gap-3 px-4 py-2">
 											{/* Status icon */}
 											<span className="shrink-0">
-												{status === 'ok' && (
-													<CheckCircle2 className="h-4 w-4 text-green-500" />
-												)}
-												{status === 'missing' && (
-													<XCircle className="h-4 w-4 text-amber-500" />
-												)}
+												{status === 'ok' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+												{status === 'missing' && <XCircle className="h-4 w-4 text-amber-500" />}
 												{status === 'gap' && (
 													<Tooltip>
 														<TooltipTrigger>
@@ -201,7 +182,10 @@ export function M3uCandidates() {
 
 											{/* Preview popover */}
 											<Popover>
-												<PopoverTrigger className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground" aria-label={t('preview')}>
+												<PopoverTrigger
+													className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+													aria-label={t('preview')}
+												>
 													<FileText className="h-3 w-3" />
 												</PopoverTrigger>
 												<PopoverContent className="w-auto max-w-sm">
@@ -216,9 +200,7 @@ export function M3uCandidates() {
 													variant={status === 'differs' ? 'outline' : 'default'}
 													className="shrink-0"
 													disabled={isGenerating}
-													onClick={() =>
-														status === 'differs' ? handleUpdate(g) : generate([g])
-													}
+													onClick={() => (status === 'differs' ? handleUpdate(g) : generate([g]))}
 												>
 													{isGenerating
 														? t('generating')

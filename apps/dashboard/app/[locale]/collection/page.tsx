@@ -55,7 +55,10 @@ export default async function CollectionPage({ params }: Props) {
 					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
-					<Link href="/collection/m3u" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+					<Link
+						href="/collection/m3u"
+						className={buttonVariants({ variant: 'outline', size: 'sm' })}
+					>
 						<Disc3 className="mr-2 h-4 w-4" />
 						Multi-disc / .m3u
 					</Link>
