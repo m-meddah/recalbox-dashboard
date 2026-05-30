@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
 import { games, gameHltbMapping, hltbCache } from '@/lib/db/schema'
-import { inArray } from 'drizzle-orm'
 import { matchGameToHltb } from './match-game'
 
 const HLTB_TTL_MS = 365 * 24 * 60 * 60 * 1000
@@ -26,12 +25,7 @@ async function getUnmatchedGames(): Promise<GameRow[]> {
 
 	if (all.length === 0) return []
 
-	const ids = all.map((g) => g.id)
-	const existing = await db
-		.select({ gameId: gameHltbMapping.gameId })
-		.from(gameHltbMapping)
-		.where(inArray(gameHltbMapping.gameId, ids))
-		.all()
+	const existing = await db.select({ gameId: gameHltbMapping.gameId }).from(gameHltbMapping).all()
 	const matchedSet = new Set(existing.map((e) => e.gameId))
 
 	return all.filter((g) => !matchedSet.has(g.id))
