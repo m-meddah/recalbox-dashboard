@@ -1,104 +1,130 @@
 import { db } from '@/lib/db'
 import { igdbPlatformMapping } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { cleanRomName, generateNameVariants } from './clean-rom-name'
+import { generateNameVariants } from './clean-rom-name'
 import { igdbQuery } from './client'
 
 type IgdbGameSearchResult = {
 	id: number
 	name: string
 	platforms?: number[]
+	alternative_names?: { name: string }[]
+}
+
+export type IgdbCandidate = {
+	igdbId: number
+	igdbName: string
+	confidence: number
 }
 
 export type MatchResult = {
 	igdbId: number | null
 	igdbName: string | null
 	confidence: number
-	method: 'exact_name' | 'cleaned_name' | 'fuzzy' | 'not_found'
+	method: 'exact_name' | 'alt_name' | 'cleaned_name' | 'fuzzy' | 'manual' | 'not_found'
 	needsReview: boolean
+	candidates: IgdbCandidate[]
+}
+
+type ScoredCandidate = {
+	id: number
+	name: string
+	score: number
+	matchedAltName: boolean
+}
+
+const EMPTY_RESULT: MatchResult = {
+	igdbId: null,
+	igdbName: null,
+	confidence: 0,
+	method: 'not_found',
+	needsReview: false,
+	candidates: [],
 }
 
 export async function matchGameToIgdb(params: {
 	romName: string
 	recalboxSystem: string
 }): Promise<MatchResult> {
+	const variants = generateNameVariants(params.romName)
+	const primaryVariant = variants[0]
+	if (!primaryVariant) return EMPTY_RESULT
+
 	const platformMapping = await db
 		.select()
 		.from(igdbPlatformMapping)
 		.where(eq(igdbPlatformMapping.recalboxSystem, params.recalboxSystem))
 		.get()
 
-	if (!platformMapping) {
-		return matchWithoutPlatform(params.romName)
+	if (platformMapping) {
+		const results = await searchWithAltNames(primaryVariant, platformMapping.igdbPlatformId)
+		const scored = scoreAndRankCandidates(variants, results)
+		return buildMatchResult(scored, false)
 	}
 
-	const platformId = platformMapping.igdbPlatformId
-	const variants = generateNameVariants(params.romName)
-	const primaryVariant = variants[0]
-
-	if (!primaryVariant) {
-		return { igdbId: null, igdbName: null, confidence: 0, method: 'not_found', needsReview: false }
-	}
-
-	// Attempt 1: exact cleaned name + platform
-	let results = await searchByName(primaryVariant, platformId)
-	const first = results[0]
-	if (results.length === 1 && first) {
-		return { igdbId: first.id, igdbName: first.name, confidence: 1.0, method: 'exact_name', needsReview: false }
-	}
-	if (results.length > 1) {
-		const sorted = results.sort((a, b) => a.name.length - b.name.length)
-		const top = sorted[0]
-		if (top) {
-			return { igdbId: top.id, igdbName: top.name, confidence: 0.85, method: 'exact_name', needsReview: false }
-		}
-	}
-
-	// Attempt 2: name variants (roman numerals, accents)
-	for (const variant of variants.slice(1)) {
-		results = await searchByName(variant, platformId)
-		if (results.length >= 1) {
-			const sorted = results.sort((a, b) => a.name.length - b.name.length)
-			const top = sorted[0]
-			if (top) {
-				return { igdbId: top.id, igdbName: top.name, confidence: 0.8, method: 'cleaned_name', needsReview: false }
-			}
-		}
-	}
-
-	// Attempt 3: fuzzy search
-	const fuzzy = await searchFuzzy(primaryVariant, platformId)
-	if (fuzzy.length > 0) {
-		const best = pickBestFuzzyMatch(primaryVariant, fuzzy)
-		if (best) {
-			return {
-				igdbId: best.id,
-				igdbName: best.name,
-				confidence: best.confidence,
-				method: 'fuzzy',
-				needsReview: best.confidence < 0.7,
-			}
-		}
-	}
-
-	return { igdbId: null, igdbName: null, confidence: 0, method: 'not_found', needsReview: false }
+	const results = await searchWithAltNamesNoPlatform(primaryVariant)
+	const scored = scoreAndRankCandidates(variants, results)
+	return buildMatchResult(scored, true)
 }
 
-async function searchByName(name: string, platformId: number): Promise<IgdbGameSearchResult[]> {
-	const escaped = name.replace(/"/g, '\\"')
-	const query = `
-    fields id, name, platforms;
-    where name ~ "${escaped}" & platforms = (${platformId});
-    limit 10;
-  `
-	const result = await igdbQuery<IgdbGameSearchResult[]>('games', query)
-	return result.ok ? result.data : []
+export function scoreAndRankCandidates(
+	variants: string[],
+	results: IgdbGameSearchResult[],
+): ScoredCandidate[] {
+	return results
+		.map((r) => {
+			let best = Math.max(...variants.map((v) => similarity(v, r.name)))
+			let matchedAltName = false
+
+			for (const alt of r.alternative_names ?? []) {
+				const altScore = Math.max(...variants.map((v) => similarity(v, alt.name)))
+				if (altScore > best) {
+					best = altScore
+					matchedAltName = true
+				}
+			}
+
+			return { id: r.id, name: r.name, score: best, matchedAltName }
+		})
+		.sort((a, b) => b.score - a.score)
 }
 
-async function searchFuzzy(name: string, platformId: number): Promise<IgdbGameSearchResult[]> {
+function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): MatchResult {
+	const candidates: IgdbCandidate[] = scored
+		.filter((s) => s.score >= 0.65)
+		.slice(0, 5)
+		.map((s) => ({ igdbId: s.id, igdbName: s.name, confidence: s.score }))
+
+	const best = scored[0]
+	if (!best || best.score < 0.65) return EMPTY_RESULT
+
+	const confidence = noPlatform ? best.score * 0.7 : best.score
+
+	if (confidence >= 0.92) {
+		return {
+			igdbId: best.id,
+			igdbName: best.name,
+			confidence,
+			method: best.matchedAltName ? 'alt_name' : 'exact_name',
+			needsReview: false,
+			candidates,
+		}
+	}
+
+	return {
+		igdbId: best.id,
+		igdbName: best.name,
+		confidence,
+		method: 'fuzzy',
+		needsReview: true,
+		candidates,
+	}
+}
+
+async function searchWithAltNames(name: string, platformId: number): Promise<IgdbGameSearchResult[]> {
 	const escaped = name.replace(/"/g, '\\"')
 	const query = `
-    fields id, name, platforms;
+    fields id, name, platforms, alternative_names.name;
     search "${escaped}";
     where platforms = (${platformId});
     limit 10;
@@ -107,28 +133,15 @@ async function searchFuzzy(name: string, platformId: number): Promise<IgdbGameSe
 	return result.ok ? result.data : []
 }
 
-async function matchWithoutPlatform(romName: string): Promise<MatchResult> {
-	const cleaned = cleanRomName(romName)
-	const escaped = cleaned.replace(/"/g, '\\"')
-	const query = `fields id, name; search "${escaped}"; limit 5;`
+async function searchWithAltNamesNoPlatform(name: string): Promise<IgdbGameSearchResult[]> {
+	const escaped = name.replace(/"/g, '\\"')
+	const query = `
+    fields id, name, alternative_names.name;
+    search "${escaped}";
+    limit 5;
+  `
 	const result = await igdbQuery<IgdbGameSearchResult[]>('games', query)
-
-	if (!result.ok || result.data.length === 0) {
-		return { igdbId: null, igdbName: null, confidence: 0, method: 'not_found', needsReview: false }
-	}
-
-	const best = pickBestFuzzyMatch(cleaned, result.data)
-	if (!best) {
-		return { igdbId: null, igdbName: null, confidence: 0, method: 'not_found', needsReview: false }
-	}
-
-	return {
-		igdbId: best.id,
-		igdbName: best.name,
-		confidence: best.confidence * 0.7,
-		method: 'fuzzy',
-		needsReview: true,
-	}
+	return result.ok ? result.data : []
 }
 
 function similarity(a: string, b: string): number {
@@ -156,17 +169,4 @@ function levenshtein(a: string, b: string): number {
 		prev.splice(0, prev.length, ...curr)
 	}
 	return prev[a.length] ?? 0
-}
-
-function pickBestFuzzyMatch(
-	cleanedName: string,
-	candidates: IgdbGameSearchResult[],
-): { id: number; name: string; confidence: number } | null {
-	if (candidates.length === 0) return null
-	const scored = candidates
-		.map((c) => ({ id: c.id, name: c.name, confidence: similarity(cleanedName, c.name) }))
-		.sort((a, b) => b.confidence - a.confidence)
-	const best = scored[0]
-	if (!best || best.confidence < 0.5) return null
-	return best
 }
