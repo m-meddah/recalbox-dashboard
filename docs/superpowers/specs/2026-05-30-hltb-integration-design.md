@@ -17,7 +17,7 @@ Integrate HowLongToBeat (HLTB) duration data into the recommendation algorithm t
 | Durations to store | All three: Main Story, Main + Extras, Completionist |
 | Missing HLTB data in `finish` mode | Exclude the game |
 | Missing HLTB data in other moods | Fall back to existing genre/system heuristics |
-| Matching strategy | Direct HTTP client (no npm package) |
+| Matching strategy | npm `howlongtobeat` (`HowLongToBeatService`) |
 | Cache TTL | 365 days |
 
 ---
@@ -26,31 +26,31 @@ Integrate HowLongToBeat (HLTB) duration data into the recommendation algorithm t
 
 ### New module: `lib/hltb/`
 
-Mirrors the existing `lib/igdb/` structure:
-
-```
+```text
 lib/hltb/
-  client.ts          — HTTP client for HLTB internal API
-  match-game.ts      — name matching logic (exact → cleaned → fuzzy)
+  match-game.ts      — name matching logic via HowLongToBeatService (exact → cleaned → fuzzy)
   match-single.ts    — async lazy match for a single game
   batch-match.ts     — batch match for the full collection
 ```
 
-### HLTB API
+### HLTB package
 
-HLTB exposes an internal search endpoint (no API key required):
+Uses `howlongtobeat` npm package (`HowLongToBeatService`). The package wraps HLTB's internal search endpoint and handles hash extraction transparently.
 
+```typescript
+import { HowLongToBeatService } from 'howlongtobeat'
+const service = new HowLongToBeatService()
+
+const results = await service.search('Super Mario World')
+// HowLongToBeatEntry[] — sorted by similarity (0–1)
+// entry.gameplayMain / .gameplayMainExtra / .gameplayCompletionist — in hours (0 = unknown)
+// entry.id — string
+// entry.similarity — float 0–1
 ```
-POST https://howlongtobeat.com/api/search
-Content-Type: application/json
-Referer: https://howlongtobeat.com/
 
-{ "searchTerms": ["<name>"], "searchPage": 1, "size": 5 }
-```
+Durations are stored in the DB as **seconds** (`Math.round(hours * 3600)`). A value of `0` from the package (unknown) is stored as `null`.
 
-The response includes `comp_main`, `comp_plus`, `comp_100` fields (in seconds).
-
-`client.ts` sends this request with appropriate headers and returns raw results. No retries — failures are silently ignored and the game stays unmatched (will be retried next recommendation cycle).
+No retries — package errors are caught and swallowed; the game stays unmatched and will be retried on the next recommendation cycle.
 
 ### Name matching
 
