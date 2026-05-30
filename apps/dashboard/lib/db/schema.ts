@@ -437,6 +437,50 @@ export const igdbGameCache = sqliteTable(
 
 export type IgdbGameCache = typeof igdbGameCache.$inferSelect
 
+// ── HLTB ─────────────────────────────────────────────────────────────────────
+
+export const gameHltbMapping = sqliteTable(
+	'game_hltb_mapping',
+	{
+		gameId: int('game_id').primaryKey(),
+		hltbId: int('hltb_id'),
+		hltbName: text('hltb_name'),
+		matchConfidence: real('match_confidence'),
+		matchMethod: text('match_method', {
+			enum: ['exact', 'cleaned', 'fuzzy', 'not_found'],
+		}),
+		matchedAt: int('matched_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		needsReview: int('needs_review', { mode: 'boolean' }).notNull().default(false),
+	},
+	(t) => ({
+		hltbIdIdx: index('game_hltb_mapping_hltb_idx').on(t.hltbId),
+	}),
+)
+
+export type GameHltbMapping = typeof gameHltbMapping.$inferSelect
+
+export const hltbCache = sqliteTable(
+	'hltb_cache',
+	{
+		hltbId: int('hltb_id').primaryKey(),
+		name: text('name').notNull(),
+		mainStorySeconds: int('main_story_seconds'),
+		mainExtrasSeconds: int('main_extras_seconds'),
+		completionistSeconds: int('completionist_seconds'),
+		fetchedAt: int('fetched_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		expiresAt: int('expires_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => ({
+		expiresIdx: index('hltb_cache_expires_idx').on(t.expiresAt),
+	}),
+)
+
+export type HltbCache = typeof hltbCache.$inferSelect
+
 // ── Recommendations ──────────────────────────────────────────────────────────
 
 export const recommendationSkip = sqliteTable(
