@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { gameIgdbMapping, gameInheritedStats, games, sessions } from '@/lib/db/schema'
-import { eq, gt, or, sql } from 'drizzle-orm'
-import { matchGameToIgdb } from './match-game'
+import { eq, or, sql } from 'drizzle-orm'
+import { matchGameToIgdb, type MatchResult } from './match-game'
 
 export type BatchProgress = {
 	total: number
@@ -14,6 +14,16 @@ export type BatchProgress = {
 }
 
 type GameRow = { id: number; name: string; system: string; romPath: string }
+
+const NOT_GAME_PREFIX = /^zzz\(notgame\)/i
+
+const NOT_FOUND_RESULT: MatchResult = {
+	igdbId: null,
+	igdbName: null,
+	confidence: 0,
+	method: 'not_found',
+	needsReview: false,
+}
 
 async function getPlayedGames(): Promise<GameRow[]> {
 	return db
@@ -64,6 +74,16 @@ async function runBatch(
 	gameRows: GameRow[],
 	onProgress?: (p: BatchProgress) => void,
 ): Promise<BatchProgress> {
+	// Group by (name, system) — one IGDB call per unique (name, system) pair
+	const byKey = new Map<string, { name: string; system: string; games: GameRow[] }>()
+	for (const game of gameRows) {
+		const name = (game.name || extractFilename(game.romPath)).trim()
+		const key = `${name}|${game.system}`
+		const group = byKey.get(key) ?? { name, system: game.system, games: [] }
+		group.games.push(game)
+		byKey.set(key, group)
+	}
+
 	const progress: BatchProgress = {
 		total: gameRows.length,
 		done: 0,
@@ -73,45 +93,57 @@ async function runBatch(
 		errors: 0,
 	}
 
-	for (const game of gameRows) {
-		progress.current = game.name
+	for (const { name, system, games: groupGames } of byKey.values()) {
+		progress.current = name
 		onProgress?.(progress)
 
+		let result: MatchResult
 		try {
-			const sourceName = game.name || extractFilename(game.romPath)
-			const result = await matchGameToIgdb({ romName: sourceName, recalboxSystem: game.system })
+			if (NOT_GAME_PREFIX.test(name)) {
+				result = NOT_FOUND_RESULT
+			} else {
+				result = await matchGameToIgdb({ romName: name, recalboxSystem: system })
+			}
+		} catch (e) {
+			console.error(`[igdb] Batch match failed for "${name}":`, e)
+			result = NOT_FOUND_RESULT
+			progress.errors++
+		}
 
-			await db
-				.insert(gameIgdbMapping)
-				.values({
-					gameId: game.id,
-					igdbId: result.igdbId,
-					igdbName: result.igdbName,
-					matchConfidence: result.confidence,
-					matchMethod: result.method,
-					needsReview: result.needsReview,
-				})
-				.onConflictDoUpdate({
-					target: gameIgdbMapping.gameId,
-					set: {
+		// Apply result to all games sharing this (name, system)
+		for (const game of groupGames) {
+			try {
+				await db
+					.insert(gameIgdbMapping)
+					.values({
+						gameId: game.id,
 						igdbId: result.igdbId,
 						igdbName: result.igdbName,
 						matchConfidence: result.confidence,
 						matchMethod: result.method,
 						needsReview: result.needsReview,
-						matchedAt: new Date(),
-					},
-				})
-
-			if (result.igdbId === null) progress.notFound++
-			else progress.matched++
+					})
+					.onConflictDoUpdate({
+						target: gameIgdbMapping.gameId,
+						set: {
+							igdbId: result.igdbId,
+							igdbName: result.igdbName,
+							matchConfidence: result.confidence,
+							matchMethod: result.method,
+							needsReview: result.needsReview,
+							matchedAt: new Date(),
+						},
+					})
+			} catch (e) {
+				console.error(`[igdb] Failed to persist result for game ${game.id}:`, e)
+				progress.errors++
+			}
+			progress.done++
+			if (result.igdbId !== null) progress.matched++
+			else progress.notFound++
 			if (result.needsReview) progress.needsReview++
-		} catch (e) {
-			console.error(`[igdb] Match failed for ${game.name}:`, e)
-			progress.errors++
 		}
 
-		progress.done++
 		onProgress?.(progress)
 	}
 
