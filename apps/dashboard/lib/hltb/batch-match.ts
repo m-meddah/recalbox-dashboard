@@ -120,7 +120,7 @@ export async function batchMatchHltb(
 
 	async function worker() {
 		while (index < groups.length) {
-			const [name, groupGames] = groups[index++]
+			const [name, groupGames] = groups[index++]!
 
 			progress.current = name
 			onProgress?.({ ...progress })
