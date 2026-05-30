@@ -161,11 +161,17 @@ export default function IgdbReviewPage() {
 												variant="outline"
 												className="text-green-600 border-green-200 hover:bg-green-50"
 												disabled={acting === item.gameId}
-												onClick={() =>
-													item.igdbId && item.igdbName
-														? handleSelect(item.gameId, { igdbId: item.igdbId, igdbName: item.igdbName, confidence: item.confidence ?? 0 })
-														: handleReject(item.gameId)
-												}
+												onClick={() => {
+													if (item.igdbId && item.igdbName) {
+														handleSelect(item.gameId, {
+															igdbId: item.igdbId,
+															igdbName: item.igdbName,
+															confidence: item.confidence ?? 0,
+														})
+													} else {
+														handleReject(item.gameId)
+													}
+												}}
 												aria-label={item.igdbName ?? undefined}
 											>
 												<Check className="w-3.5 h-3.5" />
