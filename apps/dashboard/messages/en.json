@@ -354,7 +354,8 @@
 			"subtitle": "These matches have low confidence. Confirm or reject them.",
 			"loading": "Loading…",
 			"allGood": "No matches to review. Everything is in order.",
-			"pendingTitle": "{count, plural, one {1 match to review} other {# matches to review}}"
+			"pendingTitle": "{count, plural, one {1 match to review} other {# matches to review}}",
+			"none": "None / not found"
 		},
 		"hltb": {
 			"cardTitle": "HowLongToBeat (game lengths)",

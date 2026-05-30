@@ -354,7 +354,8 @@
 			"subtitle": "Ces matchs ont une confiance faible. Confirmez ou rejetez-les.",
 			"loading": "Chargement…",
 			"allGood": "Aucun match à vérifier. Tout est en ordre.",
-			"pendingTitle": "{count, plural, one {1 match à vérifier} other {# matchs à vérifier}}"
+			"pendingTitle": "{count, plural, one {1 match à vérifier} other {# matchs à vérifier}}",
+			"none": "Aucun / non trouvé"
 		},
 		"hltb": {
 			"cardTitle": "HowLongToBeat (durées de jeux)",

@@ -1,11 +1,18 @@
 'use client'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Check, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+
+type IgdbCandidate = {
+	igdbId: number
+	igdbName: string
+	confidence: number
+}
 
 type ReviewItem = {
 	gameId: number
@@ -15,6 +22,7 @@ type ReviewItem = {
 	igdbName: string | null
 	confidence: number | null
 	method: string | null
+	candidates: IgdbCandidate[]
 }
 
 export default function IgdbReviewPage() {
@@ -34,12 +42,28 @@ export default function IgdbReviewPage() {
 			.catch(() => setLoading(false))
 	}, [])
 
-	async function handleAction(gameId: number, action: 'confirm' | 'reject') {
+	async function handleSelect(gameId: number, candidate: IgdbCandidate) {
 		setActing(gameId)
 		await fetch('/api/igdb/review/confirm', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ gameId, action }),
+			body: JSON.stringify({
+				gameId,
+				action: 'manual',
+				igdbId: candidate.igdbId,
+				igdbName: candidate.igdbName,
+			}),
+		})
+		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
+		setActing(null)
+	}
+
+	async function handleReject(gameId: number) {
+		setActing(gameId)
+		await fetch('/api/igdb/review/confirm', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ gameId, action: 'reject' }),
 		})
 		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 		setActing(null)
@@ -54,9 +78,7 @@ export default function IgdbReviewPage() {
 				</Button>
 				<div>
 					<h1 className="text-2xl font-bold">{t('igdbReview.title')}</h1>
-					<p className="text-sm text-muted-foreground">
-						{t('igdbReview.subtitle')}
-					</p>
+					<p className="text-sm text-muted-foreground">{t('igdbReview.subtitle')}</p>
 				</div>
 			</div>
 
@@ -78,42 +100,80 @@ export default function IgdbReviewPage() {
 					<CardContent className="p-0">
 						<div className="divide-y">
 							{items.map((item) => (
-								<div
-									key={item.gameId}
-									className="flex items-center gap-3 px-4 py-3 text-sm"
-								>
-									<div className="flex-1 min-w-0">
-										<p className="font-medium truncate">{item.gameName}</p>
+								<div key={item.gameId} className="px-4 py-4 space-y-3">
+									<div>
+										<p className="font-medium text-sm">{item.gameName}</p>
 										<p className="text-xs text-muted-foreground">{item.system}</p>
 									</div>
-									<div className="flex-1 min-w-0 text-muted-foreground">
-										<p className="truncate">{item.igdbName ?? '—'}</p>
-										<p className="text-xs">
-											{item.confidence != null
-												? `${Math.round(item.confidence * 100)}% (${item.method})`
-												: '—'}
-										</p>
-									</div>
-									<div className="flex gap-2 shrink-0">
-										<Button
-											size="sm"
-											variant="outline"
-											className="text-green-600 border-green-200 hover:bg-green-50"
-											disabled={acting === item.gameId}
-											onClick={() => handleAction(item.gameId, 'confirm')}
-										>
-											<Check className="w-3.5 h-3.5" />
-										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											className="text-red-600 border-red-200 hover:bg-red-50"
-											disabled={acting === item.gameId}
-											onClick={() => handleAction(item.gameId, 'reject')}
-										>
-											<X className="w-3.5 h-3.5" />
-										</Button>
-									</div>
+
+									{item.candidates.length > 0 ? (
+										<div className="space-y-1.5">
+											{item.candidates.map((candidate, i) => (
+												<div
+													key={candidate.igdbId}
+													className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
+												>
+													<div className="flex-1 min-w-0">
+														<span className="truncate">{candidate.igdbName}</span>
+													</div>
+													<Badge variant={i === 0 ? 'default' : 'secondary'} className="text-xs shrink-0">
+														{Math.round(candidate.confidence * 100)}%
+													</Badge>
+													<Button
+														size="sm"
+														variant={i === 0 ? 'default' : 'outline'}
+														disabled={acting === item.gameId}
+														onClick={() => handleSelect(item.gameId, candidate)}
+													>
+														<Check className="w-3.5 h-3.5" />
+													</Button>
+												</div>
+											))}
+											<Button
+												size="sm"
+												variant="ghost"
+												className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
+												disabled={acting === item.gameId}
+												onClick={() => handleReject(item.gameId)}
+											>
+												<X className="w-3.5 h-3.5 mr-1" />
+												{t('igdbReview.none')}
+											</Button>
+										</div>
+									) : (
+										<div className="flex items-center gap-3 text-sm">
+											<span className="flex-1 text-muted-foreground truncate">
+												{item.igdbName ?? '—'}
+												{item.confidence != null && (
+													<span className="text-xs ml-1">
+														({Math.round(item.confidence * 100)}%)
+													</span>
+												)}
+											</span>
+											<Button
+												size="sm"
+												variant="outline"
+												className="text-green-600 border-green-200 hover:bg-green-50"
+												disabled={acting === item.gameId}
+												onClick={() =>
+													item.igdbId && item.igdbName
+														? handleSelect(item.gameId, { igdbId: item.igdbId, igdbName: item.igdbName, confidence: item.confidence ?? 0 })
+														: handleReject(item.gameId)
+												}
+											>
+												<Check className="w-3.5 h-3.5" />
+											</Button>
+											<Button
+												size="sm"
+												variant="outline"
+												className="text-red-600 border-red-200 hover:bg-red-50"
+												disabled={acting === item.gameId}
+												onClick={() => handleReject(item.gameId)}
+											>
+												<X className="w-3.5 h-3.5" />
+											</Button>
+										</div>
+									)}
 								</div>
 							))}
 						</div>
