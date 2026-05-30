@@ -1116,6 +1116,7 @@ export default function SettingsPage() {
 		{ value: 'mqttPublish', icon: Radio, label: t('tabs.mqttPublish'), mobileLabel: 'MQTT' },
 		{ value: 'notifications', icon: Bell, label: t('tabs.notifications'), mobileLabel: 'Notifs' },
 		{ value: 'igdb', icon: Database, label: t('tabs.igdb'), mobileLabel: 'IGDB' },
+		{ value: 'hltb', icon: Clock, label: t('tabs.hltb'), mobileLabel: 'HLTB' },
 		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
 	]
 
@@ -1204,6 +1205,7 @@ export default function SettingsPage() {
 					)}
 					{active === 'notifications' && <NotificationsTab />}
 					{active === 'igdb' && <IgdbTab />}
+					{active === 'hltb' && <HltbTab />}
 					{active === 'app' && (
 						<Card>
 							<CardHeader>
@@ -1456,6 +1458,94 @@ function IgdbTab() {
 							</div>
 						)}
 					</>
+				)}
+			</CardContent>
+		</Card>
+	)
+}
+
+// ─── HLTB Tab ─────────────────────────────────────────────────────────────────
+
+type HltbStatus = {
+	totalGames: number
+	matched: number
+	notFound: number
+	unmapped: number
+}
+
+function HltbTab() {
+	const t = useTranslations('settings')
+	const [status, setStatus] = useState<HltbStatus | null>(null)
+	const [matchProgress, setMatchProgress] = useState<BatchProgress | null>(null)
+
+	useEffect(() => {
+		refreshHltb()
+	}, [])
+
+	async function refreshHltb() {
+		const res = await fetch('/api/hltb/status')
+		setStatus(await res.json())
+	}
+
+	function pollHltbProgress() {
+		const interval = setInterval(async () => {
+			const res = await fetch('/api/hltb/batch-match/progress')
+			const data = await res.json()
+			setMatchProgress(data.progress)
+			if (!data.isRunning) {
+				clearInterval(interval)
+				setMatchProgress(null)
+				refreshHltb()
+			}
+		}, 1000)
+	}
+
+	async function handleStartMatch() {
+		await fetch('/api/hltb/batch-match', { method: 'POST' })
+		pollHltbProgress()
+	}
+
+	if (!status) return null
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{t('hltb.cardTitle')}</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				<p className="text-sm text-muted-foreground">{t('hltb.description')}</p>
+
+				<div className="rounded-md bg-muted/30 p-3 space-y-2 text-sm">
+					<div className="flex justify-between">
+						<span className="text-muted-foreground">{t('hltb.matched')}</span>
+						<span className="font-medium">{status.matched}</span>
+					</div>
+					<div className="flex justify-between">
+						<span className="text-muted-foreground">{t('hltb.notFound')}</span>
+						<span className="font-medium">{status.notFound}</span>
+					</div>
+					<div className="flex justify-between">
+						<span className="text-muted-foreground">{t('hltb.unmapped')}</span>
+						<span className="font-medium">{status.unmapped}</span>
+					</div>
+					<p className="text-xs text-muted-foreground pt-1">
+						{t('hltb.totalCollection', { count: status.totalGames })}
+					</p>
+				</div>
+
+				{matchProgress ? (
+					<div className="space-y-1 text-sm">
+						<p className="text-muted-foreground">
+							{t('hltb.matchingProgress', { done: matchProgress.done, total: matchProgress.total })}
+						</p>
+						{matchProgress.current && (
+							<p className="text-xs italic truncate">{matchProgress.current}</p>
+						)}
+					</div>
+				) : (
+					<Button onClick={handleStartMatch} disabled={status.unmapped === 0}>
+						{t('hltb.startMatch')}
+					</Button>
 				)}
 			</CardContent>
 		</Card>
