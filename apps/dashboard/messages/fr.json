@@ -355,7 +355,10 @@
 			"loading": "Chargement…",
 			"allGood": "Aucun match à vérifier. Tout est en ordre.",
 			"pendingTitle": "{count, plural, one {1 match à vérifier} other {# matchs à vérifier}}",
-			"none": "Aucun / non trouvé"
+			"none": "Aucun / non trouvé",
+			"manualToggle": "Saisir un ID IGDB manuellement",
+			"manualSubmit": "Appliquer",
+			"manualCancel": "Annuler"
 		},
 		"hltb": {
 			"cardTitle": "HowLongToBeat (durées de jeux)",

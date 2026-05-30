@@ -355,7 +355,10 @@
 			"loading": "Loading…",
 			"allGood": "No matches to review. Everything is in order.",
 			"pendingTitle": "{count, plural, one {1 match to review} other {# matches to review}}",
-			"none": "None / not found"
+			"none": "None / not found",
+			"manualToggle": "Enter IGDB ID manually",
+			"manualSubmit": "Apply",
+			"manualCancel": "Cancel"
 		},
 		"hltb": {
 			"cardTitle": "HowLongToBeat (game lengths)",

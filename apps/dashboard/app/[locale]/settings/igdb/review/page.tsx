@@ -26,6 +26,8 @@ export default function IgdbReviewPage() {
 	const [items, setItems] = useState<ReviewItem[]>([])
 	const [loading, setLoading] = useState(true)
 	const [acting, setActing] = useState<number | null>(null)
+	const [manualOpen, setManualOpen] = useState<Map<number, boolean>>(new Map())
+	const [manualInput, setManualInput] = useState<Map<number, string>>(new Map())
 
 	useEffect(() => {
 		fetch('/api/igdb/review')
@@ -49,6 +51,25 @@ export default function IgdbReviewPage() {
 					igdbId: candidate.igdbId,
 					igdbName: candidate.igdbName,
 				}),
+			})
+			if (res.ok) {
+				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
+			}
+		} finally {
+			setActing(null)
+		}
+	}
+
+	async function handleManual(gameId: number) {
+		const rawId = manualInput.get(gameId)?.trim()
+		const igdbId = rawId ? Number(rawId) : NaN
+		if (!igdbId || isNaN(igdbId)) return
+		setActing(gameId)
+		try {
+			const res = await fetch('/api/igdb/review/confirm', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ gameId, action: 'manual', igdbId, igdbName: 'Manual entry' }),
 			})
 			if (res.ok) {
 				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
@@ -121,7 +142,10 @@ export default function IgdbReviewPage() {
 													<div className="flex-1 min-w-0">
 														<span className="truncate block">{candidate.igdbName}</span>
 													</div>
-													<Badge variant={i === 0 ? 'default' : 'secondary'} className="text-xs shrink-0">
+													<Badge
+														variant={i === 0 ? 'default' : 'secondary'}
+														className="text-xs shrink-0"
+													>
 														{Math.round(candidate.confidence * 100)}%
 													</Badge>
 													<Button
@@ -187,6 +211,46 @@ export default function IgdbReviewPage() {
 											</Button>
 										</div>
 									)}
+
+								<div className="pt-1">
+									{manualOpen.get(item.gameId) ? (
+										<div className="flex items-center gap-2">
+											<input
+												type="number"
+												className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+												placeholder="IGDB ID"
+												value={manualInput.get(item.gameId) ?? ''}
+												onChange={(e) =>
+													setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))
+												}
+												disabled={acting === item.gameId}
+											/>
+											<Button
+												size="sm"
+												variant="secondary"
+												disabled={acting === item.gameId || !manualInput.get(item.gameId)?.trim()}
+												onClick={() => handleManual(item.gameId)}
+											>
+												{t('igdbReview.manualSubmit')}
+											</Button>
+											<Button
+												size="sm"
+												variant="ghost"
+												onClick={() => setManualOpen((prev) => new Map(prev).set(item.gameId, false))}
+											>
+												{t('igdbReview.manualCancel')}
+											</Button>
+										</div>
+									) : (
+										<button
+											type="button"
+											className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+											onClick={() => setManualOpen((prev) => new Map(prev).set(item.gameId, true))}
+										>
+											{t('igdbReview.manualToggle')}
+										</button>
+									)}
+								</div>
 								</div>
 							))}
 						</div>
