@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ScoredGame } from '@/lib/recommendations/types'
 import { cn } from '@/lib/utils'
+import { translateGenre } from '@/lib/genres/genre-map'
 import { HelpCircle, Play, Sparkles, Target, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 const CONF_STYLE = {
 	high: { icon: Target, cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10' },
@@ -30,6 +31,8 @@ export function RecommendationCard({
 	onLaunch: () => void
 }) {
 	const t = useTranslations('playTonight.card')
+	const locale = useLocale()
+	const tg = (genre: string) => translateGenre(genre, locale)
 	const conf = CONF_STYLE[game.confidence]
 	const ConfIcon = conf.icon
 
@@ -76,7 +79,7 @@ export function RecommendationCard({
 						</Badge>
 						{game.genres.slice(0, 2).map((g) => (
 							<Badge key={g} variant="outline" className="text-xs">
-								{g}
+								{tg(g)}
 							</Badge>
 						))}
 					</div>
@@ -86,7 +89,9 @@ export function RecommendationCard({
 						{game.reasons.map((r) => (
 							<li key={r.key} className="flex items-start gap-1">
 								<span className="text-primary mt-0.5">•</span>
-								<span>{t(`reasons.${r.key}` as any, ('params' in r ? r.params : {}) as any)}</span>
+								<span>{t(`reasons.${r.key}` as any, ('params' in r
+									? r.key === 'favoriteGenre' ? { genre: tg(r.params.genre) } : r.params
+									: {}) as any)}</span>
 							</li>
 						))}
 					</ul>
