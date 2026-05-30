@@ -390,12 +390,13 @@ export const gameIgdbMapping = sqliteTable(
 		igdbName: text('igdb_name'),
 		matchConfidence: real('match_confidence'),
 		matchMethod: text('match_method', {
-			enum: ['exact_name', 'cleaned_name', 'fuzzy', 'manual', 'not_found'],
+			enum: ['exact_name', 'alt_name', 'cleaned_name', 'fuzzy', 'manual', 'not_found'],
 		}),
 		matchedAt: int('matched_at', { mode: 'timestamp' })
 			.notNull()
 			.default(sql`(unixepoch())`),
 		needsReview: int('needs_review', { mode: 'boolean' }).notNull().default(false),
+		candidates: text('candidates'),
 	},
 	(t) => ({
 		igdbIdIdx: index('game_igdb_mapping_igdb_idx').on(t.igdbId),

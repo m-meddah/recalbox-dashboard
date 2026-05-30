@@ -1,0 +1,1 @@
+ALTER TABLE `game_igdb_mapping` ADD `candidates` text;
