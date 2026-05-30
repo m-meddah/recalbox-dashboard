@@ -25,12 +25,20 @@ export async function GET() {
 		.orderBy(desc(gameIgdbMapping.matchConfidence))
 		.all()
 
-	const items = rows.map(({ candidatesRaw, ...row }) => ({
-		...row,
-		candidates: candidatesRaw
-			? (JSON.parse(candidatesRaw) as IgdbCandidate[])
-			: [],
-	}))
+	const items = rows.map(({ candidatesRaw, ...row }) => {
+		let candidates: IgdbCandidate[] = []
+		if (candidatesRaw) {
+			try {
+				const parsed = JSON.parse(candidatesRaw)
+				if (Array.isArray(parsed)) {
+					candidates = parsed as IgdbCandidate[]
+				}
+			} catch {
+				console.error(`[igdb] Failed to parse candidates for game ${row.gameId}`)
+			}
+		}
+		return { ...row, candidates }
+	})
 
 	return NextResponse.json({ items })
 }
