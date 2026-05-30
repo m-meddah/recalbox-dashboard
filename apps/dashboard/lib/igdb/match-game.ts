@@ -21,6 +21,7 @@ export type MatchResult = {
 	igdbId: number | null
 	igdbName: string | null
 	confidence: number
+	// 'cleaned_name' kept for backward compat with existing DB rows; no longer produced
 	method: 'exact_name' | 'alt_name' | 'cleaned_name' | 'fuzzy' | 'manual' | 'not_found'
 	needsReview: boolean
 	candidates: IgdbCandidate[]
@@ -92,17 +93,19 @@ export function scoreAndRankCandidates(
 }
 
 function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): MatchResult {
+	const multiplier = noPlatform ? 0.7 : 1
+
 	const candidates: IgdbCandidate[] = scored
 		.filter((s) => s.score >= 0.65)
 		.slice(0, 5)
-		.map((s) => ({ igdbId: s.id, igdbName: s.name, confidence: s.score }))
+		.map((s) => ({ igdbId: s.id, igdbName: s.name, confidence: s.score * multiplier }))
 
 	const best = scored[0]
 	if (!best || best.score < 0.65) return EMPTY_RESULT
 
-	// noPlatform applies a 0.7 penalty (max confidence = 0.70), so the 0.92
+	// noPlatform applies a 0.7 multiplier (max confidence = 0.70), so the 0.92
 	// threshold below is only reachable when platform is known.
-	const confidence = noPlatform ? best.score * 0.7 : best.score
+	const confidence = best.score * multiplier
 
 	if (confidence >= 0.92) {
 		return {
@@ -125,7 +128,10 @@ function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): Match
 	}
 }
 
-async function searchWithAltNames(name: string, platformId: number): Promise<IgdbGameSearchResult[]> {
+async function searchWithAltNames(
+	name: string,
+	platformId: number,
+): Promise<IgdbGameSearchResult[]> {
 	const escaped = name.replace(/"/g, '\\"')
 	const query = `
     fields id, name, platforms, alternative_names.name;
