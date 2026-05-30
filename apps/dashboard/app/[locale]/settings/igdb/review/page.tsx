@@ -7,12 +7,7 @@ import { ArrowLeft, Check, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
-type IgdbCandidate = {
-	igdbId: number
-	igdbName: string
-	confidence: number
-}
+import type { IgdbCandidate } from '@/lib/igdb/match-game'
 
 type ReviewItem = {
 	gameId: number
@@ -44,29 +39,39 @@ export default function IgdbReviewPage() {
 
 	async function handleSelect(gameId: number, candidate: IgdbCandidate) {
 		setActing(gameId)
-		await fetch('/api/igdb/review/confirm', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				gameId,
-				action: 'manual',
-				igdbId: candidate.igdbId,
-				igdbName: candidate.igdbName,
-			}),
-		})
-		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
-		setActing(null)
+		try {
+			const res = await fetch('/api/igdb/review/confirm', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					gameId,
+					action: 'manual',
+					igdbId: candidate.igdbId,
+					igdbName: candidate.igdbName,
+				}),
+			})
+			if (res.ok) {
+				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
+			}
+		} finally {
+			setActing(null)
+		}
 	}
 
 	async function handleReject(gameId: number) {
 		setActing(gameId)
-		await fetch('/api/igdb/review/confirm', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ gameId, action: 'reject' }),
-		})
-		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
-		setActing(null)
+		try {
+			const res = await fetch('/api/igdb/review/confirm', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ gameId, action: 'reject' }),
+			})
+			if (res.ok) {
+				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
+			}
+		} finally {
+			setActing(null)
+		}
 	}
 
 	return (
@@ -114,7 +119,7 @@ export default function IgdbReviewPage() {
 													className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
 												>
 													<div className="flex-1 min-w-0">
-														<span className="truncate">{candidate.igdbName}</span>
+														<span className="truncate block">{candidate.igdbName}</span>
 													</div>
 													<Badge variant={i === 0 ? 'default' : 'secondary'} className="text-xs shrink-0">
 														{Math.round(candidate.confidence * 100)}%
@@ -124,6 +129,7 @@ export default function IgdbReviewPage() {
 														variant={i === 0 ? 'default' : 'outline'}
 														disabled={acting === item.gameId}
 														onClick={() => handleSelect(item.gameId, candidate)}
+														aria-label={candidate.igdbName}
 													>
 														<Check className="w-3.5 h-3.5" />
 													</Button>
@@ -160,6 +166,7 @@ export default function IgdbReviewPage() {
 														? handleSelect(item.gameId, { igdbId: item.igdbId, igdbName: item.igdbName, confidence: item.confidence ?? 0 })
 														: handleReject(item.gameId)
 												}
+												aria-label={item.igdbName ?? undefined}
 											>
 												<Check className="w-3.5 h-3.5" />
 											</Button>
