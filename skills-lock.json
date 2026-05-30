@@ -62,10 +62,10 @@
       "computedHash": "006f8413941b59eff54a7ce64851b8a2fb79e7a3a5f1a895e97a48f01482553d"
     },
     "security-review": {
-      "source": "affaan-m/everything-claude-code",
+      "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/security-review/SKILL.md",
-      "computedHash": "997a20d294003157511b86c72487c6193c524fb2977677f245e89ccdfc7202be"
+      "computedHash": "9b1791054c648b84ca424fc1342dede2e04759dc73436bb91d21675d5a4c13ea"
     },
     "shadcn": {
       "source": "shadcn/ui",

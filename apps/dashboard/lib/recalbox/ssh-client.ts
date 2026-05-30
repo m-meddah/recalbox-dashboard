@@ -103,7 +103,7 @@ class SshClient {
 			return await Promise.race([execPromise, timeoutPromise])
 		} catch (err) {
 			this.connected = false
-			logger.error(`SSH exec failed for "${command}", marking disconnected`, err)
+			logger.error('SSH exec failed, marking disconnected', err)
 			throw err
 		}
 	}

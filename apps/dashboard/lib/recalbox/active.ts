@@ -18,5 +18,6 @@ export async function setActiveRecalboxId(id: string): Promise<void> {
 		sameSite: 'lax',
 		maxAge: COOKIE_MAX_AGE,
 		path: '/',
+		secure: process.env.NODE_ENV === 'production',
 	})
 }

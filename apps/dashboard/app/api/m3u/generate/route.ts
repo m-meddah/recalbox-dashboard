@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
 	if (!Array.isArray(body?.games)) {
 		return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
 	}
+	if (body.games.length > 200) {
+		return NextResponse.json({ error: 'Too many games in one request (max 200)' }, { status: 413 })
+	}
 	const recalboxId = body.recalboxId ?? (await getActiveRecalboxId())
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })

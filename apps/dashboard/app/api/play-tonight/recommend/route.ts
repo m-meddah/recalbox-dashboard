@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { recommend } from '@/lib/recommendations/recommend'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,7 @@ export async function POST(req: NextRequest) {
 		const recommendations = await recommend(parsed.data)
 		return NextResponse.json({ recommendations })
 	} catch (e: unknown) {
-		const message = e instanceof Error ? e.message : 'unknown error'
-		console.error('[recommend] failed:', e)
-		return NextResponse.json({ error: 'recommendation_failed', message }, { status: 500 })
+		logger.error('[recommend] failed', e)
+		return NextResponse.json({ error: 'recommendation_failed' }, { status: 500 })
 	}
 }

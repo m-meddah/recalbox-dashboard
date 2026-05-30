@@ -55,14 +55,22 @@ const putBodySchema = z.object({
 	superRetrogamers: z
 		.object({
 			enabled: z.boolean().optional(),
-			apiUrl: z.string().max(256).optional(),
+			apiUrl: z
+				.string()
+				.max(256)
+				.refine((v) => v === '' || /^https?:\/\/.+/.test(v), { message: 'Must be a valid HTTP(S) URL' })
+				.optional(),
 			preferredRegion: z.enum(['US', 'EU', 'JP', '']).optional(),
 		})
 		.optional(),
 	mqttPublish: z
 		.object({
 			enabled: z.boolean().optional(),
-			brokerUrl: z.string().max(256).optional(),
+			brokerUrl: z
+				.string()
+				.max(256)
+				.refine((v) => v === '' || /^mqtts?:\/\/.+/.test(v), { message: 'Must be a valid MQTT(S) URL' })
+				.optional(),
 			topicPrefix: z.string().max(64).optional(),
 			homeAssistantDiscovery: z.boolean().optional(),
 		})

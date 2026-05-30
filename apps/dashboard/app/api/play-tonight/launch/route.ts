@@ -9,7 +9,17 @@ export const dynamic = 'force-dynamic'
 const Schema = z.object({ gameId: z.number().int() })
 
 export async function POST(req: NextRequest) {
-	const { gameId } = Schema.parse(await req.json())
+	let body: unknown
+	try {
+		body = await req.json()
+	} catch {
+		return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+	}
+	const parsed = Schema.safeParse(body)
+	if (!parsed.success) {
+		return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+	}
+	const { gameId } = parsed.data
 
 	const latest = await db
 		.select()
