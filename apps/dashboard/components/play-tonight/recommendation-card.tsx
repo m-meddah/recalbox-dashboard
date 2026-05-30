@@ -86,7 +86,7 @@ export function RecommendationCard({
 						{game.reasons.map((r) => (
 							<li key={r.key} className="flex items-start gap-1">
 								<span className="text-primary mt-0.5">•</span>
-								<span>{t(`card.reasons.${r.key}` as any, ('params' in r ? r.params : {}) as any)}</span>
+								<span>{t(`reasons.${r.key}` as any, ('params' in r ? r.params : {}) as any)}</span>
 							</li>
 						))}
 					</ul>
