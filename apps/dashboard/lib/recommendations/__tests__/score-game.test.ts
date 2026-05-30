@@ -75,6 +75,7 @@ function makeGame(overrides: Partial<GameForScoring> = {}): GameForScoring {
 		igdbRating: null,
 		stats: null,
 		rating: null,
+		hltbDurations: null,
 		...overrides,
 	}
 }
@@ -122,11 +123,21 @@ describe('scoreGame', () => {
 			expect(scoreGame(makeGame(), ctx)).toBeNull()
 		})
 
-		it('keeps game with ongoing session', () => {
+		it('returns null for ongoing session without HLTB data', () => {
 			const recentDate = new Date(Date.now() - 30 * 24 * 3600 * 1000)
 			const stats = makeStats({ significantSessions: 2, lastMeaningfulPlayAt: recentDate })
 			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
-			const result = scoreGame(makeGame({ stats }), ctx)
+			expect(scoreGame(makeGame({ stats, hltbDurations: null }), ctx)).toBeNull()
+		})
+
+		it('keeps game with ongoing session and HLTB data', () => {
+			const recentDate = new Date(Date.now() - 30 * 24 * 3600 * 1000)
+			const stats = makeStats({ significantSessions: 2, lastMeaningfulPlayAt: recentDate })
+			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
+			const result = scoreGame(
+				makeGame({ stats, hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null } }),
+				ctx,
+			)
 			expect(result).not.toBeNull()
 		})
 	})
@@ -232,6 +243,88 @@ describe('scoreGame', () => {
 			const rpg120 = scoreGame(makeGame({ genres: ['RPG'] }), ctx120)!
 			const rpg30 = scoreGame(makeGame({ genres: ['RPG'] }), ctx30)!
 			expect(rpg120.score).toBeGreaterThan(rpg30.score)
+		})
+	})
+
+	describe('mood finish — HLTB time fit', () => {
+		const recentDate = new Date(Date.now() - 30 * 24 * 3600 * 1000)
+		const ongoingStats = makeStats({ significantSessions: 1, lastMeaningfulPlayAt: recentDate })
+		const finishCtx = makeCtx(makeProfile(), new Set(), { mood: 'finish', availableMinutes: 60 })
+
+		it('adds +40 and reason when mainStory ≤ availableMinutes', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: 3000, mainExtras: null, completionist: null }, // 50min
+			})
+			const result = scoreGame(game, finishCtx)!
+			expect(result).not.toBeNull()
+			expect(result.scoreBreakdown?.hltbTimeFit).toBe(40)
+			expect(result.reasons.some((r) => r.startsWith('Finissable ce soir'))).toBe(true)
+		})
+
+		it('adds +25 and reason when mainStory is 1–2× availableMinutes', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: 7200, mainExtras: null, completionist: null }, // 120min = 2×
+			})
+			const result = scoreGame(game, finishCtx)!
+			expect(result.scoreBreakdown?.hltbTimeFit).toBe(25)
+			expect(result.reasons.some((r) => r.includes('1-2 sessions'))).toBe(true)
+		})
+
+		it('adds +10 when mainStory is 2–4× availableMinutes', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: 14400, mainExtras: null, completionist: null }, // 240min = 4×
+			})
+			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(10)
+		})
+
+		it('adds -15 when mainStory is >4× availableMinutes', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: 18000, mainExtras: null, completionist: null }, // 300min = 5×
+			})
+			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(-15)
+		})
+
+		it('falls back to mainExtras when mainStory is null', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: null, mainExtras: 3000, completionist: null },
+			})
+			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(40)
+		})
+
+		it('falls back to completionist when mainStory and mainExtras are null', () => {
+			const game = makeGame({
+				stats: ongoingStats,
+				hltbDurations: { mainStory: null, mainExtras: null, completionist: 3000 },
+			})
+			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(40)
+		})
+	})
+
+	describe('estimateTimeMatch — HLTB bonus', () => {
+		it('adds +10 when any HLTB duration falls within ±50% of availableMinutes', () => {
+			const ctx = makeCtx(makeProfile(), new Set(), { availableMinutes: 60, mood: 'chill' })
+			const withHltb = makeGame({
+				hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null }, // 60min exact match
+			})
+			const withoutHltb = makeGame({ hltbDurations: null, system: 'snes' })
+			const withScore = scoreGame(withHltb, ctx)!.score
+			const withoutScore = scoreGame(withoutHltb, ctx)!.score
+			expect(withScore).toBeGreaterThan(withoutScore)
+		})
+
+		it('falls back to heuristics when HLTB duration does not fit', () => {
+			const ctx = makeCtx(makeProfile(), new Set(), { availableMinutes: 30, mood: 'chill' })
+			const arcadeGame = makeGame({
+				system: 'arcade',
+				hltbDurations: { mainStory: 36000, mainExtras: null, completionist: null }, // 10h, no fit
+			})
+			const result = scoreGame(arcadeGame, ctx)!
+			expect(result.scoreBreakdown?.timeMatch).toBe(25)
 		})
 	})
 })

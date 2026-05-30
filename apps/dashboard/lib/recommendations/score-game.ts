@@ -23,6 +23,11 @@ export type GameForScoring = {
 	igdbRating: number | null
 	stats: GamePlayStats | null
 	rating: 'love' | 'like' | 'dislike' | 'unknown' | null
+	hltbDurations: {
+		mainStory: number | null
+		mainExtras: number | null
+		completionist: number | null
+	} | null
 }
 
 export type ScoringContext = {
@@ -51,16 +56,50 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	if (ctx.profile.bouncerGames.includes(game.gameId) && game.rating !== 'love') return null
 	if (game.stats && hasBouncedWithoutCommitting(game.stats) && game.rating !== 'love') return null
 
-	// ── MOOD finish : très restrictif ──
+	// ── MOOD finish ──
 	if (mood === 'finish') {
-		const ongoing =
-			game.stats &&
-			game.stats.significantSessions >= 1 &&
-			monthsSinceLastMeaningfulPlay(game.stats) < 6
-		if (!ongoing) return null
+		const scrobblerEngaged = game.stats
+			? game.stats.significantSessions + game.stats.tasteCount >= 1
+			: false
+		const inheritedEngaged = (game.stats?.inherited?.playCount ?? 0) >= 2
+		const hasEngagement = scrobblerEngaged || inheritedEngaged
+
+		const lastPlay =
+			game.stats?.lastMeaningfulPlayAt ??
+			game.stats?.lastPlayedAt ??
+			game.stats?.inherited?.lastPlayedAt ??
+			null
+		const monthsSince = lastPlay
+			? (Date.now() - lastPlay.getTime()) / (1000 * 60 * 60 * 24 * 30)
+			: Infinity
+
+		if (!hasEngagement || monthsSince >= 6) return null
+		if (!game.hltbDurations) return null
+
 		score += 60
 		breakdown.finishMode = 60
 		reasons.push('En cours')
+
+		const refSec =
+			game.hltbDurations.mainStory ?? game.hltbDurations.mainExtras ?? game.hltbDurations.completionist
+		if (refSec !== null) {
+			const ratio = refSec / 60 / availableMinutes
+			const formatted = formatHltbDuration(refSec)
+			let timeFitPts: number
+			if (ratio <= 1) {
+				timeFitPts = 40
+				reasons.push(`Finissable ce soir (${formatted})`)
+			} else if (ratio <= 2) {
+				timeFitPts = 25
+				reasons.push(`Encore 1-2 sessions (${formatted})`)
+			} else if (ratio <= 4) {
+				timeFitPts = 10
+			} else {
+				timeFitPts = -15
+			}
+			score += timeFitPts
+			breakdown.hltbTimeFit = timeFitPts
+		}
 	}
 
 	// ── CONTENT-BASED (profil) ──
@@ -258,6 +297,16 @@ function estimateTimeMatch(
 	game: GameForScoring,
 	minutes: number,
 ): { score: number; reason?: string } {
+	if (game.hltbDurations) {
+		const secs = [
+			game.hltbDurations.mainStory,
+			game.hltbDurations.mainExtras,
+			game.hltbDurations.completionist,
+		]
+		const fits = secs.some((s) => s !== null && Math.abs(s / 60 - minutes) / minutes <= 0.5)
+		if (fits) return { score: 10 }
+	}
+
 	const isRpg = game.genres.some((g) => RPG_GENRES.includes(g))
 	const isLong = game.genres.some((g) => LONG_GENRES.includes(g))
 	const isArcade = ARCADE_SYSTEMS.includes(game.system.toLowerCase())
@@ -298,4 +347,10 @@ function computeConfidence(
 	const gw = Math.max(0, ...game.genres.map((g) => getWeightFor(ctx.profile.genresWeights, g)))
 	if (sw >= 0.5 && gw >= 0.4) return 'medium'
 	return 'exploration'
+}
+
+function formatHltbDuration(seconds: number): string {
+	const hours = seconds / 3600
+	if (hours < 1) return `${Math.round(seconds / 60)}min`
+	return `~${Math.round(hours)}h`
 }
