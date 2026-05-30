@@ -1,7 +1,5 @@
-import { HowLongToBeatService, type HowLongToBeatEntry } from 'howlongtobeat'
 import { generateNameVariants } from '@/lib/igdb/clean-rom-name'
-
-const service = new HowLongToBeatService()
+import { type HltbSearchEntry, searchHltb } from './hltb-client'
 
 export type HltbMatchResult = {
 	hltbId: number | null
@@ -22,13 +20,13 @@ export async function matchGameToHltb(romName: string): Promise<HltbMatchResult>
 	if (!primaryVariant) return notFound()
 
 	try {
-		const results = await service.search(primaryVariant)
-		const best = results?.[0]
+		const results = await searchHltb(primaryVariant)
+		const best = results[0]
 		if (best && best.similarity >= 0.4) return toResult(best)
 
 		for (const variant of variants.slice(1)) {
-			const varResults = await service.search(variant)
-			const varBest = varResults?.[0]
+			const varResults = await searchHltb(variant)
+			const varBest = varResults[0]
 			if (varBest && varBest.similarity >= 0.4) return toResult(varBest)
 		}
 	} catch (_e) {
@@ -38,19 +36,18 @@ export async function matchGameToHltb(romName: string): Promise<HltbMatchResult>
 	return notFound()
 }
 
-function toResult(entry: HowLongToBeatEntry): HltbMatchResult {
+function toResult(entry: HltbSearchEntry): HltbMatchResult {
 	const sim = entry.similarity
-	const hltbId = parseInt(entry.id, 10)
 	return {
-		hltbId: Number.isNaN(hltbId) ? null : hltbId,
+		hltbId: entry.id,
 		hltbName: entry.name,
 		confidence: sim,
 		method: sim >= 0.9 ? 'exact' : sim >= 0.7 ? 'cleaned' : 'fuzzy',
 		needsReview: sim < 0.7,
 		durations: {
-			mainStory: entry.gameplayMain > 0 ? Math.round(entry.gameplayMain * 3600) : null,
-			mainExtras: entry.gameplayMainExtra > 0 ? Math.round(entry.gameplayMainExtra * 3600) : null,
-			completionist: entry.gameplayCompletionist > 0 ? Math.round(entry.gameplayCompletionist * 3600) : null,
+			mainStory: entry.mainStorySeconds,
+			mainExtras: entry.mainExtrasSeconds,
+			completionist: entry.completionistSeconds,
 		},
 	}
 }
