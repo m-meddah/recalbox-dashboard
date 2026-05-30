@@ -23,6 +23,7 @@ const NOT_FOUND_RESULT: MatchResult = {
 	confidence: 0,
 	method: 'not_found',
 	needsReview: false,
+	candidates: [],
 }
 
 async function getPlayedGames(): Promise<GameRow[]> {
@@ -122,6 +123,7 @@ async function runBatch(
 						matchConfidence: result.confidence,
 						matchMethod: result.method,
 						needsReview: result.needsReview,
+						candidates: result.candidates.length > 0 ? JSON.stringify(result.candidates) : null,
 					})
 					.onConflictDoUpdate({
 						target: gameIgdbMapping.gameId,
@@ -131,6 +133,7 @@ async function runBatch(
 							matchConfidence: result.confidence,
 							matchMethod: result.method,
 							needsReview: result.needsReview,
+							candidates: result.candidates.length > 0 ? JSON.stringify(result.candidates) : null,
 							matchedAt: new Date(),
 						},
 					})

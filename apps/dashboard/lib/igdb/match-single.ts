@@ -40,6 +40,7 @@ export function matchGameAsync(gameId: number): void {
 					matchConfidence: result.confidence,
 					matchMethod: result.method,
 					needsReview: result.needsReview,
+					candidates: result.candidates.length > 0 ? JSON.stringify(result.candidates) : null,
 				})
 				.onConflictDoNothing()
 		} catch (e) {
