@@ -27,7 +27,7 @@ export type MatchResult = {
 	candidates: IgdbCandidate[]
 }
 
-type ScoredCandidate = {
+export type ScoredCandidate = {
 	id: number
 	name: string
 	score: number
@@ -92,7 +92,7 @@ export function scoreAndRankCandidates(
 		.sort((a, b) => b.score - a.score)
 }
 
-function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): MatchResult {
+export function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): MatchResult {
 	const multiplier = noPlatform ? 0.7 : 1
 
 	const candidates: IgdbCandidate[] = scored

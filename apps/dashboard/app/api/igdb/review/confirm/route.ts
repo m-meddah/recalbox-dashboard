@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
 
 	const { gameId, action, igdbId, igdbName } = parsed.data
 
+	// Legacy: still valid for programmatic use; the review UI now uses 'manual' for all positive selections
 	if (action === 'confirm') {
 		await db
 			.update(gameIgdbMapping)
