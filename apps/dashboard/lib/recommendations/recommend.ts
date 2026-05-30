@@ -17,6 +17,7 @@ import { scoreGame, type GameForScoring, type ScoringContext } from './score-gam
 import { selectFinalists } from './select-finalists'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
+import { matchHltbAsync } from '@/lib/hltb/match-single'
 import type { RecommendationContext, ScoredGame } from './types'
 
 const LAZY_MATCH_TOP_N = 30
@@ -104,6 +105,8 @@ export async function recommend(
 		triggerLazyMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
 	}
 
+	triggerLazyHltbMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
+
 	return finalists
 }
 
@@ -152,6 +155,12 @@ async function triggerLazyMatching(gameIds: number[]): Promise<void> {
 		.filter((id) => !matchedSet.has(id))
 		.slice(0, 5)
 		.forEach((id) => matchGameAsync(id))
+}
+
+async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {
+	const mapped = await db.select({ gameId: gameHltbMapping.gameId }).from(gameHltbMapping).all()
+	const mappedSet = new Set(mapped.map((m) => m.gameId))
+	gameIds.filter((id) => !mappedSet.has(id)).forEach((id) => matchHltbAsync(id))
 }
 
 function parseGenres(raw: string | null): string[] {
