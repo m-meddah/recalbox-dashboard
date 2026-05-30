@@ -1,4 +1,4 @@
-import type { RecommendationContext, ScoredGame, Confidence } from './types'
+import type { RecommendationContext, ScoredGame, Confidence, ReasonKey } from './types'
 import type { UserProfile } from '@/lib/db/schema'
 import type { GamePlayStats } from '@/lib/games/play-stats'
 import { getWeightFor } from '@/lib/profile/get-profile'
@@ -46,7 +46,7 @@ const LONG_GENRES = ['RPG', 'JRPG', 'Adventure', 'Strategy', 'Simulation']
 export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame | null {
 	const breakdown: Record<string, number> = {}
 	let score = 0
-	const reasons: string[] = []
+	const reasons: ReasonKey[] = []
 	let igdbBoosted = false
 	const { mood, availableMinutes, excludedGameIds } = ctx.recommendationCtx
 
@@ -78,7 +78,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 		score += 60
 		breakdown.finishMode = 60
-		reasons.push('En cours')
+		reasons.push({ key: 'inProgress' })
 
 		const refSec =
 			game.hltbDurations.mainStory ?? game.hltbDurations.mainExtras ?? game.hltbDurations.completionist
@@ -88,10 +88,10 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			let timeFitPts: number
 			if (ratio <= 1) {
 				timeFitPts = 40
-				reasons.push(`Finissable ce soir (${formatted})`)
+				reasons.push({ key: 'finishableTonight', params: { duration: formatted } })
 			} else if (ratio <= 2) {
 				timeFitPts = 25
-				reasons.push(`Encore 1-2 sessions (${formatted})`)
+				reasons.push({ key: 'oneTwoSessions', params: { duration: formatted } })
 			} else if (ratio <= 4) {
 				timeFitPts = 10
 			} else {
@@ -108,7 +108,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		const pts = Math.round(30 * systemWeight)
 		score += pts
 		breakdown.systemMatch = pts
-		if (systemWeight >= 0.7) reasons.push('Ta console préférée')
+		if (systemWeight >= 0.7) reasons.push({ key: 'favoriteConsole' })
 	}
 
 	let bestGenreWeight = 0
@@ -124,7 +124,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		const pts = Math.round(25 * bestGenreWeight)
 		score += pts
 		breakdown.genreMatch = pts
-		if (bestGenreWeight >= 0.5 && bestGenre) reasons.push(`Genre que tu aimes : ${bestGenre}`)
+		if (bestGenreWeight >= 0.5 && bestGenre) reasons.push({ key: 'favoriteGenre', params: { genre: bestGenre } })
 	}
 
 	if (game.decade) {
@@ -142,7 +142,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			const pts = Math.round(8 * w)
 			score += pts
 			breakdown.developerMatch = pts
-			if (w >= 0.6) reasons.push(`Studio que tu aimes : ${game.developer}`)
+			if (w >= 0.6) reasons.push({ key: 'favoriteStudio', params: { studio: game.developer! } })
 		}
 	}
 
@@ -151,14 +151,14 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		score += 50
 		breakdown.igdbSimilarBoost = 50
 		igdbBoosted = true
-		reasons.push('Similaire à un jeu que tu adores')
+		reasons.push({ key: 'similarToFavorite' })
 	}
 
 	// ── RATINGS ──
 	if (game.rating === 'love') {
 		score += 35
 		breakdown.ratingLove = 35
-		if (!reasons.some((r) => r.toLowerCase().includes('adore'))) reasons.push('Tu adores ce jeu')
+		if (!reasons.some((r) => r.key === 'similarToFavorite')) reasons.push({ key: 'lovedGame' })
 	} else if (game.rating === 'like') {
 		score += 15
 		breakdown.ratingLike = 15
@@ -174,7 +174,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			if (mood === 'chill' || mood === 'nostalgia') {
 				score += 20
 				breakdown.comfortGameMatch = 20
-				reasons.push('Comfort game')
+				reasons.push({ key: 'comfortGame' })
 			} else if (mood === 'discovery') {
 				score -= 15
 				breakdown.comfortGameInDiscovery = -15
@@ -210,7 +210,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		if (mood === 'discovery') {
 			score += 35
 			breakdown.discoveryUntested = 35
-			reasons.push('Jamais lancé')
+			reasons.push({ key: 'neverLaunched' })
 		} else if (mood !== 'finish') {
 			score += 8
 			breakdown.untestedBaseline = 8
@@ -219,7 +219,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		if (mood === 'nostalgia') {
 			score += 30
 			breakdown.nostalgiaOldGame = 30
-			reasons.push('Pas joué depuis longtemps')
+			reasons.push({ key: 'notPlayedInAWhile' })
 		} else {
 			score += 12
 			breakdown.staleGame = 12
@@ -296,7 +296,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 function estimateTimeMatch(
 	game: GameForScoring,
 	minutes: number,
-): { score: number; reason?: string } {
+): { score: number; reason?: ReasonKey } {
 	if (game.hltbDurations) {
 		const secs = [
 			game.hltbDurations.mainStory,
@@ -313,7 +313,7 @@ function estimateTimeMatch(
 	const isHandheld = CHILL_SYSTEMS.includes(game.system.toLowerCase())
 
 	if (minutes <= 30) {
-		if (isArcade) return { score: 25, reason: 'Idéal pour 30 min' }
+		if (isArcade) return { score: 25, reason: { key: 'idealFor30min' } as ReasonKey }
 		if (isHandheld) return { score: 20 }
 		if (isRpg) return { score: -25 }
 		if (isLong) return { score: -15 }
@@ -326,7 +326,7 @@ function estimateTimeMatch(
 		return { score: 5 }
 	}
 	if (minutes >= 120) {
-		if (isRpg) return { score: 22, reason: 'Adapté pour une longue session' }
+		if (isRpg) return { score: 22, reason: { key: 'longSession' } }
 		if (isLong) return { score: 18 }
 		if (isArcade) return { score: -5 }
 		return { score: 8 }

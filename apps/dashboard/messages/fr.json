@@ -724,6 +724,21 @@
 				"high": "Forte confiance",
 				"medium": "Pari raisonné",
 				"exploration": "Découverte"
+			},
+			"reasons": {
+				"inProgress": "En cours",
+				"finishableTonight": "Finissable ce soir ({duration})",
+				"oneTwoSessions": "Encore 1-2 sessions ({duration})",
+				"favoriteConsole": "Ta console préférée",
+				"favoriteGenre": "Genre que tu aimes : {genre}",
+				"favoriteStudio": "Studio que tu aimes : {studio}",
+				"similarToFavorite": "Similaire à un jeu que tu adores",
+				"lovedGame": "Tu adores ce jeu",
+				"comfortGame": "Comfort game",
+				"idealFor30min": "Idéal pour 30 min",
+				"longSession": "Adapté pour une longue session",
+				"neverLaunched": "Jamais lancé",
+				"notPlayedInAWhile": "Pas joué depuis longtemps"
 			}
 		},
 		"maturityBanner": {

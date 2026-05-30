@@ -724,6 +724,21 @@
 				"high": "High confidence",
 				"medium": "Calculated bet",
 				"exploration": "Discovery"
+			},
+			"reasons": {
+				"inProgress": "In progress",
+				"finishableTonight": "Finishable tonight ({duration})",
+				"oneTwoSessions": "1-2 more sessions ({duration})",
+				"favoriteConsole": "Your favorite console",
+				"favoriteGenre": "Favorite genre: {genre}",
+				"favoriteStudio": "Studio you love: {studio}",
+				"similarToFavorite": "Similar to a game you love",
+				"lovedGame": "You love this game",
+				"comfortGame": "Comfort game",
+				"idealFor30min": "Ideal for 30 min",
+				"longSession": "Suited for a long session",
+				"neverLaunched": "Never launched",
+				"notPlayedInAWhile": "Not played in a while"
 			}
 		},
 		"maturityBanner": {

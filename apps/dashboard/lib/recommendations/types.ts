@@ -9,6 +9,21 @@ export type RecommendationContext = {
 
 export type Confidence = 'high' | 'medium' | 'exploration'
 
+export type ReasonKey =
+	| { key: 'inProgress' }
+	| { key: 'finishableTonight'; params: { duration: string } }
+	| { key: 'oneTwoSessions'; params: { duration: string } }
+	| { key: 'favoriteConsole' }
+	| { key: 'favoriteGenre'; params: { genre: string } }
+	| { key: 'favoriteStudio'; params: { studio: string } }
+	| { key: 'similarToFavorite' }
+	| { key: 'lovedGame' }
+	| { key: 'comfortGame' }
+	| { key: 'idealFor30min' }
+	| { key: 'longSession' }
+	| { key: 'neverLaunched' }
+	| { key: 'notPlayedInAWhile' }
+
 export type ScoredGame = {
 	gameId: number
 	name: string
@@ -21,7 +36,7 @@ export type ScoredGame = {
 
 	score: number
 	confidence: Confidence
-	reasons: string[]
+	reasons: ReasonKey[]
 
 	lastPlayedAt: Date | null
 	meaningfulSessionsCount: number

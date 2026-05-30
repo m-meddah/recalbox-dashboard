@@ -511,7 +511,7 @@ export const recommendationLog = sqliteTable(
 		contextMood: text('context_mood').notNull(),
 		score: real('score').notNull(),
 		confidence: text('confidence').notNull(),
-		reasons: text('reasons', { mode: 'json' }).$type<string[]>(),
+		reasons: text('reasons', { mode: 'json' }).$type<unknown[]>(),
 		launched: int('launched', { mode: 'boolean' }).notNull().default(false),
 		launchedAt: int('launched_at', { mode: 'timestamp' }),
 		skipped: int('skipped', { mode: 'boolean' }).notNull().default(false),

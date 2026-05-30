@@ -160,7 +160,7 @@ describe('scoreGame', () => {
 		it('adds system-prefers reason when weight ≥ 0.7', () => {
 			const profile = makeProfile({ systemsWeights: [w('snes', 0.9)] })
 			const result = scoreGame(makeGame({ system: 'snes' }), makeCtx(profile))
-			expect(result!.reasons).toContain('Ta console préférée')
+			expect(result!.reasons).toContainEqual({ key: 'favoriteConsole' })
 		})
 	})
 
@@ -259,7 +259,7 @@ describe('scoreGame', () => {
 			const result = scoreGame(game, finishCtx)!
 			expect(result).not.toBeNull()
 			expect(result.scoreBreakdown?.hltbTimeFit).toBe(40)
-			expect(result.reasons.some((r) => r.startsWith('Finissable ce soir'))).toBe(true)
+			expect(result.reasons.some((r) => r.key === 'finishableTonight')).toBe(true)
 		})
 
 		it('adds +25 and reason when mainStory is 1–2× availableMinutes', () => {
@@ -269,7 +269,7 @@ describe('scoreGame', () => {
 			})
 			const result = scoreGame(game, finishCtx)!
 			expect(result.scoreBreakdown?.hltbTimeFit).toBe(25)
-			expect(result.reasons.some((r) => r.includes('1-2 sessions'))).toBe(true)
+			expect(result.reasons.some((r) => r.key === 'oneTwoSessions')).toBe(true)
 		})
 
 		it('adds +10 when mainStory is 2–4× availableMinutes', () => {

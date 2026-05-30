@@ -84,9 +84,9 @@ export function RecommendationCard({
 				{game.reasons.length > 0 && (
 					<ul className="space-y-1 text-sm text-muted-foreground">
 						{game.reasons.map((r) => (
-							<li key={r} className="flex items-start gap-1">
+							<li key={r.key} className="flex items-start gap-1">
 								<span className="text-primary mt-0.5">•</span>
-								<span>{r}</span>
+								<span>{t(`card.reasons.${r.key}` as any, ('params' in r ? r.params : {}) as any)}</span>
 							</li>
 						))}
 					</ul>
