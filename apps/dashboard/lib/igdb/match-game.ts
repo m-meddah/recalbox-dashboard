@@ -71,6 +71,8 @@ export function scoreAndRankCandidates(
 	variants: string[],
 	results: IgdbGameSearchResult[],
 ): ScoredCandidate[] {
+	if (variants.length === 0) return []
+
 	return results
 		.map((r) => {
 			let best = Math.max(...variants.map((v) => similarity(v, r.name)))
@@ -98,6 +100,8 @@ function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean): Match
 	const best = scored[0]
 	if (!best || best.score < 0.65) return EMPTY_RESULT
 
+	// noPlatform applies a 0.7 penalty (max confidence = 0.70), so the 0.92
+	// threshold below is only reachable when platform is known.
 	const confidence = noPlatform ? best.score * 0.7 : best.score
 
 	if (confidence >= 0.92) {
