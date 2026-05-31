@@ -1,26 +1,26 @@
 import { z } from 'zod'
 
-export const retroachievementsConfigSchema = z.object({
+const retroachievementsConfigSchema = z.object({
 	enabled: z.boolean(),
 	username: z.string().max(64),
 	apiKey: z.string().max(256),
 	autoSyncMinutes: z.number().int().min(1).max(1440),
 })
 
-export const superRetrogamersConfigSchema = z.object({
+const superRetrogamersConfigSchema = z.object({
 	enabled: z.boolean(),
 	apiUrl: z.string().max(256),
 	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
 })
 
-export const mqttPublishConfigSchema = z.object({
+const mqttPublishConfigSchema = z.object({
 	enabled: z.boolean(),
 	brokerUrl: z.string().max(256),
 	topicPrefix: z.string().max(64),
 	homeAssistantDiscovery: z.boolean(),
 })
 
-export const recalboxConfigSchema = z.object({
+const recalboxConfigSchema = z.object({
 	host: z
 		.string()
 		.min(1)
@@ -31,13 +31,13 @@ export const recalboxConfigSchema = z.object({
 	mqttPort: z.number().int().min(1).max(65535),
 })
 
-export const scrobbleConfigSchema = z.object({
+const scrobbleConfigSchema = z.object({
 	minDurationSec: z.number().int().min(0),
 	maxDurationHours: z.number().min(0),
 	orphanRecoveryHours: z.number().min(0),
 })
 
-export const uiConfigSchema = z.object({
+const uiConfigSchema = z.object({
 	locale: z.string().min(2).max(10),
 	theme: z.enum(['light', 'dark', 'system']),
 	weekStartsOn: z.union([z.literal(0), z.literal(1)]),
@@ -76,8 +76,8 @@ export function maskedConfig(cfg: AppConfig): AppConfig {
 	}
 }
 
-export const recalboxInstanceSchema = z.object({
-	id: z.string().uuid(),
+const recalboxInstanceSchema = z.object({
+	id: z.uuid(),
 	name: z.string().min(1).max(64),
 	host: z
 		.string()

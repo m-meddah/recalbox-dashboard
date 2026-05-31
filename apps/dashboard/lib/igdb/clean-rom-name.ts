@@ -55,42 +55,42 @@ function removeAccents(s: string): string {
 	return s.normalize('NFD').replace(/\p{M}/gu, '')
 }
 
-const ROMAN_TO_ARABIC: [string, string][] = [
-	[' VIII', ' 8'],
-	[' VII', ' 7'],
-	[' III', ' 3'],
-	[' II', ' 2'],
-	[' IV', ' 4'],
-	[' VI', ' 6'],
-	[' IX', ' 9'],
-	[' V', ' 5'],
-	[' X', ' 10'],
+const ROMAN_TO_ARABIC: [string, string, RegExp][] = [
+	[' VIII', ' 8', / VIII\b/g],
+	[' VII', ' 7', / VII\b/g],
+	[' III', ' 3', / III\b/g],
+	[' II', ' 2', / II\b/g],
+	[' IV', ' 4', / IV\b/g],
+	[' VI', ' 6', / VI\b/g],
+	[' IX', ' 9', / IX\b/g],
+	[' V', ' 5', / V\b/g],
+	[' X', ' 10', / X\b/g],
 ]
 
-const ARABIC_TO_ROMAN: [string, string][] = [
-	[' 2', ' II'],
-	[' 3', ' III'],
-	[' 4', ' IV'],
-	[' 5', ' V'],
-	[' 6', ' VI'],
-	[' 7', ' VII'],
-	[' 8', ' VIII'],
-	[' 9', ' IX'],
-	[' 10', ' X'],
+const ARABIC_TO_ROMAN: [string, string, RegExp][] = [
+	[' 2', ' II', / 2\b/g],
+	[' 3', ' III', / 3\b/g],
+	[' 4', ' IV', / 4\b/g],
+	[' 5', ' V', / 5\b/g],
+	[' 6', ' VI', / 6\b/g],
+	[' 7', ' VII', / 7\b/g],
+	[' 8', ' VIII', / 8\b/g],
+	[' 9', ' IX', / 9\b/g],
+	[' 10', ' X', / 10\b/g],
 ]
 
 function convertRomanToArabic(s: string): string {
 	let r = s
-	for (const [roman, arabic] of ROMAN_TO_ARABIC) {
-		r = r.replace(new RegExp(`${roman}\\b`, 'g'), arabic)
+	for (const [, arabic, regex] of ROMAN_TO_ARABIC) {
+		r = r.replace(regex, arabic)
 	}
 	return r
 }
 
 function convertArabicToRoman(s: string): string {
 	let r = s
-	for (const [arabic, roman] of ARABIC_TO_ROMAN) {
-		r = r.replace(new RegExp(`${arabic}\\b`, 'g'), roman)
+	for (const [, roman, regex] of ARABIC_TO_ROMAN) {
+		r = r.replace(regex, roman)
 	}
 	return r
 }

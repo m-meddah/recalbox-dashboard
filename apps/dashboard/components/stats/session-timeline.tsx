@@ -48,7 +48,14 @@ export async function SessionTimeline({ sessions }: Props) {
 							</p>
 						</div>
 						<div className="min-w-0 flex-1">
-							<p className="truncate text-sm font-medium">{s.gameName}</p>
+							<div className="flex min-w-0 items-baseline gap-1.5">
+								<p className="truncate text-sm font-medium">{s.gameName}</p>
+								{s.region && (
+									<span className="shrink-0 text-[10px] text-muted-foreground/70 uppercase">
+										{s.region}
+									</span>
+								)}
+							</div>
 						</div>
 						<div className="flex shrink-0 items-center gap-2">
 							<span

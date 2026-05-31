@@ -13,7 +13,7 @@ export type SessionClassification = 'noise' | 'bounce' | 'taste' | 'meaningful' 
  * Thresholds in seconds. Exposed as constants so the backfill SQL
  * and TypeScript logic stay in sync.
  */
-export const CLASSIFICATION_THRESHOLDS = {
+const CLASSIFICATION_THRESHOLDS = {
 	noiseMax: 120, // < 2 min
 	bounceMax: 600, // < 10 min
 	tasteMax: 1800, // < 30 min
@@ -35,13 +35,13 @@ export function classifySession(durationSeconds: number | null | undefined): Ses
 }
 
 /** Sessions that signal the user is genuinely engaged. */
-export const POSITIVE_CLASSIFICATIONS: SessionClassification[] = ['meaningful', 'marathon']
+const POSITIVE_CLASSIFICATIONS: SessionClassification[] = ['meaningful', 'marathon']
 
 /** Sessions that signal the user didn't stick around. */
-export const NEGATIVE_CLASSIFICATIONS: SessionClassification[] = ['bounce']
+const NEGATIVE_CLASSIFICATIONS: SessionClassification[] = ['bounce']
 
 /** Sessions that tried but leave no clear conclusion. */
-export const NEUTRAL_CLASSIFICATIONS: SessionClassification[] = ['taste']
+const NEUTRAL_CLASSIFICATIONS: SessionClassification[] = ['taste']
 
 /** Sessions to ignore in statistics (pure noise). */
-export const IGNORED_CLASSIFICATIONS: SessionClassification[] = ['noise']
+const IGNORED_CLASSIFICATIONS: SessionClassification[] = ['noise']

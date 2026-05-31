@@ -2,7 +2,7 @@
 
 import type { Notification } from '@/lib/notifications/types'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
-import { createContext, use, useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
 export type NotificationSSEEvent = { type: 'notification'; notification: Notification }
@@ -24,7 +24,8 @@ const RecalboxEventsContext = createContext<RecalboxEventsContextValue>({
 
 export function RecalboxEventsProvider({ children }: { children: React.ReactNode }) {
 	const [mqttOnline, setMqttOnline] = useState<boolean | null>(null)
-	const handlersRef = useRef<Set<Handler>>(new Set())
+	const handlersRef = useRef<Set<Handler> | null>(null)
+	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
 
 	useEffect(() => {
@@ -46,7 +47,7 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 					setMqttOnline(event.online)
 				}
 
-				for (const handler of handlersRef.current) {
+				for (const handler of handlersRef.current!) {
 					handler(event)
 				}
 			}
@@ -67,14 +68,16 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 	}, [])
 
 	const subscribe = useCallback((handler: Handler) => {
-		handlersRef.current.add(handler)
+		handlersRef.current!.add(handler)
 		return () => {
-			handlersRef.current.delete(handler)
+			handlersRef.current!.delete(handler)
 		}
 	}, [])
 
+	const contextValue = useMemo(() => ({ mqttOnline, subscribe }), [mqttOnline, subscribe])
+
 	return (
-		<RecalboxEventsContext.Provider value={{ mqttOnline, subscribe }}>
+		<RecalboxEventsContext.Provider value={contextValue}>
 			{children}
 		</RecalboxEventsContext.Provider>
 	)

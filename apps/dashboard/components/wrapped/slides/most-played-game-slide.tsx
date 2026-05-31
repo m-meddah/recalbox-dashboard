@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { MostPlayedGameSlide } from '@/lib/wrapped/types'
 import { useTranslations } from 'next-intl'
 import { SLIDE_ACCENTS } from '../accents'
@@ -11,9 +12,11 @@ export function MostPlayedGameSlideView({ slide }: Props) {
 		<SlideShell accent={SLIDE_ACCENTS['most-played-game']}>
 			{slide.imagePath && (
 				<div className="relative size-40 overflow-hidden rounded-2xl border border-white/10">
-					<img
+					<Image
 						src={`/api/media?path=${encodeURIComponent(slide.imagePath)}`}
 						alt={slide.gameName}
+						width={160}
+						height={160}
 						className="h-full w-full object-cover"
 					/>
 				</div>

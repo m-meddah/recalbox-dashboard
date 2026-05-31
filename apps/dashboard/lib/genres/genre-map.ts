@@ -1,5 +1,5 @@
 // FR → EN mapping built from Screenscraper API (genresListe) + DB genre tokens
-export const GENRE_FR_TO_EN: Record<string, string> = {
+const GENRE_FR_TO_EN: Record<string, string> = {
 	Action: 'Action',
 	'Action / Aventure': 'Action / Adventure',
 	'Action / Casse briques': 'Action / Breakout games',

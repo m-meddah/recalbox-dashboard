@@ -74,7 +74,7 @@ export async function getProfile(): Promise<RaProfile> {
 	return profile
 }
 
-export async function getRecentAchievements(count = 20): Promise<RaAchievement[]> {
+async function getRecentAchievements(count = 20): Promise<RaAchievement[]> {
 	const { username } = getAuth()
 	const cacheKey = `recent-year:${username}`
 	const cached = getCached<RaAchievement[]>(cacheKey)
@@ -208,7 +208,7 @@ export async function getGameProgress(gameId: number): Promise<RaGameProgress | 
 	}
 }
 
-export async function getRecentAchievementsFromDb(
+async function getRecentAchievementsFromDb(
 	limit = 20,
 ): Promise<(typeof raAchievements.$inferSelect)[]> {
 	return db
@@ -219,7 +219,7 @@ export async function getRecentAchievementsFromDb(
 		.all()
 }
 
-export async function getUnlockedGameIds(): Promise<Set<number>> {
+async function getUnlockedGameIds(): Promise<Set<number>> {
 	const rows = db.selectDistinct({ gameId: raAchievements.gameId }).from(raAchievements).all()
 	return new Set(rows.map((r) => r.gameId))
 }

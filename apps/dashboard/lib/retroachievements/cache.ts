@@ -36,7 +36,7 @@ export function setCached<T>(key: string, value: T, ttlSeconds: number): void {
 		.run()
 }
 
-export function invalidateCacheByPrefix(keyPrefix: string): void {
+function invalidateCacheByPrefix(keyPrefix: string): void {
 	db.delete(raCache)
 		.where(like(raCache.key, `${keyPrefix.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`))
 		.run()

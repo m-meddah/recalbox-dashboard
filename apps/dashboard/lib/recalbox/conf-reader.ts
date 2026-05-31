@@ -11,12 +11,14 @@ const ALLOWED_CONF_KEYS = [
 // Keys that may only be checked for presence — their value is NEVER returned via any API.
 // Reading these keys must go through dedicated modules (e.g. lib/recalbox/patron-status.ts)
 // that expose only derived booleans.
-export const PRESENCE_ONLY_CONF_KEYS = ['patron.privatekey'] as const
+const PRESENCE_ONLY_CONF_KEYS = ['patron.privatekey'] as const
+
+const ALLOWED_CONF_KEYS_SET = new Set(ALLOWED_CONF_KEYS as readonly string[])
 
 type AllowedConfKey = (typeof ALLOWED_CONF_KEYS)[number]
 
 function isAllowed(key: string): key is AllowedConfKey {
-	return (ALLOWED_CONF_KEYS as readonly string[]).includes(key)
+	return ALLOWED_CONF_KEYS_SET.has(key)
 }
 
 function parseConfValue(output: string, key: string): string | null {
@@ -49,7 +51,7 @@ export async function readRecalboxConfValue(
 	}
 }
 
-export async function readRecalboxConfValues(
+async function readRecalboxConfValues(
 	keys: string[],
 	ssh: SshClientLike,
 ): Promise<Record<string, string | null>> {

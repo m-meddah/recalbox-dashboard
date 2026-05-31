@@ -39,6 +39,6 @@ export function setDefaultRecalbox(id: string): void {
 	db.update(recalboxes).set({ isDefault: false }).run()
 	db.update(recalboxes).set({ isDefault: true }).where(eq(recalboxes.id, id)).run()
 }
-export function countRecalboxes(): number {
+function countRecalboxes(): number {
 	return db.select().from(recalboxes).all().length
 }

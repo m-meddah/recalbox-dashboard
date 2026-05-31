@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { RecommendationQuality } from '@/components/profile/recommendation-quality'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -199,9 +200,11 @@ function GameList({
 					{games.map((g) => (
 						<div key={g.id} className={`space-y-1 ${muted ? 'opacity-60' : ''}`}>
 							{g.imagePath ? (
-								<img
+								<Image
 									src={`/api/media?path=${encodeURIComponent(g.imagePath)}`}
 									alt={g.name}
+									width={200}
+									height={112}
 									className="w-full aspect-video object-contain bg-muted rounded"
 								/>
 							) : (

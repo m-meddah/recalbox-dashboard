@@ -8,6 +8,14 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { RecommendationCard } from './recommendation-card'
 
+async function handleLaunch(gameId: number) {
+	await fetch('/api/play-tonight/launch', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ gameId }),
+	})
+}
+
 export function PlayTonightResults({
 	time,
 	mood,
@@ -47,14 +55,6 @@ export function PlayTonightResults({
 			body: JSON.stringify({ gameId }),
 		})
 		setResults((prev) => ({ ...prev, recs: prev.recs.filter((x) => x.gameId !== gameId) }))
-	}
-
-	async function handleLaunch(gameId: number) {
-		await fetch('/api/play-tonight/launch', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ gameId }),
-		})
 	}
 
 	if (loading)

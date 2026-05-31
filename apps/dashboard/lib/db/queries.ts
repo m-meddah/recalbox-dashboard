@@ -324,6 +324,7 @@ export type SessionStats = {
 	topGames: Array<{
 		romPath: string
 		gameName: string
+		region: string | null
 		system: string
 		playtimeSec: number
 		sessionCount: number
@@ -479,6 +480,7 @@ export async function getSessionStats(
 			.select({
 				romPath: sessions.romPath,
 				gameName: sql<string>`COALESCE(${games.name}, ${sessions.romPath})`,
+				region: games.region,
 				system: sessions.system,
 				playtimeSec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)`,
 				sessionCount: count(),
@@ -487,13 +489,7 @@ export async function getSessionStats(
 				srUrl: games.srUrl,
 			})
 			.from(sessions)
-			.leftJoin(
-				games,
-				and(
-					sql`${sessions.recalboxId} IS ${games.recalboxId}`,
-					eq(sessions.romPath, games.romPath),
-				),
-			)
+			.leftJoin(games, eq(sessions.romPath, games.romPath))
 			.where(where)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
@@ -517,6 +513,7 @@ export async function getSessionStats(
 		topGames: topGamesRows.map((r) => ({
 			romPath: r.romPath,
 			gameName: r.gameName,
+			region: r.region ?? null,
 			system: r.system,
 			playtimeSec: r.playtimeSec,
 			sessionCount: r.sessionCount,

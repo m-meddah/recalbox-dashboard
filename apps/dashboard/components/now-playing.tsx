@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { Badge } from '@/components/ui/badge'
@@ -77,10 +78,11 @@ function GameCard({ game }: { game: GameStartEvent }) {
 				<div className="flex gap-4 p-4">
 					<div className="shrink-0 size-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
 						{imageUrl ? (
-							// eslint-disable-next-line @next/next/no-img-element
-							<img
+							<Image
 								src={imageUrl}
 								alt={game.gameName}
+								width={96}
+								height={96}
 								className="w-full h-full object-cover"
 								onError={(e) => {
 									e.currentTarget.style.display = 'none'
@@ -130,10 +132,11 @@ function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 				<div className="flex gap-4 p-4">
 					<div className="shrink-0 size-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
 						{imageUrl ? (
-							// eslint-disable-next-line @next/next/no-img-element
-							<img
+							<Image
 								src={imageUrl}
 								alt={browsing.gameName ?? browsing.systemFullName}
+								width={96}
+								height={96}
 								className="w-full h-full object-cover"
 								onError={(e) => {
 									e.currentTarget.style.display = 'none'

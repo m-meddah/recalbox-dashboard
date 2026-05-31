@@ -3,6 +3,7 @@ const STATIC_CACHE = `recalbox-static-${CACHE_VERSION}`
 const RUNTIME_CACHE = `recalbox-runtime-${CACHE_VERSION}`
 const MAX_RUNTIME_ENTRIES = 50
 const OFFLINE_URLS = ['/en/offline', '/fr/offline']
+const OFFLINE_URLS_SET = new Set(OFFLINE_URLS)
 const PRECACHE_URLS = [...OFFLINE_URLS, '/icons/icon-192.png', '/icons/icon-512.png']
 
 // ─── Install ──────────────────────────────────────────────────────────────────
@@ -107,7 +108,7 @@ async function handleHtmlRequest(request, url) {
 		const cached = await caches.match(request)
 		if (cached) return cached
 		const locale = url.pathname.split('/')[1] ?? 'en'
-		const offlineUrl = OFFLINE_URLS.includes(`/${locale}/offline`)
+		const offlineUrl = OFFLINE_URLS_SET.has(`/${locale}/offline`)
 			? `/${locale}/offline`
 			: '/en/offline'
 		return (await caches.match(offlineUrl)) ?? new Response('Offline', { status: 503 })

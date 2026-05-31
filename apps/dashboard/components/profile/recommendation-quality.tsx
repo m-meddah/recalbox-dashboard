@@ -5,6 +5,10 @@ import { Progress } from '@/components/ui/progress'
 import type { QualityMetrics } from '@/lib/recommendations/quality-metrics'
 import { useEffect, useState } from 'react'
 
+function pct(v: number) {
+	return `${Math.round(v * 100)}%`
+}
+
 export function RecommendationQuality() {
 	const [metrics, setMetrics] = useState<QualityMetrics | null>(null)
 	const [days, setDays] = useState(30)
@@ -30,8 +34,6 @@ export function RecommendationQuality() {
 			</Card>
 		)
 	}
-
-	const pct = (v: number) => `${Math.round(v * 100)}%`
 
 	return (
 		<Card>

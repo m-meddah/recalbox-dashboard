@@ -6,7 +6,7 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const bodySchema = z.object({ id: z.string().uuid() })
+const bodySchema = z.object({ id: z.uuid() })
 
 export async function PUT(req: NextRequest) {
 	let body: unknown

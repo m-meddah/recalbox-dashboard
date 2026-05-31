@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { AchievementUnlockedData } from '@/lib/notifications/types'
 
 type Props = {
@@ -8,9 +9,11 @@ export function AchievementToast({ data }: Props) {
 	return (
 		<div className="flex items-start gap-3">
 			{data.imageUrl && (
-				<img
+				<Image
 					src={data.imageUrl}
 					alt={data.title}
+					width={48}
+					height={48}
 					className="size-12 shrink-0 rounded object-cover"
 				/>
 			)}

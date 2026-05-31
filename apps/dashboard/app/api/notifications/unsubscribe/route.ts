@@ -7,7 +7,7 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const schema = z.object({ endpoint: z.string().url() })
+const schema = z.object({ endpoint: z.url() })
 
 export async function POST(req: Request) {
 	let body: unknown

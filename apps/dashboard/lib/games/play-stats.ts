@@ -56,7 +56,7 @@ export type GamePlayStats = {
  * Returns consolidated stats for a single game, or null if the game has
  * no trace in sessions, inherited stats, or calibration.
  */
-export async function getGamePlayStats(gameId: number): Promise<GamePlayStats | null> {
+async function getGamePlayStats(gameId: number): Promise<GamePlayStats | null> {
 	const map = await getGamePlayStatsBatch([gameId])
 	return map.get(gameId) ?? null
 }

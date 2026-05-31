@@ -8,6 +8,7 @@ import { useState } from 'react'
 type GameEntry = {
 	romPath: string
 	gameName: string
+	region?: string | null
 	system: string
 	playtimeSec: number
 	sessionCount: number
@@ -42,7 +43,14 @@ export function TopGames({ games }: Props) {
 					</span>
 					<div className="min-w-0 flex-1">
 						<div className="flex items-baseline justify-between gap-2">
-							<p className="truncate text-sm font-medium">{game.gameName}</p>
+							<div className="flex min-w-0 items-baseline gap-1.5">
+								<p className="truncate text-sm font-medium">{game.gameName}</p>
+								{game.region && (
+									<span className="shrink-0 text-[10px] text-muted-foreground/70 uppercase">
+										{game.region}
+									</span>
+								)}
+							</div>
 							<span className="shrink-0 text-xs font-mono text-muted-foreground">
 								{formatDuration(game.playtimeSec)}
 							</span>

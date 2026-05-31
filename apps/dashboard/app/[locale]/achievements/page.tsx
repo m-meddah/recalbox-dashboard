@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -311,7 +312,7 @@ export default function AchievementsPage() {
 						<ul className="space-y-3">
 							{recent.map((a) => (
 								<li key={a.achievementId} className="flex items-start gap-3">
-									<img
+									<Image
 										src={a.badgeUrl}
 										alt={a.title}
 										width={40}

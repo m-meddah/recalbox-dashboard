@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -49,9 +50,11 @@ export function RecommendationCard({
 						src={`/api/media?path=${encodeURIComponent(game.videoUrl)}`}
 					/>
 				) : game.imageUrl ? (
-					<img
+					<Image
 						src={`/api/media?path=${encodeURIComponent(game.imageUrl)}`}
 						alt={game.name}
+						width={300}
+						height={169}
 						className="w-full h-full object-contain"
 					/>
 				) : null}

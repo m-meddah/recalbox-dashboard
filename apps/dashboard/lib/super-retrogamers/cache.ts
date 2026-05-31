@@ -14,7 +14,7 @@ function ttlFor(key: string): number {
 	return TTL_MS.systems
 }
 
-export function getCached<T>(key: string): T | null {
+function getCached<T>(key: string): T | null {
 	const row = db.select().from(srCache).where(eq(srCache.key, key)).get()
 	if (!row) return null
 	if (row.expiresAt < new Date()) {

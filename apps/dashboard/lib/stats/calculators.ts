@@ -1,6 +1,14 @@
 import { db } from '@/lib/db/index'
 import { getSessionStats } from '@/lib/db/queries'
-import { games, sessions } from '@/lib/db/schema'
+import {
+	gameHltbMapping,
+	gameInheritedStats,
+	games,
+	hltbCache,
+	raAchievements,
+	raGameMapping,
+	sessions,
+} from '@/lib/db/schema'
 import { desc, eq, sql } from 'drizzle-orm'
 import { toDateKey } from './formatters'
 
@@ -19,6 +27,7 @@ export type HeatmapCell = {
 export type RecentSession = {
 	id: number
 	gameName: string
+	region: string | null
 	system: string
 	startedAt: Date
 	durationSec: number
@@ -47,6 +56,7 @@ export type DashboardStats = {
 	topGames: Array<{
 		romPath: string
 		gameName: string
+		region: string | null
 		system: string
 		playtimeSec: number
 		sessionCount: number
@@ -184,11 +194,65 @@ export function calculateStreaks(byDay: Array<{ date: string; playtimeSec: numbe
 	return { currentStreak, longestStreak }
 }
 
+/**
+ * Returns one heatmap entry per day that appears in gameInheritedStats.lastPlayedAt.
+ * Playtime estimate priority: HLTB mainStory / playCount → RA achievement span / playCount → 120s.
+ */
+async function getInheritedHeatmapDays(): Promise<
+	Array<{ date: string; playtimeSec: number; sessionCount: number }>
+> {
+	// Pre-compute RA achievement span (last unlock − first unlock) per RA game ID.
+	const raSpansSubquery = db
+		.select({
+			gameId: raAchievements.gameId,
+			spanSeconds:
+				sql<number>`MAX(${raAchievements.unlockedAt}) - MIN(${raAchievements.unlockedAt})`.as(
+					'span_seconds',
+				),
+		})
+		.from(raAchievements)
+		.groupBy(raAchievements.gameId)
+		.as('ra_spans')
+
+	const rows = await db
+		.select({
+			date: sql<string>`DATE(${gameInheritedStats.lastPlayedAt}, 'unixepoch')`,
+			sessionCount: sql<number>`COUNT(*)`,
+			playtimeSec: sql<number>`SUM(
+				CASE
+					WHEN ${hltbCache.mainStorySeconds} IS NOT NULL AND ${hltbCache.mainStorySeconds} > 0
+					THEN MAX(120, MIN(7200, CAST(${hltbCache.mainStorySeconds} AS REAL) / MAX(1, ${gameInheritedStats.playCount})))
+					WHEN ${raSpansSubquery.spanSeconds} IS NOT NULL AND ${raSpansSubquery.spanSeconds} > 0
+					THEN MAX(120, MIN(7200, CAST(${raSpansSubquery.spanSeconds} AS REAL) / MAX(1, ${gameInheritedStats.playCount})))
+					ELSE 120
+				END
+			)`,
+		})
+		.from(gameInheritedStats)
+		.innerJoin(games, eq(games.id, gameInheritedStats.gameId))
+		.leftJoin(gameHltbMapping, eq(gameHltbMapping.gameId, gameInheritedStats.gameId))
+		.leftJoin(hltbCache, eq(hltbCache.hltbId, gameHltbMapping.hltbId))
+		.leftJoin(
+			raGameMapping,
+			sql`${raGameMapping.recalboxId} IS ${games.recalboxId} AND ${raGameMapping.romPath} = ${games.romPath}`,
+		)
+		.leftJoin(raSpansSubquery, eq(raSpansSubquery.gameId, raGameMapping.raGameId))
+		.where(sql`${gameInheritedStats.lastPlayedAt} IS NOT NULL`)
+		.groupBy(sql`DATE(${gameInheritedStats.lastPlayedAt}, 'unixepoch')`)
+
+	return rows.map((r) => ({
+		date: r.date,
+		playtimeSec: Math.max(1, r.playtimeSec),
+		sessionCount: r.sessionCount,
+	}))
+}
+
 async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
 	const rows = await db
 		.select({
 			id: sessions.id,
 			gameName: sql<string>`COALESCE(${games.name}, ${sessions.romPath})`,
+			region: games.region,
 			system: sessions.system,
 			startedAt: sessions.startedAt,
 			durationSeconds: sessions.durationSeconds,
@@ -202,6 +266,7 @@ async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
 	return rows.map((r) => ({
 		id: r.id,
 		gameName: r.gameName,
+		region: r.region ?? null,
 		system: r.system,
 		startedAt: r.startedAt,
 		durationSec: r.durationSeconds ?? 0,
@@ -212,18 +277,27 @@ export async function getDashboardStats(period: Period): Promise<DashboardStats>
 	const range = getPeriodRange(period)
 	const prevRange = getPreviousPeriodRange(period)
 
-	const [periodStats, prevStats, allTimeStats, recentSessions] = await Promise.all([
-		getSessionStats({ fromDate: range?.fromDate, toDate: range?.toDate, topGamesLimit: 50 }),
-		prevRange
-			? getSessionStats({ fromDate: prevRange.fromDate, toDate: prevRange.toDate })
-			: Promise.resolve(null),
-		period !== 'all' ? getSessionStats({}) : Promise.resolve(null),
-		getRecentSessionsWithNames(),
-	])
+	const [periodStats, prevStats, allTimeStats, recentSessions, inheritedHeatmapDays] =
+		await Promise.all([
+			getSessionStats({ fromDate: range?.fromDate, toDate: range?.toDate, topGamesLimit: 50 }),
+			prevRange
+				? getSessionStats({ fromDate: prevRange.fromDate, toDate: prevRange.toDate })
+				: Promise.resolve(null),
+			period !== 'all' ? getSessionStats({}) : Promise.resolve(null),
+			getRecentSessionsWithNames(),
+			getInheritedHeatmapDays(),
+		])
 
 	const streakByDay = allTimeStats?.byDay ?? periodStats.byDay
 	const { currentStreak, longestStreak } = calculateStreaks(streakByDay)
-	const heatmapByDay = allTimeStats?.byDay ?? periodStats.byDay
+
+	// Merge inherited days (from gameInheritedStats) into heatmap — only days not already
+	// covered by real scrobbler sessions, so inherited data never overrides measured playtime.
+	const scrobblerDayKeys = new Set((allTimeStats?.byDay ?? periodStats.byDay).map((d) => d.date))
+	const heatmapByDay = [
+		...(allTimeStats?.byDay ?? periodStats.byDay),
+		...inheritedHeatmapDays.filter((d) => !scrobblerDayKeys.has(d.date)),
+	]
 
 	const totalPlaytime = periodStats.bySystem.reduce((s, r) => s + r.playtimeSec, 0)
 	const bySystem = periodStats.bySystem.map((s) => ({

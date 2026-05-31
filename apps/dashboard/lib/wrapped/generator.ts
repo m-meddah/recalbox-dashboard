@@ -1,7 +1,15 @@
 import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db/index'
-import { games, raAchievements, sessions } from '@/lib/db/schema'
-import { asc, desc, sql } from 'drizzle-orm'
+import {
+	gameHltbMapping,
+	gameInheritedStats,
+	games,
+	hltbCache,
+	raAchievements,
+	raGameMapping,
+	sessions,
+} from '@/lib/db/schema'
+import { asc, desc, eq, sql } from 'drizzle-orm'
 import type {
 	AchievementsSummarySlide,
 	BusiestDaySlide,
@@ -186,7 +194,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 	return slides
 }
 
-export async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
+async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 	const yearStart = Math.floor(new Date(`${year}-01-01T00:00:00Z`).getTime() / 1000)
 	const yearEnd = Math.floor(new Date(`${year + 1}-01-01T00:00:00Z`).getTime() / 1000)
 	const twentyYearsAgo = Math.floor(new Date(`${year - 20}-01-01T00:00:00Z`).getTime() / 1000)
@@ -197,9 +205,23 @@ export async function fetchWrappedRawData(year: number): Promise<WrappedRawData>
 		AND ${sessions.endedAt} IS NOT NULL
 	`
 
+	// RA achievement span subquery — used to estimate inherited game session durations.
+	const raSpansSubquery = db
+		.select({
+			gameId: raAchievements.gameId,
+			spanSeconds:
+				sql<number>`MAX(${raAchievements.unlockedAt}) - MIN(${raAchievements.unlockedAt})`.as(
+					'span_seconds',
+				),
+		})
+		.from(raAchievements)
+		.groupBy(raAchievements.gameId)
+		.as('ra_spans')
+
 	const [
 		totalsRow,
 		topGamesRows,
+		inheritedTopGamesRows,
 		bySystemRows,
 		longestSessionRow,
 		busiestDayRow,
@@ -236,6 +258,39 @@ export async function fetchWrappedRawData(year: number): Promise<WrappedRawData>
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
 			.limit(5),
+
+		// Inherited games (lastPlayedAt in the target year, not already covered by sessions).
+		db
+			.select({
+				gameName: games.name,
+				system: games.system,
+				imagePath: games.imagePath,
+				playCount: gameInheritedStats.playCount,
+				romPath: games.romPath,
+				estimatedPlaytimeSec: sql<number>`
+					CASE
+						WHEN ${hltbCache.mainStorySeconds} IS NOT NULL AND ${hltbCache.mainStorySeconds} > 0
+						THEN MAX(120, MIN(7200, CAST(${hltbCache.mainStorySeconds} AS REAL) / MAX(1, ${gameInheritedStats.playCount})))
+						WHEN ${raSpansSubquery.spanSeconds} IS NOT NULL AND ${raSpansSubquery.spanSeconds} > 0
+						THEN MAX(120, MIN(7200, CAST(${raSpansSubquery.spanSeconds} AS REAL) / MAX(1, ${gameInheritedStats.playCount})))
+						ELSE 120
+					END
+				`,
+			})
+			.from(gameInheritedStats)
+			.innerJoin(games, eq(games.id, gameInheritedStats.gameId))
+			.leftJoin(gameHltbMapping, eq(gameHltbMapping.gameId, gameInheritedStats.gameId))
+			.leftJoin(hltbCache, eq(hltbCache.hltbId, gameHltbMapping.hltbId))
+			.leftJoin(
+				raGameMapping,
+				sql`${raGameMapping.recalboxId} IS ${games.recalboxId} AND ${raGameMapping.romPath} = ${games.romPath}`,
+			)
+			.leftJoin(raSpansSubquery, eq(raSpansSubquery.gameId, raGameMapping.raGameId))
+			.where(
+				sql`${gameInheritedStats.lastPlayedAt} >= ${yearStart} AND ${gameInheritedStats.lastPlayedAt} < ${yearEnd}`,
+			)
+			.orderBy(desc(sql`${gameInheritedStats.playCount}`))
+			.limit(10),
 
 		db
 			.select({
@@ -340,19 +395,36 @@ export async function fetchWrappedRawData(year: number): Promise<WrappedRawData>
 
 	const cfg = configStore.get()
 
-	return {
-		year,
-		totalSessions: totalsRow?.totalSessions ?? 0,
-		totalDurationSec: totalsRow?.totalDurationSec ?? 0,
-		uniqueGamesCount: totalsRow?.uniqueGamesCount ?? 0,
-		uniqueSystemsCount: totalsRow?.uniqueSystemsCount ?? 0,
-		topGames: topGamesRows.map((r) => ({
+	// Merge inherited top games — only add games not already represented by real sessions.
+	const sessionRomPaths = new Set(topGamesRows.map((r) => r.gameName))
+	const mergedTopGames = [
+		...topGamesRows.map((r) => ({
 			gameName: r.gameName,
 			system: r.system,
 			playtimeSec: r.playtimeSec,
 			sessionCount: r.sessionCount,
 			imagePath: r.imagePath ?? null,
 		})),
+		...inheritedTopGamesRows
+			.filter((r) => r.gameName && !sessionRomPaths.has(r.gameName))
+			.map((r) => ({
+				gameName: r.gameName ?? '',
+				system: r.system,
+				playtimeSec: r.estimatedPlaytimeSec,
+				sessionCount: r.playCount,
+				imagePath: r.imagePath ?? null,
+			})),
+	]
+		.sort((a, b) => b.playtimeSec - a.playtimeSec)
+		.slice(0, 5)
+
+	return {
+		year,
+		totalSessions: totalsRow?.totalSessions ?? 0,
+		totalDurationSec: totalsRow?.totalDurationSec ?? 0,
+		uniqueGamesCount: totalsRow?.uniqueGamesCount ?? 0,
+		uniqueSystemsCount: totalsRow?.uniqueSystemsCount ?? 0,
+		topGames: mergedTopGames,
 		bySystem: bySystemRows,
 		longestSession: longestSessionRow
 			? {

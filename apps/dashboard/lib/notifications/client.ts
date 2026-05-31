@@ -21,7 +21,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 	}
 }
 
-export async function getVapidPublicKey(): Promise<string | null> {
+async function getVapidPublicKey(): Promise<string | null> {
 	try {
 		const res = await fetch('/api/notifications/vapid-public-key')
 		if (!res.ok) return null
@@ -72,7 +72,7 @@ export async function unsubscribeFromPush(reg: ServiceWorkerRegistration): Promi
 	await subscription.unsubscribe()
 }
 
-export async function getCurrentSubscription(): Promise<PushSubscription | null> {
+async function getCurrentSubscription(): Promise<PushSubscription | null> {
 	if (typeof window === 'undefined') return null
 	if (!('serviceWorker' in navigator)) return null
 	const reg = await navigator.serviceWorker.getRegistration('/sw.js')

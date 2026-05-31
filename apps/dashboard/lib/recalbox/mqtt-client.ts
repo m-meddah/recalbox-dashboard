@@ -209,7 +209,7 @@ export function getMqttClientFor(recalboxId: string): RecalboxMqttClient {
 	return mqttPool.getClient(recalboxId)
 }
 
-export function getMqttClient(): RecalboxMqttClient {
+function getMqttClient(): RecalboxMqttClient {
 	const id = configStore.getDefaultRecalbox()?.id
 	if (!id) {
 		const noop = new RecalboxMqttClient('mqtt://localhost:1883')

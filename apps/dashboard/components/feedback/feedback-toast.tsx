@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -100,9 +101,11 @@ export function FeedbackToast({
 				<CardContent className="p-4 space-y-3">
 					<div className="flex items-start gap-3">
 						{feedback.imagePath && (
-							<img
+							<Image
 								src={`/api/media?path=${encodeURIComponent(feedback.imagePath)}`}
 								alt=""
+								width={48}
+								height={48}
 								className="size-12 rounded object-cover bg-muted shrink-0"
 							/>
 						)}

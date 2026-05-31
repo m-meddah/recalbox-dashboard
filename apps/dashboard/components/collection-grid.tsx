@@ -38,7 +38,7 @@ function CollectionGridInner({ system }: Props) {
 	const t = useTranslations('collection')
 	const searchParams = useSearchParams()
 	const [data, setData] = useState<ApiResponse | null>(null)
-	const [loading, setLoading] = useState(true)
+	const [lastLoadedUrl, setLastLoadedUrl] = useState('')
 	const [pageState, setPageState] = useState({ value: 1, forParams: '' })
 	const [unlockedRoms, setUnlockedRoms] = useState<Set<string>>(new Set())
 	const PAGE_SIZE = 60
@@ -57,6 +57,9 @@ function CollectionGridInner({ system }: Props) {
 		[paramsString, system],
 	)
 
+	const url = buildUrl(page)
+	const loading = lastLoadedUrl !== url
+
 	useEffect(() => {
 		fetch('/api/retroachievements/unlocked-roms')
 			.then((r) => r.json())
@@ -65,12 +68,14 @@ function CollectionGridInner({ system }: Props) {
 	}, [])
 
 	useEffect(() => {
-		setLoading(true)
-		fetch(buildUrl(page))
+		fetch(url)
 			.then((r) => r.json())
-			.then((d: ApiResponse) => setData(d))
-			.finally(() => setLoading(false))
-	}, [buildUrl, page])
+			.then((d: ApiResponse) => {
+				setData(d)
+				setLastLoadedUrl(url)
+			})
+			.catch(() => setLastLoadedUrl(url))
+	}, [url])
 
 	if (loading) return <GridSkeleton />
 	if (!data || data.games.length === 0) {

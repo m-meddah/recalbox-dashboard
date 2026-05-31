@@ -191,7 +191,7 @@ if (!g.__sshPool || g.__sshPoolVersion !== POOL_VERSION) {
 	})
 }
 
-export const sshPool = g.__sshPool
+const sshPool = g.__sshPool
 
 export type SshClientLike = { exec: (cmd: string, timeoutMs?: number) => Promise<string> }
 
@@ -199,7 +199,7 @@ export function getSshClient(recalboxId: string, variant?: string): SshClient {
 	return sshPool.getClient(recalboxId, variant)
 }
 
-export const sshClient = new Proxy({} as SshClient, {
+const sshClient = new Proxy({} as SshClient, {
 	get(_target, prop) {
 		const id = configStore.getDefaultRecalbox()?.id
 		if (!id) throw new Error('No Recalbox configured')

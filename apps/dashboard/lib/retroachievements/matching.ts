@@ -8,7 +8,7 @@ import { getAuth } from './auth'
 import { getCached, getTtlSeconds, setCached } from './cache'
 import { withRateLimit } from './rate-limiter'
 
-export const SYSTEM_TO_RA_CONSOLE_ID: Record<string, number> = {
+const SYSTEM_TO_RA_CONSOLE_ID: Record<string, number> = {
 	megadrive: 1,
 	n64: 2,
 	snes: 3,

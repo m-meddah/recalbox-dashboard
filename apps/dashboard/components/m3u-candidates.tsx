@@ -26,6 +26,10 @@ type ConfirmState = {
 	expectedContent: string
 } | null
 
+function gameKey(g: MultiDiscGame) {
+	return `${g.system}|${g.romsDir}|${g.baseName}`
+}
+
 function gameStatus(g: MultiDiscGame): 'ok' | 'missing' | 'gap' | 'differs' {
 	if (!g.m3uAlreadyExists) return g.hasGap ? 'gap' : 'missing'
 	return 'ok'

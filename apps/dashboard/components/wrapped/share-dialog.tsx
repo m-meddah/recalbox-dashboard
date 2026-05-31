@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -79,7 +80,7 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 				</div>
 
 				<div className="mb-4 flex justify-center rounded-xl overflow-hidden bg-black border border-white/10 h-40">
-					<img src={imageUrl} alt="Preview" className="h-full w-auto object-contain" />
+					<Image src={imageUrl} alt="Preview" width={400} height={160} className="h-full w-auto object-contain" />
 				</div>
 
 				<button
