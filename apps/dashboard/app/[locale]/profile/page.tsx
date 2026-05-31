@@ -66,9 +66,9 @@ export default function ProfilePage() {
 				</div>
 				<Button variant="outline" size="sm" onClick={handleRecompute} disabled={recomputing}>
 					{recomputing ? (
-						<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						<Loader2 className="size-4 mr-2 animate-spin" />
 					) : (
-						<RotateCw className="w-4 h-4 mr-2" />
+						<RotateCw className="size-4 mr-2" />
 					)}
 					{t('recompute')}
 				</Button>

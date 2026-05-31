@@ -55,7 +55,7 @@ export default function PlayTonightAboutPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-base flex items-center gap-2">
-						<Sparkles className="w-4 h-4" /> {t('algoStatus.title')}
+						<Sparkles className="size-4" /> {t('algoStatus.title')}
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -72,12 +72,12 @@ export default function PlayTonightAboutPage() {
 					<div className="flex items-center gap-2 text-sm">
 						{igdbEnabled ? (
 							<>
-								<div className="w-2 h-2 rounded-full bg-green-500" />
+								<div className="size-2 rounded-full bg-green-500" />
 								<span>{t('algoStatus.igdbEnabled')}</span>
 							</>
 						) : (
 							<>
-								<div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
+								<div className="size-2 rounded-full bg-muted-foreground/40" />
 								<span>
 									{t('algoStatus.igdbDisabled')}{' '}
 									<Link href="/settings" className="text-primary underline">
@@ -168,13 +168,13 @@ export default function PlayTonightAboutPage() {
 					href="/profile"
 					className="text-sm text-primary inline-flex items-center hover:underline"
 				>
-					{t('links.profile')} <ArrowRight className="w-4 h-4 ml-1" />
+					{t('links.profile')} <ArrowRight className="size-4 ml-1" />
 				</Link>
 				<Link
 					href="/play-tonight"
 					className="text-sm text-primary inline-flex items-center hover:underline"
 				>
-					{t('links.backToRecs')} <ArrowRight className="w-4 h-4 ml-1" />
+					{t('links.backToRecs')} <ArrowRight className="size-4 ml-1" />
 				</Link>
 			</div>
 		</div>
@@ -196,7 +196,7 @@ function Source({
 		<div
 			className={`flex gap-3 ${highlighted ? 'p-3 rounded-md bg-primary/5 border border-primary/20' : ''}`}
 		>
-			<Icon className="w-5 h-5 mt-0.5 text-primary shrink-0" />
+			<Icon className="size-5 mt-0.5 text-primary shrink-0" />
 			<div>
 				<p className="font-medium">{title}</p>
 				<p className="text-muted-foreground">{desc}</p>

@@ -117,10 +117,10 @@ export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 	for (const disk of disks) {
 		const romsBase = `/recalbox/share/externals/${disk}/recalbox/roms`
 		const dirsOutput = await ssh.exec(`ls -1 ${shellQuote(romsBase)} 2>/dev/null`)
-		const dirs = dirsOutput
-			.split('\n')
-			.map((d) => d.trim())
-			.filter(Boolean)
+		const dirs = dirsOutput.split('\n').flatMap((d) => {
+			const t = d.trim()
+			return t ? [t] : []
+		})
 
 		for (const dir of dirs) {
 			// Skip ports (nested gamelists) and hidden dirs

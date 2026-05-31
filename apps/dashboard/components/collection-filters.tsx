@@ -109,7 +109,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 						: 'border-border bg-background hover:bg-accent',
 				)}
 			>
-				<Star className="h-3 w-3" />
+				<Star className="size-3" />
 				{t('favorites')}
 			</button>
 
@@ -123,7 +123,7 @@ export function CollectionFilters({ system }: { system?: string }) {
 						: 'border-border bg-background hover:bg-accent',
 				)}
 			>
-				<Clock className="h-3 w-3" />
+				<Clock className="size-3" />
 				{t('neverPlayed')}
 			</button>
 
@@ -169,9 +169,9 @@ export function CollectionFilters({ system }: { system?: string }) {
 						{sortLabels[field]}
 						{active &&
 							(sortDir === 'asc' ? (
-								<SortAsc className="h-3 w-3" />
+								<SortAsc className="size-3" />
 							) : (
-								<SortDesc className="h-3 w-3" />
+								<SortDesc className="size-3" />
 							))}
 					</button>
 				)

@@ -56,15 +56,17 @@ export function RecalboxSwitcher({ recalboxes, activeId }: Props) {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
 				<DropdownMenuLabel>{t('switcher.label')}</DropdownMenuLabel>
-				{recalboxes
-					.filter((r) => !r.archived)
-					.map((rb) => (
-						<DropdownMenuItem key={rb.id} onClick={() => switchRecalbox(rb.id)}>
-							<span className="mr-2">{rb.iconEmoji ?? '🕹️'}</span>
-							<span className="flex-1">{rb.name}</span>
-							{rb.id === activeId && <Check className="h-4 w-4 ml-2" />}
-						</DropdownMenuItem>
-					))}
+				{recalboxes.flatMap((r) =>
+					r.archived
+						? []
+						: [
+								<DropdownMenuItem key={r.id} onClick={() => switchRecalbox(r.id)}>
+									<span className="mr-2">{r.iconEmoji ?? '🕹️'}</span>
+									<span className="flex-1">{r.name}</span>
+									{r.id === activeId && <Check className="size-4 ml-2" />}
+								</DropdownMenuItem>,
+							],
+				)}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
 					<Link href="/recalboxes">{t('switcher.manage')}</Link>

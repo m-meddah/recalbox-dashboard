@@ -1,13 +1,13 @@
-import type { RecommendationContext, ScoredGame, Confidence, ReasonKey } from './types'
 import type { UserProfile } from '@/lib/db/schema'
-import type { GamePlayStats } from '@/lib/games/play-stats'
-import { getWeightFor } from '@/lib/profile/get-profile'
 import {
 	hasBouncedWithoutCommitting,
 	isConfirmedTaste,
 	isUntested,
 	monthsSinceLastMeaningfulPlay,
 } from '@/lib/games/heuristics'
+import type { GamePlayStats } from '@/lib/games/play-stats'
+import { getWeightFor } from '@/lib/profile/get-profile'
+import type { Confidence, ReasonKey, RecommendationContext, ScoredGame } from './types'
 
 export type GameForScoring = {
 	gameId: number
@@ -71,7 +71,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			null
 		const monthsSince = lastPlay
 			? (Date.now() - lastPlay.getTime()) / (1000 * 60 * 60 * 24 * 30)
-			: Infinity
+			: Number.POSITIVE_INFINITY
 
 		if (!hasEngagement || monthsSince >= 6) return null
 		if (!game.hltbDurations) return null
@@ -208,7 +208,9 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 	// ── NOVELTY / FRESHNESS ──
 	const untested = isUntested(game.stats)
-	const monthsSince = game.stats ? monthsSinceLastMeaningfulPlay(game.stats) : Infinity
+	const monthsSince = game.stats
+		? monthsSinceLastMeaningfulPlay(game.stats)
+		: Number.POSITIVE_INFINITY
 	if (untested) {
 		if (mood === 'discovery') {
 			score += 35

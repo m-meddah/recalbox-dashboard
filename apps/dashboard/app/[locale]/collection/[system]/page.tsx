@@ -34,7 +34,7 @@ export default async function SystemCollectionPage({ params }: Props) {
 				<Link href="/collection" className="hover:text-foreground">
 					{t('breadcrumb')}
 				</Link>
-				<ChevronRight className="h-4 w-4" />
+				<ChevronRight className="size-4" />
 				<span className="font-medium text-foreground capitalize">{system}</span>
 			</nav>
 

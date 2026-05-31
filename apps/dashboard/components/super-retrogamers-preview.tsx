@@ -7,11 +7,10 @@ import { ExternalLink } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
-type State =
-	| { status: 'loading' }
-	| { status: 'not-found' }
-	| { status: 'error' }
-	| { status: 'loaded'; game: SrGame & { stale?: boolean } }
+type FetchedState =
+	| { status: 'not-found'; forSlug: string }
+	| { status: 'error'; forSlug: string }
+	| { status: 'loaded'; game: SrGame & { stale?: boolean }; forSlug: string }
 
 type Props = {
 	slug: string | null
@@ -19,24 +18,24 @@ type Props = {
 
 export function SuperRetrogamersPreview({ slug }: Props) {
 	const t = useTranslations('superRetrogamers.preview')
-	const [state, setState] = useState<State>({ status: 'loading' })
+	const [fetched, setFetched] = useState<FetchedState | null>(null)
+	const [retryCount, setRetryCount] = useState(0)
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: retryCount is an intentional refetch trigger
 	useEffect(() => {
-		if (!slug) {
-			setState({ status: 'not-found' })
-			return
-		}
-		setState({ status: 'loading' })
+		if (!slug) return
 		fetch(`/api/super-retrogamers/games/${encodeURIComponent(slug)}`)
 			.then((r) => r.json())
 			.then((data: SrGame | null) => {
-				if (data) setState({ status: 'loaded', game: data })
-				else setState({ status: 'not-found' })
+				if (data) setFetched({ status: 'loaded', game: data, forSlug: slug })
+				else setFetched({ status: 'not-found', forSlug: slug })
 			})
-			.catch(() => setState({ status: 'error' }))
-	}, [slug])
+			.catch(() => setFetched({ status: 'error', forSlug: slug }))
+	}, [slug, retryCount])
 
-	if (state.status === 'loading') {
+	const status = !slug ? 'not-found' : fetched?.forSlug === slug ? fetched.status : 'loading'
+
+	if (status === 'loading') {
 		return (
 			<div className="space-y-3 p-4">
 				<Skeleton className="h-6 w-1/3" />
@@ -46,22 +45,26 @@ export function SuperRetrogamersPreview({ slug }: Props) {
 		)
 	}
 
-	if (state.status === 'not-found') {
+	if (status === 'not-found') {
 		return <div className="p-4 text-center text-sm text-muted-foreground">{t('notFound')}</div>
 	}
 
-	if (state.status === 'error') {
+	if (status === 'error') {
 		return (
 			<div className="space-y-2 p-4 text-center">
 				<p className="text-sm text-destructive">{t('error')}</p>
-				<Button variant="outline" size="sm" onClick={() => setState({ status: 'loading' })}>
+				<Button variant="outline" size="sm" onClick={() => setRetryCount((c) => c + 1)}>
 					{t('retry')}
 				</Button>
 			</div>
 		)
 	}
 
-	const { game } = state
+	const { game } = fetched as {
+		status: 'loaded'
+		game: SrGame & { stale?: boolean }
+		forSlug: string
+	}
 	return (
 		<div className="space-y-4 p-4">
 			{game.stale && <p className="text-xs text-muted-foreground">{t('stale')}</p>}
@@ -100,7 +103,7 @@ export function SuperRetrogamersPreview({ slug }: Props) {
 				className={buttonVariants({ variant: 'outline', size: 'sm' })}
 			>
 				{t('readFull')}
-				<ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+				<ExternalLink className="ml-1.5 size-3.5" />
 			</a>
 		</div>
 	)

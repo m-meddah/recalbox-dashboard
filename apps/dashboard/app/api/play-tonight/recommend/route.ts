@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger'
 import { recommend } from '@/lib/recommendations/recommend'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'

@@ -88,7 +88,7 @@ describe('isUntested', () => {
 
 describe('monthsSinceLastMeaningfulPlay', () => {
 	it('returns Infinity when never played meaningfully', () => {
-		expect(monthsSinceLastMeaningfulPlay(makeStats())).toBe(Infinity)
+		expect(monthsSinceLastMeaningfulPlay(makeStats())).toBe(Number.POSITIVE_INFINITY)
 	})
 
 	it('uses lastMeaningfulPlayAt when available', () => {

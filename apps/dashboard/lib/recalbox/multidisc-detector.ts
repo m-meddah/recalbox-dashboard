@@ -1,4 +1,4 @@
-import { basename as pathBasename, dirname } from 'node:path'
+import { dirname, basename as pathBasename } from 'node:path'
 import { db } from '@/lib/db/index'
 import { games } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
@@ -51,7 +51,7 @@ export function detectDiscInfo(filename: string): { baseName: string; discNumber
 		const match = pattern.exec(stem)
 		if (!match) continue
 
-		const discNumber = parseInt(match[1] ?? '', 10)
+		const discNumber = Number.parseInt(match[1] ?? '', 10)
 		if (discNumber < 1 || discNumber > 10) return null
 
 		const baseName = stem.slice(0, match.index).trimEnd()
@@ -113,10 +113,10 @@ export async function detectMultiDiscGames(
 		// Single SSH call for all directories instead of one per dir
 		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
 		const output = await ssh.exec(`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`)
-		for (const line of output
-			.split('\n')
-			.map((s) => s.trim())
-			.filter(Boolean)) {
+		for (const line of output.split('\n').flatMap((s) => {
+			const t = s.trim()
+			return t ? [t] : []
+		})) {
 			const dir = dirname(line)
 			const file = pathBasename(line)
 			existingM3uByDir.get(dir)?.add(file)
@@ -126,7 +126,7 @@ export async function detectMultiDiscGames(
 	}
 
 	return candidates.map(({ system: sys, dir, baseName, discs }) => {
-		const sorted = [...discs].sort((a, b) => a.discNumber - b.discNumber)
+		const sorted = discs.toSorted((a, b) => a.discNumber - b.discNumber)
 		const m3uFileName = sanitizeM3uFileName(baseName)
 		const nums = sorted.map((d) => d.discNumber)
 		const hasGap = nums.some((n, i) => n !== i + 1)

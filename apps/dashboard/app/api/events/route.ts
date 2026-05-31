@@ -57,10 +57,7 @@ export async function GET(request: Request) {
 				}
 			}
 
-			const recalboxIds = configStore
-				.getRecalboxes()
-				.filter((r) => !r.archived)
-				.map((r) => r.id)
+			const recalboxIds = configStore.getRecalboxes().flatMap((r) => (r.archived ? [] : [r.id]))
 			const cleanups: Array<() => void> = []
 
 			for (const recalboxId of recalboxIds) {

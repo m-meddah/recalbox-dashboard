@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 			baseName,
 			m3uFileName,
 			romsDir,
-			discs: [...discs].sort((a, b) => a.discNumber - b.discNumber),
+			discs: discs.toSorted((a, b) => a.discNumber - b.discNumber),
 			m3uAlreadyExists: false,
 			hasGap: false,
 		}
@@ -94,10 +94,10 @@ export async function POST(req: NextRequest) {
 		const uniqueDirs = [...new Set(specs.map((s) => dirname(s.m3uPath)))]
 		const dirArgs = uniqueDirs.map((d) => shellQuote(d)).join(' ')
 		const output = await ssh.exec(`find ${dirArgs} -maxdepth 1 -name '*.m3u' 2>/dev/null || true`)
-		for (const line of output
-			.split('\n')
-			.map((s) => s.trim())
-			.filter(Boolean)) {
+		for (const line of output.split('\n').flatMap((s) => {
+			const t = s.trim()
+			return t ? [t] : []
+		})) {
 			existingFiles.add(line)
 		}
 	} catch (err) {

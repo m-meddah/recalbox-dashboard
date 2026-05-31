@@ -3,9 +3,9 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { translateGenre } from '@/lib/genres/genre-map'
 import type { ScoredGame } from '@/lib/recommendations/types'
 import { cn } from '@/lib/utils'
-import { translateGenre } from '@/lib/genres/genre-map'
 import { HelpCircle, Play, Sparkles, Target, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -62,7 +62,7 @@ export function RecommendationCard({
 						conf.cls,
 					)}
 				>
-					<ConfIcon className="w-3 h-3" /> {t(`confidence.${game.confidence}`)}
+					<ConfIcon className="size-3" /> {t(`confidence.${game.confidence}`)}
 				</div>
 				{game.igdbBoosted && (
 					<div className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 backdrop-blur-sm">
@@ -105,10 +105,10 @@ export function RecommendationCard({
 				)}
 				<div className="mt-auto pt-3 flex gap-2">
 					<Button onClick={onLaunch} className="flex-1">
-						<Play className="w-4 h-4 mr-1" /> {t('launch')}
+						<Play className="size-4 mr-1" /> {t('launch')}
 					</Button>
 					<Button variant="outline" size="icon" onClick={onSkip} title={t('skip')}>
-						<X className="w-4 h-4" />
+						<X className="size-4" />
 					</Button>
 				</div>
 				{debugMode && game.scoreBreakdown && (

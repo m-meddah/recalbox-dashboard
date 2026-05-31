@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/index'
 import { games } from '@/lib/db/schema'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
-import { detectMultiDiscGames, MULTIDISC_SYSTEMS } from '@/lib/recalbox/multidisc-detector'
+import { MULTIDISC_SYSTEMS, detectMultiDiscGames } from '@/lib/recalbox/multidisc-detector'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { inArray } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -20,14 +20,16 @@ export async function GET(req: NextRequest) {
 	const ssh = getSshClient(recalboxId)
 	const candidates = await detectMultiDiscGames(ssh, recalboxId, system)
 
-	const presentSystems = db
-		.select({ system: games.system })
-		.from(games)
-		.where(inArray(games.system, [...MULTIDISC_SYSTEMS]))
-		.all()
-		.map((r) => r.system)
-		.filter((s, i, arr) => arr.indexOf(s) === i)
-		.sort()
+	const presentSystems = [
+		...new Set(
+			db
+				.select({ system: games.system })
+				.from(games)
+				.where(inArray(games.system, [...MULTIDISC_SYSTEMS]))
+				.all()
+				.map((r) => r.system),
+		),
+	].sort()
 
 	return NextResponse.json({ candidates, systems: presentSystems })
 }

@@ -28,17 +28,13 @@ async function getAvailableYears(locale: string) {
 	const cacheRows = db.select().from(wrappedCache).all()
 	const cacheByYear = Object.fromEntries(cacheRows.map((r) => [`${r.year}-${r.locale}`, r]))
 
-	return yearRows
-		.filter((r) => {
-			const year = Number(r.year)
-			if (r.sessionCount === 0) return false
-			if (year < currentYear) return true
-			return currentMonth >= 12
-		})
-		.map((r) => {
-			const year = Number(r.year)
-			const cached = cacheByYear[`${year}-${locale}`]
-			return {
+	return yearRows.flatMap((r) => {
+		const year = Number(r.year)
+		if (r.sessionCount === 0) return []
+		if (year >= currentYear && currentMonth < 12) return []
+		const cached = cacheByYear[`${year}-${locale}`]
+		return [
+			{
 				year,
 				sessionCount: r.sessionCount,
 				generatedAt: cached ? new Date(cached.generatedAt) : null,
@@ -49,22 +45,25 @@ async function getAvailableYears(locale: string) {
 							).slides.find((s) => s.type === 'total-time')?.totalHours ?? 0,
 						)
 					: null,
-			}
-		})
+			},
+		]
+	})
 }
 
 export default async function WrappedArchivePage({ params }: Props) {
 	const { locale } = await params
 	setRequestLocale(locale as (typeof routing.locales)[number])
-	const t = await getTranslations('wrapped.archive')
-	const years = await getAvailableYears(locale)
+	const [t, years] = await Promise.all([
+		getTranslations('wrapped.archive'),
+		getAvailableYears(locale),
+	])
 
 	return (
 		<div className="h-full overflow-y-auto">
 			<div className="mx-auto max-w-sm px-4 py-8">
 				<div className="mb-6 flex items-center gap-3">
 					<Link href="/stats" className="text-muted-foreground hover:text-foreground">
-						<ArrowLeft className="h-5 w-5" />
+						<ArrowLeft className="size-5" />
 					</Link>
 					<h1 className="text-2xl font-black">{t('title')}</h1>
 				</div>

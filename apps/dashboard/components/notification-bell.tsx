@@ -137,7 +137,7 @@ export function NotificationBell() {
 										</span>
 									</div>
 									{!notif.readAt && (
-										<span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
+										<span className="mt-1 inline-block size-1.5 rounded-full bg-blue-500" />
 									)}
 								</button>
 							)

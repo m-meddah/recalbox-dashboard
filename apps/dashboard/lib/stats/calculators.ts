@@ -103,8 +103,7 @@ export function generateHeatmap(
 	}
 
 	const nonZero = playtimeByDay
-		.filter((d) => d.playtimeSec > 0)
-		.map((d) => d.playtimeSec)
+		.flatMap((d) => (d.playtimeSec > 0 ? [d.playtimeSec] : []))
 		.sort((a, b) => a - b)
 	const q1 = nonZero[Math.floor(nonZero.length * 0.25)] ?? 0
 	const q2 = nonZero[Math.floor(nonZero.length * 0.5)] ?? 0
@@ -150,7 +149,7 @@ export function generateHeatmap(
 
 export function calculateStreaks(byDay: Array<{ date: string; playtimeSec: number }>) {
 	const MIN_SEC = 60
-	const activeSet = new Set(byDay.filter((d) => d.playtimeSec >= MIN_SEC).map((d) => d.date))
+	const activeSet = new Set(byDay.flatMap((d) => (d.playtimeSec >= MIN_SEC ? [d.date] : [])))
 
 	const todayKey = toDateKey(new Date())
 	const yesterdayKey = toDateKey(new Date(Date.now() - 86400000))
@@ -165,7 +164,7 @@ export function calculateStreaks(byDay: Array<{ date: string; playtimeSec: numbe
 		}
 	}
 
-	const sortedDates = [...activeSet].sort()
+	const sortedDates = [...activeSet].toSorted()
 	let longestStreak = 0
 	let run = 0
 	let prev: Date | null = null

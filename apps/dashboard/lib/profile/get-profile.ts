@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { userProfile, type UserProfile, type WeightedItem } from '@/lib/db/schema'
+import { type UserProfile, type WeightedItem, userProfile } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 /**
  * Récupère le profil de goûts singleton. Lance une erreur si absent

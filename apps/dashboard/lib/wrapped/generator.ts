@@ -147,7 +147,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 	}
 
 	if (data.raAchievements !== null && data.raAchievements.length > 0) {
-		const sorted = [...data.raAchievements].sort((a, b) => a.points - b.points)
+		const sorted = data.raAchievements.toSorted((a, b) => a.points - b.points)
 		const slide: AchievementsSummarySlide = {
 			type: 'achievements-summary',
 			totalUnlocked: data.raAchievements.length,

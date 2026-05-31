@@ -77,14 +77,16 @@ describe('buildMatchResult', () => {
 	})
 
 	it('flags for review at score 0.65–0.91', () => {
-		const result = buildMatchResult([candidate(0.80)], false)
+		const result = buildMatchResult([candidate(0.8)], false)
 		expect(result.igdbId).toBe(1)
 		expect(result.needsReview).toBe(true)
 		expect(result.method).toBe('fuzzy')
 	})
 
 	it('uses alt_name method when matchedAltName is true and score >= 0.92', () => {
-		const scored: ScoredCandidate[] = [{ id: 1, name: 'Castlevania', score: 0.97, matchedAltName: true }]
+		const scored: ScoredCandidate[] = [
+			{ id: 1, name: 'Castlevania', score: 0.97, matchedAltName: true },
+		]
 		const result = buildMatchResult(scored, false)
 		expect(result.method).toBe('alt_name')
 		expect(result.needsReview).toBe(false)

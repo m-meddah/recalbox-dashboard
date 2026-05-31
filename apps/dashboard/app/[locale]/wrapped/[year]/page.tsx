@@ -18,8 +18,10 @@ export default async function WrappedYearPage({ params }: Props) {
 		notFound()
 	}
 
-	const t = await getTranslations('wrapped')
-	const wrapped = await getCachedWrapped(year, locale)
+	const [t, wrapped] = await Promise.all([
+		getTranslations('wrapped'),
+		getCachedWrapped(year, locale),
+	])
 
 	if (!wrapped || wrapped.slides.length === 0) {
 		return (

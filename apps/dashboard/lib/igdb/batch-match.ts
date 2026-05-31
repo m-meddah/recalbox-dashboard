@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { gameIgdbMapping, gameInheritedStats, games, sessions } from '@/lib/db/schema'
 import { eq, or, sql } from 'drizzle-orm'
-import { matchGameToIgdb, type MatchResult } from './match-game'
+import { type MatchResult, matchGameToIgdb } from './match-game'
 
 export type BatchProgress = {
 	total: number

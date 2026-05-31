@@ -1,9 +1,9 @@
-import type { CollectionHealth, ScrapeStatus } from '@/lib/collection-health'
-import type { PatronStatus } from '@/lib/recalbox/patron-status'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Link } from '@/i18n/navigation'
+import type { CollectionHealth, ScrapeStatus } from '@/lib/collection-health'
+import type { PatronStatus } from '@/lib/recalbox/patron-status'
 import {
 	AlertTriangle,
 	CheckCircle2,
@@ -42,9 +42,9 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 			<CardHeader className="pb-3">
 				<CardTitle className="flex items-center gap-2 text-base">
 					{allScraped ? (
-						<CheckCircle2 className="h-4 w-4 text-green-500" />
+						<CheckCircle2 className="size-4 text-green-500" />
 					) : (
-						<AlertTriangle className="h-4 w-4 text-orange-500" />
+						<AlertTriangle className="size-4 text-orange-500" />
 					)}
 					{t('title')}
 				</CardTitle>
@@ -69,7 +69,7 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 										total: health.totalGames,
 									})}
 								</span>
-								<ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-open:rotate-180" />
+								<ChevronDown className="size-4 shrink-0 transition-transform duration-200 group-open:rotate-180" />
 							</summary>
 							<div className="mt-1 max-h-72 overflow-y-auto rounded-md border">
 								{Array.from(bySystem.entries()).map(([system, games]) => (
@@ -91,13 +91,13 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 													<span className="flex shrink-0 gap-1">
 														{g.missingImage && (
 															<Badge variant="secondary" className="gap-1 text-xs font-normal">
-																<ImageOff className="h-3 w-3" />
+																<ImageOff className="size-3" />
 																{t('scraping.noImage')}
 															</Badge>
 														)}
 														{g.missingDescription && (
 															<Badge variant="secondary" className="gap-1 text-xs font-normal">
-																<FileText className="h-3 w-3" />
+																<FileText className="size-3" />
 																{t('scraping.noDesc')}
 															</Badge>
 														)}
@@ -115,7 +115,7 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 				{/* Patron status */}
 				{patron.keyPresent && !patron.keyLooksValid ? (
 					<div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-400">
-						<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+						<AlertTriangle className="mt-0.5 size-4 shrink-0" />
 						<span>
 							{t('patron.invalidKey')}{' '}
 							<a
@@ -130,7 +130,7 @@ export async function CollectionHealthPanel({ health, patron }: Props) {
 					</div>
 				) : patron.isPatron ? (
 					<div className="flex items-center gap-2">
-						<ShieldCheck className="h-4 w-4 text-green-500" />
+						<ShieldCheck className="size-4 text-green-500" />
 						<Badge
 							variant="outline"
 							className="border-green-500 text-green-600 dark:text-green-400"

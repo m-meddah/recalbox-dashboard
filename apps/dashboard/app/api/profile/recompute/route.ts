@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { computeUserProfile } from '@/lib/profile/compute-profile'
+import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'

@@ -1,13 +1,13 @@
-import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
+	type WeightedItem,
 	gameInheritedStats,
 	gameRatings,
 	games,
 	sessions,
 	userProfile,
-	type WeightedItem,
 } from '@/lib/db/schema'
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 
 const HALF_LIFE_DAYS = 90
 
@@ -55,31 +55,30 @@ type GameAttributes = {
 export async function computeUserProfile(): Promise<void> {
 	const start = Date.now()
 
-	const allSessions = await db
-		.select({
-			gameId: sessions.gameId,
-			startedAt: sessions.startedAt,
-			classification: sessions.classification,
-		})
-		.from(sessions)
-		.where(and(eq(sessions.source, 'scrobbler'), isNotNull(sessions.classification)))
-		.all()
-
-	const allGames = await db
-		.select({
-			id: games.id,
-			system: games.system,
-			genre: games.genre,
-			releaseDate: games.releaseDate,
-			developer: games.developer,
-		})
-		.from(games)
-		.all()
-
-	const allRatings = await db.select().from(gameRatings).all()
+	const [allSessions, allGames, allRatings, allInherited] = await Promise.all([
+		db
+			.select({
+				gameId: sessions.gameId,
+				startedAt: sessions.startedAt,
+				classification: sessions.classification,
+			})
+			.from(sessions)
+			.where(and(eq(sessions.source, 'scrobbler'), isNotNull(sessions.classification)))
+			.all(),
+		db
+			.select({
+				id: games.id,
+				system: games.system,
+				genre: games.genre,
+				releaseDate: games.releaseDate,
+				developer: games.developer,
+			})
+			.from(games)
+			.all(),
+		db.select().from(gameRatings).all(),
+		db.select().from(gameInheritedStats).all(),
+	])
 	const ratingsMap = new Map(allRatings.map((r) => [r.gameId, r.rating]))
-
-	const allInherited = await db.select().from(gameInheritedStats).all()
 
 	const attrsMap = new Map<number, GameAttributes>()
 	for (const g of allGames) {
@@ -205,10 +204,10 @@ function addTo<K>(map: Map<K, number>, key: K, value: number): void {
 
 function parseGenres(raw: string | null): string[] {
 	if (!raw) return []
-	return raw
-		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean)
+	return raw.split(',').flatMap((s) => {
+		const t = s.trim()
+		return t ? [t] : []
+	})
 }
 
 function extractDecade(year: number | null): string | null {

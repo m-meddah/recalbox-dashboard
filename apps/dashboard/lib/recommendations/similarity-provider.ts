@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
 import { gameIgdbMapping, igdbGameCache } from '@/lib/db/schema'
-import { findCollectionGamesByIgdbIds } from '@/lib/igdb/find-in-collection'
-import { igdbQuery } from '@/lib/igdb/client'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
+import { igdbQuery } from '@/lib/igdb/client'
+import { findCollectionGamesByIgdbIds } from '@/lib/igdb/find-in-collection'
 import { eq } from 'drizzle-orm'
 
 const CACHE_TTL_DAYS = 30

@@ -67,7 +67,7 @@ export function InstallBanner() {
 								</p>
 							) : (
 								<Button size="sm" className="mt-2 h-7 text-xs" onClick={handleInstall}>
-									<Download className="h-3 w-3 mr-1" />
+									<Download className="size-3 mr-1" />
 									{t('installButton')}
 								</Button>
 							)}
@@ -78,7 +78,7 @@ export function InstallBanner() {
 							className="text-muted-foreground hover:text-foreground flex-shrink-0 -mt-0.5"
 							aria-label={t('dismissButton')}
 						>
-							<X className="h-4 w-4" />
+							<X className="size-4" />
 						</button>
 					</div>
 				</CardContent>

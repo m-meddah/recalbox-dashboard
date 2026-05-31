@@ -32,7 +32,7 @@ export default function FeedbackInboxPage() {
 		<div className="container max-w-2xl py-8 space-y-4">
 			<header className="space-y-1">
 				<h1 className="text-2xl font-bold flex items-center gap-2">
-					<Inbox className="w-6 h-6" />
+					<Inbox className="size-6" />
 					Feedback en attente
 				</h1>
 				<p className="text-muted-foreground">Tes sessions récentes attendent ton verdict.</p>

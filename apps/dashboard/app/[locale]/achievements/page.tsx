@@ -111,7 +111,7 @@ function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] })
 									<div
 										key={day.dateKey}
 										title={day.count > 0 ? `${day.dateKey}: ${day.count}` : day.dateKey}
-										className={`h-2.5 w-2.5 rounded-xs ${INTENSITY_CLASS[cellIntensity(day.count)]} transition-colors`}
+										className={`size-2.5 rounded-xs ${INTENSITY_CLASS[cellIntensity(day.count)]} transition-colors`}
 									/>
 								))}
 							</div>
@@ -124,7 +124,7 @@ function AchievementHeatmap({ achievements }: { achievements: RaAchievement[] })
 			<div className="flex items-center gap-1 text-[10px] text-muted-foreground justify-end">
 				<span>{t('less')}</span>
 				{([0, 1, 2, 3, 4] as const).map((i) => (
-					<div key={i} className={`h-2.5 w-2.5 rounded-xs ${INTENSITY_CLASS[i]}`} />
+					<div key={i} className={`size-2.5 rounded-xs ${INTENSITY_CLASS[i]}`} />
 				))}
 				<span>{t('more')}</span>
 			</div>
@@ -228,11 +228,11 @@ export default function AchievementsPage() {
 	}
 
 	const { profile, allAchievements, progress } = state
-	const sortedAchievements = [...allAchievements].sort(
+	const sortedAchievements = allAchievements.toSorted(
 		(a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime(),
 	)
 	const recent = sortedAchievements.slice(0, RECENT_DISPLAY_COUNT)
-	const topGames = [...progress].sort((a, b) => b.numAwarded - a.numAwarded).slice(0, 10)
+	const topGames = progress.toSorted((a, b) => b.numAwarded - a.numAwarded).slice(0, 10)
 
 	return (
 		<div className="container max-w-3xl mx-auto p-6 space-y-6">
@@ -247,7 +247,7 @@ export default function AchievementsPage() {
 			<Card>
 				<CardContent className="p-6">
 					<div className="flex items-center gap-4">
-						<Avatar className="h-16 w-16">
+						<Avatar className="size-16">
 							<AvatarImage
 								src={`https://media.retroachievements.org${profile.userPic}`}
 								alt={profile.user}

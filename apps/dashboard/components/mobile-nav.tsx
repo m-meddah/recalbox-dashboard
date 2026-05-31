@@ -43,7 +43,7 @@ export function MobileNav() {
 				className="md:hidden p-2 rounded-md hover:bg-muted"
 				aria-label="Menu"
 			>
-				{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+				{open ? <X className="size-5" /> : <Menu className="size-5" />}
 			</button>
 
 			{open && (

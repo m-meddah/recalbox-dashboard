@@ -1,13 +1,13 @@
 import type { DB } from '@/lib/db/index'
 import { games, pendingFeedback, recommendationLog, sessions } from '@/lib/db/schema'
-import { logger } from '@/lib/logger'
-import { classifySession } from '@/lib/sessions/classify'
 import { shouldPromptForFeedback } from '@/lib/feedback/should-prompt'
-import { scheduleProfileRecompute } from '@/lib/profile/scheduler'
+import { matchGameAsync } from '@/lib/igdb/match-single'
+import { logger } from '@/lib/logger'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
+import { scheduleProfileRecompute } from '@/lib/profile/scheduler'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
-import { matchGameAsync } from '@/lib/igdb/match-single'
+import { classifySession } from '@/lib/sessions/classify'
 import { and, desc, eq, gt, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365]

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { games, gameHltbMapping, hltbCache } from '@/lib/db/schema'
+import { gameHltbMapping, games, hltbCache } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { matchGameToHltb } from './match-game'
 

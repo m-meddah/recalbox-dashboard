@@ -48,8 +48,8 @@ import {
 	Trophy,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -1056,7 +1056,7 @@ function SidebarNav({
 								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
 						)}
 					>
-						<item.icon className="h-4 w-4 shrink-0" />
+						<item.icon className="size-4 shrink-0" />
 						{item.label}
 					</button>
 				))}
@@ -1075,7 +1075,7 @@ function SidebarNav({
 								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
 						)}
 					>
-						<item.icon className="h-4 w-4 shrink-0" />
+						<item.icon className="size-4 shrink-0" />
 						{item.mobileLabel}
 					</button>
 				))}
@@ -1309,7 +1309,7 @@ function IgdbTab() {
 					<CardTitle>{t('igdb.cardTitle')}</CardTitle>
 					{status.enabled ? (
 						<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-							<CheckCircle2 className="w-3 h-3" /> {t('igdb.active')}
+							<CheckCircle2 className="size-3" /> {t('igdb.active')}
 						</span>
 					) : (
 						<span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -1333,7 +1333,7 @@ function IgdbTab() {
 										rel="noopener noreferrer"
 										className="text-primary inline-flex items-center gap-0.5"
 									>
-										dev.twitch.tv/console <ExternalLink className="w-3 h-3" />
+										dev.twitch.tv/console <ExternalLink className="size-3" />
 									</a>
 								</li>
 								<li>Register Your Application</li>
@@ -1377,7 +1377,7 @@ function IgdbTab() {
 								</p>
 							)}
 							<Button onClick={handleSave} disabled={saving || !clientId || !clientSecret}>
-								{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+								{saving && <Loader2 className="size-4 mr-2 animate-spin" />}
 								{t('igdb.enableButton')}
 							</Button>
 						</div>
@@ -1862,9 +1862,9 @@ function AppTab() {
 		<div className="space-y-6">
 			<div className="flex items-center gap-3">
 				{isInstalled ? (
-					<CheckCircle2 className="h-5 w-5 text-green-500" />
+					<CheckCircle2 className="size-5 text-green-500" />
 				) : (
-					<Circle className="h-5 w-5 text-muted-foreground" />
+					<Circle className="size-5 text-muted-foreground" />
 				)}
 				<div>
 					<p className="text-sm font-medium">

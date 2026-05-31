@@ -1,6 +1,5 @@
 'use client'
 
-import type { MultiDiscGame } from '@/lib/recalbox/multidisc-detector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import type { MultiDiscGame } from '@/lib/recalbox/multidisc-detector'
 import { AlertTriangle, CheckCircle2, CircleDotDashed, FileText, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -149,18 +149,18 @@ export function M3uCandidates() {
 										<div key={key} className="flex items-center gap-3 px-4 py-2">
 											{/* Status icon */}
 											<span className="shrink-0">
-												{status === 'ok' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-												{status === 'missing' && <XCircle className="h-4 w-4 text-amber-500" />}
+												{status === 'ok' && <CheckCircle2 className="size-4 text-green-500" />}
+												{status === 'missing' && <XCircle className="size-4 text-amber-500" />}
 												{status === 'gap' && (
 													<Tooltip>
 														<TooltipTrigger>
-															<AlertTriangle className="h-4 w-4 text-orange-500" />
+															<AlertTriangle className="size-4 text-orange-500" />
 														</TooltipTrigger>
 														<TooltipContent>{t('status.gap')}</TooltipContent>
 													</Tooltip>
 												)}
 												{status === 'differs' && (
-													<CircleDotDashed className="h-4 w-4 text-blue-500" />
+													<CircleDotDashed className="size-4 text-blue-500" />
 												)}
 											</span>
 
@@ -183,10 +183,10 @@ export function M3uCandidates() {
 											{/* Preview popover */}
 											<Popover>
 												<PopoverTrigger
-													className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+													className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
 													aria-label={t('preview')}
 												>
-													<FileText className="h-3 w-3" />
+													<FileText className="size-3" />
 												</PopoverTrigger>
 												<PopoverContent className="w-auto max-w-sm">
 													<pre className="whitespace-pre font-mono text-xs">{preview}</pre>

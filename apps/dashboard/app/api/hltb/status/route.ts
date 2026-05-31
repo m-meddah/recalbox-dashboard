@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { games, gameHltbMapping } from '@/lib/db/schema'
+import { gameHltbMapping, games } from '@/lib/db/schema'
 import { eq, isNotNull, isNull } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 

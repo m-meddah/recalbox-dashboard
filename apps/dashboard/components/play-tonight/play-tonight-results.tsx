@@ -22,12 +22,13 @@ export function PlayTonightResults({
 	onReshuffle: () => void
 }) {
 	const t = useTranslations('playTonight.results')
-	const [recs, setRecs] = useState<ScoredGame[]>([])
-	const [loading, setLoading] = useState(false)
+	const [results, setResults] = useState<{ recs: ScoredGame[]; forRequestId: number | null }>({
+		recs: [],
+		forRequestId: null,
+	})
+	const loading = results.forRequestId !== requestId
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: requestId is an intentional refetch trigger
 	useEffect(() => {
-		setLoading(true)
 		fetch('/api/play-tonight/recommend', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -35,8 +36,7 @@ export function PlayTonightResults({
 		})
 			.then((r) => r.json())
 			.then((d) => {
-				setRecs(d.recommendations ?? [])
-				setLoading(false)
+				setResults({ recs: d.recommendations ?? [], forRequestId: requestId })
 			})
 	}, [time, mood, requestId])
 
@@ -46,7 +46,7 @@ export function PlayTonightResults({
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ gameId }),
 		})
-		setRecs((r) => r.filter((x) => x.gameId !== gameId))
+		setResults((prev) => ({ ...prev, recs: prev.recs.filter((x) => x.gameId !== gameId) }))
 	}
 
 	async function handleLaunch(gameId: number) {
@@ -61,12 +61,12 @@ export function PlayTonightResults({
 		return (
 			<Card>
 				<CardContent className="py-12 flex items-center justify-center gap-3 text-muted-foreground">
-					<Loader2 className="w-5 h-5 animate-spin" /> {t('loading')}
+					<Loader2 className="size-5 animate-spin" /> {t('loading')}
 				</CardContent>
 			</Card>
 		)
 
-	if (recs.length === 0)
+	if (results.recs.length === 0)
 		return (
 			<Card>
 				<CardContent className="py-12 text-center space-y-3">
@@ -79,7 +79,7 @@ export function PlayTonightResults({
 	return (
 		<div className="space-y-4">
 			<div className="grid gap-4 md:grid-cols-3">
-				{recs.map((r) => (
+				{results.recs.map((r) => (
 					<RecommendationCard
 						key={r.gameId}
 						game={r}
@@ -91,7 +91,7 @@ export function PlayTonightResults({
 			</div>
 			<div className="flex justify-center">
 				<Button variant="outline" onClick={onReshuffle}>
-					<RefreshCw className="w-4 h-4 mr-2" /> {t('reshuffle')}
+					<RefreshCw className="size-4 mr-2" /> {t('reshuffle')}
 				</Button>
 			</div>
 		</div>

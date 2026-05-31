@@ -44,7 +44,7 @@ export function PlayTonightControls({
 			<CardContent className="py-6 space-y-6">
 				<div className="space-y-2">
 					<p className="text-sm font-medium flex items-center gap-2">
-						<Clock className="w-4 h-4" /> {t('timeLabel')}
+						<Clock className="size-4" /> {t('timeLabel')}
 					</p>
 					<div className="grid grid-cols-4 gap-2">
 						{times.map((item) => (
@@ -79,7 +79,7 @@ export function PlayTonightControls({
 										: 'border-border hover:bg-muted/50',
 								)}
 							>
-								<Icon className="w-4 h-4 shrink-0" />
+								<Icon className="size-4 shrink-0" />
 								<span className="truncate">{t(`moods.${value}`)}</span>
 							</button>
 						))}

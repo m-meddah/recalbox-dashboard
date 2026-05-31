@@ -103,7 +103,7 @@ export function FeedbackToast({
 							<img
 								src={`/api/media?path=${encodeURIComponent(feedback.imagePath)}`}
 								alt=""
-								className="w-12 h-12 rounded object-cover bg-muted shrink-0"
+								className="size-12 rounded object-cover bg-muted shrink-0"
 							/>
 						)}
 						<div className="min-w-0 flex-1">
@@ -118,7 +118,7 @@ export function FeedbackToast({
 							aria-label="Fermer"
 							type="button"
 						>
-							<X className="w-4 h-4" />
+							<X className="size-4" />
 						</button>
 					</div>
 

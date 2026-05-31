@@ -39,25 +39,23 @@ function CollectionGridInner({ system }: Props) {
 	const searchParams = useSearchParams()
 	const [data, setData] = useState<ApiResponse | null>(null)
 	const [loading, setLoading] = useState(true)
-	const [page, setPage] = useState(1)
+	const [pageState, setPageState] = useState({ value: 1, forParams: '' })
 	const [unlockedRoms, setUnlockedRoms] = useState<Set<string>>(new Set())
 	const PAGE_SIZE = 60
 
+	const paramsString = searchParams.toString()
+	const page = pageState.forParams === paramsString ? pageState.value : 1
+
 	const buildUrl = useCallback(
 		(p: number) => {
-			const params = new URLSearchParams(searchParams.toString())
+			const params = new URLSearchParams(paramsString)
 			params.set('page', String(p))
 			params.set('pageSize', String(PAGE_SIZE))
 			if (system) params.set('system', system)
 			return `/api/collection?${params.toString()}`
 		},
-		[searchParams, system],
+		[paramsString, system],
 	)
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when search params change
-	useEffect(() => {
-		setPage(1)
-	}, [searchParams])
 
 	useEffect(() => {
 		fetch('/api/retroachievements/unlocked-roms')
@@ -97,7 +95,7 @@ function CollectionGridInner({ system }: Props) {
 						variant="outline"
 						size="sm"
 						disabled={page <= 1}
-						onClick={() => setPage((p) => p - 1)}
+						onClick={() => setPageState({ value: page - 1, forParams: paramsString })}
 					>
 						{t('pagination.previous')}
 					</Button>
@@ -108,7 +106,7 @@ function CollectionGridInner({ system }: Props) {
 						variant="outline"
 						size="sm"
 						disabled={page >= totalPages}
-						onClick={() => setPage((p) => p + 1)}
+						onClick={() => setPageState({ value: page + 1, forParams: paramsString })}
 					>
 						{t('pagination.next')}
 					</Button>

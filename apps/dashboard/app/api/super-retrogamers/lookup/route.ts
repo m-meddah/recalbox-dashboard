@@ -26,8 +26,10 @@ export async function POST(req: NextRequest) {
 	}
 	const { slugs, romPaths } = parsed.data
 
-	const recalboxId = await getActiveRecalboxId()
-	const results = await srClient.bulkLookup(slugs)
+	const [recalboxId, results] = await Promise.all([
+		getActiveRecalboxId(),
+		srClient.bulkLookup(slugs),
+	])
 
 	for (let i = 0; i < slugs.length; i++) {
 		const slug = slugs[i] as string

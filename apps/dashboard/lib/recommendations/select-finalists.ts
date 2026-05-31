@@ -4,7 +4,7 @@ const TARGET = 3
 
 export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 	if (scored.length === 0) return []
-	const sorted = [...scored].sort((a, b) => b.score - a.score)
+	const sorted = scored.toSorted((a, b) => b.score - a.score)
 	if (sorted.length <= TARGET) return sorted
 
 	const first = sorted[0]

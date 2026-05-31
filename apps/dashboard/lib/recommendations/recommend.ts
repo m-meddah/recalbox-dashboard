@@ -1,23 +1,23 @@
 import { db } from '@/lib/db'
 import {
-	games,
-	gameRatings,
-	recommendationSkip,
-	recommendationLog,
-	gameIgdbMapping,
-	igdbGameCache,
 	gameHltbMapping,
+	gameIgdbMapping,
+	gameRatings,
+	games,
 	hltbCache,
+	igdbGameCache,
+	recommendationLog,
+	recommendationSkip,
 } from '@/lib/db/schema'
-import { eq, gt, and, isNotNull } from 'drizzle-orm'
 import { getGamePlayStatsBatch } from '@/lib/games/play-stats'
-import { getUserProfile } from '@/lib/profile/get-profile'
-import { getSimilarityProvider } from './similarity-provider'
-import { scoreGame, type GameForScoring, type ScoringContext } from './score-game'
-import { selectFinalists } from './select-finalists'
+import { matchHltbAsync } from '@/lib/hltb/match-single'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
-import { matchHltbAsync } from '@/lib/hltb/match-single'
+import { getUserProfile } from '@/lib/profile/get-profile'
+import { and, eq, gt, isNotNull } from 'drizzle-orm'
+import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
+import { selectFinalists } from './select-finalists'
+import { getSimilarityProvider } from './similarity-provider'
 import type { RecommendationContext, ScoredGame } from './types'
 
 const LAZY_MATCH_TOP_N = 30
@@ -25,43 +25,41 @@ const LAZY_MATCH_TOP_N = 30
 export async function recommend(
 	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
 ): Promise<ScoredGame[]> {
-	const profile = await getUserProfile()
+	const [profile, activeSkips, gamesList, statsMap, ratings, igdbRatingsMap, hltbDurationsMap] =
+		await Promise.all([
+			getUserProfile(),
+			db
+				.select({ gameId: recommendationSkip.gameId })
+				.from(recommendationSkip)
+				.where(gt(recommendationSkip.expiresAt, new Date()))
+				.all(),
+			db
+				.select({
+					gameId: games.id,
+					name: games.name,
+					system: games.system,
+					imageUrl: games.imagePath,
+					videoUrl: games.videoPath,
+					genres: games.genre,
+					releaseDate: games.releaseDate,
+					developer: games.developer,
+					scrapedRating: games.rating,
+				})
+				.from(games)
+				.where(eq(games.hidden, false))
+				.all(),
+			getGamePlayStatsBatch(),
+			db.select().from(gameRatings).all(),
+			loadIgdbRatings(),
+			loadHltbDurations(),
+		])
 
-	const activeSkips = await db
-		.select({ gameId: recommendationSkip.gameId })
-		.from(recommendationSkip)
-		.where(gt(recommendationSkip.expiresAt, new Date()))
-		.all()
 	const excludedGameIds = activeSkips.map((s) => s.gameId)
-
 	const recommendationCtx: RecommendationContext = { ...ctxInput, excludedGameIds }
+	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
 
 	const provider = await getSimilarityProvider()
 	const similarToComfortGames = await provider.getSimilarToAny(profile.comfortGames)
-
-	const gamesList = await db
-		.select({
-			gameId: games.id,
-			name: games.name,
-			system: games.system,
-			imageUrl: games.imagePath,
-			videoUrl: games.videoPath,
-			genres: games.genre,
-			releaseDate: games.releaseDate,
-			developer: games.developer,
-			scrapedRating: games.rating,
-		})
-		.from(games)
-		.where(eq(games.hidden, false))
-		.all()
-
-	const statsMap = await getGamePlayStatsBatch()
-
-	const ratings = await db.select().from(gameRatings).all()
-	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
-
-	const igdbRatingsMap = await loadIgdbRatings()
-	const hltbDurationsMap = await loadHltbDurations()
 
 	const scoringCtx: ScoringContext = { profile, similarToComfortGames, recommendationCtx }
 
@@ -160,13 +158,15 @@ async function triggerLazyMatching(gameIds: number[]): Promise<void> {
 async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {
 	const mapped = await db.select({ gameId: gameHltbMapping.gameId }).from(gameHltbMapping).all()
 	const mappedSet = new Set(mapped.map((m) => m.gameId))
-	gameIds.filter((id) => !mappedSet.has(id)).forEach((id) => matchHltbAsync(id))
+	for (const id of gameIds) {
+		if (!mappedSet.has(id)) matchHltbAsync(id)
+	}
 }
 
 function parseGenres(raw: string | null): string[] {
 	if (!raw) return []
-	return raw
-		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean)
+	return raw.split(',').flatMap((s) => {
+		const t = s.trim()
+		return t ? [t] : []
+	})
 }

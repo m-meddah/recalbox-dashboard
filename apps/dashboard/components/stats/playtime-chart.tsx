@@ -17,7 +17,7 @@ function groupByWeek(data: DataPoint[]): DataPoint[] {
 		map.set(key, (map.get(key) ?? 0) + d.playtimeSec)
 	}
 	return [...map.entries()]
-		.sort(([a], [b]) => a.localeCompare(b))
+		.toSorted(([a], [b]) => a.localeCompare(b))
 		.map(([date, playtimeSec]) => ({ date, playtimeSec }))
 }
 

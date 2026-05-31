@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { games, gameHltbMapping, hltbCache } from '@/lib/db/schema'
+import { gameHltbMapping, games, hltbCache } from '@/lib/db/schema'
 import type { HltbMatchResult } from './match-game'
 import { matchGameToHltb } from './match-game'
 

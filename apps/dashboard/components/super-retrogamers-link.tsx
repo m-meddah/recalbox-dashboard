@@ -58,7 +58,7 @@ export function SuperRetrogamersLink({ srHasPage, srUrl, variant = 'button', rom
 								rel="noopener noreferrer"
 								className="inline-flex items-center text-violet-400 hover:text-violet-300 transition-colors"
 							>
-								<ExternalLink className="h-3.5 w-3.5" />
+								<ExternalLink className="size-3.5" />
 							</a>
 						</TooltipTrigger>
 						<TooltipContent>{t('viewOnSr')}</TooltipContent>
@@ -74,7 +74,7 @@ export function SuperRetrogamersLink({ srHasPage, srUrl, variant = 'button', rom
 				className={buttonVariants({ variant: 'outline', size: 'sm' })}
 			>
 				{t('viewOnSr')}
-				<ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+				<ExternalLink className="ml-1.5 size-3.5" />
 			</a>
 		)
 	}

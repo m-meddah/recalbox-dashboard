@@ -1,8 +1,8 @@
-import { inArray } from 'drizzle-orm'
-import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { games } from '@/lib/db/schema'
 import { getUserProfile } from '@/lib/profile/get-profile'
+import { inArray } from 'drizzle-orm'
+import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -33,8 +33,14 @@ export async function GET() {
 		genresWeights: profile.genresWeights,
 		decadesWeights: profile.decadesWeights,
 		developersWeights: profile.developersWeights,
-		comfortGames: profile.comfortGames.map((id) => gameInfoMap.get(id)).filter(Boolean),
-		bouncerGames: profile.bouncerGames.map((id) => gameInfoMap.get(id)).filter(Boolean),
+		comfortGames: profile.comfortGames.flatMap((id) => {
+			const g = gameInfoMap.get(id)
+			return g ? [g] : []
+		}),
+		bouncerGames: profile.bouncerGames.flatMap((id) => {
+			const g = gameInfoMap.get(id)
+			return g ? [g] : []
+		}),
 		totalSignalSessions: profile.totalSignalSessions,
 		profileMaturity: profile.profileMaturity,
 		computedAt: profile.computedAt,

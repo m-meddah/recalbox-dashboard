@@ -11,7 +11,7 @@ export function AchievementToast({ data }: Props) {
 				<img
 					src={data.imageUrl}
 					alt={data.title}
-					className="h-12 w-12 shrink-0 rounded object-cover"
+					className="size-12 shrink-0 rounded object-cover"
 				/>
 			)}
 			<div className="min-w-0">

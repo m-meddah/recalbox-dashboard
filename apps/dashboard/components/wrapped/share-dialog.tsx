@@ -59,7 +59,7 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="text-white font-bold">{t('title')}</h3>
 					<button type="button" onClick={onClose} className="text-white/50 hover:text-white">
-						<X className="h-5 w-5" />
+						<X className="size-5" />
 					</button>
 				</div>
 

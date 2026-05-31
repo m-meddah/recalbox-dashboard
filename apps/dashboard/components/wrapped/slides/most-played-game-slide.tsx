@@ -10,7 +10,7 @@ export function MostPlayedGameSlideView({ slide }: Props) {
 	return (
 		<SlideShell accent={SLIDE_ACCENTS['most-played-game']}>
 			{slide.imagePath && (
-				<div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-white/10">
+				<div className="relative size-40 overflow-hidden rounded-2xl border border-white/10">
 					<img
 						src={`/api/media?path=${encodeURIComponent(slide.imagePath)}`}
 						alt={slide.gameName}

@@ -21,7 +21,7 @@ export default async function OfflinePage({ params }: Props) {
 
 	return (
 		<div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-8 text-center">
-			<WifiOff className="h-16 w-16 text-muted-foreground" />
+			<WifiOff className="size-16 text-muted-foreground" />
 			<div className="space-y-2">
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-muted-foreground max-w-sm">{t('description')}</p>

@@ -14,10 +14,7 @@ function useElapsedTime(startedAt: Date | null): string {
 	const [elapsed, setElapsed] = useState('')
 
 	useEffect(() => {
-		if (!startedAt) {
-			setElapsed('')
-			return
-		}
+		if (!startedAt) return
 		const update = () => {
 			const secs = Math.floor((Date.now() - startedAt.getTime()) / 1000)
 			const h = Math.floor(secs / 3600)
@@ -32,7 +29,7 @@ function useElapsedTime(startedAt: Date | null): string {
 		return () => clearInterval(id)
 	}, [startedAt])
 
-	return elapsed
+	return startedAt ? elapsed : ''
 }
 
 function LiveBadge() {
@@ -78,7 +75,7 @@ function GameCard({ game }: { game: GameStartEvent }) {
 		<Card className="overflow-hidden">
 			<CardContent className="p-0">
 				<div className="flex gap-4 p-4">
-					<div className="shrink-0 w-24 h-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+					<div className="shrink-0 size-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
 						{imageUrl ? (
 							// eslint-disable-next-line @next/next/no-img-element
 							<img
@@ -131,7 +128,7 @@ function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 		<Card className="overflow-hidden border-blue-500/20">
 			<CardContent className="p-0">
 				<div className="flex gap-4 p-4">
-					<div className="shrink-0 w-24 h-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+					<div className="shrink-0 size-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
 						{imageUrl ? (
 							// eslint-disable-next-line @next/next/no-img-element
 							<img
@@ -196,7 +193,7 @@ function LoadingSkeleton() {
 		<Card>
 			<CardContent className="p-4">
 				<div className="flex gap-4">
-					<Skeleton className="w-24 h-24 rounded-md shrink-0" />
+					<Skeleton className="size-24 rounded-md shrink-0" />
 					<div className="flex flex-col gap-2 flex-1 justify-center">
 						<Skeleton className="h-3 w-12" />
 						<Skeleton className="h-5 w-3/4" />

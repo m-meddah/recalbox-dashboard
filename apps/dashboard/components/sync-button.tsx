@@ -70,7 +70,7 @@ export function SyncButton({ system }: { system?: string }) {
 	if (state.status === 'idle') {
 		return (
 			<Button onClick={startSync} variant="outline" size="sm">
-				<RefreshCw className="mr-2 h-4 w-4" />
+				<RefreshCw className="mr-2 size-4" />
 				{t('button')}
 			</Button>
 		)
@@ -82,7 +82,7 @@ export function SyncButton({ system }: { system?: string }) {
 			<div className="flex flex-col gap-1 min-w-64">
 				<div className="flex items-center justify-between text-xs text-muted-foreground">
 					<span className="flex items-center gap-1">
-						<RefreshCw className="h-3 w-3 animate-spin" />
+						<RefreshCw className="size-3 animate-spin" />
 						{state.current}
 					</span>
 					<span>{t('progress', { done: state.done, total: state.total, games: state.games })}</span>
@@ -95,7 +95,7 @@ export function SyncButton({ system }: { system?: string }) {
 	if (state.status === 'done') {
 		return (
 			<div className="flex items-center gap-2 text-sm text-green-600">
-				<CheckCircle className="h-4 w-4" />
+				<CheckCircle className="size-4" />
 				{t('done', { count: state.totalGames, seconds: (state.durationMs / 1000).toFixed(1) })}
 				<Button variant="ghost" size="sm" onClick={() => setState({ status: 'idle' })}>
 					×
@@ -106,7 +106,7 @@ export function SyncButton({ system }: { system?: string }) {
 
 	return (
 		<div className="flex items-center gap-2 text-sm text-destructive">
-			<XCircle className="h-4 w-4" />
+			<XCircle className="size-4" />
 			{state.message}
 			<Button variant="ghost" size="sm" onClick={() => setState({ status: 'idle' })}>
 				{t('retry')}

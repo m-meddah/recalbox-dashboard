@@ -6,7 +6,7 @@ import { RefreshCw } from 'lucide-react'
 export function RetryButton({ label }: { label: string }) {
 	return (
 		<Button onClick={() => window.location.reload()}>
-			<RefreshCw className="h-4 w-4 mr-2" />
+			<RefreshCw className="size-4 mr-2" />
 			{label}
 		</Button>
 	)

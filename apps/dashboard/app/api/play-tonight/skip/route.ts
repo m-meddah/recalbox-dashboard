@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { recommendationSkip, recommendationLog } from '@/lib/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { recommendationLog, recommendationSkip } from '@/lib/db/schema'
+import { and, desc, eq } from 'drizzle-orm'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'

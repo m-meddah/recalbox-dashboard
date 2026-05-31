@@ -4,8 +4,8 @@ vi.mock('@/lib/logger', () => ({
 	logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 import { _parsePresence, getPatronStatus } from '@/lib/recalbox/patron-status'
+import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 
 function makeSsh(output: string): SshClientLike {
 	return { exec: vi.fn().mockResolvedValue(output) }

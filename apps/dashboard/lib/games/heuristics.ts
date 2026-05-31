@@ -49,7 +49,7 @@ export function isUntested(stats: GamePlayStats | null): boolean {
 export function monthsSinceLastMeaningfulPlay(stats: GamePlayStats): number {
 	const date = stats.lastMeaningfulPlayAt ?? stats.inherited?.lastPlayedAt ?? null
 
-	if (!date) return Infinity
+	if (!date) return Number.POSITIVE_INFINITY
 
 	return (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 30)
 }

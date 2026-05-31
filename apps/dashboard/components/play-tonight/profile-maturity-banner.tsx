@@ -22,7 +22,7 @@ export function ProfileMaturityBanner() {
 	return (
 		<Card className="border-amber-500/30 bg-amber-500/5">
 			<CardContent className="py-3 flex items-center gap-3 text-sm">
-				<Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+				<Sparkles className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
 				<p className="flex-1">
 					{t.rich('message', {
 						pct,

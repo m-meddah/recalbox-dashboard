@@ -3,11 +3,11 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { IgdbCandidate } from '@/lib/igdb/match-game'
 import { ArrowLeft, Check, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import type { IgdbCandidate } from '@/lib/igdb/match-game'
 
 type ReviewItem = {
 	gameId: number
@@ -62,8 +62,8 @@ export default function IgdbReviewPage() {
 
 	async function handleManual(gameId: number) {
 		const rawId = manualInput.get(gameId)?.trim()
-		const igdbId = rawId ? Number(rawId) : NaN
-		if (!igdbId || isNaN(igdbId)) return
+		const igdbId = rawId ? Number(rawId) : Number.NaN
+		if (!igdbId || Number.isNaN(igdbId)) return
 		setActing(gameId)
 		try {
 			const res = await fetch('/api/igdb/review/confirm', {
@@ -99,7 +99,7 @@ export default function IgdbReviewPage() {
 		<div className="container max-w-4xl mx-auto p-6 space-y-6">
 			<div className="flex items-center gap-3">
 				<Button variant="ghost" size="sm" onClick={() => router.back()}>
-					<ArrowLeft className="w-4 h-4 mr-1" />
+					<ArrowLeft className="size-4 mr-1" />
 					{t('igdbReview.back')}
 				</Button>
 				<div>
@@ -155,7 +155,7 @@ export default function IgdbReviewPage() {
 														onClick={() => handleSelect(item.gameId, candidate)}
 														aria-label={candidate.igdbName}
 													>
-														<Check className="w-3.5 h-3.5" />
+														<Check className="size-3.5" />
 													</Button>
 												</div>
 											))}
@@ -166,7 +166,7 @@ export default function IgdbReviewPage() {
 												disabled={acting === item.gameId}
 												onClick={() => handleReject(item.gameId)}
 											>
-												<X className="w-3.5 h-3.5 mr-1" />
+												<X className="size-3.5 mr-1" />
 												{t('igdbReview.none')}
 											</Button>
 										</div>
@@ -198,7 +198,7 @@ export default function IgdbReviewPage() {
 												}}
 												aria-label={item.igdbName ?? undefined}
 											>
-												<Check className="w-3.5 h-3.5" />
+												<Check className="size-3.5" />
 											</Button>
 											<Button
 												size="sm"
@@ -207,50 +207,54 @@ export default function IgdbReviewPage() {
 												disabled={acting === item.gameId}
 												onClick={() => handleReject(item.gameId)}
 											>
-												<X className="w-3.5 h-3.5" />
+												<X className="size-3.5" />
 											</Button>
 										</div>
 									)}
 
-								<div className="pt-1">
-									{manualOpen.get(item.gameId) ? (
-										<div className="flex items-center gap-2">
-											<input
-												type="number"
-												className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-												placeholder="IGDB ID"
-												value={manualInput.get(item.gameId) ?? ''}
-												onChange={(e) =>
-													setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))
+									<div className="pt-1">
+										{manualOpen.get(item.gameId) ? (
+											<div className="flex items-center gap-2">
+												<input
+													type="number"
+													className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+													placeholder="IGDB ID"
+													value={manualInput.get(item.gameId) ?? ''}
+													onChange={(e) =>
+														setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))
+													}
+													disabled={acting === item.gameId}
+												/>
+												<Button
+													size="sm"
+													variant="secondary"
+													disabled={acting === item.gameId || !manualInput.get(item.gameId)?.trim()}
+													onClick={() => handleManual(item.gameId)}
+												>
+													{t('igdbReview.manualSubmit')}
+												</Button>
+												<Button
+													size="sm"
+													variant="ghost"
+													onClick={() =>
+														setManualOpen((prev) => new Map(prev).set(item.gameId, false))
+													}
+												>
+													{t('igdbReview.manualCancel')}
+												</Button>
+											</div>
+										) : (
+											<button
+												type="button"
+												className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+												onClick={() =>
+													setManualOpen((prev) => new Map(prev).set(item.gameId, true))
 												}
-												disabled={acting === item.gameId}
-											/>
-											<Button
-												size="sm"
-												variant="secondary"
-												disabled={acting === item.gameId || !manualInput.get(item.gameId)?.trim()}
-												onClick={() => handleManual(item.gameId)}
 											>
-												{t('igdbReview.manualSubmit')}
-											</Button>
-											<Button
-												size="sm"
-												variant="ghost"
-												onClick={() => setManualOpen((prev) => new Map(prev).set(item.gameId, false))}
-											>
-												{t('igdbReview.manualCancel')}
-											</Button>
-										</div>
-									) : (
-										<button
-											type="button"
-											className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-											onClick={() => setManualOpen((prev) => new Map(prev).set(item.gameId, true))}
-										>
-											{t('igdbReview.manualToggle')}
-										</button>
-									)}
-								</div>
+												{t('igdbReview.manualToggle')}
+											</button>
+										)}
+									</div>
 								</div>
 							))}
 						</div>

@@ -20,7 +20,7 @@ export async function KpiCard({ label, value, delta, icon: Icon, description }: 
 			<CardHeader>
 				<CardTitle className="flex items-center justify-between text-muted-foreground font-normal text-xs uppercase tracking-wide">
 					<span>{label}</span>
-					<Icon className="h-4 w-4 text-muted-foreground" />
+					<Icon className="size-4 text-muted-foreground" />
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="pt-0">
@@ -36,9 +36,9 @@ export async function KpiCard({ label, value, delta, icon: Icon, description }: 
 						}`}
 					>
 						{delta.direction === 'up' ? (
-							<TrendingUp className="h-3 w-3" />
+							<TrendingUp className="size-3" />
 						) : delta.direction === 'down' ? (
-							<TrendingDown className="h-3 w-3" />
+							<TrendingDown className="size-3" />
 						) : null}
 						{delta.value}%<span className="text-muted-foreground">{t('vsPrevious')}</span>
 					</p>

@@ -2,7 +2,7 @@
 
 import type { Notification } from '@/lib/notifications/types'
 import type { RecalboxEvent } from '@/lib/recalbox/events'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, use, useCallback, useEffect, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
 export type NotificationSSEEvent = { type: 'notification'; notification: Notification }
@@ -81,5 +81,5 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 }
 
 export function useRecalboxEvents() {
-	return useContext(RecalboxEventsContext)
+	return use(RecalboxEventsContext)
 }

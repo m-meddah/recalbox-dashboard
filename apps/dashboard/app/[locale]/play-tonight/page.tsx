@@ -29,14 +29,14 @@ export default function PlayTonightPage() {
 						href="/play-tonight/about"
 						className="text-xs text-primary inline-flex items-center hover:underline"
 					>
-						<HelpCircle className="w-3.5 h-3.5 mr-1" /> {t('howItWorks')}
+						<HelpCircle className="size-3.5 mr-1" /> {t('howItWorks')}
 					</Link>
 					<label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
 						<input
 							type="checkbox"
 							checked={debugMode}
 							onChange={(e) => setDebugMode(e.target.checked)}
-							className="w-3 h-3"
+							className="size-3"
 						/>
 						{t('debug')}
 					</label>

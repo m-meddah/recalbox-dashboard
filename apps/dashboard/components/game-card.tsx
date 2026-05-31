@@ -54,14 +54,14 @@ export function GameCard({ game, hasAchievements }: Props) {
 						className="absolute left-1 top-1 rounded-full bg-amber-500 p-1 shadow"
 						title="Has achievements"
 					>
-						<Trophy className="h-3 w-3 fill-white text-white" />
+						<Trophy className="size-3 fill-white text-white" />
 					</div>
 				)}
 
 				{/* Favorite badge */}
 				{game.favorite && (
 					<div className="absolute right-1 top-1 rounded-full bg-yellow-400 p-1 shadow">
-						<Star className="h-3 w-3 fill-white text-white" />
+						<Star className="size-3 fill-white text-white" />
 					</div>
 				)}
 
@@ -96,7 +96,7 @@ export function GameCard({ game, hasAchievements }: Props) {
 					)}
 					{(game.playCount ?? 0) > 0 && (
 						<span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-							<Play className="h-2.5 w-2.5" />
+							<Play className="size-2.5" />
 							{game.playCount}×
 						</span>
 					)}

@@ -59,7 +59,7 @@ export default async function CollectionPage({ params }: Props) {
 						href="/collection/m3u"
 						className={buttonVariants({ variant: 'outline', size: 'sm' })}
 					>
-						<Disc3 className="mr-2 h-4 w-4" />
+						<Disc3 className="mr-2 size-4" />
 						Multi-disc / .m3u
 					</Link>
 					<SyncButton />

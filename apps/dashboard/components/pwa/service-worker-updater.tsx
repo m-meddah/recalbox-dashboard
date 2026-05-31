@@ -11,8 +11,10 @@ export function ServiceWorkerUpdater() {
 	useEffect(() => {
 		if (!('serviceWorker' in navigator)) return
 
+		let intervalId: ReturnType<typeof setInterval> | undefined
+
 		navigator.serviceWorker.ready.then((reg) => {
-			const interval = setInterval(() => reg.update(), 60 * 60 * 1000)
+			intervalId = setInterval(() => reg.update(), 60 * 60 * 1000)
 
 			reg.addEventListener('updatefound', () => {
 				const newWorker = reg.installing
@@ -34,9 +36,11 @@ export function ServiceWorkerUpdater() {
 					}
 				})
 			})
-
-			return () => clearInterval(interval)
 		})
+
+		return () => {
+			if (intervalId !== undefined) clearInterval(intervalId)
+		}
 	}, [tUpdate])
 
 	useEffect(() => {

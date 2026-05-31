@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { scoreGame, type GameForScoring, type ScoringContext } from '../score-game'
-import type { GamePlayStats } from '@/lib/games/play-stats'
 import type { UserProfile, WeightedItem } from '@/lib/db/schema'
+import type { GamePlayStats } from '@/lib/games/play-stats'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type GameForScoring, type ScoringContext, scoreGame } from '../score-game'
 import type { RecommendationContext } from '../types'
 
 function makeStats(overrides: Partial<GamePlayStats> = {}): GamePlayStats {
