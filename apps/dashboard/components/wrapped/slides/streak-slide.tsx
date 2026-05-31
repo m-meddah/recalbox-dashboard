@@ -1,7 +1,7 @@
 'use client'
 
 import type { StreakSlide } from '@/lib/wrapped/types'
-import { motion } from 'motion/react'
+import { LazyMotion, domAnimation, m } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { SLIDE_ACCENTS } from '../accents'
 import { GlassCard, SlideShell } from '../slide-shell'
@@ -21,24 +21,26 @@ export function StreakSlideView({ slide }: Props) {
 	}
 
 	return (
-		<SlideShell accent={SLIDE_ACCENTS.streak}>
-			<GlassCard className="text-center">
-				<p className="text-sm text-white/60 mb-2">{t('streak.title')}</p>
-				<p className="text-5xl font-black text-white">
-					{t('streak.headline', { days: slide.longestStreak })}
-				</p>
-			</GlassCard>
-			<div className="flex flex-wrap gap-0.5 max-w-sm justify-center">
-				{days.map((day, i) => (
-					<motion.div
-						key={day}
-						initial={{ opacity: 0, scale: 0.5 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: Math.min(i * 0.003, 0.5), duration: 0.15 }}
-						className={`h-1.5 w-1.5 rounded-sm ${activeDaySet.has(day) ? 'bg-amber-400' : 'bg-white/10'}`}
-					/>
-				))}
-			</div>
-		</SlideShell>
+		<LazyMotion features={domAnimation}>
+			<SlideShell accent={SLIDE_ACCENTS.streak}>
+				<GlassCard className="text-center">
+					<p className="text-sm text-white/60 mb-2">{t('streak.title')}</p>
+					<p className="text-5xl font-black text-white">
+						{t('streak.headline', { days: slide.longestStreak })}
+					</p>
+				</GlassCard>
+				<div className="flex flex-wrap gap-0.5 max-w-sm justify-center">
+					{days.map((day, i) => (
+						<m.div
+							key={day}
+							initial={{ opacity: 0, scale: 0.5 }}
+							animate={{ opacity: 1, scale: 1 }}
+							transition={{ delay: Math.min(i * 0.003, 0.5), duration: 0.15 }}
+							className={`h-1.5 w-1.5 rounded-sm ${activeDaySet.has(day) ? 'bg-amber-400' : 'bg-white/10'}`}
+						/>
+					))}
+				</div>
+			</SlideShell>
+		</LazyMotion>
 	)
 }

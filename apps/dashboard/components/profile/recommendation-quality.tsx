@@ -29,7 +29,7 @@ export function RecommendationQuality() {
 				</CardHeader>
 				<CardContent className="text-sm text-muted-foreground">
 					Pas encore de données. Utilise &quot;Que jouer ce soir ?&quot; et lance quelques jeux
-					recommandés — les métriques apparaîtront ici.
+					recommandés, les métriques apparaîtront ici.
 				</CardContent>
 			</Card>
 		)

@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ year: string }> }
 
+const LOCALES = ['en', 'fr']
+
 export async function POST(_req: Request, { params }: Params) {
 	const { year: yearStr } = await params
 	const year = Number.parseInt(yearStr, 10)
@@ -12,9 +14,8 @@ export async function POST(_req: Request, { params }: Params) {
 		return NextResponse.json({ error: 'Invalid year' }, { status: 400 })
 	}
 
-	const locales = ['en', 'fr']
 	await Promise.all(
-		locales.map(async (locale) => {
+		LOCALES.map(async (locale) => {
 			await invalidateWrappedCache(year, locale)
 			const wrapped = await generateWrapped(year, locale)
 			await writeCachedWrapped(wrapped, locale)

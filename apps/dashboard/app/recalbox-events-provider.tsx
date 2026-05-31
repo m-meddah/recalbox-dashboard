@@ -47,7 +47,7 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 					setMqttOnline(event.online)
 				}
 
-				for (const handler of handlersRef.current!) {
+				for (const handler of handlersRef.current ?? []) {
 					handler(event)
 				}
 			}
@@ -68,18 +68,16 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 	}, [])
 
 	const subscribe = useCallback((handler: Handler) => {
-		handlersRef.current!.add(handler)
+		handlersRef.current?.add(handler)
 		return () => {
-			handlersRef.current!.delete(handler)
+			handlersRef.current?.delete(handler)
 		}
 	}, [])
 
 	const contextValue = useMemo(() => ({ mqttOnline, subscribe }), [mqttOnline, subscribe])
 
 	return (
-		<RecalboxEventsContext.Provider value={contextValue}>
-			{children}
-		</RecalboxEventsContext.Provider>
+		<RecalboxEventsContext.Provider value={contextValue}>{children}</RecalboxEventsContext.Provider>
 	)
 }
 

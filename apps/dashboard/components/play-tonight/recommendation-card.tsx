@@ -46,6 +46,7 @@ export function RecommendationCard({
 						muted
 						loop
 						playsInline
+						aria-label={`Video preview of ${game.name}`}
 						className="w-full h-full object-cover"
 						src={`/api/media?path=${encodeURIComponent(game.videoUrl)}`}
 					/>

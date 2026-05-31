@@ -35,10 +35,7 @@ export async function SessionTimeline({ sessions }: Props) {
 		<ScrollArea className="h-80">
 			<div className="space-y-1 pr-3">
 				{sessions.map((s) => (
-					<div
-						key={s.id}
-						className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/50"
-					>
+					<div key={s.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50">
 						<div className="shrink-0 text-right">
 							<p className="text-xs font-mono text-muted-foreground">
 								{s.startedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}

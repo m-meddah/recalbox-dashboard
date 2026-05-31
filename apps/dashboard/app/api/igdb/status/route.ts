@@ -7,9 +7,8 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
-	const creds = await db.select().from(igdbCredentials).where(eq(igdbCredentials.id, 1)).get()
-
-	const [totalGames, matched, notFound, needsReview] = await Promise.all([
+	const [creds, totalGames, matched, notFound, needsReview] = await Promise.all([
+		db.select().from(igdbCredentials).where(eq(igdbCredentials.id, 1)).get(),
 		db.select({ c: sql<number>`COUNT(*)` }).from(games).get(),
 		db
 			.select({ c: sql<number>`COUNT(*)` })

@@ -82,12 +82,13 @@ export default function ProfilePage() {
 						<ProgressValue />
 					</Progress>
 					<p className="text-xs text-muted-foreground">
-						{t('sessions', { count: profile.totalSignalSessions })} —{' '}
+						{t('sessions', { count: profile.totalSignalSessions })} ({' '}
 						{maturityPercent < 30
 							? t('maturityYoung')
 							: maturityPercent < 70
 								? t('maturityBuilding')
 								: t('maturityMature')}
+						)
 					</p>
 				</CardContent>
 			</Card>

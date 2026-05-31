@@ -126,7 +126,7 @@ export default function IgdbReviewPage() {
 					<CardContent className="p-0">
 						<div className="divide-y">
 							{items.map((item) => (
-								<div key={item.gameId} className="px-4 py-4 space-y-3">
+								<div key={item.gameId} className="p-4 space-y-3">
 									<div>
 										<p className="font-medium text-sm">{item.gameName}</p>
 										<p className="text-xs text-muted-foreground">{item.system}</p>
@@ -219,6 +219,7 @@ export default function IgdbReviewPage() {
 													type="number"
 													className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
 													placeholder="IGDB ID"
+													aria-label="IGDB ID"
 													value={manualInput.get(item.gameId) ?? ''}
 													onChange={(e) =>
 														setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))

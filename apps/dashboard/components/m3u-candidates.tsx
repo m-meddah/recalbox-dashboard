@@ -55,8 +55,6 @@ export function M3uCandidates() {
 			.finally(() => setLoading(false))
 	}, [])
 
-	const gameKey = (g: MultiDiscGame) => `${g.system}|${g.romsDir}|${g.baseName}`
-
 	const generate = async (games: GenerateEntry[], force = false) => {
 		const keys = games.map((g) => `${g.system}|${g.romsDir}|${g.baseName}`)
 		setGeneratingKeys((prev) => new Set([...prev, ...keys]))

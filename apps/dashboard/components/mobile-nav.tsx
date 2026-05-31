@@ -60,7 +60,7 @@ export function MobileNav() {
 							</Link>
 						))}
 					</nav>
-					<div className="flex items-center gap-3 px-4 py-4 border-t">
+					<div className="flex items-center gap-3 p-4 border-t">
 						<ThemeToggle />
 						<LanguageSwitcher />
 					</div>

@@ -7,6 +7,8 @@ import { useState } from 'react'
 
 type Format = 'story' | 'square' | 'landscape'
 
+const FORMATS: Format[] = ['story', 'square', 'landscape']
+
 type Props = {
 	year: number
 	slideIndex: number
@@ -43,8 +45,6 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 		}
 	}
 
-	const formats: Format[] = ['story', 'square', 'landscape']
-
 	return (
 		<div
 			className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-sm"
@@ -65,7 +65,7 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 				</div>
 
 				<div className="flex gap-2 mb-4">
-					{formats.map((f) => (
+					{FORMATS.map((f) => (
 						<button
 							key={f}
 							type="button"
@@ -80,7 +80,13 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 				</div>
 
 				<div className="mb-4 flex justify-center rounded-xl overflow-hidden bg-black border border-white/10 h-40">
-					<Image src={imageUrl} alt="Preview" width={400} height={160} className="h-full w-auto object-contain" />
+					<Image
+						src={imageUrl}
+						alt="Preview"
+						width={400}
+						height={160}
+						className="h-full w-auto object-contain"
+					/>
 				</div>
 
 				<button

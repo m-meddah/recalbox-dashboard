@@ -36,7 +36,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 	const contextValue = useMemo(() => ({ theme, setTheme: handleSet }), [theme, handleSet])
 
-	return (
-		<ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>
-	)
+	return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>
 }
