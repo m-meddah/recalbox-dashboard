@@ -206,6 +206,7 @@ function GameList({
 									alt={g.name}
 									width={200}
 									height={112}
+									unoptimized
 									className="w-full aspect-video object-contain bg-muted rounded"
 								/>
 							) : (
