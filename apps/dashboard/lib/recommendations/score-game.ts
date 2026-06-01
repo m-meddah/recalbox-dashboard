@@ -97,7 +97,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			} else if (ratio <= 4) {
 				timeFitPts = 10
 			} else {
-				timeFitPts = -15
+				return null
 			}
 			score += timeFitPts
 			breakdown.hltbTimeFit = timeFitPts
