@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GameStartEvent, GameStopEvent, SystemChangeEvent } from '@/lib/recalbox/events'
-import { Gamepad2, Monitor, Moon, WifiOff } from 'lucide-react'
+import { systemEmoji } from '@/lib/recalbox/system-meta'
+import { Gamepad2, Moon, WifiOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
@@ -130,6 +131,25 @@ function GameCard({ game }: { game: GameStartEvent }) {
 	)
 }
 
+/** Real console brand logo from the Recalbox theme, with an emoji fallback when it can't load. */
+function SystemLogo({ systemId }: { systemId: string }) {
+	const [failed, setFailed] = useState(false)
+	if (failed || !systemId) {
+		return <span className="text-4xl leading-none">{systemEmoji(systemId)}</span>
+	}
+	return (
+		<Image
+			src={`/api/system-logo?system=${encodeURIComponent(systemId)}`}
+			alt=""
+			width={96}
+			height={96}
+			className="w-full h-full object-contain p-2"
+			unoptimized
+			onError={() => setFailed(true)}
+		/>
+	)
+}
+
 function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 	const t = useTranslations('nowPlaying')
 	const imageUrl = browsing.imagePath
@@ -154,7 +174,7 @@ function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 								}}
 							/>
 						) : (
-							<Monitor className="size-10 text-muted-foreground" />
+							<SystemLogo systemId={browsing.system} />
 						)}
 					</div>
 					<div className="flex flex-col justify-between min-w-0">
