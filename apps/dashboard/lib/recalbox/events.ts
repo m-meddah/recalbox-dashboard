@@ -64,40 +64,31 @@ export type RecalboxEvent =
 	| ScreensaverStopEvent
 
 // ── Recalbox/WebAPI/EmulationStation/Event shape ─────────────────────────────
+//
+// Payloads are NOT uniform: game-related events (rungame, endgame, gamebrowsing,
+// startgameclip) carry system+game+media, but frontend-level events carry less —
+// systembrowsing has only `system`, and sleep/wakeup/configurationchanged have no
+// system at all. So we validate each sub-object only for the events that use it.
 
-type WebApiEventPayload = {
-	event: string
-	param: string
-	system: {
-		name: string
-		fullname: string
-		defaultEmulator: string
-		defaultCore: string
-	}
-	game: {
-		romPath: string
-		name: string
-		[key: string]: unknown
-	}
-	media: {
-		image: string
-		thumbnail: string
-		video: string
-	}
-}
+type EsSystem = { name: string; fullname: string; defaultEmulator?: string }
+type EsGame = { romPath: string; name: string }
+type EsMedia = { image: string }
 
-function isWebApiPayload(v: unknown): v is WebApiEventPayload {
+function isSystemObject(v: unknown): v is EsSystem {
 	if (typeof v !== 'object' || v === null) return false
 	const o = v as Record<string, unknown>
-	return (
-		typeof o.event === 'string' &&
-		typeof o.system === 'object' &&
-		o.system !== null &&
-		typeof o.game === 'object' &&
-		o.game !== null &&
-		typeof o.media === 'object' &&
-		o.media !== null
-	)
+	return typeof o.name === 'string' && typeof o.fullname === 'string'
+}
+
+function isGameObject(v: unknown): v is EsGame {
+	if (typeof v !== 'object' || v === null) return false
+	const o = v as Record<string, unknown>
+	return typeof o.romPath === 'string' && typeof o.name === 'string'
+}
+
+function isMediaObject(v: unknown): v is EsMedia {
+	if (typeof v !== 'object' || v === null) return false
+	return typeof (v as Record<string, unknown>).image === 'string'
 }
 
 // ── Recalbox/WebAPI/SystemInfo shape ─────────────────────────────────────────
@@ -175,9 +166,35 @@ function parseEmulationStationEvent(payload: Buffer): RecalboxEvent | null {
 		}
 	}
 
-	if (!isWebApiPayload(data)) return null
+	if (typeof data !== 'object' || data === null) return null
+	const o = data as Record<string, unknown>
+	if (typeof o.event !== 'string') return null
+	const event = o.event
 
-	const { event, system, game, media } = data
+	// Frontend-level events with no system/game payload.
+	if (event === 'sleep') return { type: 'screensaver:start' }
+	if (event === 'wakeup') return { type: 'screensaver:stop' }
+
+	// Everything below needs at least a valid system object.
+	if (!isSystemObject(o.system)) return null
+	const system = o.system
+
+	// Scrolling the system carousel: tells us which system the user is on, but no game
+	// (the payload has only `system`). Keep gameName undefined so the UI shows the system.
+	if (event === 'systembrowsing') {
+		return {
+			type: 'system:change',
+			system: system.name,
+			systemFullName: system.fullname,
+			gameName: undefined,
+			imagePath: undefined,
+		}
+	}
+
+	// Remaining events also carry a game + media payload.
+	if (!isGameObject(o.game) || !isMediaObject(o.media)) return null
+	const game = o.game
+	const media = o.media
 
 	switch (event) {
 		case 'rungame':
@@ -190,6 +207,23 @@ function parseEmulationStationEvent(payload: Buffer): RecalboxEvent | null {
 				imagePath: media.image || undefined,
 				emulator: system.defaultEmulator || undefined,
 				startedAt: new Date(),
+			}
+
+		// Screensaver "demo"/"gameclip" type: EmulationStation launches game clips as the
+		// screensaver and announces each one with startgameclip (no preceding `sleep`).
+		// We surface them as a game:start flagged fromScreensaver so the UI can show what's
+		// playing while the scrobbler still ignores them (no real session, no takeover).
+		case 'startgameclip':
+			return {
+				type: 'game:start',
+				system: system.name,
+				systemFullName: system.fullname,
+				gameName: game.name,
+				romPath: game.romPath,
+				imagePath: media.image || undefined,
+				emulator: system.defaultEmulator || undefined,
+				startedAt: new Date(),
+				fromScreensaver: true,
 			}
 
 		case 'endgame':
@@ -209,12 +243,6 @@ function parseEmulationStationEvent(payload: Buffer): RecalboxEvent | null {
 				gameName: game.name || undefined,
 				imagePath: media.image || undefined,
 			}
-
-		case 'sleep':
-			return { type: 'screensaver:start' }
-
-		case 'wakeup':
-			return { type: 'screensaver:stop' }
 
 		default:
 			return null

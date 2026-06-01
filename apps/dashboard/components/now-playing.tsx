@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { GameStartEvent, GameStopEvent, SystemChangeEvent } from '@/lib/recalbox/events'
 import { Gamepad2, Monitor, Moon, WifiOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 
 function useElapsedTime(startedAt: Date | null): string {
@@ -41,6 +41,15 @@ function LiveBadge() {
 				<span className="relative inline-flex rounded-full size-2 bg-green-500" />
 			</span>
 			LIVE
+		</span>
+	)
+}
+
+function DemoBadge() {
+	return (
+		<span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-400">
+			<Moon className="size-3" />
+			DEMO
 		</span>
 	)
 }
@@ -84,6 +93,7 @@ function GameCard({ game }: { game: GameStartEvent }) {
 								width={96}
 								height={96}
 								className="w-full h-full object-cover"
+								unoptimized
 								onError={(e) => {
 									e.currentTarget.style.display = 'none'
 								}}
@@ -94,7 +104,7 @@ function GameCard({ game }: { game: GameStartEvent }) {
 					</div>
 					<div className="flex flex-col justify-between min-w-0">
 						<div className="space-y-1">
-							<LiveBadge />
+							{game.fromScreensaver ? <DemoBadge /> : <LiveBadge />}
 							<p className="font-semibold leading-tight truncate">{game.gameName}</p>
 							<div className="flex items-center gap-2 flex-wrap">
 								<Badge variant="secondary" className="text-xs">
@@ -138,6 +148,7 @@ function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 								width={96}
 								height={96}
 								className="w-full h-full object-cover"
+								unoptimized
 								onError={(e) => {
 									e.currentTarget.style.display = 'none'
 								}}
@@ -228,10 +239,13 @@ export function NowPlaying() {
 			const e = event as unknown as SystemChangeEvent
 			setBrowsing(e)
 			setScreensaver(false)
+			// Leaving the screensaver into the menus — drop any demo clip still showing.
+			setCurrentGame((prev) => (prev?.fromScreensaver ? null : prev))
 		} else if (event.type === 'screensaver:start') {
 			setScreensaver(true)
 		} else if (event.type === 'screensaver:stop') {
 			setScreensaver(false)
+			setCurrentGame((prev) => (prev?.fromScreensaver ? null : prev))
 		}
 	}, [])
 

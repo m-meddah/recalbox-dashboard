@@ -14,7 +14,7 @@ import type {
 
 const ES_EVENT_TOPIC = 'Recalbox/WebAPI/EmulationStation/Event'
 const SYSTEM_INFO_TOPIC = 'Recalbox/WebAPI/SystemInfo'
-const SINGLETON_VERSION = 8
+const SINGLETON_VERSION = 9
 const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000]
 
 interface RecalboxClientEvents {
@@ -45,6 +45,12 @@ class RecalboxMqttClient extends EventEmitter {
 	private currentSystem: string | null = null
 	isConnected = false
 	lastKnownGame: GameStartEvent | null = null
+	/**
+	 * Last game launched *by the screensaver* (demo/gameclip). Kept separate from
+	 * lastKnownGame so it can be replayed to new SSE clients for display, without ever
+	 * making it eligible for a real session or the wakeup "takeover" in the scrobbler.
+	 */
+	lastKnownScreensaverGame: GameStartEvent | null = null
 	lastKnownBrowsing: SystemChangeEvent | null = null
 	isScreensaverActive = false
 
@@ -76,19 +82,31 @@ class RecalboxMqttClient extends EventEmitter {
 			const event = parseRecalboxMessage(topic, payload)
 			if (!event) return
 			if (event.type === 'game:start') {
-				const enriched: GameStartEvent = this.isScreensaverActive
-					? { ...event, fromScreensaver: true }
-					: event
-				this.currentSystem = event.system
-				this.lastKnownGame = enriched
-				this.isScreensaverActive = false
-				this.emit('game:start', enriched)
+				if (event.fromScreensaver) {
+					// Screensaver clip — display only. Never touch lastKnownGame so the scrobbler
+					// won't open a session or a wakeup "takeover" for it.
+					this.currentSystem = event.system
+					this.lastKnownScreensaverGame = event
+					this.isScreensaverActive = true
+					this.emit('game:start', event)
+				} else {
+					const enriched: GameStartEvent = this.isScreensaverActive
+						? { ...event, fromScreensaver: true }
+						: event
+					this.currentSystem = event.system
+					this.lastKnownGame = enriched
+					this.lastKnownScreensaverGame = null
+					this.isScreensaverActive = false
+					this.emit('game:start', enriched)
+				}
 			} else if (event.type === 'game:stop') {
 				if (this.lastKnownGame?.romPath === event.romPath) this.lastKnownGame = null
+				this.lastKnownScreensaverGame = null
 				this.emit('game:stop', event)
 			} else if (event.type === 'system:change') {
 				this.currentSystem = event.system
 				this.lastKnownBrowsing = event
+				this.lastKnownScreensaverGame = null
 				this.isScreensaverActive = false
 				this.emit('system:change', event)
 			} else if (event.type === 'system:info') {
@@ -98,6 +116,7 @@ class RecalboxMqttClient extends EventEmitter {
 				this.emit('screensaver:start', event)
 			} else if (event.type === 'screensaver:stop') {
 				this.isScreensaverActive = false
+				this.lastKnownScreensaverGame = null
 				this.emit('screensaver:stop', event)
 			}
 		})

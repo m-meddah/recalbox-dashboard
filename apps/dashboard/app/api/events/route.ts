@@ -72,6 +72,8 @@ export async function GET(request: Request) {
 				if (!recalboxIdFilter || recalboxIdFilter === recalboxId) {
 					if (client.lastKnownGame) {
 						sendEvent(recalboxId, client.lastKnownGame)
+					} else if (client.lastKnownScreensaverGame) {
+						sendEvent(recalboxId, client.lastKnownScreensaverGame)
 					} else if (client.isScreensaverActive) {
 						sendEvent(recalboxId, { type: 'screensaver:start' })
 					} else if (client.lastKnownBrowsing) {

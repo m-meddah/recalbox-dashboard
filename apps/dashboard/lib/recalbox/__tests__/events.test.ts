@@ -125,6 +125,46 @@ describe('gamebrowsing', () => {
 	})
 })
 
+describe('startgameclip (screensaver demo / gameclip)', () => {
+	it('maps to game:start flagged fromScreensaver', () => {
+		const result = parseRecalboxMessage(
+			ES_TOPIC,
+			buf({
+				event: 'startgameclip',
+				param: baseGame.romPath,
+				system: baseSystem,
+				game: baseGame,
+				media: baseMedia,
+			}),
+		)
+		expect(result?.type).toBe('game:start')
+		if (result?.type !== 'game:start') return
+		expect(result.fromScreensaver).toBe(true)
+		expect(result.system).toBe('neogeo')
+		expect(result.systemFullName).toBe('Neo-Geo AES')
+		expect(result.gameName).toBe('2020 Super Baseball')
+		expect(result.romPath).toBe(baseGame.romPath)
+		expect(result.imagePath).toBe(baseMedia.image)
+		expect(result.startedAt).toBeInstanceOf(Date)
+	})
+})
+
+describe('systembrowsing (system carousel)', () => {
+	// Real payload carries ONLY event/param/system — no game, no media.
+	it('maps to system:change from a system-only payload', () => {
+		const result = parseRecalboxMessage(
+			ES_TOPIC,
+			buf({ event: 'systembrowsing', param: 'Neo-Geo AES', system: baseSystem }),
+		)
+		expect(result?.type).toBe('system:change')
+		if (result?.type !== 'system:change') return
+		expect(result.system).toBe('neogeo')
+		expect(result.systemFullName).toBe('Neo-Geo AES')
+		// Browsing the system carousel is not focused on a single game.
+		expect(result.gameName).toBeUndefined()
+	})
+})
+
 describe('sleep / wakeup', () => {
 	it('sleep maps to screensaver:start', () => {
 		const result = parseRecalboxMessage(
@@ -140,6 +180,16 @@ describe('sleep / wakeup', () => {
 			buf({ event: 'wakeup', param: '', system: baseSystem, game: baseGame, media: baseMedia }),
 		)
 		expect(result?.type).toBe('screensaver:stop')
+	})
+
+	// sleep/wakeup arrive with no system/game/media — must still parse.
+	it('parses sleep/wakeup from a bare payload', () => {
+		expect(parseRecalboxMessage(ES_TOPIC, buf({ event: 'sleep', param: '' }))?.type).toBe(
+			'screensaver:start',
+		)
+		expect(parseRecalboxMessage(ES_TOPIC, buf({ event: 'wakeup', param: '' }))?.type).toBe(
+			'screensaver:stop',
+		)
 	})
 })
 
