@@ -29,7 +29,7 @@ export default function FeedbackInboxPage() {
 	}, [])
 
 	return (
-		<div className="container max-w-2xl py-8 space-y-4">
+		<div className="container mx-auto max-w-2xl px-4 py-8 space-y-4">
 			<header className="space-y-1">
 				<h1 className="text-2xl font-bold flex items-center gap-2">
 					<Inbox className="size-6" />

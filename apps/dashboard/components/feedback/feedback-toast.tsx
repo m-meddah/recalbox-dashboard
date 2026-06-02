@@ -103,6 +103,7 @@ export function FeedbackToast({
 						{feedback.imagePath && (
 							<Image
 								src={`/api/media?path=${encodeURIComponent(feedback.imagePath)}`}
+								unoptimized
 								alt=""
 								width={48}
 								height={48}

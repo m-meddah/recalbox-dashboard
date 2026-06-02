@@ -18,6 +18,7 @@ export function MostPlayedGameSlideView({ slide }: Props) {
 						width={160}
 						height={160}
 						className="h-full w-full object-cover"
+						unoptimized
 					/>
 				</div>
 			)}

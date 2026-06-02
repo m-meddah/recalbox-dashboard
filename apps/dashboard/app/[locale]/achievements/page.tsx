@@ -318,6 +318,7 @@ export default function AchievementsPage() {
 										width={40}
 										height={40}
 										className="rounded shrink-0"
+										unoptimized
 									/>
 									<div className="flex-1 min-w-0">
 										<div className="flex items-center gap-2">
