@@ -3,6 +3,7 @@
 import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { StorageMount } from '@/lib/recalbox/storage'
+import { HardDrive } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -14,21 +15,19 @@ function formatBytes(bytes: number): string {
 	return `${Math.round(bytes / 1024)} Ko`
 }
 
-function usageColor(pct: number): string {
+// Solid fill for the CPU columns. Literal class names so Tailwind can scan them.
+function barColor(pct: number): string {
 	if (pct >= 90) return 'bg-red-500'
 	if (pct >= 70) return 'bg-warning'
-	return 'bg-primary'
+	return 'bg-accent'
 }
 
-function Bar({ percent }: { percent: number }) {
-	return (
-		<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-			<div
-				className={`h-full rounded-full transition-all ${usageColor(percent)}`}
-				style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-			/>
-		</div>
-	)
+// Translucent fill for the storage rows so the overlaid text stays readable in
+// both light and dark themes. Literal class names for Tailwind's scanner.
+function fillColor(pct: number): string {
+	if (pct >= 90) return 'bg-red-500/25'
+	if (pct >= 70) return 'bg-warning/30'
+	return 'bg-accent/35'
 }
 
 export function MonitoringPanel() {
@@ -68,17 +67,31 @@ export function MonitoringPanel() {
 					<CardHeader>
 						<CardTitle className="text-sm">{t('cores')}</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-2.5">
-						{data.perCore.map((pct, i) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: CPU cores are positional, never reorder
-							<div key={i} className="flex items-center gap-3">
-								<span className="w-14 shrink-0 text-xs text-muted-foreground">
-									{t('core')} {i}
-								</span>
-								<Bar percent={pct} />
-								<span className="w-9 shrink-0 text-right text-xs tabular-nums">{pct}%</span>
-							</div>
-						))}
+					<CardContent>
+						{/* Vertical bar chart, like the Web Manager monitoring page. */}
+						<div className="flex h-44 items-end justify-around gap-3 pt-6">
+							{data.perCore.map((pct, i) => (
+								<div
+									// biome-ignore lint/suspicious/noArrayIndexKey: CPU cores are positional, never reorder
+									key={i}
+									className="flex h-full flex-1 flex-col items-center gap-2"
+								>
+									<div className="flex w-full flex-1 items-end justify-center">
+										<div
+											className={`relative flex w-full max-w-12 justify-center rounded-t transition-all ${barColor(pct)}`}
+											style={{ height: `${Math.max(2, Math.min(100, pct))}%` }}
+										>
+											<span className="absolute -top-5 text-xs font-medium tabular-nums">
+												{pct}%
+											</span>
+										</div>
+									</div>
+									<span className="text-xs text-muted-foreground">
+										{t('core')} {i}
+									</span>
+								</div>
+							))}
+						</div>
 					</CardContent>
 				</Card>
 			)}
@@ -88,16 +101,30 @@ export function MonitoringPanel() {
 					<CardHeader>
 						<CardTitle className="text-sm">{t('storage')}</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2.5">
 						{data.storage.map((s) => (
-							<div key={s.mount} className="space-y-1">
-								<div className="flex items-center justify-between gap-2 text-xs">
-									<span className="truncate font-medium">{s.label}</span>
-									<span className="shrink-0 text-muted-foreground tabular-nums">
-										{formatBytes(s.usedBytes)} / {formatBytes(s.sizeBytes)}
-									</span>
+							<div
+								key={s.mount}
+								className="relative h-14 overflow-hidden rounded-md border bg-muted/40"
+							>
+								<div
+									className={`absolute inset-y-0 left-0 transition-all ${fillColor(s.percent)}`}
+									style={{ width: `${Math.min(100, Math.max(0, s.percent))}%` }}
+								/>
+								<div className="relative flex h-full items-center gap-3 px-2.5">
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-card text-muted-foreground shadow-sm">
+										<HardDrive className="size-5" />
+									</div>
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2 text-sm">
+											<span className="truncate font-medium">{s.label}</span>
+											<span className="shrink-0 font-semibold tabular-nums">{s.percent}%</span>
+										</div>
+										<div className="text-xs text-muted-foreground tabular-nums">
+											{formatBytes(s.usedBytes)} / {formatBytes(s.sizeBytes)}
+										</div>
+									</div>
 								</div>
-								<Bar percent={s.percent} />
 							</div>
 						))}
 					</CardContent>
