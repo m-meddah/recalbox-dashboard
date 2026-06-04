@@ -63,6 +63,33 @@ function Rating({ value }: { value: number | null }) {
 	)
 }
 
+/** Sortable column header with an asc/desc arrow when active. */
+function SortHeader({
+	col,
+	label,
+	sortBy,
+	sortDir,
+	onToggle,
+}: {
+	col: SortBy
+	label: string
+	sortBy: SortBy
+	sortDir: 'asc' | 'desc'
+	onToggle: (col: SortBy) => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={() => onToggle(col)}
+			className="flex items-center gap-1 font-medium hover:text-foreground"
+		>
+			{label}
+			{sortBy === col &&
+				(sortDir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+		</button>
+	)
+}
+
 export function GameTable({ system, regions }: Props) {
 	const t = useTranslations('collection')
 	const [data, setData] = useState<ApiResponse | null>(null)
@@ -126,18 +153,6 @@ export function GameTable({ system, regions }: Props) {
 		}
 	}
 
-	const SortHeader = ({ col, label }: { col: SortBy; label: string }) => (
-		<button
-			type="button"
-			onClick={() => toggleSort(col)}
-			className="flex items-center gap-1 font-medium hover:text-foreground"
-		>
-			{label}
-			{sortBy === col &&
-				(sortDir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
-		</button>
-	)
-
 	const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
 
 	return (
@@ -189,7 +204,13 @@ export function GameTable({ system, regions }: Props) {
 							<tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
 								<th className="px-3 py-3" />
 								<th className="px-3 py-3">
-									<SortHeader col="name" label={t('table.name')} />
+									<SortHeader
+										col="name"
+										label={t('table.name')}
+										sortBy={sortBy}
+										sortDir={sortDir}
+										onToggle={toggleSort}
+									/>
 								</th>
 								<th className="px-3 py-3 font-medium">{t('table.publisher')}</th>
 								<th className="px-3 py-3 font-medium">{t('table.developer')}</th>
@@ -197,7 +218,13 @@ export function GameTable({ system, regions }: Props) {
 								<th className="px-3 py-3 text-center font-medium">{t('table.region')}</th>
 								<th className="px-3 py-3 text-center font-medium">{t('table.players')}</th>
 								<th className="px-3 py-3">
-									<SortHeader col="rating" label={t('table.rating')} />
+									<SortHeader
+										col="rating"
+										label={t('table.rating')}
+										sortBy={sortBy}
+										sortDir={sortDir}
+										onToggle={toggleSort}
+									/>
 								</th>
 								<th className="px-3 py-3" />
 							</tr>
