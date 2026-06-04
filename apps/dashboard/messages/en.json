@@ -16,7 +16,8 @@
 		"settings": "Settings",
 		"wrapped": "Wrapped",
 		"profile": "Profile",
-		"playTonight": "Play Tonight"
+		"playTonight": "Play Tonight",
+		"bios": "BIOS"
 	},
 	"dashboard": {
 		"nowPlaying": {
@@ -107,13 +108,31 @@
 			"sortName": "Name",
 			"sortRating": "Rating",
 			"sortLastPlayed": "Played",
-			"sortYear": "Year"
+			"sortYear": "Year",
+			"allRegions": "All regions"
 		},
 		"sync": {
 			"button": "Sync from Recalbox",
 			"progress": "{done}/{total} · {games, plural, one {1 game} other {# games}}",
 			"done": "{count, plural, one {1 game} other {# games}} synced in {seconds}s",
 			"retry": "Retry"
+		},
+		"table": {
+			"name": "Name",
+			"publisher": "Publisher",
+			"developer": "Developer",
+			"genre": "Genre",
+			"players": "Players",
+			"rating": "Rating",
+			"loading": "Loading…",
+			"region": "Region"
+		},
+		"launch": {
+			"action": "Launch",
+			"confirmTitle": "Launch this game?",
+			"confirmDescription": "“{name}” will start on your Recalbox.",
+			"launched": "“{name}” is starting on your Recalbox.",
+			"error": "Could not launch the game."
 		}
 	},
 	"stats": {
@@ -738,7 +757,9 @@
 			"loading": "Searching…",
 			"empty": "No games match these criteria.",
 			"emptyHint": "Try a different time/mood, or play more to build your profile.",
-			"reshuffle": "Suggest other games"
+			"reshuffle": "Suggest other games",
+			"launchedToast": "“{name}” is starting on your Recalbox.",
+			"launchError": "Could not launch the game on your Recalbox."
 		},
 		"card": {
 			"launch": "Play",
@@ -851,5 +872,28 @@
 		"comfortGamesDesc": "Games you return to most often and play the longest",
 		"bouncersTitle": "Your 'bouncers'",
 		"bouncersDesc": "Games you launch but quit quickly — the algorithm will avoid suggesting them"
+	},
+	"bios": {
+		"title": "BIOS",
+		"subtitle": "Check your BIOS files against the expected checksums.",
+		"loading": "Loading BIOS scan…",
+		"error": "Could not read BIOS information from the Recalbox.",
+		"offline": "Recalbox offline.",
+		"empty": "No BIOS match this filter.",
+		"optional": "optional",
+		"search": "Search…",
+		"filters": {
+			"all": "All",
+			"ok": "OK",
+			"mismatch": "Wrong hash",
+			"missing": "Missing"
+		},
+		"columns": {
+			"system": "System",
+			"bios": "BIOS",
+			"currentMd5": "Current MD5",
+			"expectedMd5": "Expected MD5",
+			"validity": "Validity"
+		}
 	}
 }

@@ -16,7 +16,8 @@
 		"settings": "Paramètres",
 		"wrapped": "Wrapped",
 		"profile": "Profil",
-		"playTonight": "Jouer ce soir"
+		"playTonight": "Jouer ce soir",
+		"bios": "BIOS"
 	},
 	"dashboard": {
 		"nowPlaying": {
@@ -107,13 +108,31 @@
 			"sortName": "Nom",
 			"sortRating": "Note",
 			"sortLastPlayed": "Joué",
-			"sortYear": "Année"
+			"sortYear": "Année",
+			"allRegions": "Toutes les régions"
 		},
 		"sync": {
 			"button": "Synchroniser depuis Recalbox",
 			"progress": "{done}/{total} · {games, plural, one {1 jeu} other {# jeux}}",
 			"done": "{count, plural, one {1 jeu synchronisé} other {# jeux synchronisés}} en {seconds}s",
 			"retry": "Réessayer"
+		},
+		"table": {
+			"name": "Nom",
+			"publisher": "Éditeur",
+			"developer": "Développeur",
+			"genre": "Genre",
+			"players": "Joueurs",
+			"rating": "Note",
+			"loading": "Chargement…",
+			"region": "Région"
+		},
+		"launch": {
+			"action": "Lancer",
+			"confirmTitle": "Lancer ce jeu ?",
+			"confirmDescription": "« {name} » va démarrer sur ta Recalbox.",
+			"launched": "« {name} » démarre sur ta Recalbox.",
+			"error": "Impossible de lancer le jeu."
 		}
 	},
 	"stats": {
@@ -738,7 +757,9 @@
 			"loading": "Recherche en cours…",
 			"empty": "Aucun jeu ne correspond à ces critères.",
 			"emptyHint": "Essaye un autre temps/humeur, ou joue plus pour enrichir ton profil.",
-			"reshuffle": "Proposer d'autres jeux"
+			"reshuffle": "Proposer d'autres jeux",
+			"launchedToast": "« {name} » démarre sur ta Recalbox.",
+			"launchError": "Impossible de lancer le jeu sur ta Recalbox."
 		},
 		"card": {
 			"launch": "Lancer",
@@ -851,5 +872,28 @@
 		"comfortGamesDesc": "Les jeux où tu reviens le plus souvent et joues le plus longtemps",
 		"bouncersTitle": "Tes 'bouncers'",
 		"bouncersDesc": "Les jeux que tu lances mais quittes vite — l'algo évitera de te les proposer"
+	},
+	"bios": {
+		"title": "BIOS",
+		"subtitle": "Vérifiez vos fichiers BIOS par rapport aux empreintes attendues.",
+		"loading": "Analyse des BIOS…",
+		"error": "Impossible de lire les informations BIOS depuis la Recalbox.",
+		"offline": "Recalbox hors ligne.",
+		"empty": "Aucun BIOS ne correspond à ce filtre.",
+		"optional": "optionnel",
+		"search": "Recherche…",
+		"filters": {
+			"all": "Tous",
+			"ok": "OK",
+			"mismatch": "Empreinte erronée",
+			"missing": "Manquant"
+		},
+		"columns": {
+			"system": "Système",
+			"bios": "BIOS",
+			"currentMd5": "MD5 courant",
+			"expectedMd5": "MD5 attendu",
+			"validity": "Validité"
+		}
 	}
 }
