@@ -1,5 +1,8 @@
 import { db } from '@/lib/db'
-import { recommendationLog } from '@/lib/db/schema'
+import { games, recommendationLog } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { launchGame } from '@/lib/recalbox/launch-game'
 import { and, desc, eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -21,6 +24,7 @@ export async function POST(req: NextRequest) {
 	}
 	const { gameId } = parsed.data
 
+	// Record the choice so the recommender learns from it.
 	const latest = await db
 		.select()
 		.from(recommendationLog)
@@ -42,5 +46,24 @@ export async function POST(req: NextRequest) {
 			.where(eq(recommendationLog.id, latest.id))
 	}
 
-	return NextResponse.json({ ok: true })
+	// Actually start the game on the active Recalbox (the box the dashboard drives).
+	let launched = false
+	try {
+		const recalboxId = await getActiveRecalboxId()
+		const game = await db
+			.select({ romPath: games.romPath, system: games.system })
+			.from(games)
+			.where(eq(games.id, gameId))
+			.get()
+
+		if (recalboxId && game) {
+			await launchGame(recalboxId, game.system, game.romPath)
+			launched = true
+		}
+	} catch (err) {
+		// The choice is logged regardless; surface the launch failure to the client.
+		logger.error('Play-tonight game launch failed', err)
+	}
+
+	return NextResponse.json({ ok: true, launched })
 }

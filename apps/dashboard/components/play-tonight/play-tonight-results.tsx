@@ -6,15 +6,8 @@ import type { AvailableTime, Mood, ScoredGame } from '@/lib/recommendations/type
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { RecommendationCard } from './recommendation-card'
-
-async function handleLaunch(gameId: number) {
-	await fetch('/api/play-tonight/launch', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ gameId }),
-	})
-}
 
 export function PlayTonightResults({
 	time,
@@ -47,6 +40,21 @@ export function PlayTonightResults({
 				setResults({ recs: d.recommendations ?? [], forRequestId: requestId })
 			})
 	}, [time, mood, requestId])
+
+	async function handleLaunch(game: ScoredGame) {
+		try {
+			const res = await fetch('/api/play-tonight/launch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ gameId: game.gameId }),
+			})
+			const data = (await res.json().catch(() => null)) as { launched?: boolean } | null
+			if (data?.launched) toast.success(t('launchedToast', { name: game.name }))
+			else toast.error(t('launchError'))
+		} catch {
+			toast.error(t('launchError'))
+		}
+	}
 
 	async function handleSkip(gameId: number) {
 		await fetch('/api/play-tonight/skip', {
@@ -85,7 +93,7 @@ export function PlayTonightResults({
 						game={r}
 						debugMode={debugMode}
 						onSkip={() => handleSkip(r.gameId)}
-						onLaunch={() => handleLaunch(r.gameId)}
+						onLaunch={() => handleLaunch(r)}
 					/>
 				))}
 			</div>
