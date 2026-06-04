@@ -9,6 +9,7 @@
 	},
 	"nav": {
 		"home": "🕹️ Recalbox",
+		"overview": "Accueil",
 		"collection": "Collection",
 		"stats": "Stats",
 		"achievements": "Succès",
@@ -32,14 +33,32 @@
 			"tempWarm": "Chaud",
 			"tempCritical": "Critique",
 			"ramUsed": "{percent}% utilisé",
-			"cpu": "CPU"
+			"cpu": "CPU",
+			"cores": "Cœurs CPU",
+			"storage": "Stockage",
+			"core": "Cœur"
+		},
+		"overview": {
+			"title": "Aperçu",
+			"systems": "Systèmes",
+			"games": "Jeux",
+			"played": "Joués"
 		}
 	},
 	"nowPlaying": {
 		"mqttOffline": "MQTT hors ligne — Recalbox injoignable",
 		"noGame": "Aucun jeu en cours",
 		"screensaver": "Économiseur d'écran actif",
-		"browsingSystem": "Navigation…"
+		"browsingSystem": "Navigation…",
+		"specs": {
+			"manufacturer": "Fabriquant",
+			"year": "Année de sortie",
+			"cpu": "CPU",
+			"ram": "RAM",
+			"audio": "Processeur audio",
+			"video": "Vidéo",
+			"systemTitle": "Système en cours"
+		}
 	},
 	"m3u": {
 		"title": "Multi-disques / .m3u",

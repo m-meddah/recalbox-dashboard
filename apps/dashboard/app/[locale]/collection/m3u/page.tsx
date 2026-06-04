@@ -15,7 +15,7 @@ export default async function M3uPage({ params }: Props) {
 	const t = await getTranslations('m3u')
 
 	return (
-		<div className="container mx-auto max-w-screen-2xl space-y-6 px-4 py-8">
+		<div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
 			<nav className="flex items-center gap-1 text-sm text-muted-foreground">
 				<Link href="/collection" className="hover:text-foreground">
 					{t('breadcrumb')}

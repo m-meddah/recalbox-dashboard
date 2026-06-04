@@ -20,7 +20,7 @@ export default async function AllRecalboxesPage() {
 	const totalSessions = statsPerRb.reduce((sum, { stats }) => sum + stats.totalSessions, 0)
 
 	return (
-		<div className="container max-w-4xl mx-auto p-6 space-y-6">
+		<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
 			<h1 className="text-2xl font-bold">{t('allPage.title')}</h1>
 			<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
 				<div className="border rounded p-4">

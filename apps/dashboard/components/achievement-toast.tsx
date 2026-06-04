@@ -15,6 +15,7 @@ export function AchievementToast({ data }: Props) {
 					width={48}
 					height={48}
 					className="size-12 shrink-0 rounded object-cover"
+					unoptimized
 				/>
 			)}
 			<div className="min-w-0">

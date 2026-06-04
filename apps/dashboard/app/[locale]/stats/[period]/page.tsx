@@ -38,7 +38,7 @@ export default async function StatsPage({ params }: Props) {
 	])
 
 	return (
-		<div className="container mx-auto max-w-screen-xl space-y-8 px-4 py-8">
+		<div className="container mx-auto max-w-6xl space-y-8 px-4 py-8">
 			{/* Wrapped preview banner */}
 			{wrappedPreview && (
 				<WrappedPreviewBanner
@@ -53,15 +53,16 @@ export default async function StatsPage({ params }: Props) {
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<div className="overflow-x-auto">
-					<nav className="flex gap-1 rounded-xl border bg-muted/40 p-1 w-fit min-w-full sm:min-w-fit">
+					<nav className="flex min-w-full gap-1 border-b border-border sm:min-w-fit">
 						{PERIODS.map((p) => (
 							<Link
 								key={p}
 								href={`/stats/${p}`}
-								className={`rounded-lg px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+								aria-current={p === period ? 'page' : undefined}
+								className={`relative whitespace-nowrap px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors ${
 									p === period
-										? 'bg-background text-foreground shadow-sm'
-										: 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+										? 'text-primary after:bg-primary'
+										: 'text-muted-foreground after:bg-transparent hover:text-foreground'
 								}`}
 							>
 								{t(`periods.${p}`)}

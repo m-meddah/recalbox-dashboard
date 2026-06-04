@@ -5,9 +5,12 @@ import { SuperRetrogamersLink } from '@/components/super-retrogamers-link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { GameMedia } from '@/lib/db/queries'
 import type { GameStartEvent, GameStopEvent, SystemChangeEvent } from '@/lib/recalbox/events'
 import { systemEmoji } from '@/lib/recalbox/system-meta'
-import { Gamepad2, Moon, WifiOff } from 'lucide-react'
+import { getSystemSpecs } from '@/lib/recalbox/system-specs'
+import { cn } from '@/lib/utils'
+import { Gamepad2, Moon, Star, WifiOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
@@ -67,66 +70,118 @@ function BrowsingBadge() {
 	)
 }
 
+function mediaUrl(path: string | null | undefined): string | null {
+	return path ? `/api/media?path=${encodeURIComponent(path)}` : null
+}
+
 function GameCard({ game }: { game: GameStartEvent }) {
 	const elapsed = useElapsedTime(game.startedAt)
-	const imageUrl = game.imagePath ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
 	const [srInfo, setSrInfo] = useState<{ srHasPage: number | null; srUrl: string | null }>({
 		srHasPage: null,
 		srUrl: null,
 	})
+	const [media, setMedia] = useState<GameMedia | null>(null)
+	const [boxFailed, setBoxFailed] = useState(false)
+	const [shotFailed, setShotFailed] = useState(false)
 
 	useEffect(() => {
+		setMedia(null)
+		setBoxFailed(false)
+		setShotFailed(false)
 		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(game.romPath)}`)
 			.then((r) => r.json())
 			.then((data: { srHasPage: number | null; srUrl: string | null }) => setSrInfo(data))
 			.catch(() => {})
+		fetch(`/api/game-media?romPath=${encodeURIComponent(game.romPath)}`)
+			.then((r) => r.json())
+			.then((data: GameMedia) => setMedia(data))
+			.catch(() => {})
 	}, [game.romPath])
 
+	const screenshotUrl =
+		mediaUrl(media?.screenshotPath) ?? mediaUrl(media?.imagePath) ?? mediaUrl(game.imagePath)
+	const boxUrl = mediaUrl(media?.thumbnailPath)
+	const showBox = !!boxUrl && !boxFailed
+	const showShot = !!screenshotUrl && !shotFailed
+
+	const meta = [
+		media?.releaseYear ? String(media.releaseYear) : null,
+		media?.genre,
+		media?.players ? `${media.players}P` : null,
+	]
+		.filter(Boolean)
+		.join('  ·  ')
+
 	return (
-		<Card className="overflow-hidden">
-			<CardContent className="p-0">
-				<div className="flex gap-4 p-4">
-					<div className="shrink-0 size-24 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-						{imageUrl ? (
-							<Image
-								src={imageUrl}
-								alt={game.gameName}
-								width={96}
-								height={96}
-								className="w-full h-full object-cover"
-								unoptimized
-								onError={(e) => {
-									e.currentTarget.style.display = 'none'
-								}}
-							/>
-						) : (
-							<Gamepad2 className="size-10 text-muted-foreground" />
-						)}
+		<Card className="gap-0 overflow-hidden p-0">
+			{/* Screen stage */}
+			<div className="relative aspect-video w-full bg-gradient-to-br from-slate-700 to-slate-950">
+				{showShot ? (
+					<Image
+						src={screenshotUrl as string}
+						alt={game.gameName}
+						fill
+						sizes="(max-width: 1024px) 100vw, 560px"
+						className="object-contain"
+						unoptimized
+						onError={() => setShotFailed(true)}
+					/>
+				) : (
+					<div className="flex h-full items-center justify-center">
+						<Gamepad2 className="size-12 text-white/30" />
 					</div>
-					<div className="flex flex-col justify-between min-w-0">
-						<div className="space-y-1">
-							{game.fromScreensaver ? <DemoBadge /> : <LiveBadge />}
-							<p className="font-semibold leading-tight truncate">{game.gameName}</p>
-							<div className="flex items-center gap-2 flex-wrap">
-								<Badge variant="secondary" className="text-xs">
-									{game.systemFullName}
-								</Badge>
-								{game.emulator && (
-									<span className="text-xs text-muted-foreground">{game.emulator}</span>
-								)}
-								{srInfo.srHasPage === 1 && (
-									<SuperRetrogamersLink
-										srHasPage={srInfo.srHasPage}
-										srUrl={srInfo.srUrl}
-										variant="icon"
-									/>
-								)}
-							</div>
-						</div>
-						<p className="text-sm text-muted-foreground tabular-nums">{elapsed}</p>
-					</div>
+				)}
+
+				{/* Legibility gradient */}
+				<div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/30" />
+
+				{/* Status badge */}
+				<div className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-sm">
+					{game.fromScreensaver ? <DemoBadge /> : <LiveBadge />}
 				</div>
-			</CardContent>
+
+				{/* Elapsed timer */}
+				<div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium tabular-nums text-white backdrop-blur-sm">
+					{elapsed}
+				</div>
+
+				{/* Favorite star */}
+				{media?.favorite && (
+					<div className="absolute right-3 top-11 rounded-full bg-black/55 p-1.5 backdrop-blur-sm">
+						<Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+					</div>
+				)}
+
+				{/* Box art */}
+				{showBox && (
+					<Image
+						src={boxUrl as string}
+						alt=""
+						width={120}
+						height={160}
+						className="absolute bottom-3 left-3 h-28 w-auto -rotate-3 rounded-md shadow-2xl ring-1 ring-black/30"
+						unoptimized
+						onError={() => setBoxFailed(true)}
+					/>
+				)}
+
+				{/* Title */}
+				<div className={cn('absolute right-3 bottom-3', showBox ? 'left-28 pl-3' : 'left-3')}>
+					<p className="truncate text-lg font-bold text-white drop-shadow-md">{game.gameName}</p>
+					{meta && <p className="truncate text-xs text-white/70">{meta}</p>}
+				</div>
+			</div>
+
+			{/* Meta footer */}
+			<div className="flex flex-wrap items-center gap-2 p-4">
+				<Badge variant="secondary" className="text-xs">
+					{game.systemFullName}
+				</Badge>
+				{game.emulator && <span className="text-xs text-muted-foreground">{game.emulator}</span>}
+				{srInfo.srHasPage === 1 && (
+					<SuperRetrogamersLink srHasPage={srInfo.srHasPage} srUrl={srInfo.srUrl} variant="icon" />
+				)}
+			</div>
 		</Card>
 	)
 }
@@ -147,6 +202,56 @@ function SystemLogo({ systemId }: { systemId: string }) {
 			unoptimized
 			onError={() => setFailed(true)}
 		/>
+	)
+}
+
+/** "Système en cours" panel: console logo on its theme colors + hardware specs, à la Web Manager. */
+function SystemSpecsPanel({
+	systemId,
+	systemFullName,
+}: {
+	systemId: string
+	systemFullName: string
+}) {
+	const t = useTranslations('nowPlaying.specs')
+	const specs = getSystemSpecs(systemId)
+	const b = specs?.bands
+	const gradient = b
+		? `linear-gradient(135deg, ${b.band1}, ${b.band2}, ${b.band3}, ${b.band4})`
+		: 'linear-gradient(135deg, #34495e, #85d6de)'
+
+	const rows = (
+		[
+			['manufacturer', specs?.manufacturer],
+			['year', specs?.yearOfRelease],
+			['cpu', specs?.cpu],
+			['ram', specs?.ram],
+			['audio', specs?.soundChip],
+			['video', specs?.video ?? specs?.resolution ?? specs?.display ?? specs?.gpu],
+		] as const
+	).filter((r): r is readonly [string, string] => Boolean(r[1]))
+
+	return (
+		<Card className="gap-0 overflow-hidden p-0">
+			<div className="flex h-20 items-center gap-3 px-4" style={{ backgroundImage: gradient }}>
+				<div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-black/25 backdrop-blur-sm">
+					<SystemLogo systemId={systemId} />
+				</div>
+				<span className="text-lg font-bold text-white drop-shadow-md">{systemFullName}</span>
+			</div>
+			{rows.length > 0 && (
+				<dl className="divide-y divide-border text-sm">
+					{rows.map(([k, v]) => (
+						<div key={k} className="flex gap-3 px-4 py-2">
+							<dt className="w-28 shrink-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+								{t(k)}
+							</dt>
+							<dd className="min-w-0 flex-1">{v}</dd>
+						</div>
+					))}
+				</dl>
+			)}
+		</Card>
 	)
 }
 
@@ -275,9 +380,24 @@ export function NowPlaying() {
 
 	const content = () => {
 		if (mqttOnline === null) return <LoadingSkeleton />
-		if (currentGame) return <GameCard game={currentGame} />
+		if (currentGame)
+			return (
+				<div className="space-y-3">
+					<SystemSpecsPanel
+						systemId={currentGame.system}
+						systemFullName={currentGame.systemFullName}
+					/>
+					<GameCard game={currentGame} />
+				</div>
+			)
 		if (screensaver) return <ScreensaverCard />
-		if (browsing) return <BrowsingCard browsing={browsing} />
+		if (browsing)
+			return (
+				<div className="space-y-3">
+					<SystemSpecsPanel systemId={browsing.system} systemFullName={browsing.systemFullName} />
+					<BrowsingCard browsing={browsing} />
+				</div>
+			)
 		return <EmptyState />
 	}
 

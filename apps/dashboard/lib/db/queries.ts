@@ -568,6 +568,52 @@ export function getGameSrInfo(
 	return row ?? null
 }
 
+export type GameMedia = {
+	screenshotPath: string | null
+	imagePath: string | null
+	thumbnailPath: string | null
+	videoPath: string | null
+	genre: string | null
+	players: string | null
+	rating: number | null
+	releaseYear: number | null
+	developer: string | null
+	favorite: boolean
+}
+
+/** Full media + metadata for a single game, looked up by its ROM path (for the Now Playing hero). */
+export function getGameMedia(recalboxId: string, romPath: string): GameMedia | null {
+	const row = db
+		.select({
+			screenshotPath: games.screenshotPath,
+			imagePath: games.imagePath,
+			thumbnailPath: games.thumbnailPath,
+			videoPath: games.videoPath,
+			genre: games.genre,
+			players: games.players,
+			rating: games.rating,
+			releaseDate: games.releaseDate,
+			developer: games.developer,
+			favorite: games.favorite,
+		})
+		.from(games)
+		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
+		.get()
+	if (!row) return null
+	return {
+		screenshotPath: row.screenshotPath,
+		imagePath: row.imagePath,
+		thumbnailPath: row.thumbnailPath,
+		videoPath: row.videoPath,
+		genre: row.genre,
+		players: row.players,
+		rating: row.rating,
+		releaseYear: row.releaseDate ? row.releaseDate.getFullYear() : null,
+		developer: row.developer,
+		favorite: row.favorite,
+	}
+}
+
 export function countSrStats(recalboxId?: string): { total: number; matched: number } {
 	const totalWhere = recalboxId ? eq(games.recalboxId, recalboxId) : undefined
 	const matchedWhere = recalboxId

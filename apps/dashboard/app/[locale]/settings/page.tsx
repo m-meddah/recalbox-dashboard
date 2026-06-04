@@ -1027,11 +1027,13 @@ function MqttPublishTab({ config }: { config: AppConfig }) {
 	)
 }
 
-// ─── Sidebar Nav ─────────────────────────────────────────────────────────────
+// ─── Tab Nav ─────────────────────────────────────────────────────────────────
+// Horizontal underlined tab bar, mirroring the Recalbox Web Manager settings
+// (SYSTÈME / AUDIO / RÉSEAU … with a teal underline on the active tab).
 
 type NavItem = { value: string; icon: LucideIcon; label: string; mobileLabel: string }
 
-function SidebarNav({
+function SettingsTabs({
 	items,
 	active,
 	onSelect,
@@ -1041,46 +1043,26 @@ function SidebarNav({
 	onSelect: (value: string) => void
 }) {
 	return (
-		<>
-			<nav className="hidden md:flex flex-col gap-1 w-52 shrink-0">
-				{items.map((item) => (
-					<button
-						key={item.value}
-						type="button"
-						onClick={() => onSelect(item.value)}
-						aria-current={active === item.value ? 'page' : undefined}
-						className={cn(
-							'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-left transition-colors',
-							active === item.value
-								? 'bg-accent text-accent-foreground'
-								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-						)}
-					>
-						<item.icon className="size-4 shrink-0" />
-						{item.label}
-					</button>
-				))}
-			</nav>
-			<nav className="flex md:hidden gap-1 overflow-x-auto pb-2 shrink-0">
-				{items.map((item) => (
-					<button
-						key={item.value}
-						type="button"
-						onClick={() => onSelect(item.value)}
-						aria-current={active === item.value ? 'page' : undefined}
-						className={cn(
-							'flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap shrink-0 transition-colors',
-							active === item.value
-								? 'bg-accent text-accent-foreground'
-								: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-						)}
-					>
-						<item.icon className="size-4 shrink-0" />
-						{item.mobileLabel}
-					</button>
-				))}
-			</nav>
-		</>
+		<nav className="flex flex-wrap gap-x-1 gap-y-0 border-b border-border">
+			{items.map((item) => (
+				<button
+					key={item.value}
+					type="button"
+					onClick={() => onSelect(item.value)}
+					aria-current={active === item.value ? 'page' : undefined}
+					className={cn(
+						'relative flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+						'after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors',
+						active === item.value
+							? 'text-primary after:bg-primary'
+							: 'text-muted-foreground after:bg-transparent hover:text-foreground',
+					)}
+				>
+					<item.icon className="size-4 shrink-0" />
+					{item.label}
+				</button>
+			))}
+		</nav>
 	)
 }
 
@@ -1129,14 +1111,14 @@ export default function SettingsPage() {
 	}
 
 	return (
-		<div className="container max-w-4xl mx-auto p-6 space-y-6">
+		<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
 			<div>
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
-			<div className="flex flex-col md:flex-row gap-8">
-				<SidebarNav items={navItems} active={active} onSelect={setActive} />
-				<div className="flex-1 min-w-0">
+			<div className="space-y-6">
+				<SettingsTabs items={navItems} active={active} onSelect={setActive} />
+				<div className="min-w-0">
 					{active === 'recalbox' && (
 						<Card>
 							<CardHeader>

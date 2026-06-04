@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
 
 const INTENSITY_CLASS = {
-	0: 'bg-muted',
-	1: 'bg-emerald-900/30',
-	2: 'bg-emerald-700/50',
-	3: 'bg-emerald-500/70',
-	4: 'bg-emerald-400',
+	0: 'bg-foreground/10',
+	1: 'bg-emerald-300 dark:bg-emerald-900/40',
+	2: 'bg-emerald-400 dark:bg-emerald-700/60',
+	3: 'bg-emerald-500 dark:bg-emerald-500/80',
+	4: 'bg-emerald-600 dark:bg-emerald-400',
 } as const
 
 function getMonthLabel(week: HeatmapCell[], locale: string): string | null {

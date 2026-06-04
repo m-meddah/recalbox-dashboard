@@ -186,7 +186,7 @@ export default function AchievementsPage() {
 
 	if (state.kind === 'loading') {
 		return (
-			<div className="container max-w-3xl mx-auto p-6 space-y-6">
+			<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
 				<Skeleton className="h-8 w-48" />
 				<Skeleton className="h-32 w-full" />
 				<Skeleton className="h-48 w-full" />
@@ -196,7 +196,7 @@ export default function AchievementsPage() {
 
 	if (state.kind === 'disabled') {
 		return (
-			<div className="container max-w-3xl mx-auto p-6">
+			<div className="container mx-auto max-w-6xl px-4 py-8">
 				<h1 className="text-2xl font-bold mb-4">{t('title')}</h1>
 				<Card>
 					<CardContent className="p-8 text-center text-muted-foreground">
@@ -212,7 +212,7 @@ export default function AchievementsPage() {
 
 	if (state.kind === 'error') {
 		return (
-			<div className="container max-w-3xl mx-auto p-6">
+			<div className="container mx-auto max-w-6xl px-4 py-8">
 				<h1 className="text-2xl font-bold mb-4">{t('title')}</h1>
 				<Card>
 					<CardContent className="p-8 text-center">
@@ -236,7 +236,7 @@ export default function AchievementsPage() {
 	const topGames = progress.toSorted((a, b) => b.numAwarded - a.numAwarded).slice(0, 10)
 
 	return (
-		<div className="container max-w-3xl mx-auto p-6 space-y-6">
+		<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>

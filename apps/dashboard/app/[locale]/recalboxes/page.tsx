@@ -14,7 +14,7 @@ export default async function RecalboxesPage() {
 	const archived = all.filter((r) => r.archived)
 
 	return (
-		<div className="container max-w-3xl mx-auto p-6 space-y-6">
+		<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-2xl font-bold">{t('page.title')}</h1>
 				<Link href="/recalboxes/add" className={cn(buttonVariants())}>

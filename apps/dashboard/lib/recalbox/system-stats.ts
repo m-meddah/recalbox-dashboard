@@ -52,6 +52,33 @@ async function getCpuUsage(ssh: SshClientLike): Promise<number | null> {
 	}
 }
 
+/** Per-core CPU usage (%), one entry per logical core, from two /proc/stat snapshots. */
+export async function getPerCoreUsage(ssh: SshClientLike): Promise<number[]> {
+	try {
+		const raw1 = await ssh.exec("grep '^cpu[0-9]' /proc/stat")
+		await new Promise((r) => setTimeout(r, 200))
+		const raw2 = await ssh.exec("grep '^cpu[0-9]' /proc/stat")
+		const lines1 = raw1.trim().split('\n')
+		const lines2 = raw2.trim().split('\n')
+		const out: number[] = []
+		for (let i = 0; i < Math.min(lines1.length, lines2.length); i++) {
+			const s1 = parseProcStat(lines1[i] ?? '')
+			const s2 = parseProcStat(lines2[i] ?? '')
+			if (!s1 || !s2) {
+				out.push(0)
+				continue
+			}
+			const totalDiff = s2.total - s1.total
+			const idleDiff = s2.idle - s1.idle
+			out.push(totalDiff > 0 ? Math.round(((totalDiff - idleDiff) / totalDiff) * 100) : 0)
+		}
+		return out
+	} catch {
+		// Best-effort: the monitoring panel handles an empty result silently.
+		return []
+	}
+}
+
 /** Parse RAM usage from `free -m` output. */
 function parseRam(raw: string): { used: number; total: number } | null {
 	// Format: Mem:   total  used  free  shared  buff/cache  available

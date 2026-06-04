@@ -42,7 +42,7 @@ export default async function CollectionPage({ params }: Props) {
 		.map(([name, count]) => ({ name, count }))
 
 	return (
-		<div className="container mx-auto max-w-screen-2xl space-y-6 px-4 py-8">
+		<div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
 			{/* Header */}
 			<div className="flex flex-wrap items-start justify-between gap-4">
 				<div>

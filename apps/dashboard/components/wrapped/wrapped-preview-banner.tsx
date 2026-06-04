@@ -15,13 +15,15 @@ export function WrappedPreviewBanner({ year, hours, minutes, topGame }: Props) {
 	return (
 		<Link
 			href={`/wrapped/${year}`}
-			className="flex items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-200 transition-colors hover:bg-purple-500/20"
+			className="flex items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-700 transition-colors hover:bg-purple-500/20 dark:text-purple-200"
 		>
-			<Sparkles className="size-4 shrink-0 text-purple-400" />
+			<Sparkles className="size-4 shrink-0 text-purple-600 dark:text-purple-400" />
 			<span className="flex-1 truncate">
 				{t('text', { year, duration, topGame: topGame ?? '…' })}
 			</span>
-			<span className="shrink-0 text-xs font-medium text-purple-300">{t('cta')} →</span>
+			<span className="shrink-0 text-xs font-medium text-purple-700 dark:text-purple-300">
+				{t('cta')} →
+			</span>
 		</Link>
 	)
 }

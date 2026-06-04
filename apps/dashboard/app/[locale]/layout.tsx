@@ -1,29 +1,31 @@
 import { ThemeProvider } from '@/components/theme-provider'
 import type { Metadata, Viewport } from 'next'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { Geist } from 'next/font/google'
+import { setRequestLocale } from 'next-intl/server'
+import { Roboto } from 'next/font/google'
 import { notFound } from 'next/navigation'
 import '../globals.css'
+import { AppSidebar } from '@/components/app-sidebar'
 import { FeedbackPromptProvider } from '@/components/feedback/feedback-prompt-provider'
-import { LanguageSwitcher } from '@/components/language-switcher'
-import { MobileNav } from '@/components/mobile-nav'
 import { NotificationBell } from '@/components/notification-bell'
 import { NotificationListener } from '@/components/notification-listener'
 import { PowerControls } from '@/components/power-controls'
 import { InstallBanner } from '@/components/pwa/install-banner'
 import { ServiceWorkerUpdater } from '@/components/pwa/service-worker-updater'
 import { RecalboxSwitcher } from '@/components/recalbox-switcher'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { Link } from '@/i18n/navigation'
 import { routing } from '@/i18n/routing'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { cn } from '@/lib/utils'
 import { RecalboxEventsProvider } from '../recalbox-events-provider'
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
+const roboto = Roboto({
+	subsets: ['latin'],
+	weight: ['300', '400', '500', '700'],
+	variable: '--font-sans',
+})
 
 type Props = {
 	children: React.ReactNode
@@ -66,81 +68,29 @@ export default async function LocaleLayout({ children, params }: Props) {
 
 	setRequestLocale(locale)
 
-	const t = await getTranslations({ locale, namespace: 'nav' })
-
 	const recalboxes = configStore.getRecalboxes()
 	const activeRecalboxId = await getActiveRecalboxId()
 
 	return (
-		<html lang={locale} className={cn('font-sans', geist.variable)} suppressHydrationWarning>
+		<html lang={locale} className={cn('font-sans', roboto.variable)} suppressHydrationWarning>
 			<body>
 				<ThemeProvider>
 					<NextIntlClientProvider>
 						<RecalboxEventsProvider>
-							<header className="border-b px-4 py-3">
-								<nav className="flex items-center gap-6">
-									{/* Desktop nav links */}
-									<div className="hidden md:flex items-center gap-6">
-										<Link href="/" className="text-sm font-semibold hover:text-primary">
-											{t('home')}
-										</Link>
-										<Link
-											href="/play-tonight"
-											className="text-sm font-semibold text-primary hover:text-primary/80"
-										>
-											{t('playTonight')}
-										</Link>
-										<Link
-											href="/stats"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('stats')}
-										</Link>
-										<Link
-											href="/collection"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('collection')}
-										</Link>
-										<Link
-											href="/profile"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('profile')}
-										</Link>
-										<Link
-											href="/achievements"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('achievements')}
-										</Link>
-										<Link
-											href="/wrapped"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('wrapped')}
-										</Link>
-										<Link
-											href="/settings"
-											className="text-sm text-muted-foreground hover:text-foreground"
-										>
-											{t('settings')}
-										</Link>
-									</div>
-									{/* Mobile hamburger */}
-									<MobileNav />
-									<div className="ml-auto flex items-center gap-2">
-										<NotificationBell />
-										<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
-										<PowerControls />
-										<div className="hidden md:flex items-center gap-2">
-											<ThemeToggle />
-											<LanguageSwitcher />
+							<SidebarProvider>
+								<AppSidebar />
+								<SidebarInset>
+									<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+										<SidebarTrigger className="-ml-1" />
+										<div className="ml-auto flex items-center gap-2">
+											<NotificationBell />
+											<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
+											<PowerControls />
 										</div>
-									</div>
-								</nav>
-							</header>
-							<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
+									</header>
+									<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
+								</SidebarInset>
+							</SidebarProvider>
 							<NotificationListener />
 							<ServiceWorkerUpdater />
 							<InstallBanner />
