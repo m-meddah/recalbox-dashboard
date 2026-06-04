@@ -1,14 +1,13 @@
-import { CollectionFilters } from '@/components/collection-filters'
-import { CollectionGrid } from '@/components/collection-grid'
+import { GameTable } from '@/components/game-table'
 import { SyncButton } from '@/components/sync-button'
-import { SystemSelector } from '@/components/system-selector'
+import { SystemLogo } from '@/components/system-grid'
 import { Separator } from '@/components/ui/separator'
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
-import { getCollectionStats } from '@/lib/db/queries'
+import { getCollectionStats, listRegions } from '@/lib/db/queries'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { ChevronRight } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,12 +19,13 @@ export default async function SystemCollectionPage({ params }: Props) {
 	const { system, locale } = await params
 	setRequestLocale(locale as (typeof routing.locales)[number])
 
-	const [stats, t] = await Promise.all([getCollectionStats(), getTranslations('collection')])
+	const recalboxId = await getActiveRecalboxId()
+	const [stats, t, regions] = await Promise.all([
+		getCollectionStats(),
+		getTranslations('collection'),
+		listRegions(system, recalboxId ?? undefined),
+	])
 	const gameCount = stats.bySystem[system] ?? 0
-
-	const sortedSystems = Object.entries(stats.bySystem)
-		.sort((a, b) => b[1] - a[1])
-		.map(([name, count]) => ({ name, count }))
 
 	return (
 		<div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -38,28 +38,22 @@ export default async function SystemCollectionPage({ params }: Props) {
 				<span className="font-medium text-foreground capitalize">{system}</span>
 			</nav>
 
-			{/* Header */}
-			<div className="flex flex-wrap items-start justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold capitalize">{system}</h1>
-					<p className="text-sm text-muted-foreground">{t('totalGames', { count: gameCount })}</p>
+			{/* Header: system logo + name */}
+			<div className="flex flex-wrap items-center justify-between gap-4">
+				<div className="flex items-center gap-3">
+					<SystemLogo system={system} className="h-12 w-20 shrink-0 rounded-md p-2" />
+					<div>
+						<h1 className="text-2xl font-bold capitalize">{system}</h1>
+						<p className="text-sm text-muted-foreground">{t('totalGames', { count: gameCount })}</p>
+					</div>
 				</div>
 				<SyncButton system={system} />
 			</div>
 
 			<Separator />
 
-			{/* System selector + Filters */}
-			<div className="flex flex-wrap items-center gap-3">
-				<SystemSelector systems={sortedSystems} currentSystem={system} />
-				<Separator orientation="vertical" className="h-8" />
-				<Suspense>
-					<CollectionFilters system={system} />
-				</Suspense>
-			</div>
-
-			{/* Game grid */}
-			<CollectionGrid system={system} />
+			{/* Games table */}
+			<GameTable system={system} regions={regions} />
 		</div>
 	)
 }

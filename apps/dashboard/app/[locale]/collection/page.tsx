@@ -1,8 +1,6 @@
-import { CollectionFilters } from '@/components/collection-filters'
-import { CollectionGrid } from '@/components/collection-grid'
 import { CollectionHealthPanel } from '@/components/collection-health-panel'
 import { SyncButton } from '@/components/sync-button'
-import { SystemSelector } from '@/components/system-selector'
+import { SystemGrid } from '@/components/system-grid'
 import { buttonVariants } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Link } from '@/i18n/navigation'
@@ -14,7 +12,6 @@ import { getPatronStatus } from '@/lib/recalbox/patron-status'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { Disc3 } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,9 +34,10 @@ export default async function CollectionPage({ params }: Props) {
 			: Promise.resolve({ isPatron: false, keyPresent: false, keyLooksValid: false }),
 	])
 
-	const sortedSystems = Object.entries(stats.bySystem)
-		.sort((a, b) => b[1] - a[1])
+	// All systems that have at least one rom, alphabetical like the Web Manager.
+	const systems = Object.entries(stats.bySystem)
 		.map(([name, count]) => ({ name, count }))
+		.sort((a, b) => a.name.localeCompare(b.name))
 
 	return (
 		<div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -51,7 +49,7 @@ export default async function CollectionPage({ params }: Props) {
 						{t('gamesCount', { count: stats.totalGames })} ·{' '}
 						{t('favoritesCount', { count: stats.favorites })} ·{' '}
 						{t('neverPlayedCount', { count: stats.neverPlayed })} ·{' '}
-						{t('systemsCount', { count: sortedSystems.length })}
+						{t('systemsCount', { count: systems.length })}
 					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
@@ -71,17 +69,8 @@ export default async function CollectionPage({ params }: Props) {
 			{/* Collection health panel */}
 			<CollectionHealthPanel health={health} patron={patron} />
 
-			{/* System selector + Filters */}
-			<div className="flex flex-wrap items-center gap-3">
-				<SystemSelector systems={sortedSystems} />
-				<Separator orientation="vertical" className="h-8" />
-				<Suspense>
-					<CollectionFilters />
-				</Suspense>
-			</div>
-
-			{/* Game grid */}
-			<CollectionGrid />
+			{/* System grid */}
+			<SystemGrid systems={systems} />
 		</div>
 	)
 }
