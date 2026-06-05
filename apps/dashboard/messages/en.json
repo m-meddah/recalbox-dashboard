@@ -132,7 +132,8 @@
 			"confirmTitle": "Launch this game?",
 			"confirmDescription": "“{name}” will start on your Recalbox.",
 			"launched": "“{name}” is starting on your Recalbox.",
-			"error": "Could not launch the game."
+			"error": "Could not launch the game.",
+			"busy": "A game is already running ({name}) — quit it first."
 		}
 	},
 	"stats": {
@@ -759,7 +760,8 @@
 			"emptyHint": "Try a different time/mood, or play more to build your profile.",
 			"reshuffle": "Suggest other games",
 			"launchedToast": "“{name}” is starting on your Recalbox.",
-			"launchError": "Could not launch the game on your Recalbox."
+			"launchError": "Could not launch the game on your Recalbox.",
+			"launchBusy": "A game is already running ({name}) — quit it first."
 		},
 		"card": {
 			"launch": "Play",

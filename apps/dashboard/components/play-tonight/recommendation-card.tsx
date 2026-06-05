@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,6 +8,7 @@ import type { ScoredGame } from '@/lib/recommendations/types'
 import { cn } from '@/lib/utils'
 import { HelpCircle, Play, Sparkles, Target, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import Image from 'next/image'
 
 const CONF_STYLE = {
 	high: { icon: Target, cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10' },
@@ -25,11 +25,15 @@ export function RecommendationCard({
 	debugMode = false,
 	onSkip,
 	onLaunch,
+	launchDisabled = false,
+	launchDisabledLabel,
 }: {
 	game: ScoredGame
 	debugMode?: boolean
 	onSkip: () => void
 	onLaunch: () => void
+	launchDisabled?: boolean
+	launchDisabledLabel?: string
 }) {
 	const t = useTranslations('playTonight.card')
 	const locale = useLocale()
@@ -108,7 +112,12 @@ export function RecommendationCard({
 					</ul>
 				)}
 				<div className="mt-auto pt-3 flex gap-2">
-					<Button onClick={onLaunch} className="flex-1">
+					<Button
+						onClick={onLaunch}
+						disabled={launchDisabled}
+						title={launchDisabled ? launchDisabledLabel : undefined}
+						className="flex-1"
+					>
 						<Play className="size-4 mr-1" /> {t('launch')}
 					</Button>
 					<Button variant="outline" size="icon" onClick={onSkip} title={t('skip')}>

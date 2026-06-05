@@ -132,7 +132,8 @@
 			"confirmTitle": "Lancer ce jeu ?",
 			"confirmDescription": "« {name} » va démarrer sur ta Recalbox.",
 			"launched": "« {name} » démarre sur ta Recalbox.",
-			"error": "Impossible de lancer le jeu."
+			"error": "Impossible de lancer le jeu.",
+			"busy": "Un jeu est déjà en cours ({name}) — quitte-le d’abord."
 		}
 	},
 	"stats": {
@@ -759,7 +760,8 @@
 			"emptyHint": "Essaye un autre temps/humeur, ou joue plus pour enrichir ton profil.",
 			"reshuffle": "Proposer d'autres jeux",
 			"launchedToast": "« {name} » démarre sur ta Recalbox.",
-			"launchError": "Impossible de lancer le jeu sur ta Recalbox."
+			"launchError": "Impossible de lancer le jeu sur ta Recalbox.",
+			"launchBusy": "Un jeu est déjà en cours ({name}) — quitte-le d’abord."
 		},
 		"card": {
 			"launch": "Lancer",

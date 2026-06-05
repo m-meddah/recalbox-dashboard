@@ -12,6 +12,7 @@ import {
 	AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useGameRunning } from '@/hooks/use-game-running'
 import { Play } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -22,6 +23,7 @@ type Props = { romPath: string; system: string; name: string }
 export function LaunchGameButton({ romPath, system, name }: Props) {
 	const t = useTranslations('collection.launch')
 	const tCommon = useTranslations('common')
+	const { running, gameName } = useGameRunning()
 	const [open, setOpen] = useState(false)
 	const [busy, setBusy] = useState(false)
 
@@ -52,7 +54,8 @@ export function LaunchGameButton({ romPath, system, name }: Props) {
 						size="icon"
 						className="text-primary hover:text-primary"
 						aria-label={t('action')}
-						disabled={busy}
+						title={running ? t('busy', { name: gameName ?? '' }) : t('action')}
+						disabled={busy || running}
 					/>
 				}
 			>
