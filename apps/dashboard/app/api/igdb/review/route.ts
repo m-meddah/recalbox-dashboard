@@ -1,13 +1,19 @@
 import { db } from '@/lib/db'
 import { gameIgdbMapping, games } from '@/lib/db/schema'
 import type { IgdbCandidate } from '@/lib/igdb/match-game'
-import { desc, eq } from 'drizzle-orm'
-import { NextResponse } from 'next/server'
+import { and, desc, eq } from 'drizzle-orm'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+	const system = req.nextUrl.searchParams.get('system')
+
+	const where = system
+		? and(eq(gameIgdbMapping.needsReview, true), eq(games.system, system))
+		: eq(gameIgdbMapping.needsReview, true)
+
 	const rows = await db
 		.select({
 			gameId: gameIgdbMapping.gameId,
@@ -21,7 +27,7 @@ export async function GET() {
 		})
 		.from(gameIgdbMapping)
 		.innerJoin(games, eq(games.id, gameIgdbMapping.gameId))
-		.where(eq(gameIgdbMapping.needsReview, true))
+		.where(where)
 		.orderBy(desc(gameIgdbMapping.matchConfidence))
 		.all()
 
