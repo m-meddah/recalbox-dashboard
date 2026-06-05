@@ -69,15 +69,15 @@ export default function IgdbReviewPage() {
 			.catch(() => setLoadingItems(false))
 	}, [activeSystem])
 
-	function afterConfirm(gameId: number) {
+	function afterConfirm(gameId: number, confirmedSystem: string) {
 		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 		setSystems((prev) => {
 			const updated = prev
 				.map((s) =>
-					s.system === activeSystem ? { ...s, count: s.count - 1 } : s,
+					s.system === confirmedSystem ? { ...s, count: s.count - 1 } : s,
 				)
 				.filter((s) => s.count > 0)
-			const stillActive = updated.find((s) => s.system === activeSystem)
+			const stillActive = updated.find((s) => s.system === confirmedSystem)
 			if (!stillActive) {
 				setActiveSystem(updated[0]?.system ?? null)
 			}
@@ -86,6 +86,7 @@ export default function IgdbReviewPage() {
 	}
 
 	function handleSelect(gameId: number, candidate: IgdbCandidate) {
+		const confirmedSystem = activeSystem ?? ''
 		startTransition(async () => {
 			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
@@ -98,7 +99,7 @@ export default function IgdbReviewPage() {
 					igdbName: candidate.igdbName,
 				}),
 			})
-			if (res.ok) afterConfirm(gameId)
+			if (res.ok) afterConfirm(gameId, confirmedSystem)
 		})
 	}
 
@@ -106,6 +107,7 @@ export default function IgdbReviewPage() {
 		const rawId = manualInput.get(gameId)?.trim()
 		const igdbId = rawId ? Number(rawId) : Number.NaN
 		if (!igdbId || Number.isNaN(igdbId)) return
+		const confirmedSystem = activeSystem ?? ''
 		startTransition(async () => {
 			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
@@ -113,11 +115,12 @@ export default function IgdbReviewPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameId, action: 'manual', igdbId, igdbName: 'Manual entry' }),
 			})
-			if (res.ok) afterConfirm(gameId)
+			if (res.ok) afterConfirm(gameId, confirmedSystem)
 		})
 	}
 
 	function handleReject(gameId: number) {
+		const confirmedSystem = activeSystem ?? ''
 		startTransition(async () => {
 			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
@@ -125,7 +128,7 @@ export default function IgdbReviewPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameId, action: 'reject' }),
 			})
-			if (res.ok) afterConfirm(gameId)
+			if (res.ok) afterConfirm(gameId, confirmedSystem)
 		})
 	}
 

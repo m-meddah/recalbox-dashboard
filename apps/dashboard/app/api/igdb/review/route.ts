@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
-	const system = req.nextUrl.searchParams.get('system')
+	const system = req.nextUrl.searchParams.get('system')?.trim() || null
 
 	const where = system
 		? and(eq(gameIgdbMapping.needsReview, true), eq(games.system, system))
