@@ -36,6 +36,11 @@ export function LaunchGameButton({ romPath, system, name }: Props) {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ romPath, system }),
 			})
+			if (res.status === 409) {
+				const data = (await res.json().catch(() => null)) as { gameName?: string } | null
+				toast.error(t('busy', { name: data?.gameName ?? '' }))
+				return
+			}
 			if (!res.ok) throw new Error('launch failed')
 			toast.success(t('launched', { name }))
 		} catch {

@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { getEsState } from '@/lib/recalbox/es-state'
 import { isLaunchable, launchGame } from '@/lib/recalbox/launch-game'
 import { type NextRequest, NextResponse } from 'next/server'
 
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
+	}
+
+	// Refuse to launch over a running game — ES would silently queue it and start it
+	// only after the current game quits (surprising the user). The browser already
+	// disables the button on live events; this guards the case where the box was busy
+	// before any event reached the client.
+	const state = await getEsState(recalboxId)
+	if (state?.gameRunning) {
+		return NextResponse.json({ error: 'busy', gameName: state.gameName }, { status: 409 })
 	}
 
 	try {

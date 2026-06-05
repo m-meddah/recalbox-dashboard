@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { games, recommendationLog } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { getEsState } from '@/lib/recalbox/es-state'
 import { launchGame } from '@/lib/recalbox/launch-game'
 import { and, desc, eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -48,6 +49,8 @@ export async function POST(req: NextRequest) {
 
 	// Actually start the game on the active Recalbox (the box the dashboard drives).
 	let launched = false
+	let busy = false
+	let busyGameName: string | null = null
 	try {
 		const recalboxId = await getActiveRecalboxId()
 		const game = await db
@@ -57,13 +60,20 @@ export async function POST(req: NextRequest) {
 			.get()
 
 		if (recalboxId && game) {
-			await launchGame(recalboxId, game.system, game.romPath)
-			launched = true
+			// Don't stack a launch on top of a game already running on the box.
+			const state = await getEsState(recalboxId)
+			if (state?.gameRunning) {
+				busy = true
+				busyGameName = state.gameName
+			} else {
+				await launchGame(recalboxId, game.system, game.romPath)
+				launched = true
+			}
 		}
 	} catch (err) {
 		// The choice is logged regardless; surface the launch failure to the client.
 		logger.error('Play-tonight game launch failed', err)
 	}
 
-	return NextResponse.json({ ok: true, launched })
+	return NextResponse.json({ ok: true, launched, busy, gameName: busyGameName })
 }

@@ -50,8 +50,13 @@ export function PlayTonightResults({
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameId: game.gameId }),
 			})
-			const data = (await res.json().catch(() => null)) as { launched?: boolean } | null
+			const data = (await res.json().catch(() => null)) as {
+				launched?: boolean
+				busy?: boolean
+				gameName?: string | null
+			} | null
 			if (data?.launched) toast.success(t('launchedToast', { name: game.name }))
+			else if (data?.busy) toast.error(t('launchBusy', { name: data.gameName ?? '' }))
 			else toast.error(t('launchError'))
 		} catch {
 			toast.error(t('launchError'))
