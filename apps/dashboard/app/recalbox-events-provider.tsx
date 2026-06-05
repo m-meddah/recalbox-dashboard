@@ -52,6 +52,15 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
 
+	// If no connection event arrives within 10 s (SSE failing or no Recalbox configured),
+	// fall through to offline so components don't stay in perpetual skeleton state.
+	useEffect(() => {
+		const fallback = setTimeout(() => {
+			setMqttOnline((prev) => (prev === null ? false : prev))
+		}, 10_000)
+		return () => clearTimeout(fallback)
+	}, [])
+
 	useEffect(() => {
 		let reconnectTimer: ReturnType<typeof setTimeout>
 

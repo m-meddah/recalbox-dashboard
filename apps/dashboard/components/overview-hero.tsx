@@ -26,11 +26,15 @@ export async function OverviewHero() {
 					backgroundSize: 'auto, cover',
 				}}
 			>
-				<h1 className="text-xl font-semibold tracking-[0.18em] text-white/95 uppercase">
+				<h1 className="min-w-0 truncate text-xl font-semibold tracking-[0.18em] text-white/95 uppercase">
 					{t('title')}
 				</h1>
 				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img src="/recalbox/recalbox-logo.svg" alt="Recalbox" className="h-7 brightness-0 invert" />
+				<img
+					src="/recalbox/recalbox-logo.svg"
+					alt="Recalbox"
+					className="ml-3 h-5 w-auto shrink-0 brightness-0 invert sm:h-7"
+				/>
 			</div>
 			<div className="grid grid-cols-1 gap-6 px-6 py-8 sm:grid-cols-3">
 				<StatCircle value={systems} label={t('systems')} />

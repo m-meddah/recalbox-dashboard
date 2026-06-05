@@ -12,6 +12,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from '@/components/ui/sidebar'
 import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
 export function AppSidebar() {
 	const t = useTranslations('nav')
 	const pathname = usePathname()
+	const { isMobile, setOpenMobile } = useSidebar()
 
 	return (
 		<Sidebar collapsible="icon">
@@ -80,7 +82,12 @@ export function AppSidebar() {
 												isActive &&
 													'text-sidebar-primary before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-1 before:rounded-full before:bg-sidebar-primary',
 											)}
-											render={<Link href={href} />}
+											render={
+										<Link
+											href={href}
+											onClick={isMobile ? () => setOpenMobile(false) : undefined}
+										/>
+									}
 										>
 											<Icon />
 											<span>{t(labelKey)}</span>

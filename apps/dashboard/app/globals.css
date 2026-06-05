@@ -130,6 +130,8 @@
 	html,
 	body {
 		@apply bg-background text-foreground;
+	}
+	body {
 		overflow-x: hidden;
 	}
 	html {
