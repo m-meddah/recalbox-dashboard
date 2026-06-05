@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-05
+
+A major release that reskins the dashboard to share the visual DNA of the built-in
+Recalbox Web Manager, mirrors several of its views (monitoring, BIOS, collection), and
+adds the ability to launch games on the Recalbox directly from the dashboard. No data
+migration is required when upgrading from 1.x — same database, same connection settings.
+
+### Added
+
+- **Web Manager design language** — full UI reskin: navy/teal palette with a derived dark mode, Roboto type, and a **collapsible icon rail** replacing the top navigation (it becomes a drawer on mobile). Cards, toggles and tabs follow the same Material-ish styling.
+- **Overview home page** — gradient hero with the gamepad pattern, stat circles, and a restyled *Now Playing* (current system + current game, screensaver demo state).
+- **BIOS health** (`/bios`) — read-only health view mirroring the Web Manager BIOS screen: every required/optional BIOS with its status (present / hash mismatch / missing), filter chips and search, fed by the Web Manager API (`GET /api/bios`).
+- **Monitoring redesign** — per-core CPU as a vertical bar chart and storage as Web-Manager-style HDD rows (share/boot partitions only, de-duplicated, usage %), served by `GET /api/monitoring`.
+- **Revamped collection** — a systems grid showing every system with at least one ROM, and a per-system detail table with **box-3D artwork**, 5-star ratings, a **region column + region filter**, favorites filter, search and pagination.
+- **Launch games from the dashboard** — a ▶ button on each game (`POST /api/collection/launch`) and on the *Play Tonight* recommendations asks EmulationStation to start the game via its UDP listener (port 1337), sent from the box over SSH.
+- **Running-game guard** — launches are blocked when a game is already running: live via MQTT events (the button is disabled with a tooltip) and server-side by reading `es_state.inf` before sending (returns `409 { error: 'busy', gameName }`), so a game is never silently queued behind another.
+- Regenerated favicons and PWA icons from the Recalbox button logo.
+
+### Changed
+
+- Top navigation bar replaced by the collapsible sidebar rail; the previous mobile hamburger drawer is superseded by the sidebar's mobile sheet.
+
+### Fixed
+
+- Recommendations: `scoreGame` now correctly excludes games exceeding 4× the available time in finish mode (test updated to match).
+
 ## [1.1.0] - 2026-05-30
 
 ### Added

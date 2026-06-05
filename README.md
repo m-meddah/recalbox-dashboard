@@ -1,10 +1,21 @@
 # Recalbox Dashboard
 
-**A companion analytics dashboard for Recalbox.** Historical session tracking,
-playtime statistics, achievement progress, and an annual recap of your retrogaming year.
-Supports multiple Recalbox instances from a single dashboard.
+**A companion dashboard for Recalbox.** Historical session tracking, playtime
+statistics, achievement progress, BIOS health, live monitoring, a browsable game
+collection you can launch from your couch, and an annual recap of your retrogaming
+year. Supports multiple Recalbox instances from a single dashboard.
 
 Runs on a machine on the same local network as your Recalbox — **not** on the Recalbox itself.
+
+> **🚀 Version 2.0 — Web Manager design language**
+>
+> The whole UI has been reskinned to share the visual DNA of the built-in Recalbox
+> [Web Manager](https://wiki.recalbox.com/fr/basic-usage/features/webmanager) (navy/teal
+> palette, Roboto, collapsible icon rail) so your users never feel like they've landed in
+> a different app. 2.0 also brings **BIOS health**, a **Web-Manager-style monitoring view**
+> (per-core CPU + storage), a **revamped collection** (all systems with ≥1 ROM, region
+> filter, box-3D art), and the ability to **launch games on the Recalbox directly from the
+> dashboard**. See [What's new in 2.0](#whats-new-in-20).
 
 ## Why this dashboard?
 
@@ -14,14 +25,17 @@ management. **This project does not replace it** — it complements it.
 
 The Web Manager answers *"How's my Recalbox right now?"*. This dashboard
 answers *"How have I used my Recalbox over time?"* — think Last.fm for
-retrogaming.
+retrogaming. Since 2.0 it also mirrors several Web Manager views (monitoring,
+BIOS, collection) in its own design, and can launch games — while staying
+analytics-first.
 
 | Recalbox Web Manager (built-in) | Recalbox Dashboard (this project) |
 | --- | --- |
-| Live CPU temp, RAM, storage | Historical playtime charts |
+| Live CPU temp, RAM, storage | Live per-core CPU + storage **and** historical playtime charts |
 | Edit `recalbox.conf` | Activity heatmap (GitHub-style) |
-| Upload BIOS / ROMs | Top games, streaks, sessions timeline |
-| Screenshots and logs | Game collection browsable & filterable |
+| Upload BIOS / ROMs | BIOS **health** view (present / missing / hash mismatch) |
+| Browse and launch games | Collection browsable & filterable (region, favorites) **+ launch from the dashboard** |
+| Screenshots and logs | Top games, streaks, sessions timeline, annual Wrapped |
 | Mobile-friendly | Mobile-friendly + PWA installable |
 
 ### Where this fits in the Recalbox ecosystem
@@ -38,7 +52,38 @@ Recalbox, RecalboxHomeAssistant controls it from your smart home, and this
 dashboard tells you how you've used it over time. If you use Home Assistant,
 run both: RecalboxHomeAssistant for control, this dashboard for analytics.
 
+> Since 2.0 the dashboard can also **launch a game** on the box (via EmulationStation's
+> UDP listener, the same mechanism RecalboxHomeAssistant uses). It stays analytics-first —
+> for full control/automation (stop game, smart-home triggers, voice), RecalboxHomeAssistant
+> remains the right tool.
+
 Use both: the Web Manager for ops, this dashboard for analytics.
+
+## What's new in 2.0
+
+- **Web Manager design language** — a full reskin so the dashboard shares the visual
+  DNA of the built-in Web Manager: navy/teal palette (with a derived dark mode), Roboto
+  type, and a **collapsible icon rail** replacing the top navigation (it becomes a drawer
+  on mobile). Cards, toggles and tabs follow the same Material-ish styling. Favicons and
+  PWA icons regenerated from the Recalbox button logo.
+- **Overview home page** — gradient hero with the gamepad pattern, stat circles, and a
+  restyled *Now Playing* (current system + current game, screensaver demo state).
+- **BIOS health** (`/bios`) — mirrors the Web Manager BIOS screen: every required/optional
+  BIOS with its status (✅ present · ⚠️ hash mismatch · ❌ missing), filter chips and search,
+  fed by the Web Manager API.
+- **Monitoring redesign** — per-core CPU as a vertical bar chart and storage as
+  Web-Manager-style HDD rows (share/boot partitions only, de-duplicated, usage %).
+- **Revamped collection** — a systems grid showing **every system with at least one ROM**,
+  and a detail table per system with **box-3D artwork**, 5-star ratings, a **region column +
+  region filter**, favorites filter, search and pagination.
+- **Launch games from the dashboard** — a ▶ button on each game (and on the *Play Tonight*
+  recommendations) asks EmulationStation to start it via its UDP listener. Launches are
+  **guarded against a game already running** on the box — both live (MQTT events disable the
+  button) and server-side (reads `es_state.inf` before sending), so you never silently queue
+  a game behind another.
+
+> **Upgrading from 1.x:** no data migration needed — same database, same connection settings.
+> This is a major version because the UI changed substantially; functionality is additive.
 
 ## Installation
 
@@ -174,13 +219,18 @@ See [docs/mqtt-api.md](docs/mqtt-api.md) for the full topic contract.
 | Protocol | Port | Purpose |
 | -------- | ---- | ------- |
 | MQTT | 1883 | Real-time game events |
-| SSH | 22 | System stats snapshots + image proxy |
+| SSH | 22 | System stats snapshots, image/media proxy, per-core CPU, and game launch |
+| HTTP | 81 | Recalbox Web Manager API (BIOS health, storage info) |
+
+Game launch reaches EmulationStation's UDP listener (port **1337**) — but the datagram is
+sent **from the box** over the existing SSH connection (a fresh client-side UDP send can't
+reliably resolve `recalbox.local`), so no extra port needs to be open from the dashboard host.
 
 ## Stack
 
 - **Next.js 16** — App Router, Turbopack
 - **Drizzle ORM + better-sqlite3** — local SQLite persistence
-- **Tailwind CSS v4 + shadcn/ui** — UI
+- **Tailwind CSS v4 + shadcn/ui** — UI, themed with the Recalbox Web Manager design language (navy/teal, Roboto, collapsible icon rail)
 - **Biome** — linting & formatting (replaces ESLint + Prettier)
 
 ## Architecture
@@ -301,6 +351,14 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 20 — IGDB integration: lazy background matching, critic ratings, similarity graph for recommendation boost; manual review UI in Settings
 - [x] Ticket 21 — Taste Profile (`/profile`): inferred weights per system / genre / decade / developer, comfort games, maturity score, 30-day quality metrics
 - [x] Ticket 22 — "What to Play Tonight" (`/play-tonight`): mood + time-aware content-based recommendation engine with skip, launch, and confidence levels
+
+### Version 2.0 — Web Manager parity & game launch
+
+- [x] UI refonte — reskin to the Recalbox Web Manager design language (navy/teal palette, derived dark mode, Roboto, collapsible icon rail + mobile drawer), restyled overview/home, regenerated favicons & PWA icons
+- [x] BIOS health page (`/bios`) — present / mismatch / missing per BIOS, filters and search, via the Web Manager API
+- [x] Monitoring redesign — per-core CPU bar chart + Web-Manager-style storage rows (`GET /api/monitoring`)
+- [x] Collection revamp — systems grid (all systems with ≥1 ROM) + per-system table with box-3D art, ratings, region column & filter, favorites filter
+- [x] Launch games from the dashboard — collection ▶ and Play Tonight launch via EmulationStation's UDP listener, guarded against a game already running (live MQTT + server-side `es_state.inf`)
 
 ## RetroAchievements integration
 
@@ -461,10 +519,52 @@ Full import from `gamelist.xml` files via SSH. Returns an NDJSON progress stream
 
 Returns regions available in the collection, optionally filtered by `?system=`.
 
+### `POST /api/collection/launch`
+
+Asks the active Recalbox's EmulationStation to launch a game.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `system` | string | System id (lowercase alphanumeric, e.g. `snes`) |
+| `romPath` | string | Absolute ROM path under `/recalbox/share/` |
+
+Both fields are validated (`isLaunchable`) before anything is sent — the system id must be
+lowercase alphanumeric and the ROM path must live under `/recalbox/share/` with no pipe or
+newline characters. Returns **409** `{ error: 'busy', gameName }` when a game is already
+running on the box (checked via `es_state.inf`).
+
+> `POST /api/play-tonight/launch` launches the chosen recommendation the same way and
+> records the choice for the recommender; it returns `{ launched, busy, gameName }`.
+
 ### User data (`gamelist-userdata.ini`)
 
 Recalbox stores user preferences (favorites, hidden, play stats) in a separate `.ini` file.
 The sync reads both files and merges them — `.ini` values take priority over XML.
+
+## BIOS health (`/bios`)
+
+A read-only health view for your BIOS files, mirroring the Web Manager's BIOS screen.
+The dashboard calls the Recalbox Web Manager API (`GET /api/bios`) and flattens every
+system's BIOS into one searchable, filterable table.
+
+| Status | Meaning |
+| ------ | ------- |
+| ✅ present | File on disk and MD5 matches an expected hash |
+| ⚠️ mismatch | File present but its MD5 isn't in the expected list |
+| ❌ missing | Required file not found on disk |
+
+Each row shows the system, file path, the (uppercased) current and expected MD5s, and
+whether the BIOS is mandatory. A summary banner counts present / mismatch / missing across
+the whole library. Use the Web Manager to actually upload or fix the files.
+
+## Monitoring
+
+The home/overview page shows a live snapshot styled after the Web Manager's monitoring
+screen, served by `GET /api/monitoring`:
+
+- **Per-core CPU** — a vertical bar per logical core (`getPerCoreUsage` over SSH)
+- **Storage** — the user-facing `share` and `boot` partitions only (de-duplicated by
+  filesystem), each as an HDD row with a usage bar and percentage (Web Manager API)
 
 ## Contributing
 
