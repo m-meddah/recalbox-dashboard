@@ -150,14 +150,14 @@ describe('scoreGame', () => {
 			const profile = makeProfile({ systemsWeights: [w('snes', 0.9)] })
 			const favSystem = scoreGame(makeGame({ system: 'snes' }), makeCtx(profile))
 			const otherSystem = scoreGame(makeGame({ system: 'nes' }), makeCtx(profile))
-			expect(favSystem?.score).toBeGreaterThan(otherSystem?.score)
+			expect(favSystem?.score).toBeGreaterThan(otherSystem!.score)
 		})
 
 		it('scores higher for matching genre', () => {
 			const profile = makeProfile({ genresWeights: [w('Platformer', 0.8)] })
 			const favGenre = scoreGame(makeGame({ genres: ['Platformer'] }), makeCtx(profile))
 			const otherGenre = scoreGame(makeGame({ genres: ['Shmup'] }), makeCtx(profile))
-			expect(favGenre?.score).toBeGreaterThan(otherGenre?.score)
+			expect(favGenre?.score).toBeGreaterThan(otherGenre!.score)
 		})
 
 		it('adds system-prefers reason when weight ≥ 0.7', () => {
@@ -332,8 +332,8 @@ describe('scoreGame', () => {
 				hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null }, // 60min exact match
 			})
 			const withoutHltb = makeGame({ hltbDurations: null, system: 'snes' })
-			const withScore = scoreGame(withHltb, ctx)?.score
-			const withoutScore = scoreGame(withoutHltb, ctx)?.score
+			const withScore = scoreGame(withHltb, ctx)!.score
+			const withoutScore = scoreGame(withoutHltb, ctx)!.score
 			expect(withScore).toBeGreaterThan(withoutScore)
 		})
 

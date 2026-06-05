@@ -228,8 +228,8 @@ function SystemSpecsPanel({
 			['ram', specs?.ram],
 			['audio', specs?.soundChip],
 			['video', specs?.video ?? specs?.resolution ?? specs?.display ?? specs?.gpu],
-		] as const
-	).filter((r): r is readonly [string, string] => Boolean(r[1]))
+		] as Array<[Parameters<typeof t>[0], string | undefined]>
+	).filter((r): r is [Parameters<typeof t>[0], string] => r[1] != null)
 
 	return (
 		<Card className="gap-0 overflow-hidden p-0">

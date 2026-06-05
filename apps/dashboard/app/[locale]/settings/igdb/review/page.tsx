@@ -7,7 +7,7 @@ import type { IgdbCandidate } from '@/lib/igdb/match-game'
 import { ArrowLeft, Check, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { startTransition, useEffect, useOptimistic, useState } from 'react'
 
 type ReviewItem = {
 	gameId: number
@@ -25,9 +25,13 @@ export default function IgdbReviewPage() {
 	const router = useRouter()
 	const [items, setItems] = useState<ReviewItem[]>([])
 	const [loading, setLoading] = useState(true)
-	const [acting, setActing] = useState<number | null>(null)
 	const [manualOpen, setManualOpen] = useState<Map<number, boolean>>(new Map())
 	const [manualInput, setManualInput] = useState<Map<number, string>>(new Map())
+
+	const [optimisticItems, removeOptimistic] = useOptimistic(
+		items,
+		(state: ReviewItem[], gameId: number) => state.filter((item) => item.gameId !== gameId),
+	)
 
 	useEffect(() => {
 		fetch('/api/igdb/review')
@@ -39,9 +43,9 @@ export default function IgdbReviewPage() {
 			.catch(() => setLoading(false))
 	}, [])
 
-	async function handleSelect(gameId: number, candidate: IgdbCandidate) {
-		setActing(gameId)
-		try {
+	function handleSelect(gameId: number, candidate: IgdbCandidate) {
+		startTransition(async () => {
+			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -55,17 +59,15 @@ export default function IgdbReviewPage() {
 			if (res.ok) {
 				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 			}
-		} finally {
-			setActing(null)
-		}
+		})
 	}
 
-	async function handleManual(gameId: number) {
+	function handleManual(gameId: number) {
 		const rawId = manualInput.get(gameId)?.trim()
 		const igdbId = rawId ? Number(rawId) : Number.NaN
 		if (!igdbId || Number.isNaN(igdbId)) return
-		setActing(gameId)
-		try {
+		startTransition(async () => {
+			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -74,14 +76,12 @@ export default function IgdbReviewPage() {
 			if (res.ok) {
 				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 			}
-		} finally {
-			setActing(null)
-		}
+		})
 	}
 
-	async function handleReject(gameId: number) {
-		setActing(gameId)
-		try {
+	function handleReject(gameId: number) {
+		startTransition(async () => {
+			removeOptimistic(gameId)
 			const res = await fetch('/api/igdb/review/confirm', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -90,9 +90,7 @@ export default function IgdbReviewPage() {
 			if (res.ok) {
 				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 			}
-		} finally {
-			setActing(null)
-		}
+		})
 	}
 
 	return (
@@ -110,7 +108,7 @@ export default function IgdbReviewPage() {
 
 			{loading && <p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>}
 
-			{!loading && items.length === 0 && (
+			{!loading && optimisticItems.length === 0 && (
 				<Card>
 					<CardContent className="py-8 text-center text-muted-foreground text-sm">
 						{t('igdbReview.allGood')}
@@ -118,14 +116,14 @@ export default function IgdbReviewPage() {
 				</Card>
 			)}
 
-			{!loading && items.length > 0 && (
+			{!loading && optimisticItems.length > 0 && (
 				<Card>
 					<CardHeader>
-						<CardTitle>{t('igdbReview.pendingTitle', { count: items.length })}</CardTitle>
+						<CardTitle>{t('igdbReview.pendingTitle', { count: optimisticItems.length })}</CardTitle>
 					</CardHeader>
 					<CardContent className="p-0">
 						<div className="divide-y">
-							{items.map((item) => (
+							{optimisticItems.map((item) => (
 								<div key={item.gameId} className="p-4 space-y-3">
 									<div>
 										<p className="font-medium text-sm">{item.gameName}</p>
@@ -151,7 +149,6 @@ export default function IgdbReviewPage() {
 													<Button
 														size="sm"
 														variant={i === 0 ? 'default' : 'outline'}
-														disabled={acting === item.gameId}
 														onClick={() => handleSelect(item.gameId, candidate)}
 														aria-label={candidate.igdbName}
 													>
@@ -163,7 +160,6 @@ export default function IgdbReviewPage() {
 												size="sm"
 												variant="ghost"
 												className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
-												disabled={acting === item.gameId}
 												onClick={() => handleReject(item.gameId)}
 											>
 												<X className="size-3.5 mr-1" />
@@ -184,7 +180,6 @@ export default function IgdbReviewPage() {
 												size="sm"
 												variant="outline"
 												className="text-green-600 border-green-200 hover:bg-green-50"
-												disabled={acting === item.gameId}
 												onClick={() => {
 													if (item.igdbId && item.igdbName) {
 														handleSelect(item.gameId, {
@@ -204,7 +199,6 @@ export default function IgdbReviewPage() {
 												size="sm"
 												variant="outline"
 												className="text-red-600 border-red-200 hover:bg-red-50"
-												disabled={acting === item.gameId}
 												onClick={() => handleReject(item.gameId)}
 											>
 												<X className="size-3.5" />
@@ -224,12 +218,11 @@ export default function IgdbReviewPage() {
 													onChange={(e) =>
 														setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))
 													}
-													disabled={acting === item.gameId}
 												/>
 												<Button
 													size="sm"
 													variant="secondary"
-													disabled={acting === item.gameId || !manualInput.get(item.gameId)?.trim()}
+													disabled={!manualInput.get(item.gameId)?.trim()}
 													onClick={() => handleManual(item.gameId)}
 												>
 													{t('igdbReview.manualSubmit')}

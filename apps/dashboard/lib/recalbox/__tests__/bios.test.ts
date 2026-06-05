@@ -58,9 +58,9 @@ describe('fetchBiosInfo', () => {
 		mockFetch(SAMPLE)
 		const { entries } = await fetchBiosInfo('recalbox.local')
 		const byPath = Object.fromEntries(entries.map((e) => [e.path, e]))
-		expect(byPath['snes/ok.bin'].status).toBe('ok')
-		expect(byPath['snes/wrong.bin'].status).toBe('mismatch')
-		expect(byPath['snes/missing.bin'].status).toBe('missing')
+		expect(byPath['snes/ok.bin']!.status).toBe('ok')
+		expect(byPath['snes/wrong.bin']!.status).toBe('mismatch')
+		expect(byPath['snes/missing.bin']!.status).toBe('missing')
 	})
 
 	it('uppercases md5s and blanks the all-zero (not-found) hash', async () => {

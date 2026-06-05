@@ -77,14 +77,14 @@ describe('fetchStorageInfo', () => {
 		const out = await fetchStorageInfo('recalbox.local')
 		const drv = out.filter((s) => s.label === 'Gaming_Drv')
 		expect(drv).toHaveLength(1)
-		expect(drv[0].percent).toBe(88)
+		expect(drv[0]!.percent).toBe(88)
 	})
 
 	it('sorts by usage percent descending', async () => {
 		mockFetch(SAMPLE)
 		const out = await fetchStorageInfo('recalbox.local')
 		expect(out.map((s) => s.label)).toEqual(['Gaming_Drv', 'RECALBOX'])
-		expect(out[0].percent).toBeGreaterThanOrEqual(out[1].percent)
+		expect(out[0]!.percent).toBeGreaterThanOrEqual(out[1]!.percent)
 	})
 
 	it('returns [] on a non-ok response', async () => {

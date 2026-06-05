@@ -105,8 +105,7 @@ export function M3uCandidates() {
 
 	const totalMissing = data.candidates.filter((g) => !g.m3uAlreadyExists).length
 	const bySystem = data.candidates.reduce<Record<string, MultiDiscGame[]>>((acc, g) => {
-		acc[g.system] ??= []
-		acc[g.system].push(g)
+		;(acc[g.system] ??= []).push(g)
 		return acc
 	}, {})
 
