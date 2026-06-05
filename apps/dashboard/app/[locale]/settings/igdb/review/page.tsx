@@ -20,11 +20,20 @@ type ReviewItem = {
 	candidates: IgdbCandidate[]
 }
 
+type SystemEntry = {
+	system: string
+	count: number
+}
+
 export default function IgdbReviewPage() {
 	const t = useTranslations('settings')
 	const router = useRouter()
+
+	const [systems, setSystems] = useState<SystemEntry[]>([])
+	const [activeSystem, setActiveSystem] = useState<string | null>(null)
 	const [items, setItems] = useState<ReviewItem[]>([])
-	const [loading, setLoading] = useState(true)
+	const [loadingSystems, setLoadingSystems] = useState(true)
+	const [loadingItems, setLoadingItems] = useState(false)
 	const [manualOpen, setManualOpen] = useState<Map<number, boolean>>(new Map())
 	const [manualInput, setManualInput] = useState<Map<number, string>>(new Map())
 
@@ -33,15 +42,48 @@ export default function IgdbReviewPage() {
 		(state: ReviewItem[], gameId: number) => state.filter((item) => item.gameId !== gameId),
 	)
 
+	// Load systems list on mount
 	useEffect(() => {
-		fetch('/api/igdb/review')
+		fetch('/api/igdb/review/systems')
+			.then((r) => r.json())
+			.then((data: { systems: SystemEntry[] }) => {
+				setSystems(data.systems)
+				if (data.systems.length > 0) {
+					setActiveSystem(data.systems[0]!.system)
+				}
+				setLoadingSystems(false)
+			})
+			.catch(() => setLoadingSystems(false))
+	}, [])
+
+	// Load items when active system changes
+	useEffect(() => {
+		if (!activeSystem) return
+		setLoadingItems(true)
+		fetch(`/api/igdb/review?system=${encodeURIComponent(activeSystem)}`)
 			.then((r) => r.json())
 			.then((data: { items: ReviewItem[] }) => {
 				setItems(data.items)
-				setLoading(false)
+				setLoadingItems(false)
 			})
-			.catch(() => setLoading(false))
-	}, [])
+			.catch(() => setLoadingItems(false))
+	}, [activeSystem])
+
+	function afterConfirm(gameId: number) {
+		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
+		setSystems((prev) => {
+			const updated = prev
+				.map((s) =>
+					s.system === activeSystem ? { ...s, count: s.count - 1 } : s,
+				)
+				.filter((s) => s.count > 0)
+			const stillActive = updated.find((s) => s.system === activeSystem)
+			if (!stillActive) {
+				setActiveSystem(updated[0]?.system ?? null)
+			}
+			return updated
+		})
+	}
 
 	function handleSelect(gameId: number, candidate: IgdbCandidate) {
 		startTransition(async () => {
@@ -56,9 +98,7 @@ export default function IgdbReviewPage() {
 					igdbName: candidate.igdbName,
 				}),
 			})
-			if (res.ok) {
-				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
-			}
+			if (res.ok) afterConfirm(gameId)
 		})
 	}
 
@@ -73,9 +113,7 @@ export default function IgdbReviewPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameId, action: 'manual', igdbId, igdbName: 'Manual entry' }),
 			})
-			if (res.ok) {
-				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
-			}
+			if (res.ok) afterConfirm(gameId)
 		})
 	}
 
@@ -87,14 +125,12 @@ export default function IgdbReviewPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameId, action: 'reject' }),
 			})
-			if (res.ok) {
-				setItems((prev) => prev.filter((item) => item.gameId !== gameId))
-			}
+			if (res.ok) afterConfirm(gameId)
 		})
 	}
 
 	return (
-		<div className="container max-w-4xl mx-auto p-6 space-y-6">
+		<div className="container max-w-5xl mx-auto p-6 space-y-6">
 			<div className="flex items-center gap-3">
 				<Button variant="ghost" size="sm" onClick={() => router.back()}>
 					<ArrowLeft className="size-4 mr-1" />
@@ -106,9 +142,11 @@ export default function IgdbReviewPage() {
 				</div>
 			</div>
 
-			{loading && <p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>}
+			{loadingSystems && (
+				<p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>
+			)}
 
-			{!loading && optimisticItems.length === 0 && (
+			{!loadingSystems && systems.length === 0 && (
 				<Card>
 					<CardContent className="py-8 text-center text-muted-foreground text-sm">
 						{t('igdbReview.allGood')}
@@ -116,145 +154,221 @@ export default function IgdbReviewPage() {
 				</Card>
 			)}
 
-			{!loading && optimisticItems.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle>{t('igdbReview.pendingTitle', { count: optimisticItems.length })}</CardTitle>
-					</CardHeader>
-					<CardContent className="p-0">
-						<div className="divide-y">
-							{optimisticItems.map((item) => (
-								<div key={item.gameId} className="p-4 space-y-3">
-									<div>
-										<p className="font-medium text-sm">{item.gameName}</p>
-										<p className="text-xs text-muted-foreground">{item.system}</p>
-									</div>
-
-									{item.candidates.length > 0 ? (
-										<div className="space-y-1.5">
-											{item.candidates.map((candidate, i) => (
-												<div
-													key={candidate.igdbId}
-													className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
-												>
-													<div className="flex-1 min-w-0">
-														<span className="truncate block">{candidate.igdbName}</span>
-													</div>
-													<Badge
-														variant={i === 0 ? 'default' : 'secondary'}
-														className="text-xs shrink-0"
-													>
-														{Math.round(candidate.confidence * 100)}%
-													</Badge>
-													<Button
-														size="sm"
-														variant={i === 0 ? 'default' : 'outline'}
-														onClick={() => handleSelect(item.gameId, candidate)}
-														aria-label={candidate.igdbName}
-													>
-														<Check className="size-3.5" />
-													</Button>
-												</div>
-											))}
-											<Button
-												size="sm"
-												variant="ghost"
-												className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
-												onClick={() => handleReject(item.gameId)}
-											>
-												<X className="size-3.5 mr-1" />
-												{t('igdbReview.none')}
-											</Button>
-										</div>
-									) : (
-										<div className="flex items-center gap-3 text-sm">
-											<span className="flex-1 text-muted-foreground truncate">
-												{item.igdbName ?? '—'}
-												{item.confidence != null && (
-													<span className="text-xs ml-1">
-														({Math.round(item.confidence * 100)}%)
-													</span>
-												)}
-											</span>
-											<Button
-												size="sm"
-												variant="outline"
-												className="text-green-600 border-green-200 hover:bg-green-50"
-												onClick={() => {
-													if (item.igdbId && item.igdbName) {
-														handleSelect(item.gameId, {
-															igdbId: item.igdbId,
-															igdbName: item.igdbName,
-															confidence: item.confidence ?? 0,
-														})
-													} else {
-														handleReject(item.gameId)
-													}
-												}}
-												aria-label={item.igdbName ?? undefined}
-											>
-												<Check className="size-3.5" />
-											</Button>
-											<Button
-												size="sm"
-												variant="outline"
-												className="text-red-600 border-red-200 hover:bg-red-50"
-												onClick={() => handleReject(item.gameId)}
-											>
-												<X className="size-3.5" />
-											</Button>
-										</div>
-									)}
-
-									<div className="pt-1">
-										{manualOpen.get(item.gameId) ? (
-											<div className="flex items-center gap-2">
-												<input
-													type="number"
-													className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-													placeholder="IGDB ID"
-													aria-label="IGDB ID"
-													value={manualInput.get(item.gameId) ?? ''}
-													onChange={(e) =>
-														setManualInput((prev) => new Map(prev).set(item.gameId, e.target.value))
-													}
-												/>
-												<Button
-													size="sm"
-													variant="secondary"
-													disabled={!manualInput.get(item.gameId)?.trim()}
-													onClick={() => handleManual(item.gameId)}
-												>
-													{t('igdbReview.manualSubmit')}
-												</Button>
-												<Button
-													size="sm"
-													variant="ghost"
-													onClick={() =>
-														setManualOpen((prev) => new Map(prev).set(item.gameId, false))
-													}
-												>
-													{t('igdbReview.manualCancel')}
-												</Button>
-											</div>
-										) : (
+			{!loadingSystems && systems.length > 0 && (
+				<div className="flex gap-4 items-start">
+					{/* Sidebar */}
+					<nav className="w-52 shrink-0">
+						<Card>
+							<CardContent className="p-2">
+								<ul className="space-y-0.5">
+									{systems.map((s) => (
+										<li key={s.system}>
 											<button
 												type="button"
-												className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-												onClick={() =>
-													setManualOpen((prev) => new Map(prev).set(item.gameId, true))
-												}
+												onClick={() => setActiveSystem(s.system)}
+												className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm text-left transition-colors ${
+													s.system === activeSystem
+														? 'bg-primary text-primary-foreground'
+														: 'hover:bg-muted'
+												}`}
 											>
-												{t('igdbReview.manualToggle')}
+												<span className="truncate">{s.system}</span>
+												<Badge
+													variant={s.system === activeSystem ? 'secondary' : 'outline'}
+													className="ml-2 shrink-0 text-xs"
+												>
+													{s.count}
+												</Badge>
 											</button>
-										)}
+										</li>
+									))}
+								</ul>
+							</CardContent>
+						</Card>
+					</nav>
+
+					{/* Content area */}
+					<div className="flex-1 min-w-0">
+						{loadingItems && (
+							<p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>
+						)}
+
+						{!loadingItems && optimisticItems.length === 0 && (
+							<Card>
+								<CardContent className="py-8 text-center text-muted-foreground text-sm">
+									{t('igdbReview.allGood')}
+								</CardContent>
+							</Card>
+						)}
+
+						{!loadingItems && optimisticItems.length > 0 && (
+							<Card>
+								<CardHeader>
+									<CardTitle>
+										{t('igdbReview.pendingTitle', { count: optimisticItems.length })}
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="p-0">
+									<div className="divide-y">
+										{optimisticItems.map((item) => (
+											<ReviewItemRow
+												key={item.gameId}
+												item={item}
+												manualOpen={manualOpen.get(item.gameId) ?? false}
+												manualValue={manualInput.get(item.gameId) ?? ''}
+												onSelect={(candidate) => handleSelect(item.gameId, candidate)}
+												onReject={() => handleReject(item.gameId)}
+												onManualSubmit={() => handleManual(item.gameId)}
+												onManualToggle={(open) =>
+													setManualOpen((prev) => new Map(prev).set(item.gameId, open))
+												}
+												onManualChange={(value) =>
+													setManualInput((prev) => new Map(prev).set(item.gameId, value))
+												}
+												t={t}
+											/>
+										))}
 									</div>
-								</div>
-							))}
-						</div>
-					</CardContent>
-				</Card>
+								</CardContent>
+							</Card>
+						)}
+					</div>
+				</div>
 			)}
+		</div>
+	)
+}
+
+function ReviewItemRow({
+	item,
+	manualOpen,
+	manualValue,
+	onSelect,
+	onReject,
+	onManualSubmit,
+	onManualToggle,
+	onManualChange,
+	t,
+}: {
+	item: ReviewItem
+	manualOpen: boolean
+	manualValue: string
+	onSelect: (candidate: IgdbCandidate) => void
+	onReject: () => void
+	onManualSubmit: () => void
+	onManualToggle: (open: boolean) => void
+	onManualChange: (value: string) => void
+	t: ReturnType<typeof useTranslations<'settings'>>
+}) {
+	return (
+		<div className="p-4 space-y-3">
+			<div>
+				<p className="font-medium text-sm">{item.gameName}</p>
+			</div>
+
+			{item.candidates.length > 0 ? (
+				<div className="space-y-1.5">
+					{item.candidates.map((candidate, i) => (
+						<div
+							key={candidate.igdbId}
+							className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
+						>
+							<div className="flex-1 min-w-0">
+								<span className="truncate block">{candidate.igdbName}</span>
+							</div>
+							<Badge
+								variant={i === 0 ? 'default' : 'secondary'}
+								className="text-xs shrink-0"
+							>
+								{Math.round(candidate.confidence * 100)}%
+							</Badge>
+							<Button
+								size="sm"
+								variant={i === 0 ? 'default' : 'outline'}
+								onClick={() => onSelect(candidate)}
+								aria-label={candidate.igdbName}
+							>
+								<Check className="size-3.5" />
+							</Button>
+						</div>
+					))}
+					<Button
+						size="sm"
+						variant="ghost"
+						className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
+						onClick={onReject}
+					>
+						<X className="size-3.5 mr-1" />
+						{t('igdbReview.none')}
+					</Button>
+				</div>
+			) : (
+				<div className="flex items-center gap-3 text-sm">
+					<span className="flex-1 text-muted-foreground truncate">
+						{item.igdbName ?? '—'}
+						{item.confidence != null && (
+							<span className="text-xs ml-1">({Math.round(item.confidence * 100)}%)</span>
+						)}
+					</span>
+					<Button
+						size="sm"
+						variant="outline"
+						className="text-green-600 border-green-200 hover:bg-green-50"
+						onClick={() => {
+							if (item.igdbId && item.igdbName) {
+								onSelect({ igdbId: item.igdbId, igdbName: item.igdbName, confidence: item.confidence ?? 0 })
+							} else {
+								onReject()
+							}
+						}}
+						aria-label={item.igdbName ?? undefined}
+					>
+						<Check className="size-3.5" />
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						className="text-red-600 border-red-200 hover:bg-red-50"
+						onClick={onReject}
+					>
+						<X className="size-3.5" />
+					</Button>
+				</div>
+			)}
+
+			<div className="pt-1">
+				{manualOpen ? (
+					<div className="flex items-center gap-2">
+						<input
+							type="number"
+							className="flex h-8 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+							placeholder="IGDB ID"
+							aria-label="IGDB ID"
+							value={manualValue}
+							onChange={(e) => onManualChange(e.target.value)}
+						/>
+						<Button
+							size="sm"
+							variant="secondary"
+							disabled={!manualValue.trim()}
+							onClick={onManualSubmit}
+						>
+							{t('igdbReview.manualSubmit')}
+						</Button>
+						<Button size="sm" variant="ghost" onClick={() => onManualToggle(false)}>
+							{t('igdbReview.manualCancel')}
+						</Button>
+					</div>
+				) : (
+					<button
+						type="button"
+						className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+						onClick={() => onManualToggle(true)}
+					>
+						{t('igdbReview.manualToggle')}
+					</button>
+				)}
+			</div>
 		</div>
 	)
 }
