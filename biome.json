@@ -14,5 +14,23 @@
 			"trailingCommas": "all"
 		}
 	},
-	"linter": { "rules": { "recommended": true } }
+	"linter": { "rules": { "recommended": true } },
+	"overrides": [
+		{
+			"include": ["**/progress-bar.tsx"],
+			"linter": {
+				"rules": {
+					"suspicious": { "noArrayIndexKey": "off" }
+				}
+			}
+		},
+		{
+			"include": ["**/play-tonight/recommendation-card.tsx"],
+			"linter": {
+				"rules": {
+					"suspicious": { "noExplicitAny": "off" }
+				}
+			}
+		}
+	]
 }

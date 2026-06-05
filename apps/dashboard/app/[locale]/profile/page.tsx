@@ -1,12 +1,12 @@
 'use client'
 
-import Image from 'next/image'
 import { RecommendationQuality } from '@/components/profile/recommendation-quality'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
 import { Loader2, RotateCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 type WeightedItem = { key: string; weight: number; rawScore: number }

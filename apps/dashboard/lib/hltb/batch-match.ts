@@ -120,6 +120,7 @@ export async function batchMatchHltb(
 
 	async function worker() {
 		while (index < groups.length) {
+			// biome-ignore lint/style/noNonNullAssertion: index is bounded by the while condition above
 			const [name, groupGames] = groups[index++]!
 
 			progress.current = name

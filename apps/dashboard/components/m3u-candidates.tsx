@@ -36,7 +36,7 @@ function gameStatus(g: MultiDiscGame): 'ok' | 'missing' | 'gap' | 'differs' {
 }
 
 function m3uPreview(g: MultiDiscGame): string {
-	return g.discs.map((d) => d.fileName).join('\n') + '\n'
+	return `${g.discs.map((d) => d.fileName).join('\n')}\n`
 }
 
 export function M3uCandidates() {
@@ -105,7 +105,8 @@ export function M3uCandidates() {
 
 	const totalMissing = data.candidates.filter((g) => !g.m3uAlreadyExists).length
 	const bySystem = data.candidates.reduce<Record<string, MultiDiscGame[]>>((acc, g) => {
-		;(acc[g.system] ??= []).push(g)
+		acc[g.system] ??= []
+		acc[g.system].push(g)
 		return acc
 	}, {})
 

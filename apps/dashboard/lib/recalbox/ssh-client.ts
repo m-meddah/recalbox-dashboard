@@ -154,7 +154,7 @@ class SshPool {
 			client = new SshClient(recalboxId, maxConcurrent)
 			this.clients.set(key, client)
 			if (!this.idToKeys.has(recalboxId)) this.idToKeys.set(recalboxId, new Set())
-			this.idToKeys.get(recalboxId)!.add(key)
+			this.idToKeys.get(recalboxId)?.add(key)
 		}
 		return client
 	}

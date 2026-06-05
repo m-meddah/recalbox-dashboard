@@ -150,20 +150,20 @@ describe('scoreGame', () => {
 			const profile = makeProfile({ systemsWeights: [w('snes', 0.9)] })
 			const favSystem = scoreGame(makeGame({ system: 'snes' }), makeCtx(profile))
 			const otherSystem = scoreGame(makeGame({ system: 'nes' }), makeCtx(profile))
-			expect(favSystem!.score).toBeGreaterThan(otherSystem!.score)
+			expect(favSystem?.score).toBeGreaterThan(otherSystem?.score)
 		})
 
 		it('scores higher for matching genre', () => {
 			const profile = makeProfile({ genresWeights: [w('Platformer', 0.8)] })
 			const favGenre = scoreGame(makeGame({ genres: ['Platformer'] }), makeCtx(profile))
 			const otherGenre = scoreGame(makeGame({ genres: ['Shmup'] }), makeCtx(profile))
-			expect(favGenre!.score).toBeGreaterThan(otherGenre!.score)
+			expect(favGenre?.score).toBeGreaterThan(otherGenre?.score)
 		})
 
 		it('adds system-prefers reason when weight ≥ 0.7', () => {
 			const profile = makeProfile({ systemsWeights: [w('snes', 0.9)] })
 			const result = scoreGame(makeGame({ system: 'snes' }), makeCtx(profile))
-			expect(result!.reasons).toContainEqual({ key: 'favoriteConsole' })
+			expect(result?.reasons).toContainEqual({ key: 'favoriteConsole' })
 		})
 	})
 
@@ -173,7 +173,9 @@ describe('scoreGame', () => {
 			const similar = new Set<number>([42])
 			const baseCtx = makeCtx(makeProfile(), new Set())
 			const boostCtx = makeCtx(makeProfile(), similar)
+			// biome-ignore lint/style/noNonNullAssertion: game with sufficient stats always scores
 			const base = scoreGame(game, baseCtx)!
+			// biome-ignore lint/style/noNonNullAssertion: see above
 			const boosted = scoreGame(game, boostCtx)!
 			expect(boosted.score - base.score).toBe(50)
 			expect(boosted.igdbBoosted).toBe(true)
@@ -181,6 +183,7 @@ describe('scoreGame', () => {
 
 		it('sets confidence to high when igdb boosted', () => {
 			const game = makeGame({ gameId: 42 })
+			// biome-ignore lint/style/noNonNullAssertion: game with sufficient stats always scores
 			const result = scoreGame(game, makeCtx(makeProfile(), new Set([42])))!
 			expect(result.confidence).toBe('high')
 		})
@@ -192,7 +195,9 @@ describe('scoreGame', () => {
 			const stats = makeStats({ significantSessions: 3 })
 			const chillCtx = makeCtx(profile, new Set(), { mood: 'chill' })
 			const neutralCtx = makeCtx(profile, new Set(), { mood: 'surprise' })
+			// biome-ignore lint/style/noNonNullAssertion: game with sufficient stats always scores
 			const chill = scoreGame(makeGame({ gameId: 1, stats }), chillCtx)!
+			// biome-ignore lint/style/noNonNullAssertion: see above
 			const neutral = scoreGame(makeGame({ gameId: 1, stats }), neutralCtx)!
 			expect(chill.score).toBeGreaterThan(neutral.score)
 		})
@@ -203,7 +208,9 @@ describe('scoreGame', () => {
 			const stats = makeStats({ significantSessions: 3, measuredSessions: 3, meaningfulCount: 3 })
 			const discoverCtx = makeCtx(profile, new Set(), { mood: 'discovery' })
 			const neutralCtx = makeCtx(profile, new Set(), { mood: 'surprise' })
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const discover = scoreGame(makeGame({ gameId: 1, stats }), discoverCtx)!
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const neutral = scoreGame(makeGame({ gameId: 1, stats }), neutralCtx)!
 			expect(discover.score).toBeLessThan(neutral.score)
 		})
@@ -211,22 +218,26 @@ describe('scoreGame', () => {
 
 	describe('confidence', () => {
 		it('is high for love rating', () => {
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(makeGame({ rating: 'love' }), makeCtx())!
 			expect(result.confidence).toBe('high')
 		})
 
 		it('is high for confirmed taste', () => {
 			const stats = makeStats({ significantSessions: 3 })
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(makeGame({ stats }), makeCtx())!
 			expect(result.confidence).toBe('high')
 		})
 
 		it('is medium for like rating', () => {
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(makeGame({ rating: 'like' }), makeCtx())!
 			expect(result.confidence).toBe('medium')
 		})
 
 		it('is exploration for unknown untested game', () => {
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(makeGame(), makeCtx())!
 			expect(result.confidence).toBe('exploration')
 		})
@@ -235,7 +246,9 @@ describe('scoreGame', () => {
 	describe('time match', () => {
 		it('boosts arcade games for 30 min', () => {
 			const ctx = makeCtx(makeProfile(), new Set(), { availableMinutes: 30 })
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const arcade = scoreGame(makeGame({ system: 'arcade' }), ctx)!
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const rpg = scoreGame(makeGame({ system: 'snes', genres: ['RPG'] }), ctx)!
 			expect(arcade.score).toBeGreaterThan(rpg.score)
 		})
@@ -243,7 +256,9 @@ describe('scoreGame', () => {
 		it('boosts RPG for long sessions', () => {
 			const ctx120 = makeCtx(makeProfile(), new Set(), { availableMinutes: 120 })
 			const ctx30 = makeCtx(makeProfile(), new Set(), { availableMinutes: 30 })
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const rpg120 = scoreGame(makeGame({ genres: ['RPG'] }), ctx120)!
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const rpg30 = scoreGame(makeGame({ genres: ['RPG'] }), ctx30)!
 			expect(rpg120.score).toBeGreaterThan(rpg30.score)
 		})
@@ -259,6 +274,7 @@ describe('scoreGame', () => {
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 3000, mainExtras: null, completionist: null }, // 50min
 			})
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(game, finishCtx)!
 			expect(result).not.toBeNull()
 			expect(result.scoreBreakdown?.hltbTimeFit).toBe(40)
@@ -270,6 +286,7 @@ describe('scoreGame', () => {
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 7200, mainExtras: null, completionist: null }, // 120min = 2×
 			})
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(game, finishCtx)!
 			expect(result.scoreBreakdown?.hltbTimeFit).toBe(25)
 			expect(result.reasons.some((r) => r.key === 'oneTwoSessions')).toBe(true)
@@ -280,7 +297,7 @@ describe('scoreGame', () => {
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 14400, mainExtras: null, completionist: null }, // 240min = 4×
 			})
-			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(10)
+			expect(scoreGame(game, finishCtx)?.scoreBreakdown?.hltbTimeFit).toBe(10)
 		})
 
 		it('returns null when mainStory is >4× availableMinutes', () => {
@@ -296,7 +313,7 @@ describe('scoreGame', () => {
 				stats: ongoingStats,
 				hltbDurations: { mainStory: null, mainExtras: 3000, completionist: null },
 			})
-			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(40)
+			expect(scoreGame(game, finishCtx)?.scoreBreakdown?.hltbTimeFit).toBe(40)
 		})
 
 		it('falls back to completionist when mainStory and mainExtras are null', () => {
@@ -304,7 +321,7 @@ describe('scoreGame', () => {
 				stats: ongoingStats,
 				hltbDurations: { mainStory: null, mainExtras: null, completionist: 3000 },
 			})
-			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(40)
+			expect(scoreGame(game, finishCtx)?.scoreBreakdown?.hltbTimeFit).toBe(40)
 		})
 	})
 
@@ -315,8 +332,8 @@ describe('scoreGame', () => {
 				hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null }, // 60min exact match
 			})
 			const withoutHltb = makeGame({ hltbDurations: null, system: 'snes' })
-			const withScore = scoreGame(withHltb, ctx)!.score
-			const withoutScore = scoreGame(withoutHltb, ctx)!.score
+			const withScore = scoreGame(withHltb, ctx)?.score
+			const withoutScore = scoreGame(withoutHltb, ctx)?.score
 			expect(withScore).toBeGreaterThan(withoutScore)
 		})
 
@@ -326,6 +343,7 @@ describe('scoreGame', () => {
 				system: 'arcade',
 				hltbDurations: { mainStory: 36000, mainExtras: null, completionist: null }, // 10h, no fit
 			})
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
 			const result = scoreGame(arcadeGame, ctx)!
 			expect(result.scoreBreakdown?.timeMatch).toBe(25)
 		})

@@ -104,11 +104,12 @@ export async function computeUserProfile(): Promise<void> {
 
 	for (const sess of allSessions) {
 		if (sess.gameId == null) continue
+		// biome-ignore lint/style/noNonNullAssertion: gameId null check above guarantees classification is set
 		const classWeight = CLASSIFICATION_WEIGHTS[sess.classification!] ?? 0
 		if (classWeight === 0) continue
 
 		const daysSince = (now - sess.startedAt.getTime()) / (1000 * 60 * 60 * 24)
-		const decay = Math.pow(0.5, daysSince / HALF_LIFE_DAYS)
+		const decay = 0.5 ** (daysSince / HALF_LIFE_DAYS)
 
 		const rating = ratingsMap.get(sess.gameId)
 		const ratingWeight = rating ? (RATING_WEIGHTS[rating] ?? 1.0) : 1.0
@@ -136,7 +137,7 @@ export async function computeUserProfile(): Promise<void> {
 		if (perGameEngagement.has(inh.gameId)) continue
 
 		const daysSince = (now - inh.lastPlayedAt.getTime()) / (1000 * 60 * 60 * 24)
-		const decay = Math.pow(0.5, daysSince / HALF_LIFE_DAYS)
+		const decay = 0.5 ** (daysSince / HALF_LIFE_DAYS)
 
 		let classWeight: number
 		if (inh.playCount >= 10) classWeight = CLASSIFICATION_WEIGHTS.marathon
@@ -211,7 +212,7 @@ function parseGenres(raw: string | null): string[] {
 }
 
 function extractDecade(year: number | null): string | null {
-	if (year == null || isNaN(year) || year < 1970 || year > 2030) return null
+	if (year == null || Number.isNaN(year) || year < 1970 || year > 2030) return null
 	const decadeStart = Math.floor(year / 10) * 10
 	return `${decadeStart}s`
 }

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchStorageInfo } from '@/lib/recalbox/storage'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 function mockFetch(json: unknown, ok = true) {
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => json }))

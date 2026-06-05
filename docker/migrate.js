@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict'
 
 const path = require('node:path')
 const Database = require('better-sqlite3')

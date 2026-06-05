@@ -145,7 +145,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			const pts = Math.round(8 * w)
 			score += pts
 			breakdown.developerMatch = pts
-			if (w >= 0.6) reasons.push({ key: 'favoriteStudio', params: { studio: game.developer! } })
+			if (w >= 0.6) reasons.push({ key: 'favoriteStudio', params: { studio: game.developer } })
 		}
 	}
 

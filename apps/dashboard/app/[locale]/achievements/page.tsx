@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { RaAchievement, RaGameProgress, RaProfile } from '@/lib/retroachievements/service'
 import { useLocale, useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 
 const RECENT_DISPLAY_COUNT = 20

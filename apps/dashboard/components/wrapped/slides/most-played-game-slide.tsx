@@ -1,6 +1,6 @@
-import Image from 'next/image'
 import type { MostPlayedGameSlide } from '@/lib/wrapped/types'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { SLIDE_ACCENTS } from '../accents'
 import { GlassCard, SlideShell } from '../slide-shell'
 

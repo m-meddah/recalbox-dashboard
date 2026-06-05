@@ -84,7 +84,7 @@ describe('buildSlides', () => {
 
 	it('always includes intro as first slide', () => {
 		const slides = buildSlides(richData(), [])
-		expect(slides[0]!.type).toBe('intro')
+		expect(slides[0]?.type).toBe('intro')
 	})
 
 	it('always includes outro as last slide', () => {
@@ -120,7 +120,7 @@ describe('buildSlides', () => {
 		if (slide?.type === 'top-games-list') {
 			expect(slide.games.length).toBeGreaterThanOrEqual(1)
 			expect(slide.games.length).toBeLessThanOrEqual(5)
-			expect(slide.games[0]!.rank).toBe(1)
+			expect(slide.games[0]?.rank).toBe(1)
 		}
 	})
 

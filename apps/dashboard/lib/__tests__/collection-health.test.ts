@@ -26,16 +26,16 @@ describe('computeCollectionHealth', () => {
 		const rows = [{ ...base, imagePath: null, description: 'Some desc', videoPath: null }]
 		const health = computeCollectionHealth(rows)
 		expect(health.missingMedia).toBe(1)
-		expect(health.unscrapedGames[0]!.missingImage).toBe(true)
-		expect(health.unscrapedGames[0]!.missingDescription).toBe(false)
+		expect(health.unscrapedGames[0]?.missingImage).toBe(true)
+		expect(health.unscrapedGames[0]?.missingDescription).toBe(false)
 	})
 
 	it('detects missing description as critical', () => {
 		const rows = [{ ...base, imagePath: '/img.png', description: null, videoPath: null }]
 		const health = computeCollectionHealth(rows)
 		expect(health.missingMedia).toBe(1)
-		expect(health.unscrapedGames[0]!.missingImage).toBe(false)
-		expect(health.unscrapedGames[0]!.missingDescription).toBe(true)
+		expect(health.unscrapedGames[0]?.missingImage).toBe(false)
+		expect(health.unscrapedGames[0]?.missingDescription).toBe(true)
 	})
 
 	it('missing video does NOT count as critical missing media', () => {
@@ -49,7 +49,7 @@ describe('computeCollectionHealth', () => {
 	it('tracks missing video on unscraped games (informational)', () => {
 		const rows = [{ ...base, imagePath: null, description: null, videoPath: null }]
 		const health = computeCollectionHealth(rows)
-		expect(health.unscrapedGames[0]!.missingVideo).toBe(true)
+		expect(health.unscrapedGames[0]?.missingVideo).toBe(true)
 	})
 
 	it('aggregates bySystem correctly', () => {

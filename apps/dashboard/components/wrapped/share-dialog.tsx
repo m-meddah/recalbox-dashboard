@@ -1,8 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { useState } from 'react'
 
 type Format = 'story' | 'square' | 'landscape'

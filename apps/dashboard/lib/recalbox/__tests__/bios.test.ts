@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchBiosInfo } from '@/lib/recalbox/bios'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 function mockFetch(json: unknown, ok = true) {
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => json }))
@@ -66,16 +66,17 @@ describe('fetchBiosInfo', () => {
 	it('uppercases md5s and blanks the all-zero (not-found) hash', async () => {
 		mockFetch(SAMPLE)
 		const { entries } = await fetchBiosInfo('recalbox.local')
+		// biome-ignore lint/style/noNonNullAssertion: test data guarantees this entry exists
 		const ok = entries.find((e) => e.path === 'snes/ok.bin')!
 		expect(ok.currentMd5).toBe('ABC123')
 		expect(ok.expectedMd5).toEqual(['ABC123'])
-		expect(entries.find((e) => e.path === 'snes/missing.bin')!.currentMd5).toBe('')
+		expect(entries.find((e) => e.path === 'snes/missing.bin')?.currentMd5).toBe('')
 	})
 
 	it('defaults mandatory to false when absent', async () => {
 		mockFetch(SAMPLE)
 		const { entries } = await fetchBiosInfo('recalbox.local')
-		expect(entries.find((e) => e.path === 'amiga/opt.rom')!.mandatory).toBe(false)
+		expect(entries.find((e) => e.path === 'amiga/opt.rom')?.mandatory).toBe(false)
 	})
 
 	it('sorts by system name then path', async () => {

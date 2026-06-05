@@ -94,21 +94,22 @@ export function RecommendationCard({
 				</div>
 				{game.reasons.length > 0 && (
 					<ul className="space-y-1 text-sm text-muted-foreground">
-						{game.reasons.map((r) => (
-							<li key={r.key} className="flex items-start gap-1">
-								<span className="text-primary mt-0.5">•</span>
-								<span>
-									{t(
-										`reasons.${r.key}` as any,
-										('params' in r
-											? r.key === 'favoriteGenre'
-												? { genre: tg(r.params.genre) }
-												: r.params
-											: {}) as any,
-									)}
-								</span>
-							</li>
-						))}
+						{game.reasons.map((r) => {
+							const tKey = `reasons.${r.key}` as any
+							const tParams = (
+								'params' in r
+									? r.key === 'favoriteGenre'
+										? { genre: tg(r.params.genre) }
+										: r.params
+									: {}
+							) as any
+							return (
+								<li key={r.key} className="flex items-start gap-1">
+									<span className="text-primary mt-0.5">•</span>
+									<span>{t(tKey, tParams)}</span>
+								</li>
+							)
+						})}
 					</ul>
 				)}
 				<div className="mt-auto pt-3 flex gap-2">

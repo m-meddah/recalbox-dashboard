@@ -88,6 +88,7 @@ export async function getCollectionHealth(recalboxId?: string): Promise<Collecti
 	if (recalboxId) conditions.push(eq(games.recalboxId, recalboxId))
 	const where = conditions.length > 1 ? and(...conditions) : conditions[0]
 
+	// biome-ignore lint/style/noNonNullAssertion: or() with two defined args always returns SQL
 	const missingCritical = or(isNull(games.imagePath), isNull(games.description))!
 
 	const [totalsRows, bySystemRows, unscrapedRows] = await Promise.all([

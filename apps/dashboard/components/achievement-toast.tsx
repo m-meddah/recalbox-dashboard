@@ -1,5 +1,5 @@
-import Image from 'next/image'
 import type { AchievementUnlockedData } from '@/lib/notifications/types'
+import Image from 'next/image'
 
 type Props = {
 	data: AchievementUnlockedData

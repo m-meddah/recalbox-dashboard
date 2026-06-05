@@ -149,10 +149,9 @@ async function loadIgdbRatings(): Promise<Map<number, number>> {
 async function triggerLazyMatching(gameIds: number[]): Promise<void> {
 	const matched = await db.select({ gameId: gameIgdbMapping.gameId }).from(gameIgdbMapping).all()
 	const matchedSet = new Set(matched.map((m) => m.gameId))
-	gameIds
-		.filter((id) => !matchedSet.has(id))
-		.slice(0, 5)
-		.forEach((id) => matchGameAsync(id))
+	for (const id of gameIds.filter((id) => !matchedSet.has(id)).slice(0, 5)) {
+		matchGameAsync(id)
+	}
 }
 
 async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {

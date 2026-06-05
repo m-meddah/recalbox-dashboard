@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
+import Image from 'next/image'
 
 type ResponseOption = {
 	value: string

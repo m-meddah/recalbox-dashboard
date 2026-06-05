@@ -107,7 +107,7 @@ export function buildMatchResult(scored: ScoredCandidate[], noPlatform: boolean)
 	// threshold below is only reachable when platform is known.
 	const confidence = best.score * multiplier
 
-	if (confidence >= 0.90) {
+	if (confidence >= 0.9) {
 		return {
 			igdbId: best.id,
 			igdbName: best.name,

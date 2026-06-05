@@ -1,8 +1,8 @@
 'use client'
 
+import type { useRouter } from '@/i18n/navigation'
 import { formatDuration } from '@/lib/stats/formatters'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import type { useRouter } from '@/i18n/navigation'
 
 const COLORS = [
 	'#10b981', // emerald

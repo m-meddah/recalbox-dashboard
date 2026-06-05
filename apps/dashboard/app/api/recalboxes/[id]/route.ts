@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 	// Strip the masked sentinel so a form save without re-entering the password doesn't overwrite it
 	const patch = { ...parsed.data }
-	if (patch.sshPassword === '***') delete patch.sshPassword
+	if (patch.sshPassword === '***') patch.sshPassword = undefined
 	configStore.updateRecalboxConfig(id, patch)
 	const updated = configStore.getRecalbox(id)
 	if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })

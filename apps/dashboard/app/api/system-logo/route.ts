@@ -34,10 +34,7 @@ export async function GET(request: Request) {
 	// <id>.png when no regional variant exists. REGION comes from the box's own conf (not
 	// client input); `system` is validated to [a-z0-9]+ and LOGO_DIR is a constant, so the
 	// interpolated path is safe.
-	const cmd =
-		`REGION=$(grep -E '^emulationstation\\.theme\\.region=' /recalbox/share/system/recalbox.conf 2>/dev/null | head -1 | cut -d= -f2 | tr -d '\\r'); ` +
-		`for f in "${LOGO_DIR}/${system}-$REGION.png" "${LOGO_DIR}/${system}.png"; do ` +
-		`if [ -f "$f" ]; then base64 -w 0 "$f"; exit 0; fi; done; printf '__NF__'`
+	const cmd = `REGION=$(grep -E '^emulationstation\\.theme\\.region=' /recalbox/share/system/recalbox.conf 2>/dev/null | head -1 | cut -d= -f2 | tr -d '\\r'); for f in "${LOGO_DIR}/${system}-$REGION.png" "${LOGO_DIR}/${system}.png"; do if [ -f "$f" ]; then base64 -w 0 "$f"; exit 0; fi; done; printf '__NF__'`
 
 	try {
 		const result = await ssh.exec(cmd, 15_000)
