@@ -283,12 +283,12 @@ describe('scoreGame', () => {
 			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(10)
 		})
 
-		it('adds -15 when mainStory is >4× availableMinutes', () => {
+		it('returns null when mainStory is >4× availableMinutes', () => {
 			const game = makeGame({
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 18000, mainExtras: null, completionist: null }, // 300min = 5×
 			})
-			expect(scoreGame(game, finishCtx)!.scoreBreakdown?.hltbTimeFit).toBe(-15)
+			expect(scoreGame(game, finishCtx)).toBeNull()
 		})
 
 		it('falls back to mainExtras when mainStory is null', () => {
