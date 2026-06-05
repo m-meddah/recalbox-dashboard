@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
 	output: 'standalone',
 	transpilePackages: ['@recalbox/scraper-core'],
 	serverExternalPackages: ['better-sqlite3', 'node-ssh'],
+	experimental: {
+		staleTimes: {
+			dynamic: 0,
+			static: 0,
+		},
+	},
 	async headers() {
 		return [
 			{

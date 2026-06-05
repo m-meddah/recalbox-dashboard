@@ -50,9 +50,21 @@ const ChartInner = dynamic(() => import('./system-stats-chart-inner'), { ssr: fa
 
 export function SystemStatsChart() {
 	const t = useTranslations('dashboard.system')
-	const { mqttOnline, subscribe } = useRecalboxEvents()
-	const [current, setCurrent] = useState<SystemInfoEvent | null>(null)
-	const [history, setHistory] = useState<ChartPoint[]>([])
+	const { mqttOnline, subscribe, activity } = useRecalboxEvents()
+	const [current, setCurrent] = useState<SystemInfoEvent | null>(() => activity.lastSystemInfo)
+	const [history, setHistory] = useState<ChartPoint[]>(() => {
+		if (!activity.lastSystemInfo) return []
+		return [
+			{
+				time: new Date(activity.lastSystemInfo.timestamp).toLocaleTimeString(undefined, {
+					hour: '2-digit',
+					minute: '2-digit',
+					second: '2-digit',
+				}),
+				temp: activity.lastSystemInfo.tempCelsius,
+			},
+		]
+	})
 
 	const handleEvent = useCallback((event: { type: string } & Record<string, unknown>) => {
 		if (event.type !== 'system:info') return

@@ -347,10 +347,10 @@ function LoadingSkeleton() {
 
 export function NowPlaying() {
 	const t = useTranslations('nowPlaying')
-	const { mqttOnline, subscribe } = useRecalboxEvents()
-	const [currentGame, setCurrentGame] = useState<GameStartEvent | null>(null)
-	const [browsing, setBrowsing] = useState<SystemChangeEvent | null>(null)
-	const [screensaver, setScreensaver] = useState(false)
+	const { mqttOnline, subscribe, activity } = useRecalboxEvents()
+	const [currentGame, setCurrentGame] = useState<GameStartEvent | null>(() => activity.game)
+	const [browsing, setBrowsing] = useState<SystemChangeEvent | null>(() => activity.browsing)
+	const [screensaver, setScreensaver] = useState(() => activity.screensaver)
 
 	const handleEvent = useCallback((event: { type: string } & Record<string, unknown>) => {
 		if (event.type === 'game:start') {

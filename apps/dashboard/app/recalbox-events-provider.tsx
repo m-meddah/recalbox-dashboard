@@ -1,7 +1,13 @@
 'use client'
 
 import type { Notification } from '@/lib/notifications/types'
-import type { RecalboxEvent } from '@/lib/recalbox/events'
+import type {
+	GameStartEvent,
+	GameStopEvent,
+	RecalboxEvent,
+	SystemChangeEvent,
+	SystemInfoEvent,
+} from '@/lib/recalbox/events'
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
@@ -11,19 +17,37 @@ export type SSEEvent = RecalboxEvent | ConnectionEvent | NotificationSSEEvent | 
 
 type Handler = (event: SSEEvent) => void
 
+export type ActivityState = {
+	game: GameStartEvent | null
+	screensaver: boolean
+	browsing: SystemChangeEvent | null
+	lastSystemInfo: SystemInfoEvent | null
+}
+
 type RecalboxEventsContextValue = {
 	mqttOnline: boolean | null
+	/** Last known activity state — available immediately on mount for newly-navigated components. */
+	activity: ActivityState
 	/** Subscribe to all SSE events. Returns an unsubscribe function. */
 	subscribe: (handler: Handler) => () => void
 }
 
+const initialActivity: ActivityState = {
+	game: null,
+	screensaver: false,
+	browsing: null,
+	lastSystemInfo: null,
+}
+
 const RecalboxEventsContext = createContext<RecalboxEventsContextValue>({
 	mqttOnline: null,
+	activity: initialActivity,
 	subscribe: () => () => {},
 })
 
 export function RecalboxEventsProvider({ children }: { children: React.ReactNode }) {
 	const [mqttOnline, setMqttOnline] = useState<boolean | null>(null)
+	const [activity, setActivity] = useState<ActivityState>(initialActivity)
 	const handlersRef = useRef<Set<Handler> | null>(null)
 	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
@@ -45,6 +69,37 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 
 				if (event.type === 'connection') {
 					setMqttOnline(event.online)
+				} else if (event.type === 'game:start') {
+					const ev = event as GameStartEvent
+					setActivity((prev) => ({
+						...prev,
+						game: { ...ev, startedAt: new Date(ev.startedAt) },
+						screensaver: false,
+					}))
+				} else if (event.type === 'game:stop') {
+					const ev = event as GameStopEvent
+					setActivity((prev) => ({
+						...prev,
+						game: prev.game?.romPath === ev.romPath ? null : prev.game,
+					}))
+				} else if (event.type === 'system:change') {
+					const ev = event as SystemChangeEvent
+					setActivity((prev) => ({
+						...prev,
+						browsing: ev,
+						screensaver: false,
+						game: prev.game?.fromScreensaver ? null : prev.game,
+					}))
+				} else if (event.type === 'screensaver:start') {
+					setActivity((prev) => ({ ...prev, screensaver: true }))
+				} else if (event.type === 'screensaver:stop') {
+					setActivity((prev) => ({
+						...prev,
+						screensaver: false,
+						game: prev.game?.fromScreensaver ? null : prev.game,
+					}))
+				} else if (event.type === 'system:info') {
+					setActivity((prev) => ({ ...prev, lastSystemInfo: event as SystemInfoEvent }))
 				}
 
 				for (const handler of handlersRef.current ?? []) {
@@ -74,7 +129,10 @@ export function RecalboxEventsProvider({ children }: { children: React.ReactNode
 		}
 	}, [])
 
-	const contextValue = useMemo(() => ({ mqttOnline, subscribe }), [mqttOnline, subscribe])
+	const contextValue = useMemo(
+		() => ({ mqttOnline, activity, subscribe }),
+		[mqttOnline, activity, subscribe],
+	)
 
 	return (
 		<RecalboxEventsContext.Provider value={contextValue}>{children}</RecalboxEventsContext.Provider>
