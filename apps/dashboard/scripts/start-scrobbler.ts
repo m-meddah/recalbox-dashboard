@@ -10,8 +10,19 @@ import { sendWebPush } from '../lib/notifications/web-push'
 import { startProfileScheduler } from '../lib/profile/scheduler'
 import { syncRetroAchievements } from '../lib/retroachievements/sync'
 import { startScrobbler } from '../lib/scrobbler'
+import type { Scrobbler } from '../lib/scrobbler'
+
+// tsx watch does in-process hot-reload: globalThis survives but module cache is cleared.
+// Without this, each reload calls startScrobbler() again and accumulates MQTT listeners.
+const g = globalThis as typeof globalThis & { __scrobbler?: Scrobbler }
 
 async function main() {
+	if (g.__scrobbler) {
+		logger.info('Hot-reload detected: stopping previous scrobbler instance...')
+		await g.__scrobbler.stop()
+		g.__scrobbler = undefined
+	}
+
 	logger.info('Starting Recalbox scrobbler daemon...')
 
 	// Ensure VAPID keys exist (auto-generate if absent)
@@ -22,6 +33,7 @@ async function main() {
 		logger.warn('Failed to initialize VAPID keys', err)
 	}
 	const scrobbler = await startScrobbler()
+	g.__scrobbler = scrobbler
 
 	// Cleanup expired feedback entries at startup and hourly
 	cleanupExpiredFeedback()
