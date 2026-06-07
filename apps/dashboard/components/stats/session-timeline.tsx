@@ -35,8 +35,8 @@ export async function SessionTimeline({ sessions }: Props) {
 		<ScrollArea className="h-80">
 			<div className="space-y-1 pr-3">
 				{sessions.map((s) => (
-					<div key={s.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50">
-						<div className="shrink-0 text-right">
+					<div key={s.id} className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted/50">
+						<div className="hidden shrink-0 text-right sm:block">
 							<p className="text-xs font-mono text-muted-foreground">
 								{s.startedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
 							</p>
@@ -54,9 +54,9 @@ export async function SessionTimeline({ sessions }: Props) {
 								)}
 							</div>
 						</div>
-						<div className="flex shrink-0 items-center gap-2">
+						<div className="flex shrink-0 items-center gap-1.5">
 							<span
-								className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${systemBadgeClass(s.system)}`}
+								className={`max-w-17.5 truncate rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${systemBadgeClass(s.system)}`}
 							>
 								{s.system}
 							</span>

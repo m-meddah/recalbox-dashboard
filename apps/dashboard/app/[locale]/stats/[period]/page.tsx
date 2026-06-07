@@ -140,11 +140,13 @@ export default async function StatsPage({ params }: Props) {
 
 			{/* Streak + Timeline */}
 			<div className="grid gap-6 lg:grid-cols-[200px_1fr]">
-				<StreakCard
-					currentStreak={stats.kpi.currentStreak}
-					longestStreak={stats.kpi.longestStreak}
-				/>
-				<section className="space-y-3">
+				<div className="mx-auto w-full max-w-50 lg:mx-0 lg:max-w-none">
+					<StreakCard
+						currentStreak={stats.kpi.currentStreak}
+						longestStreak={stats.kpi.longestStreak}
+					/>
+				</div>
+				<section className="min-w-0 space-y-3">
 					<h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
 						{t('sections.recentSessions')}
 					</h2>
