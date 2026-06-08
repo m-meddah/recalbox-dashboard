@@ -149,12 +149,24 @@ app feel (splash screen, no browser chrome, optional push notifications).
 
 Open `http://<machine-ip>:3000` in Chrome on Android (or Safari on iOS) — replace `<machine-ip>` with the IP of the machine running the dashboard (`ip addr` / `hostname -I` to find it). The setup wizard and the full UI work normally from a mobile browser.
 
+> **The companion workflow** — the dashboard is meant to be used from your phone, on the
+> couch, next to your Recalbox. For day-to-day development, `pnpm dev:all:mobile` is the
+> command you'll reach for most: it runs **both** the Next.js app and the scrobbler daemon
+> **and** binds to `0.0.0.0` so you can open the dashboard from your phone over the local
+> network — the closest match to how people actually use it.
+>
+> ```bash
+> pnpm dev:all:mobile
+> # then open http://<machine-ip>:3000 on your phone
+> ```
+
 **Dev mode limitation** — `pnpm dev` uses Turbopack, which does not fully support React hydration when the app is accessed from an external device on the local network. Interactive elements (navigation, theme toggle, etc.) will not respond. Use one of these workarounds instead:
 
 | Goal | Command |
 | ---- | ------- |
+| **Live dev as a phone companion (recommended)** | `pnpm dev:all:mobile` (Next.js + scrobbler, bound to `0.0.0.0`) |
+| Live dev, dashboard only | `pnpm --filter @recalbox/dashboard dev:mobile` (binds Turbopack to `0.0.0.0`) |
 | Test on mobile with a stable build | `pnpm build && pnpm --filter @recalbox/dashboard start` |
-| Live dev with mobile testing | `pnpm --filter @recalbox/dashboard dev:mobile` (binds Turbopack to `0.0.0.0`) |
 
 ### From source
 
@@ -191,10 +203,10 @@ pnpm dev          # http://localhost:3000
 
 | Command | Description |
 | ------- | ----------- |
-| `pnpm dev` | Start Next.js dev server with Turbopack (localhost only) |
-| `pnpm dev:all` | Start Next.js + scrobbler together (recommended for dev) |
-| `pnpm dev:all:mobile` | Same, accessible from phones on the local network (binds to `0.0.0.0`) |
-| `pnpm --filter @recalbox/dashboard dev:mobile` | Dev server only, accessible from phones on the local network |
+| `pnpm dev:all:mobile` | **⭐ Recommended** — Next.js + scrobbler, reachable from your phone on the local network (binds to `0.0.0.0`). The closest match to how the dashboard is actually used (a phone companion). |
+| `pnpm dev:all` | Start Next.js + scrobbler together (localhost only) |
+| `pnpm dev` | Start Next.js dev server with Turbopack (localhost only, no scrobbler) |
+| `pnpm --filter @recalbox/dashboard dev:mobile` | Dev server only (no scrobbler), accessible from phones on the local network |
 | `pnpm build` | Build all packages |
 | `pnpm lint` | Biome lint + check |
 | `pnpm format` | Biome format (write) |

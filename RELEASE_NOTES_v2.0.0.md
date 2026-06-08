@@ -125,6 +125,10 @@ pnpm build
 
 No schema migration is required — your existing database and connection settings carry over.
 
+> 💡 **Developing locally?** The dashboard is a phone companion, so the command you'll use
+> most is `pnpm dev:all:mobile` — it runs both the Next.js app and the scrobbler and binds to
+> `0.0.0.0`, so you can open it from your phone on the local network.
+
 ---
 
 ## 🙏 Thanks
