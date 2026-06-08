@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const getSession = vi.fn()
 
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => new Headers()) }))
-vi.mock('@/lib/auth/server', () => ({ auth: { api: { getSession: (...a: unknown[]) => getSession(...a) } } }))
+vi.mock('@/lib/auth/server', () => ({
+	auth: { api: { getSession: (...a: unknown[]) => getSession(...a) } },
+}))
 
-import { getUser, requireUser, UnauthorizedError } from '../require-user'
+import { UnauthorizedError, getUser, requireUser } from '../require-user'
 
 afterEach(() => getSession.mockReset())
 
