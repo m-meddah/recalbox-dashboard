@@ -512,3 +512,5 @@ export const recommendationLog = sqliteTable(
 )
 
 export type RecommendationLog = typeof recommendationLog.$inferSelect
+
+export * from '@/lib/auth/auth-schema'
