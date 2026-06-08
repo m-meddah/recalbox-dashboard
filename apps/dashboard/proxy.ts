@@ -1,3 +1,4 @@
+import { getSessionCookie } from 'better-auth/cookies'
 import createMiddleware from 'next-intl/middleware'
 import { type NextRequest, NextResponse } from 'next/server'
 import { routing } from './i18n/routing'
@@ -23,15 +24,12 @@ export async function proxy(request: NextRequest) {
 		? firstSegment
 		: routing.defaultLocale
 
-	// Setup wizard redirect using the setup_done cookie
-	const setupDone = request.cookies.get('setup_done')?.value === '1'
-	if (!setupDone) {
-		const isWelcomePage = pathname === `/${locale}/welcome` || pathname.endsWith('/welcome')
-		if (!isWelcomePage) {
-			return NextResponse.redirect(new URL(`/${locale}/welcome`, request.url))
-		}
-	} else if (pathname.endsWith('/welcome')) {
-		// Redirect away from welcome if already set up
+	const hasSession = getSessionCookie(request) != null
+	const isLoginPage = pathname === `/${locale}/login` || pathname.endsWith('/login')
+	if (!hasSession && !isLoginPage) {
+		return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
+	}
+	if (hasSession && isLoginPage) {
 		return NextResponse.redirect(new URL(`/${locale}`, request.url))
 	}
 
