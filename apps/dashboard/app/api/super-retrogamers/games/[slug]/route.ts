@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getCachedStale, setCached } from '@/lib/super-retrogamers/cache'
 import { type SrGame, srClient } from '@/lib/super-retrogamers/client'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+	if (!(await getUser())) return unauthorized()
 	const { slug } = await params
 	const cacheKey = `game:${slug}`
 

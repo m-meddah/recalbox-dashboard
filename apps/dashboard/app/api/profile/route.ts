@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { games } from '@/lib/db/schema'
 import { getUserProfile } from '@/lib/profile/get-profile'
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const profile = await getUserProfile()
 
 	const allGameIds = [...profile.comfortGames, ...profile.bouncerGames]

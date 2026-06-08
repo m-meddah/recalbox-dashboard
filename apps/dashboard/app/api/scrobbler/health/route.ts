@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db/index'
 import { getOpenSessions } from '@/lib/db/queries'
 import { sessions } from '@/lib/db/schema'
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	try {
 		const [openSessions, lastSessionRows] = await Promise.all([
 			getOpenSessions(),

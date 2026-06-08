@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -17,6 +18,7 @@ const formSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let fields: Record<string, string>
 	try {
 		const data = await req.formData()

@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getPatronStatus } from '@/lib/recalbox/patron-status'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
@@ -11,6 +12,7 @@ export const dynamic = 'force-dynamic'
  * Returns PatronStatus with boolean fields only — the key value is never exposed.
  */
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
 		return NextResponse.json(

@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import {
 	type AppConfig,
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	return NextResponse.json(maskedConfig(configStore.get()))
 }
 
@@ -82,6 +84,7 @@ const putBodySchema = z.object({
 })
 
 export async function PUT(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

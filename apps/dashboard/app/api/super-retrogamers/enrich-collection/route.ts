@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { listUncheckedGames, updateGameSrInfo } from '@/lib/db/queries'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { srClient } from '@/lib/super-retrogamers/client'
@@ -19,6 +20,7 @@ function ndjson(e: EnrichEvent): string {
 const BATCH = 100
 
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	const encoder = new TextEncoder()
 	const stream = new ReadableStream({
 		async start(controller) {

@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { listGames } from '@/lib/db/queries'
 import type { CollectionFilters } from '@/lib/db/queries'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic'
  *               sortBy, sortDir, page, pageSize
  */
 export async function GET(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const p = req.nextUrl.searchParams
 
 	const page = Math.max(1, Number(p.get('page') ?? 1))

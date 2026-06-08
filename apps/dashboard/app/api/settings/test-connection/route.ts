@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { PASSWORD_MASK } from '@/lib/settings/schemas'
 import mqtt from 'mqtt'
@@ -71,6 +72,7 @@ async function testMqtt(host: string, port: number) {
 }
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown = {}
 	try {
 		body = await req.json()

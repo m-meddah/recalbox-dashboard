@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { saveAndTestCredentials } from '@/lib/igdb/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -11,6 +12,7 @@ const Schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

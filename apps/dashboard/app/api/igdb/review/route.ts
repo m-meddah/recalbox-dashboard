@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { gameIgdbMapping, games } from '@/lib/db/schema'
 import type { IgdbCandidate } from '@/lib/igdb/match-game'
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const system = req.nextUrl.searchParams.get('system')?.trim() || null
 
 	const where = system

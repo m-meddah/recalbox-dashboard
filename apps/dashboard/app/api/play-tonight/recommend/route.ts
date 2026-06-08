@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { recommend } from '@/lib/recommendations/recommend'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -11,6 +12,7 @@ const Schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const parsed = Schema.safeParse(await req.json())
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.format() }, { status: 400 })
 

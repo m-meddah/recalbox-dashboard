@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
@@ -7,6 +8,7 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request): Promise<NextResponse> {
+	if (!(await getUser())) return unauthorized()
 	const body = await request.json().catch(() => null)
 	const action = body?.action
 

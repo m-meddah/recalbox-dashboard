@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { setActiveRecalboxId } from '@/lib/recalbox/active'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -9,6 +10,7 @@ export const runtime = 'nodejs'
 const bodySchema = z.object({ id: z.uuid() })
 
 export async function PUT(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

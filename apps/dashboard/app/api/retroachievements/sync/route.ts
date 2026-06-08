@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import { syncRetroAchievements } from '@/lib/retroachievements/sync'
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	const cfg = configStore.get().retroachievements
 	if (!cfg.enabled || !cfg.username || !cfg.apiKey) {
 		return NextResponse.json({ error: 'RetroAchievements not configured' }, { status: 503 })

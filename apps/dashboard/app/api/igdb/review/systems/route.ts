@@ -1,12 +1,14 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { gameIgdbMapping, games } from '@/lib/db/schema'
-import { eq, sql, desc } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const rows = await db
 		.select({
 			system: games.system,

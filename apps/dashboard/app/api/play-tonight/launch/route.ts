@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { games, recommendationLog } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic'
 const Schema = z.object({ gameId: z.number().int() })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

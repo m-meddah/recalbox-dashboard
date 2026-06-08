@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { gameHltbMapping, games } from '@/lib/db/schema'
 import { eq, isNotNull, isNull } from 'drizzle-orm'
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const [totalGames, mapped, notFound] = await Promise.all([
 		db.select({ id: games.id }).from(games).where(eq(games.hidden, false)).all(),
 		db

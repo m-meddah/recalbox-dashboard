@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db/index'
 import { pushSubscriptions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -10,6 +11,7 @@ export const runtime = 'nodejs'
 const schema = z.object({ endpoint: z.url() })
 
 export async function POST(req: Request) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

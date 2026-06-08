@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { upsertGames } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -32,6 +33,7 @@ function ndjson(event: SyncEvent): string {
  * Query param: ?system=snes to sync only one system.
  */
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const targetSystem = req.nextUrl.searchParams.get('system') ?? undefined
 
 	const encoder = new TextEncoder()

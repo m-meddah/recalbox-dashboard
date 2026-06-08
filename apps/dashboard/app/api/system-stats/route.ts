@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getRecentSnapshots, insertSystemSnapshot } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -8,6 +9,7 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request): Promise<NextResponse> {
+	if (!(await getUser())) return unauthorized()
 	const { searchParams } = new URL(request.url)
 	const historyMinutes = Number.parseInt(searchParams.get('history') ?? '0', 10)
 

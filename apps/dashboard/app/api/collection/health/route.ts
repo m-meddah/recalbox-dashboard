@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getCollectionHealth } from '@/lib/collection-health'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -10,6 +11,7 @@ export const dynamic = 'force-dynamic'
  * Optional query param: ?system=psx  (filter results to a single system)
  */
 export async function GET(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const recalboxId = await getActiveRecalboxId()
 	const health = await getCollectionHealth(recalboxId ?? undefined)
 

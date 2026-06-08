@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { testConnection } from '@/lib/retroachievements/service'
 import { NextResponse } from 'next/server'
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	const cfg = configStore.get().retroachievements
 	if (!cfg.username || !cfg.apiKey) {
 		return NextResponse.json(

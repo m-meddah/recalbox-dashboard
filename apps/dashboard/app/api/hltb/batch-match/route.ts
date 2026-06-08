@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { type HltbBatchProgress, batchMatchHltb } from '@/lib/hltb/batch-match'
 import { NextResponse } from 'next/server'
 
@@ -8,6 +9,7 @@ let currentProgress: HltbBatchProgress | null = null
 let isRunning = false
 
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	if (isRunning) {
 		return NextResponse.json({ ok: false, error: 'already_running' }, { status: 409 })
 	}

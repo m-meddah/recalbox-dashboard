@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
 
@@ -15,6 +16,7 @@ const LOGO_DIR =
 const SYSTEM_ID = /^[a-z0-9]+$/
 
 export async function GET(request: Request) {
+	if (!(await getUser())) return unauthorized()
 	const { searchParams } = new URL(request.url)
 	const system = searchParams.get('system')
 

@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db/index'
 import { games } from '@/lib/db/schema'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -10,6 +11,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const system = req.nextUrl.searchParams.get('system') ?? undefined
 
 	const recalboxId = await getActiveRecalboxId()

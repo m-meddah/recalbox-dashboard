@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { shellQuote } from '@/lib/recalbox/shell'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
@@ -18,6 +19,7 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 export async function GET(request: Request) {
+	if (!(await getUser())) return unauthorized()
 	const { searchParams } = new URL(request.url)
 	const filePath = searchParams.get('path')
 

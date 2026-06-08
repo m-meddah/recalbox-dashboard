@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db/index'
 import { pushSubscriptions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -8,11 +9,13 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const subs = db.select().from(pushSubscriptions).all()
 	return NextResponse.json(subs)
 }
 
 export async function DELETE(req: Request) {
+	if (!(await getUser())) return unauthorized()
 	const { searchParams } = new URL(req.url)
 	const endpoint = searchParams.get('endpoint')
 	if (!endpoint) {

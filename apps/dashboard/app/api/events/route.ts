@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { feedbackService } from '@/lib/feedback/service'
 import { logger } from '@/lib/logger'
@@ -19,6 +20,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
+	if (!(await getUser())) return unauthorized()
 	const url = new URL(request.url)
 	const recalboxIdFilter = url.searchParams.get('recalboxId')
 	const notifService = getNotificationService()

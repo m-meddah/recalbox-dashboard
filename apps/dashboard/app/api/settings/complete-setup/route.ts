@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { NextResponse } from 'next/server'
 
@@ -5,6 +6,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	configStore.markSetupComplete()
 
 	const response = NextResponse.json({ ok: true })

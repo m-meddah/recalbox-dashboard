@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type AppConfig, maskedConfig } from '@/lib/settings/schemas'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -11,6 +12,7 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown = {}
 	try {
 		body = await req.json()

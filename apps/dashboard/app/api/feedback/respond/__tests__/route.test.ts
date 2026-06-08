@@ -18,6 +18,13 @@ vi.mock('@/lib/db/index', () => ({ db: testDb }))
 vi.mock('@/lib/profile/compute-profile', () => ({
 	computeUserProfile: vi.fn().mockResolvedValue(undefined),
 }))
+vi.mock('@/lib/auth/require-user', async () => {
+	const { NextResponse } = await import('next/server')
+	return {
+		getUser: vi.fn().mockResolvedValue({ id: 'u1', email: 'a@b.c', role: 'member' }),
+		unauthorized: () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+	}
+})
 
 const { POST } = await import('../route')
 

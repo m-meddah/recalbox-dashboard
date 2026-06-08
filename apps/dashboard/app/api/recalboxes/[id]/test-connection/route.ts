@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import mqtt from 'mqtt'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -58,6 +59,7 @@ async function testMqtt(host: string, port: number) {
 }
 
 export async function POST(_req: NextRequest, { params }: Ctx) {
+	if (!(await getUser())) return unauthorized()
 	const { id } = await params
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })

@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { type BatchProgress, batchMatchAll, batchMatchPlayedGames } from '@/lib/igdb/batch-match'
 import { type NextRequest, NextResponse } from 'next/server'
 
@@ -9,6 +10,7 @@ let currentProgress: BatchProgress | null = null
 let isRunning = false
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	if (isRunning) {
 		return NextResponse.json({ ok: false, error: 'already_running' }, { status: 409 })
 	}

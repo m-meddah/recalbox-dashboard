@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { recommendationLog, recommendationSkip } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
@@ -10,6 +11,7 @@ const SKIP_DAYS = 7
 const Schema = z.object({ gameId: z.number().int() })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	const { gameId } = Schema.parse(await req.json())
 	const expiresAt = new Date()
 	expiresAt.setDate(expiresAt.getDate() + SKIP_DAYS)

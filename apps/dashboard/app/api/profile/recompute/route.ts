@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { computeUserProfile } from '@/lib/profile/compute-profile'
 import { NextResponse } from 'next/server'
 
@@ -9,6 +10,7 @@ export const runtime = 'nodejs'
  * de la page profil et pour le debug.
  */
 export async function POST() {
+	if (!(await getUser())) return unauthorized()
 	const start = Date.now()
 	try {
 		await computeUserProfile()

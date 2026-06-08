@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -8,6 +9,7 @@ export const runtime = 'nodejs'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
+	if (!(await getUser())) return unauthorized()
 	const { id } = await params
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -31,6 +33,7 @@ const updateSchema = z.object({
 })
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
+	if (!(await getUser())) return unauthorized()
 	const { id } = await params
 	if (!configStore.getRecalbox(id))
 		return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -52,6 +55,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
+	if (!(await getUser())) return unauthorized()
 	const { id } = await params
 	if (!configStore.getRecalbox(id))
 		return NextResponse.json({ error: 'Not found' }, { status: 404 })

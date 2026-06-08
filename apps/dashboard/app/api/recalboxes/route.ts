@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+	if (!(await getUser())) return unauthorized()
 	const all = configStore.getRecalboxes().map((rb) => ({ ...rb, sshPassword: '***' }))
 	return NextResponse.json(all)
 }
@@ -25,6 +27,7 @@ const createSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

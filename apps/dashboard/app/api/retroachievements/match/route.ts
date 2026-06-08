@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -14,6 +15,7 @@ const manualMatchSchema = z.object({
 })
 
 export async function GET(request: Request) {
+	if (!(await getUser())) return unauthorized()
 	const cfg = configStore.get().retroachievements
 	if (!cfg.enabled) {
 		return NextResponse.json({ error: 'RetroAchievements not configured' }, { status: 503 })
@@ -40,6 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()

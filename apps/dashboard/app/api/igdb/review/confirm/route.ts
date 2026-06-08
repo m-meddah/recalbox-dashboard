@@ -1,3 +1,4 @@
+import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { gameIgdbMapping } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -15,6 +16,7 @@ const Schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+	if (!(await getUser())) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()
