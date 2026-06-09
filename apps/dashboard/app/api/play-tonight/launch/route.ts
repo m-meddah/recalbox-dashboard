@@ -1,3 +1,4 @@
+import { canControlRecalbox } from '@/lib/auth/ownership'
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
 import { games, recommendationLog } from '@/lib/db/schema'
@@ -14,7 +15,8 @@ export const dynamic = 'force-dynamic'
 const Schema = z.object({ gameId: z.number().int() })
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
 			.where(eq(games.id, gameId))
 			.get()
 
-		if (recalboxId && game) {
+		if (recalboxId && game && canControlRecalbox(user, recalboxId)) {
 			// Don't stack a launch on top of a game already running on the box.
 			const state = await getEsState(recalboxId)
 			if (state?.gameRunning) {

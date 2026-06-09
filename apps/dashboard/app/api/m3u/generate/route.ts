@@ -1,5 +1,6 @@
 import { dirname, resolve as pathResolve } from 'node:path'
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { canControlRecalbox } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { generateM3uContent, sanitizeM3uFileName } from '@/lib/recalbox/m3u-generator'
@@ -37,7 +38,8 @@ type WriteSpec = {
 }
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	const body: GenerateRequest = await req.json()
 	if (!Array.isArray(body?.games)) {
 		return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 	}
+	if (!canControlRecalbox(user, recalboxId)) return forbidden()
 
 	const ssh = getSshClient(recalboxId)
 	const results: GenerateResult[] = []

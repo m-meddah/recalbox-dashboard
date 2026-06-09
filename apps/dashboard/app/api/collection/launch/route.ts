@@ -1,4 +1,5 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { canControlRecalbox } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getEsState } from '@/lib/recalbox/es-state'
@@ -13,7 +14,8 @@ export const dynamic = 'force-dynamic'
  * Asks the Recalbox's EmulationStation to launch a game (UDP command).
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let body: { romPath?: unknown; system?: unknown }
 	try {
 		body = await req.json()
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 	}
+	if (!canControlRecalbox(user, recalboxId)) return forbidden()
 
 	// Refuse to launch over a running game — ES would silently queue it and start it
 	// only after the current game quits (surprising the user). The browser already

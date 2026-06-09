@@ -1,4 +1,5 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { canControlRecalbox } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { upsertGames } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -33,7 +34,13 @@ function ndjson(event: SyncEvent): string {
  * Query param: ?system=snes to sync only one system.
  */
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
+	// Resolve the target machine up front so we can reject a non-owner with a real 403
+	// before the NDJSON stream (and its 200 status) starts. A null id is handled inside
+	// the stream with an error event, as before.
+	const activeId = await getActiveRecalboxId()
+	if (activeId && !canControlRecalbox(user, activeId)) return forbidden()
 	const targetSystem = req.nextUrl.searchParams.get('system') ?? undefined
 
 	const encoder = new TextEncoder()
