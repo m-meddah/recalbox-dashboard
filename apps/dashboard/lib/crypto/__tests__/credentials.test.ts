@@ -1,5 +1,5 @@
 // apps/dashboard/lib/crypto/__tests__/credentials.test.ts
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const KEY = 'test-secret-at-least-32-chars-long-aaaa'
 
@@ -14,6 +14,7 @@ describe('credentials crypto', () => {
 		delete process.env.BETTER_AUTH_SECRET
 		// biome-ignore lint/performance/noDelete: env var must be truly absent, not set to "undefined"
 		delete process.env.CREDENTIALS_SECRET
+		vi.resetModules()
 	})
 
 	it('round-trips a secret', async () => {
@@ -42,10 +43,15 @@ describe('credentials crypto', () => {
 	})
 
 	it('prefers CREDENTIALS_SECRET over BETTER_AUTH_SECRET', async () => {
+		process.env.CREDENTIALS_SECRET = 'a-completely-different-dedicated-key-value'
 		const { encryptSecret, decryptSecret } = await import('../credentials')
 		const token = encryptSecret('x')
-		process.env.CREDENTIALS_SECRET = 'a-completely-different-dedicated-key-value'
-		// A different key must fail to authenticate the GCM tag.
+		// Decryptable while the dedicated secret is set.
+		expect(decryptSecret(token)).toBe('x')
+		// Remove it: only BETTER_AUTH_SECRET remains → different key → must fail,
+		// which proves encryption used CREDENTIALS_SECRET (the preferred source).
+		// biome-ignore lint/performance/noDelete: env var must be truly absent, not set to "undefined"
+		delete process.env.CREDENTIALS_SECRET
 		expect(() => decryptSecret(token)).toThrow()
 	})
 

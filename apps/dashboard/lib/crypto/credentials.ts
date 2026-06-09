@@ -7,6 +7,7 @@ const IV_LEN = 12
 const TAG_LEN = 16
 const KEY_LEN = 32
 const HKDF_INFO = 'recalbox-credentials-v1'
+const HKDF_SALT = 'recalbox-credential-salt-v1'
 
 let warnedNoKey = false
 
@@ -26,7 +27,7 @@ function resolveKey(): Buffer | null {
 		}
 		return null
 	}
-	return Buffer.from(hkdfSync('sha256', Buffer.from(secret), Buffer.alloc(0), HKDF_INFO, KEY_LEN))
+	return Buffer.from(hkdfSync('sha256', Buffer.from(secret), HKDF_SALT, HKDF_INFO, KEY_LEN))
 }
 
 export function isEncrypted(value: string): boolean {
@@ -51,6 +52,9 @@ export function decryptSecret(value: string): string {
 	const key = resolveKey()
 	if (!key) throw new Error('Encrypted credential present but no decryption key is available')
 	const raw = Buffer.from(value.slice(PREFIX.length), 'base64')
+	if (raw.length < IV_LEN + TAG_LEN + 1) {
+		throw new Error('Malformed enc:v1: credential token (too short)')
+	}
 	const iv = raw.subarray(0, IV_LEN)
 	const tag = raw.subarray(IV_LEN, IV_LEN + TAG_LEN)
 	const ct = raw.subarray(IV_LEN + TAG_LEN)
