@@ -1,5 +1,6 @@
 'use client'
 
+import { useCanControl } from '@/components/can-control-provider'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -64,6 +65,8 @@ function PowerAction({ action }: { action: Action }) {
 }
 
 export function PowerControls() {
+	const canControl = useCanControl()
+	if (!canControl) return null
 	return (
 		<>
 			<PowerAction action="reboot" />

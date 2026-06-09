@@ -1,5 +1,6 @@
 'use client'
 
+import { useCanControl } from '@/components/can-control-provider'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -26,6 +27,7 @@ export function LaunchGameButton({ romPath, system, name }: Props) {
 	const { running, gameName } = useGameRunning()
 	const [open, setOpen] = useState(false)
 	const [busy, setBusy] = useState(false)
+	const canControl = useCanControl()
 
 	async function handleConfirm() {
 		setOpen(false)
@@ -49,6 +51,8 @@ export function LaunchGameButton({ romPath, system, name }: Props) {
 			setBusy(false)
 		}
 	}
+
+	if (!canControl) return null
 
 	return (
 		<AlertDialog open={open} onOpenChange={setOpen}>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useCanControl } from '@/components/can-control-provider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useGameRunning } from '@/hooks/use-game-running'
@@ -24,6 +25,7 @@ export function PlayTonightResults({
 	onReshuffle: () => void
 }) {
 	const t = useTranslations('playTonight.results')
+	const canControl = useCanControl()
 	const { running, gameName } = useGameRunning()
 	const [results, setResults] = useState<{ recs: ScoredGame[]; forRequestId: number | null }>({
 		recs: [],
@@ -101,7 +103,7 @@ export function PlayTonightResults({
 						debugMode={debugMode}
 						onSkip={() => handleSkip(r.gameId)}
 						onLaunch={() => handleLaunch(r)}
-						launchDisabled={running}
+						launchDisabled={running || !canControl}
 						launchDisabledLabel={t('launchBusy', { name: gameName ?? '' })}
 					/>
 				))}

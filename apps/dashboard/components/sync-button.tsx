@@ -1,5 +1,6 @@
 'use client'
 
+import { useCanControl } from '@/components/can-control-provider'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useRouter } from '@/i18n/navigation'
@@ -17,6 +18,7 @@ export function SyncButton({ system }: { system?: string }) {
 	const t = useTranslations('collection.sync')
 	const router = useRouter()
 	const [state, setState] = useState<SyncState>({ status: 'idle' })
+	const canControl = useCanControl()
 
 	async function startSync() {
 		const url = system ? `/api/collection/sync?system=${system}` : '/api/collection/sync'
@@ -66,6 +68,8 @@ export function SyncButton({ system }: { system?: string }) {
 			}
 		}
 	}
+
+	if (!canControl) return null
 
 	if (state.status === 'idle') {
 		return (

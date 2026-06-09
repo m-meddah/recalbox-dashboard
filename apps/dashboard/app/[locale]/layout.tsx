@@ -6,6 +6,7 @@ import { Roboto } from 'next/font/google'
 import { notFound } from 'next/navigation'
 import '../globals.css'
 import { AppSidebar } from '@/components/app-sidebar'
+import { CanControlProvider } from '@/components/can-control-provider'
 import { FeedbackPromptProvider } from '@/components/feedback/feedback-prompt-provider'
 import { NotificationBell } from '@/components/notification-bell'
 import { NotificationListener } from '@/components/notification-listener'
@@ -16,7 +17,7 @@ import { RecalboxSwitcher } from '@/components/recalbox-switcher'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { routing } from '@/i18n/routing'
-import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { canControlRecalbox, getViewableRecalboxIds } from '@/lib/auth/ownership'
 import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -74,6 +75,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 	const viewable = user ? new Set(getViewableRecalboxIds(user)) : new Set<string>()
 	const recalboxes = configStore.getRecalboxes().filter((rb) => viewable.has(rb.id))
 	const activeRecalboxId = await getActiveRecalboxId()
+	const canControl = user && activeRecalboxId ? canControlRecalbox(user, activeRecalboxId) : false
 
 	return (
 		<html lang={locale} className={cn('font-sans', roboto.variable)} suppressHydrationWarning>
@@ -81,24 +83,26 @@ export default async function LocaleLayout({ children, params }: Props) {
 				<ThemeProvider>
 					<NextIntlClientProvider>
 						<RecalboxEventsProvider>
-							<SidebarProvider>
-								<AppSidebar />
-								<SidebarInset>
-									<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
-										<SidebarTrigger className="-ml-1" />
-										<div className="ml-auto flex items-center gap-2">
-											<NotificationBell />
-											<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
-											<PowerControls />
-										</div>
-									</header>
-									<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
-								</SidebarInset>
-							</SidebarProvider>
-							<NotificationListener />
-							<ServiceWorkerUpdater />
-							<InstallBanner />
-							<Toaster />
+							<CanControlProvider value={canControl}>
+								<SidebarProvider>
+									<AppSidebar />
+									<SidebarInset>
+										<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+											<SidebarTrigger className="-ml-1" />
+											<div className="ml-auto flex items-center gap-2">
+												<NotificationBell />
+												<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
+												<PowerControls />
+											</div>
+										</header>
+										<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
+									</SidebarInset>
+								</SidebarProvider>
+								<NotificationListener />
+								<ServiceWorkerUpdater />
+								<InstallBanner />
+								<Toaster />
+							</CanControlProvider>
 						</RecalboxEventsProvider>
 					</NextIntlClientProvider>
 				</ThemeProvider>

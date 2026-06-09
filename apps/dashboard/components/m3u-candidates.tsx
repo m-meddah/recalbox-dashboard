@@ -1,5 +1,6 @@
 'use client'
 
+import { useCanControl } from '@/components/can-control-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,6 +42,7 @@ function m3uPreview(g: MultiDiscGame): string {
 
 export function M3uCandidates() {
 	const t = useTranslations('m3u')
+	const canControl = useCanControl()
 	const [data, setData] = useState<CandidatesData | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [generatingKeys, setGeneratingKeys] = useState<Set<string>>(new Set())
@@ -122,7 +124,7 @@ export function M3uCandidates() {
 						})}
 					</p>
 					{totalMissing > 0 && (
-						<Button onClick={batchMissing} disabled={generatingKeys.size > 0}>
+						<Button onClick={batchMissing} disabled={generatingKeys.size > 0 || !canControl}>
 							{generatingKeys.size > 0 ? t('generating') : t('generateMissing')}
 						</Button>
 					)}
@@ -201,7 +203,7 @@ export function M3uCandidates() {
 													size="sm"
 													variant={status === 'differs' ? 'outline' : 'default'}
 													className="shrink-0"
-													disabled={isGenerating}
+													disabled={isGenerating || !canControl}
 													onClick={() => (status === 'differs' ? handleUpdate(g) : generate([g]))}
 												>
 													{isGenerating
