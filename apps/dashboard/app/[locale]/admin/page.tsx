@@ -37,23 +37,21 @@ export default async function AdminPage() {
 
 	return (
 		<div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
-			<div>
+			<header className="space-y-1">
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-			</div>
+			</header>
 
-			{overview.users.length === 0 && (
-				<p className="text-sm text-muted-foreground">{t('noUsers')}</p>
-			)}
+			{cards.length === 0 && <p className="text-sm text-muted-foreground">{t('noUsers')}</p>}
 
 			<div className="space-y-4">
-				{cards.map((c) => (
-					<div key={c.key} className="border rounded-lg p-4 space-y-3">
+				{cards.map((card) => (
+					<div key={card.key} className="border rounded-lg p-4 space-y-3">
 						<div className="flex items-center gap-2">
-							<p className="font-medium">{c.title}</p>
-							{c.role && (
+							<h2 className="font-medium">{card.title}</h2>
+							{card.role && (
 								<span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-									{c.role}
+									{card.role}
 								</span>
 							)}
 						</div>
@@ -61,25 +59,25 @@ export default async function AdminPage() {
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
 							<div>
 								<p className="text-xs text-muted-foreground">{t('playtime')}</p>
-								<p className="font-semibold">{formatDuration(c.stats.totalPlaytimeSec)}</p>
+								<p className="font-semibold">{formatDuration(card.stats.totalPlaytimeSec)}</p>
 							</div>
 							<div>
 								<p className="text-xs text-muted-foreground">{t('sessions')}</p>
-								<p className="font-semibold">{c.stats.totalSessions}</p>
+								<p className="font-semibold">{card.stats.totalSessions}</p>
 							</div>
 							<div>
 								<p className="text-xs text-muted-foreground">{t('games')}</p>
-								<p className="font-semibold">{c.stats.uniqueGames}</p>
+								<p className="font-semibold">{card.stats.uniqueGames}</p>
 							</div>
 							<div>
 								<p className="text-xs text-muted-foreground">{t('machines')}</p>
-								<p className="font-semibold">{c.machines.length}</p>
+								<p className="font-semibold">{card.machines.length}</p>
 							</div>
 						</div>
 
-						{c.machines.length > 0 && (
+						{card.machines.length > 0 && (
 							<div className="flex flex-wrap gap-2">
-								{c.machines.map((m) => (
+								{card.machines.map((m) => (
 									<span
 										key={m.id}
 										className="rounded border px-2 py-1 text-xs text-muted-foreground"
@@ -91,11 +89,11 @@ export default async function AdminPage() {
 							</div>
 						)}
 
-						{c.stats.topGames.length > 0 ? (
+						{card.stats.topGames.length > 0 ? (
 							<div className="space-y-1">
-								<p className="text-xs text-muted-foreground">{t('topGames')}</p>
+								<h3 className="text-xs font-normal text-muted-foreground">{t('topGames')}</h3>
 								<ol className="space-y-0.5 text-sm">
-									{c.stats.topGames.slice(0, 5).map((g) => (
+									{card.stats.topGames.slice(0, 5).map((g) => (
 										<li key={g.romPath} className="flex justify-between gap-4">
 											<span className="truncate">{g.gameName}</span>
 											<span className="shrink-0 text-muted-foreground">
