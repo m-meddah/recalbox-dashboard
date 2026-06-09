@@ -17,7 +17,21 @@
 		"wrapped": "Wrapped",
 		"profile": "Profile",
 		"playTonight": "Play Tonight",
-		"bios": "BIOS"
+		"bios": "BIOS",
+		"admin": "Admin"
+	},
+	"admin": {
+		"title": "Admin — All Users",
+		"subtitle": "Read-only view of every user's machines and playtime.",
+		"machines": "Machines",
+		"playtime": "Playtime",
+		"sessions": "Sessions",
+		"games": "Games",
+		"topGames": "Top games",
+		"unassigned": "Unassigned machines",
+		"noUsers": "No users yet.",
+		"noActivity": "No activity yet.",
+		"archived": "archived"
 	},
 	"dashboard": {
 		"nowPlaying": {
