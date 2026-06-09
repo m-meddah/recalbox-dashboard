@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { encryptSecret } from '@/lib/crypto/credentials'
 import { db } from '@/lib/db/index'
 import {
 	games,
@@ -53,7 +54,7 @@ export function runMultiRecalboxMigrationIfNeeded(): void {
 			name: 'My Recalbox',
 			host,
 			sshUser,
-			sshPassword,
+			sshPassword: encryptSecret(sshPassword),
 			sshPort,
 			mqttPort,
 			isDefault: true,

@@ -1,9 +1,16 @@
-import { encryptSecret, isEncrypted } from '@/lib/crypto/credentials'
+import { encryptSecret, hasKey, isEncrypted } from '@/lib/crypto/credentials'
 import { db } from '@/lib/db'
 import { igdbCredentials, recalboxes } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 async function main() {
+	if (!hasKey()) {
+		console.error(
+			'No CREDENTIALS_SECRET/BETTER_AUTH_SECRET set — refusing to run; secrets would remain plaintext.',
+		)
+		process.exit(1)
+	}
+
 	const dryRun = process.argv.includes('--dry-run')
 	let changed = 0
 

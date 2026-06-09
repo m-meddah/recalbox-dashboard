@@ -34,6 +34,10 @@ export function isEncrypted(value: string): boolean {
 	return value.startsWith(PREFIX)
 }
 
+export function hasKey(): boolean {
+	return Boolean(process.env.CREDENTIALS_SECRET || process.env.BETTER_AUTH_SECRET)
+}
+
 /** Encrypts a secret. Empty strings and (no-key mode) pass through unchanged. */
 export function encryptSecret(plain: string): string {
 	if (plain === '') return plain

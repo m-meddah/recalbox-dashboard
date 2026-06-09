@@ -1,6 +1,7 @@
 import { decryptSecret, encryptSecret } from '@/lib/crypto/credentials'
 import { db } from '@/lib/db'
 import { igdbCredentials } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import { eq } from 'drizzle-orm'
 
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token'
@@ -37,7 +38,8 @@ export async function getAccessToken(): Promise<
 	try {
 		clientSecret = decryptSecret(creds.clientSecret)
 		accessToken = creds.accessToken ? decryptSecret(creds.accessToken) : null
-	} catch {
+	} catch (err) {
+		logger.error('IGDB credential decryption failed', err)
 		return { ok: false, error: { type: 'invalid_credentials' } }
 	}
 

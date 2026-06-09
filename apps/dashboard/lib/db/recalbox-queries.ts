@@ -1,19 +1,26 @@
 import { decryptSecret, encryptSecret } from '@/lib/crypto/credentials'
 import { db } from '@/lib/db/index'
 import { recalboxes } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import { eq } from 'drizzle-orm'
 
 export type RecalboxRow = typeof recalboxes.$inferSelect
 export type RecalboxInsert = typeof recalboxes.$inferInsert
 
 function decryptRow(row: RecalboxRow): RecalboxRow {
-	return { ...row, sshPassword: decryptSecret(row.sshPassword) }
+	try {
+		return { ...row, sshPassword: decryptSecret(row.sshPassword) }
+	} catch (err) {
+		logger.error(`Failed to decrypt ssh_password for recalbox ${row.id}`, err)
+		return row
+	}
 }
 
 export function listRecalboxes(): RecalboxRow[] {
 	try {
 		return db.select().from(recalboxes).all().map(decryptRow)
-	} catch {
+	} catch (err) {
+		logger.error('listRecalboxes failed', err)
 		return []
 	}
 }
@@ -21,7 +28,8 @@ export function getRecalbox(id: string): RecalboxRow | null {
 	try {
 		const row = db.select().from(recalboxes).where(eq(recalboxes.id, id)).get()
 		return row ? decryptRow(row) : null
-	} catch {
+	} catch (err) {
+		logger.error('getRecalbox failed', err)
 		return null
 	}
 }
@@ -29,7 +37,8 @@ export function getDefaultRecalbox(): RecalboxRow | null {
 	try {
 		const row = db.select().from(recalboxes).where(eq(recalboxes.isDefault, true)).get()
 		return row ? decryptRow(row) : null
-	} catch {
+	} catch (err) {
+		logger.error('getDefaultRecalbox failed', err)
 		return null
 	}
 }
