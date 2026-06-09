@@ -27,3 +27,7 @@ export async function requireUser(): Promise<AuthedUser> {
 export function unauthorized(): NextResponse {
 	return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 }
+
+export function forbidden(): NextResponse {
+	return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+}
