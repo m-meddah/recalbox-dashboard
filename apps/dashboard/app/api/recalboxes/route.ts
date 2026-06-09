@@ -33,7 +33,8 @@ const createSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()
@@ -42,10 +43,13 @@ export async function POST(req: NextRequest) {
 	}
 	const parsed = createSchema.safeParse(body)
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
-	const rb = configStore.addRecalbox({
-		...parsed.data,
-		color: parsed.data.color ?? null,
-		iconEmoji: parsed.data.iconEmoji ?? null,
-	})
+	const rb = configStore.addRecalbox(
+		{
+			...parsed.data,
+			color: parsed.data.color ?? null,
+			iconEmoji: parsed.data.iconEmoji ?? null,
+		},
+		user.id,
+	)
 	return NextResponse.json({ ...rb, sshPassword: '***' }, { status: 201 })
 }
