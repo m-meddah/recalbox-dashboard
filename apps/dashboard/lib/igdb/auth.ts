@@ -32,8 +32,14 @@ export async function getAccessToken(): Promise<
 		return { ok: false, error: { type: 'no_credentials' } }
 	}
 
-	const clientSecret = decryptSecret(creds.clientSecret)
-	const accessToken = creds.accessToken ? decryptSecret(creds.accessToken) : null
+	let clientSecret: string
+	let accessToken: string | null
+	try {
+		clientSecret = decryptSecret(creds.clientSecret)
+		accessToken = creds.accessToken ? decryptSecret(creds.accessToken) : null
+	} catch {
+		return { ok: false, error: { type: 'invalid_credentials' } }
+	}
 
 	const now = Date.now()
 	const expiresAt = creds.accessTokenExpiresAt?.getTime() ?? 0

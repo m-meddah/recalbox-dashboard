@@ -1,5 +1,5 @@
 // apps/dashboard/lib/igdb/__tests__/auth-encryption.test.ts
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { db, sqlite } = vi.hoisted(() => {
 	const Database = require('better-sqlite3')
@@ -33,6 +33,9 @@ afterAll(() => {
 })
 beforeEach(() => {
 	sqlite.exec('DELETE FROM igdb_credentials')
+})
+afterEach(() => {
+	vi.unstubAllGlobals()
 })
 
 describe('igdb auth encryption', () => {
@@ -73,7 +76,26 @@ describe('igdb auth encryption', () => {
 		}
 		expect(raw.access_token.startsWith('enc:v1:')).toBe(true)
 		expect(raw.access_token).not.toContain('fresh-token')
+	})
 
-		vi.unstubAllGlobals()
+	it('stores clientSecret encrypted via saveAndTestCredentials', async () => {
+		sqlite.prepare('INSERT INTO igdb_credentials (id) VALUES (1)').run()
+
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ access_token: 'tok', expires_in: 3600 }),
+		})
+		vi.stubGlobal('fetch', fetchMock)
+
+		const { saveAndTestCredentials } = await import('../auth')
+		const res = await saveAndTestCredentials('my-client-id', 'my-secret')
+		expect(res.ok).toBe(true)
+
+		const raw = sqlite.prepare('SELECT client_secret FROM igdb_credentials WHERE id = 1').get() as {
+			client_secret: string
+		}
+		expect(raw.client_secret.startsWith('enc:v1:')).toBe(true)
+		expect(raw.client_secret).not.toContain('my-secret')
 	})
 })
