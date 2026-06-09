@@ -1,21 +1,28 @@
 import { sql } from 'drizzle-orm'
 import { index, int, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
 
-export const recalboxes = sqliteTable('recalboxes', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull(),
-	host: text('host').notNull(),
-	sshUser: text('ssh_user').notNull(),
-	sshPassword: text('ssh_password').notNull(),
-	sshPort: int('ssh_port').notNull().default(22),
-	mqttPort: int('mqtt_port').notNull().default(1883),
-	color: text('color'),
-	iconEmoji: text('icon_emoji'),
-	isDefault: int('is_default', { mode: 'boolean' }).default(false),
-	archived: int('archived', { mode: 'boolean' }).default(false),
-	createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
-	lastConnectedAt: int('last_connected_at', { mode: 'timestamp' }),
-})
+export const recalboxes = sqliteTable(
+	'recalboxes',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		host: text('host').notNull(),
+		sshUser: text('ssh_user').notNull(),
+		sshPassword: text('ssh_password').notNull(),
+		sshPort: int('ssh_port').notNull().default(22),
+		mqttPort: int('mqtt_port').notNull().default(1883),
+		color: text('color'),
+		iconEmoji: text('icon_emoji'),
+		isDefault: int('is_default', { mode: 'boolean' }).default(false),
+		archived: int('archived', { mode: 'boolean' }).default(false),
+		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+		lastConnectedAt: int('last_connected_at', { mode: 'timestamp' }),
+		ownerUserId: text('owner_user_id'),
+	},
+	(t) => ({
+		ownerIdx: index('idx_recalboxes_owner').on(t.ownerUserId),
+	}),
+)
 
 export const raCache = sqliteTable('ra_cache', {
 	key: text('key').primaryKey(),
