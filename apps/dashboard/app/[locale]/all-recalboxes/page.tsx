@@ -1,3 +1,5 @@
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getSessionStats } from '@/lib/db/queries'
 import { formatDuration } from '@/lib/stats/formatters'
@@ -7,7 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function AllRecalboxesPage() {
 	const t = await getTranslations('recalboxes')
-	const all = configStore.getRecalboxes().filter((r) => !r.archived)
+	const user = await getUser()
+	const viewable = user ? new Set(getViewableRecalboxIds(user)) : new Set<string>()
+	const all = configStore.getRecalboxes().filter((r) => !r.archived && viewable.has(r.id))
 
 	const statsPerRb = await Promise.all(
 		all.map(async (rb) => {

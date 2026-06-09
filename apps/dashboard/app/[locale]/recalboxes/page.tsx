@@ -1,6 +1,8 @@
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { cn } from '@/lib/utils'
@@ -8,7 +10,9 @@ import { getTranslations } from 'next-intl/server'
 
 export default async function RecalboxesPage() {
 	const t = await getTranslations('recalboxes')
-	const all = configStore.getRecalboxes()
+	const user = await getUser()
+	const viewable = user ? new Set(getViewableRecalboxIds(user)) : new Set<string>()
+	const all = configStore.getRecalboxes().filter((rb) => viewable.has(rb.id))
 	const activeId = await getActiveRecalboxId()
 	const active = all.filter((r) => !r.archived)
 	const archived = all.filter((r) => r.archived)

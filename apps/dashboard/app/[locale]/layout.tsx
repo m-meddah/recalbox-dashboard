@@ -16,6 +16,8 @@ import { RecalboxSwitcher } from '@/components/recalbox-switcher'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { routing } from '@/i18n/routing'
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { cn } from '@/lib/utils'
@@ -68,7 +70,9 @@ export default async function LocaleLayout({ children, params }: Props) {
 
 	setRequestLocale(locale)
 
-	const recalboxes = configStore.getRecalboxes()
+	const user = await getUser()
+	const viewable = user ? new Set(getViewableRecalboxIds(user)) : new Set<string>()
+	const recalboxes = configStore.getRecalboxes().filter((rb) => viewable.has(rb.id))
 	const activeRecalboxId = await getActiveRecalboxId()
 
 	return (

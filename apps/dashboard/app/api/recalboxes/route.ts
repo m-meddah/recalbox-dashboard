@@ -1,3 +1,4 @@
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -7,8 +8,13 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
-	if (!(await getUser())) return unauthorized()
-	const all = configStore.getRecalboxes().map((rb) => ({ ...rb, sshPassword: '***' }))
+	const user = await getUser()
+	if (!user) return unauthorized()
+	const viewable = new Set(getViewableRecalboxIds(user))
+	const all = configStore
+		.getRecalboxes()
+		.filter((rb) => viewable.has(rb.id))
+		.map((rb) => ({ ...rb, sshPassword: '***' }))
 	return NextResponse.json(all)
 }
 
