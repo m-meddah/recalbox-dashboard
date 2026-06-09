@@ -6,7 +6,7 @@ export type AdminMachine = {
 	id: string
 	name: string
 	iconEmoji: string | null
-	archived: boolean | null
+	archived: boolean
 }
 
 export type AdminUserOverview = {
@@ -38,7 +38,7 @@ function toMachine(r: {
 	iconEmoji: string | null
 	archived: boolean | null
 }): AdminMachine {
-	return { id: r.id, name: r.name, iconEmoji: r.iconEmoji, archived: r.archived }
+	return { id: r.id, name: r.name, iconEmoji: r.iconEmoji, archived: r.archived ?? false }
 }
 
 /** Per-user aggregated playtime + machines for the admin read-only view. Admin-gated by the caller. */
@@ -64,6 +64,7 @@ export async function getAdminOverview(
 	const userOverviews = await Promise.all(
 		users.map(async (u) => {
 			const machines = byOwner.get(u.id) ?? []
+			// getStats([]) is contracted to return zeroed stats (see session-stats-recalbox-ids.test.ts).
 			const stats = await deps.getStats(machines.map((m) => m.id))
 			return { user: u, machines, stats }
 		}),

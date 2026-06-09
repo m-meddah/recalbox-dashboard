@@ -58,11 +58,13 @@ describe('getAdminOverview', () => {
 	})
 
 	it('gives a user with no machines an empty stat block', async () => {
-		const overview = await getAdminOverview(makeDeps())
+		const deps = makeDeps()
+		const overview = await getAdminOverview(deps)
 		// biome-ignore lint/style/noNonNullAssertion: test fixture always contains u3
 		const u3 = overview.users.find((u) => u.user.id === 'u3')!
 		expect(u3.machines).toEqual([])
 		expect(u3.stats.totalPlaytimeSec).toBe(0)
+		expect(deps.getStats).toHaveBeenCalledWith([])
 	})
 
 	it('groups unowned machines into the unassigned bucket', async () => {
