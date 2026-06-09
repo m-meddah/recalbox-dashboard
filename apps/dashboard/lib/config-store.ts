@@ -90,6 +90,7 @@ function rowToInstance(row: RecalboxRow): RecalboxInstance {
 		mqttPort: row.mqttPort,
 		color: row.color,
 		iconEmoji: row.iconEmoji,
+		ownerUserId: row.ownerUserId ?? null,
 		isDefault: row.isDefault ?? false,
 		archived: row.archived ?? false,
 	}
@@ -218,7 +219,10 @@ class ConfigStore extends EventEmitter {
 		return first ? rowToInstance(first) : null
 	}
 
-	addRecalbox(config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived'>): RecalboxInstance {
+	addRecalbox(
+		config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived' | 'ownerUserId'>,
+		ownerUserId: string | null = null,
+	): RecalboxInstance {
 		const all = listRecalboxes()
 		const id = randomUUID()
 		const row = {
@@ -226,6 +230,7 @@ class ConfigStore extends EventEmitter {
 			...config,
 			isDefault: all.length === 0,
 			archived: false,
+			ownerUserId,
 			createdAt: new Date(),
 		}
 		insertRecalbox(row)

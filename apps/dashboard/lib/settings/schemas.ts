@@ -89,6 +89,7 @@ const recalboxInstanceSchema = z.object({
 	mqttPort: z.number().int().min(1).max(65535),
 	color: z.string().nullable(),
 	iconEmoji: z.string().nullable(),
+	ownerUserId: z.string().nullable().default(null),
 	isDefault: z.boolean(),
 	archived: z.boolean(),
 })
