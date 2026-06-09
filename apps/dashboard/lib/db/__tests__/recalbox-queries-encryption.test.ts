@@ -32,7 +32,8 @@ beforeAll(() => {
 	process.env.BETTER_AUTH_SECRET = 'test-secret-at-least-32-chars-long-aaaa'
 })
 afterAll(() => {
-	process.env.BETTER_AUTH_SECRET = undefined
+	// biome-ignore lint/performance/noDelete: env var must be truly absent, not set to "undefined"
+	delete process.env.BETTER_AUTH_SECRET
 	sqlite.close()
 })
 beforeEach(() => {
