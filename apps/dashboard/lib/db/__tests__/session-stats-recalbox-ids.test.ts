@@ -35,6 +35,10 @@ const { db } = vi.hoisted(() => {
 	ins.run('rb-a', now, now + 60, 60, 'snes', '/rom/a.zip')
 	ins.run('rb-b', now, now + 120, 120, 'nes', '/rom/b.zip')
 	ins.run('rb-c', now, now + 999, 999, 'gba', '/rom/c.zip')
+	// Seed games: same rom_path on two different recalboxes to test join double-counting
+	const insG = sqlite.prepare('INSERT INTO games (recalbox_id, rom_path, name) VALUES (?, ?, ?)')
+	insG.run('rb-a', '/rom/a.zip', 'Game A')
+	insG.run('rb-b', '/rom/a.zip', 'Game A') // same rom on another machine
 	return { db: drizzle(sqlite) }
 })
 
@@ -43,6 +47,8 @@ vi.mock('@/lib/db/index', () => ({ db }))
 import { getSessionStats } from '@/lib/db/queries'
 
 describe('getSessionStats recalboxIds filter', () => {
+	// All tests are read-only; the DB is seeded once in vi.hoisted above.
+
 	it('sums only the requested recalbox set', async () => {
 		const stats = await getSessionStats({ recalboxIds: ['rb-a', 'rb-b'] })
 		expect(stats.totalPlaytimeSec).toBe(180)
@@ -59,5 +65,12 @@ describe('getSessionStats recalboxIds filter', () => {
 	it('still aggregates everything when no filter is given', async () => {
 		const stats = await getSessionStats({})
 		expect(stats.totalPlaytimeSec).toBe(60 + 120 + 999)
+	})
+
+	it('does not double-count top-game playtime when the same rom exists on multiple machines', async () => {
+		const stats = await getSessionStats({ recalboxIds: ['rb-a'] })
+		const gameA = stats.topGames.find((g) => g.romPath === '/rom/a.zip')
+		expect(gameA?.playtimeSec).toBe(60) // the single rb-a session, NOT 120
+		expect(gameA?.sessionCount).toBe(1)
 	})
 })

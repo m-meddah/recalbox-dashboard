@@ -4,6 +4,7 @@ import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
 import {
+	type SQL,
 	and,
 	asc,
 	count,
@@ -438,7 +439,7 @@ export async function listSessions(
 	return { sessions: rows, total: countRows[0]?.value ?? 0 }
 }
 
-/** Aggregate session stats over an optional date range. */
+/** Aggregated play stats. `recalboxId` and `recalboxIds` are AND-intersected if both given (callers normally pass one). */
 export async function getSessionStats(
 	opts: {
 		recalboxId?: string
@@ -450,7 +451,7 @@ export async function getSessionStats(
 ): Promise<SessionStats> {
 	const { recalboxId, recalboxIds, fromDate, toDate, topGamesLimit = 10 } = opts
 
-	const baseConditions: ReturnType<typeof sql>[] = [
+	const baseConditions: SQL[] = [
 		sql`${sessions.endedAt} IS NOT NULL`,
 		sql`${sessions.source} = 'scrobbler'`,
 	]
@@ -509,7 +510,10 @@ export async function getSessionStats(
 				srUrl: games.srUrl,
 			})
 			.from(sessions)
-			.leftJoin(games, eq(sessions.romPath, games.romPath))
+			.leftJoin(
+				games,
+				and(eq(sessions.romPath, games.romPath), eq(sessions.recalboxId, games.recalboxId)),
+			)
 			.where(where)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
