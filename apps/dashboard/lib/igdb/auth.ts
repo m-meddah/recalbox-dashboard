@@ -1,3 +1,4 @@
+import { decryptSecret, encryptSecret } from '@/lib/crypto/credentials'
 import { db } from '@/lib/db'
 import { igdbCredentials } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -31,14 +32,17 @@ export async function getAccessToken(): Promise<
 		return { ok: false, error: { type: 'no_credentials' } }
 	}
 
+	const clientSecret = decryptSecret(creds.clientSecret)
+	const accessToken = creds.accessToken ? decryptSecret(creds.accessToken) : null
+
 	const now = Date.now()
 	const expiresAt = creds.accessTokenExpiresAt?.getTime() ?? 0
 
-	if (creds.accessToken && expiresAt > now + REFRESH_BUFFER_MS) {
-		return { ok: true, token: creds.accessToken, clientId: creds.clientId }
+	if (accessToken && expiresAt > now + REFRESH_BUFFER_MS) {
+		return { ok: true, token: accessToken, clientId: creds.clientId }
 	}
 
-	return refreshAccessToken(creds.clientId, creds.clientSecret)
+	return refreshAccessToken(creds.clientId, clientSecret)
 }
 
 async function refreshAccessToken(
@@ -71,7 +75,7 @@ async function refreshAccessToken(
 		await db
 			.update(igdbCredentials)
 			.set({
-				accessToken: data.access_token,
+				accessToken: encryptSecret(data.access_token),
 				accessTokenExpiresAt: expiresAt,
 				lastTestStatus: 'ok',
 				lastTestedAt: new Date(),
@@ -92,7 +96,7 @@ export async function saveAndTestCredentials(
 ): Promise<{ ok: true } | { ok: false; error: IgdbAuthError }> {
 	await db
 		.update(igdbCredentials)
-		.set({ clientId, clientSecret, updatedAt: new Date() })
+		.set({ clientId, clientSecret: encryptSecret(clientSecret), updatedAt: new Date() })
 		.where(eq(igdbCredentials.id, 1))
 
 	const result = await refreshAccessToken(clientId, clientSecret)
