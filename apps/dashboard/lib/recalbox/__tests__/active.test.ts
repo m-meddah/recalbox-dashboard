@@ -1,52 +1,46 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const getCookie = vi.fn()
+const getUser = vi.fn()
+const getViewableRecalboxIds = vi.fn()
 
 vi.mock('next/headers', () => ({
-	cookies: vi.fn(),
+	cookies: vi.fn(async () => ({ get: (n: string) => getCookie(n) })),
 }))
+vi.mock('@/lib/auth/require-user', () => ({ getUser: () => getUser() }))
+vi.mock('@/lib/auth/ownership', () => ({ getViewableRecalboxIds: (u: unknown) => getViewableRecalboxIds(u) }))
 
-vi.mock('@/lib/config-store', () => ({
-	configStore: {
-		getRecalbox: vi.fn(),
-		getDefaultRecalbox: vi.fn(),
-		getRecalboxes: vi.fn(),
-	},
-}))
-
-import { configStore } from '@/lib/config-store'
-import { cookies } from 'next/headers'
 import { getActiveRecalboxId } from '../active'
 
+const user = { id: 'm1', email: 'm@b.c', role: 'member' }
+
+afterEach(() => {
+	getCookie.mockReset()
+	getUser.mockReset()
+	getViewableRecalboxIds.mockReset()
+})
+
 describe('getActiveRecalboxId', () => {
-	beforeEach(() => {
-		vi.clearAllMocks()
+	it('returns null when unauthenticated', async () => {
+		getUser.mockResolvedValue(null)
+		expect(await getActiveRecalboxId()).toBeNull()
 	})
-
-	it('returns cookie value when Recalbox exists', async () => {
-		const jar = { get: vi.fn().mockReturnValue({ value: 'rb-123' }) }
-		vi.mocked(cookies).mockResolvedValue(jar as never)
-		vi.mocked(configStore.getRecalbox).mockReturnValue({ id: 'rb-123' } as never)
-
-		const id = await getActiveRecalboxId()
-		expect(id).toBe('rb-123')
+	it('honours the cookie when it points to a viewable recalbox', async () => {
+		getUser.mockResolvedValue(user)
+		getCookie.mockReturnValue({ value: 'rb-1' })
+		getViewableRecalboxIds.mockReturnValue(['rb-1', 'rb-2'])
+		expect(await getActiveRecalboxId()).toBe('rb-1')
 	})
-
-	it('falls back to default when cookie Recalbox not found', async () => {
-		const jar = { get: vi.fn().mockReturnValue({ value: 'rb-unknown' }) }
-		vi.mocked(cookies).mockResolvedValue(jar as never)
-		vi.mocked(configStore.getRecalbox).mockReturnValue(null)
-		vi.mocked(configStore.getDefaultRecalbox).mockReturnValue({ id: 'rb-default' } as never)
-
-		const id = await getActiveRecalboxId()
-		expect(id).toBe('rb-default')
+	it('falls back to the first viewable when the cookie is not viewable', async () => {
+		getUser.mockResolvedValue(user)
+		getCookie.mockReturnValue({ value: 'rb-other' })
+		getViewableRecalboxIds.mockReturnValue(['rb-2', 'rb-3'])
+		expect(await getActiveRecalboxId()).toBe('rb-2')
 	})
-
-	it('returns null when no Recalbox configured', async () => {
-		const jar = { get: vi.fn().mockReturnValue(undefined) }
-		vi.mocked(cookies).mockResolvedValue(jar as never)
-		vi.mocked(configStore.getDefaultRecalbox).mockReturnValue(null)
-		vi.mocked(configStore.getRecalboxes).mockReturnValue([])
-
-		const id = await getActiveRecalboxId()
-		expect(id).toBeNull()
+	it('returns null when the user has no viewable recalboxes', async () => {
+		getUser.mockResolvedValue(user)
+		getCookie.mockReturnValue(undefined)
+		getViewableRecalboxIds.mockReturnValue([])
+		expect(await getActiveRecalboxId()).toBeNull()
 	})
 })
