@@ -24,6 +24,7 @@ import {
 	Library,
 	MemoryStick,
 	Settings,
+	ShieldUser,
 	Trophy,
 	UserRound,
 } from 'lucide-react'
@@ -41,10 +42,14 @@ const NAV_ITEMS = [
 	{ href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const
 
-export function AppSidebar() {
+export function AppSidebar({ showAdmin = false }: { showAdmin?: boolean }) {
 	const t = useTranslations('nav')
 	const pathname = usePathname()
 	const { isMobile, setOpenMobile } = useSidebar()
+
+	const navItems = showAdmin
+		? [...NAV_ITEMS, { href: '/admin', labelKey: 'admin', icon: ShieldUser } as const]
+		: NAV_ITEMS
 
 	return (
 		<Sidebar collapsible="icon">
@@ -66,7 +71,7 @@ export function AppSidebar() {
 				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
-							{NAV_ITEMS.map((item) => {
+							{navItems.map((item) => {
 								const { href, labelKey, icon: Icon } = item
 								const exact = 'exact' in item && item.exact
 								const isActive = exact
@@ -83,11 +88,11 @@ export function AppSidebar() {
 													'text-sidebar-primary before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-1 before:rounded-full before:bg-sidebar-primary',
 											)}
 											render={
-										<Link
-											href={href}
-											onClick={isMobile ? () => setOpenMobile(false) : undefined}
-										/>
-									}
+												<Link
+													href={href}
+													onClick={isMobile ? () => setOpenMobile(false) : undefined}
+												/>
+											}
 										>
 											<Icon />
 											<span>{t(labelKey)}</span>
