@@ -1,7 +1,7 @@
 import type { AuthedUser } from '@/lib/auth/require-user'
 import { listRecalboxes } from '@/lib/db/recalbox-queries'
 
-function isAdmin(user: AuthedUser): boolean {
+export function isAdmin(user: AuthedUser): boolean {
 	return user.role === 'admin'
 }
 
