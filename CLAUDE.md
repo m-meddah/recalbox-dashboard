@@ -27,6 +27,12 @@ pnpm seed:dev         # Generate 200 fake sessions over 90 days
 pnpm seed:dev -- --clear  # Delete seeded data
 ```
 
+Encrypt plaintext SSH/IGDB secrets at rest (idempotent; safe to re-run):
+```bash
+pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts            # Encrypt now
+pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts --dry-run  # Preview without writing
+```
+
 Tests run in the `apps/dashboard` workspace; run a single test file:
 ```bash
 pnpm --filter @recalbox/dashboard vitest run lib/recalbox/__tests__/events.test.ts
