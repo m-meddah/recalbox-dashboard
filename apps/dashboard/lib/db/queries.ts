@@ -3,7 +3,21 @@ import { gameInheritedStats, games, sessions, settings, systemSnapshots } from '
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
-import { and, asc, count, desc, eq, gte, isNotNull, isNull, like, lte, max, sql } from 'drizzle-orm'
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	like,
+	lte,
+	max,
+	sql,
+} from 'drizzle-orm'
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -428,18 +442,24 @@ export async function listSessions(
 export async function getSessionStats(
 	opts: {
 		recalboxId?: string
+		recalboxIds?: string[]
 		fromDate?: Date
 		toDate?: Date
 		topGamesLimit?: number
 	} = {},
 ): Promise<SessionStats> {
-	const { recalboxId, fromDate, toDate, topGamesLimit = 10 } = opts
+	const { recalboxId, recalboxIds, fromDate, toDate, topGamesLimit = 10 } = opts
 
 	const baseConditions: ReturnType<typeof sql>[] = [
 		sql`${sessions.endedAt} IS NOT NULL`,
 		sql`${sessions.source} = 'scrobbler'`,
 	]
 	if (recalboxId) baseConditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
+	if (recalboxIds) {
+		baseConditions.push(
+			recalboxIds.length > 0 ? inArray(sessions.recalboxId, recalboxIds) : sql`1 = 0`,
+		)
+	}
 	if (fromDate)
 		baseConditions.push(sql`${sessions.startedAt} >= ${Math.floor(fromDate.getTime() / 1000)}`)
 	if (toDate)
