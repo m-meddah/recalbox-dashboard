@@ -20,7 +20,10 @@ async function main() {
 				email,
 				password,
 				name: email,
-				role: role as 'admin' | 'member',
+				// Better Auth's admin plugin types role as 'user' | 'admin'; our app uses
+				// 'admin' | 'member' (stored verbatim in the text column at runtime). The cast
+				// keeps the runtime value while satisfying the SDK's narrower type.
+				role: role as 'user' | 'admin',
 			},
 		})
 	} catch (err: unknown) {
