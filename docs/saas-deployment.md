@@ -87,6 +87,20 @@ Setting `BETTER_AUTH_URL` to an `https://` origin also makes Better Auth issue s
 cookies automatically. If you also reach the app over a MagicDNS name, add it to
 `BETTER_AUTH_TRUSTED_ORIGINS` as a second comma-separated origin.
 
+### Verify the login rate limit is active
+
+The brute-force throttle on `/sign-in/email` is enabled only when `NODE_ENV=production`
+(the shipped image sets this) and relies on Better Auth seeing the client IP via an
+`X-Forwarded-For` header. Tailscale Funnel forwards `X-Forwarded-For`, but if your
+proxy chain strips or renames it, Better Auth cannot identify the caller and **silently
+skips rate limiting** (it logs a single warning at startup).
+
+After deploying, confirm the throttle works: from a browser, submit 6+ failed logins
+within a minute — the 6th should be rejected with HTTP 429. If it is not, check the
+container logs for a "rate limit" / IP warning, and if your proxy uses a different
+header, set it via Better Auth's `advanced.ipAddress.ipAddressHeaders` in
+`apps/dashboard/lib/auth/server.ts` (e.g. `['x-real-ip']`).
+
 ## 6. Bootstrap the admin account
 
 Sign-up is disabled (invitation-only). Create the first admin with the bundled CLI:
