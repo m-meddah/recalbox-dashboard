@@ -31,6 +31,9 @@ RUN pnpm --filter @recalbox/dashboard build
 # Compile scrobbler TypeScript → JS (no tsx required at runtime)
 RUN pnpm --filter @recalbox/dashboard run build:scrobbler
 
+# Compile the admin-bootstrap CLI → JS (no tsx required at runtime)
+RUN pnpm --filter @recalbox/dashboard run build:create-user
+
 # ─── Stage 2: Production runner ───────────────────────────────────────────────
 FROM node:22-alpine AS runner
 
