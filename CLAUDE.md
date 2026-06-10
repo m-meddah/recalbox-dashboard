@@ -117,7 +117,7 @@ All UI routes live under `app/[locale]/` (locales: `en`, `fr`; default: `en`). T
 
 ### Multi-Recalbox support
 
-Each Recalbox instance is a row in the `recalboxes` table (host, SSH creds, MQTT port, color, emoji). All data tables (`sessions`, `games`, `system_snapshots`, `ra_game_mapping`, `notifications`) carry a `recalbox_id` foreign key.
+Each Recalbox instance is a row in the `recalboxes` table (host, SSH creds, MQTT port, color, emoji). The `host` may be a LAN hostname/IP or a mesh-VPN (tailnet) address — see `docs/mesh-vpn-setup.md` for connecting machines across homes. All data tables (`sessions`, `games`, `system_snapshots`, `ra_game_mapping`, `notifications`) carry a `recalbox_id` foreign key.
 
 The active instance is selected via an `active_recalbox_id` cookie so each browser session can point to a different Recalbox independently. `SshPool` and `MqttPool` (`lib/recalbox/`) maintain one client per Recalbox on demand, reconnecting automatically. The scrobbler subscribes to all non-archived instances at startup and reacts to add/remove events in real-time.
 

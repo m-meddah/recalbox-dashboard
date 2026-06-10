@@ -105,3 +105,8 @@ docker run --rm \
   -v $(pwd):/backup \
   alpine tar xzf /backup/recalbox-backup-20240101.tar.gz -C /
 ```
+
+## Connecting machines across homes (mesh VPN)
+
+If your Recalbox machines are in different homes (behind separate NATs), see
+[mesh-vpn-setup.md](mesh-vpn-setup.md) for the Tailscale subnet-router setup.
