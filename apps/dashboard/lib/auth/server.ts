@@ -1,3 +1,5 @@
+import { buildRateLimitConfig } from '@/lib/auth/rate-limit'
+import { parseTrustedOrigins } from '@/lib/auth/trusted-origins'
 import { db } from '@/lib/db'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -8,6 +10,8 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: 'sqlite',
 	}),
+	trustedOrigins: parseTrustedOrigins(process.env),
+	rateLimit: buildRateLimitConfig(process.env),
 	emailAndPassword: {
 		enabled: true,
 		disableSignUp: true,

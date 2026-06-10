@@ -6,7 +6,7 @@ describe('parseTrustedOrigins', () => {
 		expect(
 			parseTrustedOrigins({
 				BETTER_AUTH_TRUSTED_ORIGINS: 'https://a.ts.net,https://b.ts.net',
-			} as NodeJS.ProcessEnv),
+			} as unknown as NodeJS.ProcessEnv),
 		).toEqual(['https://a.ts.net', 'https://b.ts.net'])
 	})
 
@@ -14,7 +14,7 @@ describe('parseTrustedOrigins', () => {
 		expect(
 			parseTrustedOrigins({
 				BETTER_AUTH_TRUSTED_ORIGINS: ' https://a.ts.net , , https://b.ts.net ,',
-			} as NodeJS.ProcessEnv),
+			} as unknown as NodeJS.ProcessEnv),
 		).toEqual(['https://a.ts.net', 'https://b.ts.net'])
 	})
 
@@ -22,7 +22,7 @@ describe('parseTrustedOrigins', () => {
 		expect(
 			parseTrustedOrigins({
 				BETTER_AUTH_URL: 'https://host.ts.net',
-			} as NodeJS.ProcessEnv),
+			} as unknown as NodeJS.ProcessEnv),
 		).toEqual(['https://host.ts.net'])
 	})
 
