@@ -2,7 +2,6 @@ import { EventEmitter } from 'node:events'
 import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import mqtt from 'mqtt'
-import { parseRecalboxMessage } from './events'
 import type {
 	GameStartEvent,
 	GameStopEvent,
@@ -11,6 +10,8 @@ import type {
 	SystemChangeEvent,
 	SystemInfoEvent,
 } from './events'
+import { parseRecalboxMessage } from './events'
+import { formatMqttUrl } from './mqtt-url'
 
 const ES_EVENT_TOPIC = 'Recalbox/WebAPI/EmulationStation/Event'
 const SYSTEM_INFO_TOPIC = 'Recalbox/WebAPI/SystemInfo'
@@ -165,7 +166,7 @@ class MqttPool {
 		if (!client) {
 			const rb = configStore.getRecalbox(recalboxId)
 			if (!rb) throw new Error(`Recalbox ${recalboxId} not found`)
-			const url = `mqtt://${rb.host}:${rb.mqttPort}`
+			const url = formatMqttUrl(rb.host, rb.mqttPort)
 			client = new RecalboxMqttClient(url)
 			client.connect()
 			this.clients.set(recalboxId, client)

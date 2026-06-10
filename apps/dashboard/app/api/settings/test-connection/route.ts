@@ -1,5 +1,6 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { formatMqttUrl } from '@/lib/recalbox/mqtt-url'
 import { PASSWORD_MASK } from '@/lib/settings/schemas'
 import { HOST_REGEX } from '@/lib/validation/host'
 import mqtt from 'mqtt'
@@ -42,7 +43,7 @@ async function testMqtt(host: string, port: number) {
 	}>((resolve) => {
 		let messagesReceived = 0
 		let resolved = false
-		const client = mqtt.connect(`mqtt://${host}:${port}`, {
+		const client = mqtt.connect(formatMqttUrl(host, port), {
 			connectTimeout: 5000,
 			reconnectPeriod: 0,
 			clientId: `recalbox-test-${Math.random().toString(16).slice(2, 8)}`,

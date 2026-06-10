@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import { getMqttClientFor, mqttPool } from '@/lib/recalbox/mqtt-client'
 import { computeAnalyticsSnapshot, mqttPublisher } from '@/lib/recalbox/mqtt-publisher'
+import { formatMqttUrl } from '@/lib/recalbox/mqtt-url'
 import { SessionManager } from './session-manager'
 
 export type Scrobbler = { stop: () => Promise<void> }
@@ -27,7 +28,8 @@ export async function startScrobbler(): Promise<Scrobbler> {
 	const initialCfg = configStore.get().mqttPublish
 	if (initialCfg.enabled) {
 		const url =
-			initialCfg.brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
+			initialCfg.brokerUrl ||
+			formatMqttUrl(configStore.getDefaultRecalbox()?.host ?? 'localhost', 1883)
 		mqttPublisher.connect(url, initialCfg.topicPrefix)
 	}
 
@@ -122,7 +124,7 @@ export async function startScrobbler(): Promise<Scrobbler> {
 			return
 		}
 		const url =
-			cfg.brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
+			cfg.brokerUrl || formatMqttUrl(configStore.getDefaultRecalbox()?.host ?? 'localhost', 1883)
 		mqttPublisher.connect(url, cfg.topicPrefix)
 	}
 

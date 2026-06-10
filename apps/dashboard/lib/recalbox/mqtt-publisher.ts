@@ -3,6 +3,7 @@ import { getLastClosedSession, getSessionStats } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
 import { calculateStreaks } from '@/lib/stats/calculators'
 import mqtt from 'mqtt'
+import { formatMqttUrl } from './mqtt-url'
 
 const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000]
 
@@ -56,7 +57,7 @@ class MqttPublisher {
 		this.disconnect()
 		this.topicPrefix = topicPrefix
 		this.resolvedUrl =
-			brokerUrl || `mqtt://${configStore.getDefaultRecalbox()?.host ?? 'localhost'}:1883`
+			brokerUrl || formatMqttUrl(configStore.getDefaultRecalbox()?.host ?? 'localhost', 1883)
 		this.reconnectAttempt = 0
 		this.createConnection()
 	}

@@ -1,6 +1,7 @@
 import { canViewRecalbox } from '@/lib/auth/ownership'
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { formatMqttUrl } from '@/lib/recalbox/mqtt-url'
 import mqtt from 'mqtt'
 import { type NextRequest, NextResponse } from 'next/server'
 import { NodeSSH } from 'node-ssh'
@@ -37,7 +38,7 @@ async function testMqtt(host: string, port: number) {
 	}>((resolve) => {
 		let resolved = false
 		let messages = 0
-		const client = mqtt.connect(`mqtt://${host}:${port}`, {
+		const client = mqtt.connect(formatMqttUrl(host, port), {
 			connectTimeout: 5000,
 			reconnectPeriod: 0,
 		})
