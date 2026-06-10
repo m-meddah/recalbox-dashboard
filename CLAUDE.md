@@ -33,6 +33,13 @@ pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts       
 pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts --dry-run  # Preview without writing
 ```
 
+The standalone `tsx` script does **not** auto-load `.env.local` (unlike the Next.js app), so `CREDENTIALS_SECRET`/`BETTER_AUTH_SECRET` must already be in the environment or the script refuses to run. The encryption key must match the one the running app uses, otherwise decryption fails. Pass it inline (strip any surrounding quotes the way dotenv does):
+```bash
+RAW=$(grep -E '^BETTER_AUTH_SECRET=' apps/dashboard/.env.local | head -1 | cut -d= -f2-)
+RAW="${RAW%\"}"; RAW="${RAW#\"}"
+BETTER_AUTH_SECRET="$RAW" pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts
+```
+
 Tests run in the `apps/dashboard` workspace; run a single test file:
 ```bash
 pnpm --filter @recalbox/dashboard vitest run lib/recalbox/__tests__/events.test.ts
