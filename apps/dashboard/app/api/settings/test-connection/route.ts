@@ -1,6 +1,7 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { PASSWORD_MASK } from '@/lib/settings/schemas'
+import { HOST_REGEX } from '@/lib/validation/host'
 import mqtt from 'mqtt'
 import { type NextRequest, NextResponse } from 'next/server'
 import { NodeSSH } from 'node-ssh'
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const bodySchema = z.object({
-	host: z.string().optional(),
+	host: z.string().regex(HOST_REGEX).optional(),
 	sshUser: z.string().optional(),
 	sshPassword: z.string().optional(),
 	sshPort: z.number().int().min(1).max(65535).optional(),
