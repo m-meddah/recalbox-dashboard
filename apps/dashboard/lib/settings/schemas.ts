@@ -1,3 +1,4 @@
+import { HOST_REGEX } from '@/lib/validation/host'
 import { z } from 'zod'
 
 const retroachievementsConfigSchema = z.object({
@@ -21,10 +22,7 @@ const mqttPublishConfigSchema = z.object({
 })
 
 const recalboxConfigSchema = z.object({
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname'),
+	host: z.string().min(1).regex(HOST_REGEX, 'Invalid hostname'),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(1).max(128),
 	sshPort: z.number().int().min(1).max(65535),
@@ -79,10 +77,7 @@ export function maskedConfig(cfg: AppConfig): AppConfig {
 const recalboxInstanceSchema = z.object({
 	id: z.uuid(),
 	name: z.string().min(1).max(64),
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/),
+	host: z.string().min(1).regex(HOST_REGEX),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(1).max(128),
 	sshPort: z.number().int().min(1).max(65535),

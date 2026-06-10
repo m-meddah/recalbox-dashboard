@@ -1,6 +1,7 @@
 import { getViewableRecalboxIds } from '@/lib/auth/ownership'
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { HOST_REGEX } from '@/lib/validation/host'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -20,10 +21,7 @@ export async function GET() {
 
 const createSchema = z.object({
 	name: z.string().min(1).max(64),
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/),
+	host: z.string().min(1).regex(HOST_REGEX),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(1).max(128),
 	sshPort: z.number().int().min(1).max(65535).default(22),

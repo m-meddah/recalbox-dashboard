@@ -1,6 +1,7 @@
 import { canControlRecalbox, canViewRecalbox } from '@/lib/auth/ownership'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { HOST_REGEX } from '@/lib/validation/host'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -21,11 +22,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 const updateSchema = z.object({
 	name: z.string().min(1).max(64).optional(),
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/)
-		.optional(),
+	host: z.string().min(1).regex(HOST_REGEX).optional(),
 	sshUser: z.string().min(1).max(32).optional(),
 	sshPassword: z.string().min(1).max(128).optional(),
 	sshPort: z.number().int().min(1).max(65535).optional(),

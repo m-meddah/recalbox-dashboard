@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { useRouter } from '@/i18n/navigation'
 import type { AppConfig } from '@/lib/settings/schemas'
+import { HOST_REGEX } from '@/lib/validation/host'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -20,10 +21,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 const step1Schema = z.object({
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname'),
+	host: z.string().min(1).regex(HOST_REGEX, 'Invalid hostname'),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(1).max(128),
 	sshPort: z.number().int().min(1).max(65535),

@@ -10,6 +10,7 @@ import {
 	FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { HOST_REGEX } from '@/lib/validation/host'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -19,10 +20,7 @@ import { z } from 'zod'
 const schema = z.object({
 	name: z.string().min(1).max(64),
 	iconEmoji: z.string().max(8).optional(),
-	host: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname'),
+	host: z.string().min(1).regex(HOST_REGEX, 'Invalid hostname'),
 	sshUser: z.string().min(1).max(32),
 	sshPassword: z.string().min(0).max(128),
 	sshPort: z.number().int().min(1).max(65535),
