@@ -1,3 +1,4 @@
+import { canViewRecalbox } from '@/lib/auth/ownership'
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import mqtt from 'mqtt'
@@ -59,8 +60,10 @@ async function testMqtt(host: string, port: number) {
 }
 
 export async function POST(_req: NextRequest, { params }: Ctx) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	const { id } = await params
+	if (!canViewRecalbox(user, id)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const [sshResult, mqttResult] = await Promise.all([
