@@ -110,3 +110,9 @@ docker run --rm \
 
 If your Recalbox machines are in different homes (behind separate NATs), see
 [mesh-vpn-setup.md](mesh-vpn-setup.md) for the Tailscale subnet-router setup.
+
+## Multi-user (SaaS) deployment
+
+To run the invitation-only multi-user edition on an always-on host exposed over public
+HTTPS (Tailscale Funnel), with auth secrets and admin bootstrap, see
+[saas-deployment.md](saas-deployment.md).
