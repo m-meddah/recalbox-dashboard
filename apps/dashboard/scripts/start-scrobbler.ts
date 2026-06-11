@@ -1,4 +1,6 @@
 #!/usr/bin/env tsx
+// Load .env.local before any import that reads the credential-encryption key.
+import './load-env'
 import { CronJob } from 'cron'
 import { configStore } from '../lib/config-store'
 import { getLatestSettingUpdatedAt } from '../lib/db/queries'
