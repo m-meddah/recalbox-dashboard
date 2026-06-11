@@ -26,7 +26,10 @@ export async function proxy(request: NextRequest) {
 
 	const hasSession = getSessionCookie(request) != null
 	const isLoginPage = pathname === `/${locale}/login` || pathname.endsWith('/login')
-	if (!hasSession && !isLoginPage) {
+	// Invited members reach the accept page without a session.
+	const isAcceptInvite = pathname.endsWith('/accept-invite')
+	const isPublicPage = isLoginPage || isAcceptInvite
+	if (!hasSession && !isPublicPage) {
 		return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
 	}
 	if (hasSession && isLoginPage) {
