@@ -50,9 +50,18 @@ export function MonitoringPanel() {
 		}
 		load()
 		const id = setInterval(load, 5000)
+
+		// bfcache: when the browser restores a frozen page via back/forward,
+		// useEffect doesn't re-run. Force a fresh fetch on restore.
+		const onPageShow = (e: PageTransitionEvent) => {
+			if (e.persisted) load()
+		}
+		window.addEventListener('pageshow', onPageShow)
+
 		return () => {
 			active = false
 			clearInterval(id)
+			window.removeEventListener('pageshow', onPageShow)
 		}
 	}, [mqttOnline])
 
