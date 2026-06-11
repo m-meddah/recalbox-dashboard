@@ -520,4 +520,20 @@ export const recommendationLog = sqliteTable(
 
 export type RecommendationLog = typeof recommendationLog.$inferSelect
 
+export const invitations = sqliteTable(
+	'invitations',
+	{
+		id: text('id').primaryKey(),
+		email: text('email').notNull(),
+		role: text('role').notNull().default('member'),
+		tokenHash: text('token_hash').notNull().unique(),
+		// Epoch milliseconds (plain integer) — kept as a number for simple expiry math.
+		expiresAt: int('expires_at').notNull(),
+		invitedByUserId: text('invited_by_user_id').notNull(),
+		acceptedAt: int('accepted_at'),
+		createdAt: int('created_at').notNull(),
+	},
+	(table) => [index('invitations_token_hash_idx').on(table.tokenHash)],
+)
+
 export * from '@/lib/auth/auth-schema'

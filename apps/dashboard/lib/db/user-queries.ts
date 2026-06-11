@@ -1,6 +1,6 @@
 import { user as userTable } from '@/lib/auth/auth-schema'
 import { db } from '@/lib/db/index'
-import { asc } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 
 export type AppUser = { id: string; email: string; role: string }
 
@@ -15,5 +15,20 @@ export function listUsers(): AppUser[] {
 		return rows.map((r) => ({ id: r.id, email: r.email, role: r.role ?? 'member' }))
 	} catch {
 		return []
+	}
+}
+
+/** Look up a single user by email. Returns undefined when none exists. */
+export function getUserByEmail(email: string): AppUser | undefined {
+	try {
+		const rows = db
+			.select({ id: userTable.id, email: userTable.email, role: userTable.role })
+			.from(userTable)
+			.where(eq(userTable.email, email))
+			.all()
+		const row = rows[0]
+		return row ? { id: row.id, email: row.email, role: row.role ?? 'member' } : undefined
+	} catch {
+		return undefined
 	}
 }
