@@ -1,3 +1,4 @@
+import { InvitationsSection } from '@/components/admin/invitations-section'
 import { isAdmin } from '@/lib/auth/ownership'
 import { getUser } from '@/lib/auth/require-user'
 import { getAdminOverview } from '@/lib/db/admin-queries'
@@ -41,6 +42,8 @@ export default async function AdminPage() {
 				<h1 className="text-2xl font-bold">{t('title')}</h1>
 				<p className="text-sm text-muted-foreground">{t('subtitle')}</p>
 			</header>
+
+			<InvitationsSection />
 
 			{cards.length === 0 && <p className="text-sm text-muted-foreground">{t('noUsers')}</p>}
 

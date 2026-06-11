@@ -1,4 +1,34 @@
 {
+	"invitations": {
+		"heading": "Invitations",
+		"emailPlaceholder": "family.member@example.com",
+		"create": "Create invite link",
+		"creating": "Creating…",
+		"linkHeading": "Invite link (shown once — copy it now)",
+		"copy": "Copy",
+		"copied": "Copied!",
+		"alreadyExists": "A user with this email already exists.",
+		"createError": "Could not create the invitation.",
+		"pendingHeading": "Pending invitations",
+		"none": "No pending invitations.",
+		"expires": "expires {date}",
+		"revoke": "Revoke"
+	},
+	"acceptInvite": {
+		"title": "Accept your invitation",
+		"subtitle": "Set a password for {email}.",
+		"passwordPlaceholder": "Password (min 8 characters)",
+		"confirmPlaceholder": "Confirm password",
+		"submit": "Create account",
+		"submitting": "Creating account…",
+		"loading": "Checking your invitation…",
+		"invalidTitle": "Invitation not valid",
+		"invalidBody": "This link is invalid or has expired. Ask the admin for a fresh invitation.",
+		"invalid": "This invitation is invalid or has expired.",
+		"passwordTooShort": "Password must be at least 8 characters.",
+		"passwordMismatch": "Passwords do not match.",
+		"signInFailed": "Account created, but sign-in failed. Try logging in."
+	},
 	"common": {
 		"save": "Save",
 		"cancel": "Cancel",

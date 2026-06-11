@@ -1,4 +1,34 @@
 {
+	"invitations": {
+		"heading": "Invitations",
+		"emailPlaceholder": "membre.famille@example.com",
+		"create": "Créer un lien d'invitation",
+		"creating": "Création…",
+		"linkHeading": "Lien d'invitation (affiché une seule fois — copiez-le maintenant)",
+		"copy": "Copier",
+		"copied": "Copié !",
+		"alreadyExists": "Un utilisateur avec cet email existe déjà.",
+		"createError": "Impossible de créer l'invitation.",
+		"pendingHeading": "Invitations en attente",
+		"none": "Aucune invitation en attente.",
+		"expires": "expire le {date}",
+		"revoke": "Révoquer"
+	},
+	"acceptInvite": {
+		"title": "Acceptez votre invitation",
+		"subtitle": "Définissez un mot de passe pour {email}.",
+		"passwordPlaceholder": "Mot de passe (8 caractères min)",
+		"confirmPlaceholder": "Confirmez le mot de passe",
+		"submit": "Créer le compte",
+		"submitting": "Création du compte…",
+		"loading": "Vérification de votre invitation…",
+		"invalidTitle": "Invitation non valide",
+		"invalidBody": "Ce lien est invalide ou a expiré. Demandez une nouvelle invitation à l'administrateur.",
+		"invalid": "Cette invitation est invalide ou a expiré.",
+		"passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
+		"passwordMismatch": "Les mots de passe ne correspondent pas.",
+		"signInFailed": "Compte créé, mais la connexion a échoué. Essayez de vous connecter."
+	},
 	"common": {
 		"save": "Enregistrer",
 		"cancel": "Annuler",
