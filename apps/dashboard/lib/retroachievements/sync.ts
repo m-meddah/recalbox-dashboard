@@ -4,7 +4,11 @@ import { raAchievements, raGameProgress } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { notificationService } from '@/lib/notifications/service'
 import { sendWebPush } from '@/lib/notifications/web-push'
-import { getGameInfoAndUserProgress, getUserRecentAchievements } from '@retroachievements/api'
+import {
+	getGameInfoAndUserProgress,
+	getUserCompletedGames,
+	getUserRecentAchievements,
+} from '@retroachievements/api'
 import { eq, inArray } from 'drizzle-orm'
 import { getAuth } from './auth'
 import { purgeExpiredCache } from './cache'
@@ -130,12 +134,64 @@ async function syncRecentAchievements(): Promise<void> {
 	}
 }
 
+async function syncAllGameProgress(): Promise<void> {
+	const { username } = getAuth()
+	const now = new Date()
+	const completedGames = await withRateLimit(() => getUserCompletedGames(getAuth(), { username }))
+
+	if (completedGames.length === 0) return
+
+	// getUserCompletedGames may return duplicate entries (softcore + hardcore) — keep best numAwarded
+	const byGameId = new Map<
+		number,
+		{ numAwarded: number; numAwardedHardcore: number; entry: (typeof completedGames)[0] }
+	>()
+	for (const g of completedGames) {
+		const existing = byGameId.get(g.gameId)
+		if (!existing || g.numAwarded > existing.numAwarded) {
+			byGameId.set(g.gameId, {
+				numAwarded: g.numAwarded,
+				numAwardedHardcore: g.hardcoreMode ? g.numAwarded : (existing?.numAwardedHardcore ?? 0),
+				entry: g,
+			})
+		} else if (g.hardcoreMode && g.numAwarded > existing.numAwardedHardcore) {
+			existing.numAwardedHardcore = g.numAwarded
+		}
+	}
+
+	for (const { numAwarded, numAwardedHardcore, entry } of byGameId.values()) {
+		if (numAwarded === 0) continue
+		db.insert(raGameProgress)
+			.values({
+				gameId: entry.gameId,
+				title: entry.title,
+				imageIcon: entry.imageIcon,
+				numAchievements: entry.maxPossible,
+				numAwarded,
+				numAwardedHardcore,
+				points: 0,
+				maxPoints: 0,
+				consoleId: entry.consoleId,
+				consoleName: entry.consoleName,
+				syncedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: raGameProgress.gameId,
+				set: { numAwarded, numAwardedHardcore, syncedAt: now },
+			})
+			.run()
+	}
+
+	logger.info(`RA sync: upserted ${byGameId.size} game progress entries`)
+}
+
 export async function syncRetroAchievements(): Promise<void> {
 	const cfg = configStore.get().retroachievements
 	if (!cfg.enabled || !cfg.username || !cfg.apiKey) return
 
 	logger.info('RA sync starting')
 	try {
+		await syncAllGameProgress()
 		await syncRecentAchievements()
 		purgeExpiredCache()
 		logger.info('RA sync complete')
