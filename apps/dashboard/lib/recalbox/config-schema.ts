@@ -64,7 +64,10 @@ export const KNOWN_API_SECTIONS = new Set<string>([
 	'autorun',
 ])
 
-const RISKY_SECTION_IDS = new Set<string>(CONFIG_SECTIONS.filter((s) => s.risky).map((s) => s.id))
+const RISKY_SECTION_IDS = new Set<string>()
+for (const s of CONFIG_SECTIONS) {
+	if (s.risky) RISKY_SECTION_IDS.add(s.id)
+}
 
 export function isKnownApiSection(section: string): boolean {
 	return KNOWN_API_SECTIONS.has(section)

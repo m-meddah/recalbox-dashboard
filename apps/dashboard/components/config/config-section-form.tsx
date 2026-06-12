@@ -32,23 +32,26 @@ type Props = {
 
 export function ConfigSectionForm({ section, risky = false, requiresEsRestart = false }: Props) {
 	const t = useTranslations('config')
-	const [fields, setFields] = useState<ConfigField[] | null>(null)
+	// `fields` and `error` always change together (one load result), so they live
+	// in a single state object rather than two separate useState calls.
+	const [loaded, setLoaded] = useState<{ fields: ConfigField[] | null; error: boolean }>({
+		fields: null,
+		error: false,
+	})
 	const [draft, setDraft] = useState<Record<string, ConfigValue>>({})
-	const [loadError, setLoadError] = useState(false)
 	const [saving, setSaving] = useState(false)
 	const [confirmOpen, setConfirmOpen] = useState(false)
+	const { fields, error: loadError } = loaded
 
 	const load = useCallback(async () => {
-		setLoadError(false)
 		try {
 			const res = await fetch(`/api/recalbox/config/${section}`, { cache: 'no-store' })
 			if (!res.ok) throw new Error(String(res.status))
 			const data = (await res.json()) as { fields: ConfigField[] }
-			setFields(data.fields)
+			setLoaded({ fields: data.fields, error: false })
 			setDraft(Object.fromEntries(data.fields.map((f) => [f.key, f.value])))
 		} catch {
-			setLoadError(true)
-			setFields([])
+			setLoaded({ fields: [], error: true })
 		}
 	}, [section])
 

@@ -2,13 +2,10 @@ import { canControlRecalbox, canViewRecalbox } from '@/lib/auth/ownership'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
-import {
-	RECALBOX_CONF_PATH,
-	extractConfKeysBySuffix,
-	setConfValues,
-} from '@/lib/recalbox/recalbox-conf-editor'
+import { RECALBOX_CONF_PATH, setConfValues } from '@/lib/recalbox/recalbox-conf-editor'
 import { shellQuote } from '@/lib/recalbox/shell'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
+import { readSystemEmulatorOverrides } from '@/lib/recalbox/system-emulator'
 import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -40,24 +37,8 @@ export async function GET(): Promise<NextResponse> {
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 	if (!canViewRecalbox(user, recalboxId)) return forbidden()
 
-	try {
-		const conf = await readConf(recalboxId)
-		const emulators = extractConfKeysBySuffix(conf, '.emulator')
-		const cores = extractConfKeysBySuffix(conf, '.core')
-		const overrides: Record<string, { emulator: string | null; core: string | null }> = {}
-		const add = (fullKey: string, suffix: string, field: 'emulator' | 'core', value: string) => {
-			const system = fullKey.slice(0, -suffix.length)
-			if (system === 'global') return // global default is configured elsewhere
-			overrides[system] ??= { emulator: null, core: null }
-			overrides[system][field] = value
-		}
-		for (const [k, v] of Object.entries(emulators)) add(k, '.emulator', 'emulator', v)
-		for (const [k, v] of Object.entries(cores)) add(k, '.core', 'core', v)
-		return NextResponse.json({ overrides })
-	} catch (err) {
-		logger.warn('system-emulator GET failed', err)
-		return NextResponse.json({ overrides: {} })
-	}
+	const overrides = await readSystemEmulatorOverrides(recalboxId)
+	return NextResponse.json({ overrides })
 }
 
 /**

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCanControl } from '@/components/can-control-provider'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,11 +12,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { EmulatorRating, SystemCatalogEntry } from '@/lib/recalbox/web-config'
-import { AlertTriangle, Loader2, Search, Star, Wifi } from 'lucide-react'
+import { Loader2, Search, Star, Wifi } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 type RatingKey = 'high' | 'good' | 'average' | 'low'
@@ -33,45 +31,18 @@ const RATING_LABEL: Record<EmulatorRating, RatingKey | null> = {
 const AUTO = '__auto__'
 const combo = (e: string, c: string) => `${e}|${c}`
 
-export function SystemsCatalog() {
-	const t = useTranslations('config')
-	const [systems, setSystems] = useState<SystemCatalogEntry[] | null>(null)
-	const [overrides, setOverrides] = useState<Record<string, Override>>({})
-	const [error, setError] = useState(false)
-	const [query, setQuery] = useState('')
+type Props = {
+	systems: SystemCatalogEntry[]
+	overrides: Record<string, Override>
+}
 
-	useEffect(() => {
-		let active = true
-		;(async () => {
-			try {
-				const [catRes, ovrRes] = await Promise.all([
-					fetch('/api/recalbox/systems', { cache: 'no-store' }),
-					fetch('/api/recalbox/system-emulator', { cache: 'no-store' }),
-				])
-				if (!catRes.ok) throw new Error(String(catRes.status))
-				const cat = (await catRes.json()) as { systems: SystemCatalogEntry[] }
-				const ovr = ovrRes.ok
-					? ((await ovrRes.json()) as { overrides: Record<string, Override> }).overrides
-					: {}
-				if (active) {
-					setSystems(cat.systems)
-					setOverrides(ovr)
-				}
-			} catch {
-				if (active) {
-					setError(true)
-					setSystems([])
-				}
-			}
-		})()
-		return () => {
-			active = false
-		}
-	}, [])
+export function SystemsCatalog({ systems, overrides }: Props) {
+	const t = useTranslations('config')
+	const [query, setQuery] = useState('')
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase()
-		if (!q || !systems) return systems ?? []
+		if (!q) return systems
 		return systems.filter(
 			(s) =>
 				s.fullName.toLowerCase().includes(q) ||
@@ -80,23 +51,10 @@ export function SystemsCatalog() {
 		)
 	}, [systems, query])
 
-	if (systems === null) {
-		return (
-			<div className="grid gap-4 sm:grid-cols-2">
-				{[0, 1, 2, 3].map((i) => (
-					<Skeleton key={i} className="h-44 w-full" />
-				))}
-			</div>
-		)
-	}
-
 	return (
 		<div className="space-y-4">
-			{error && (
-				<Alert variant="destructive">
-					<AlertTriangle className="size-4" />
-					<AlertDescription>{t('loadFailed')}</AlertDescription>
-				</Alert>
+			{systems.length === 0 && (
+				<p className="text-muted-foreground text-sm">{t('systems.empty')}</p>
 			)}
 
 			<div className="relative max-w-sm">

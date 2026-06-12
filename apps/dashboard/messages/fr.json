@@ -1030,7 +1030,8 @@
 			"auto": "Auto (défaut Recalbox)",
 			"save": "Enregistrer",
 			"saved": "Émulateur par défaut défini pour {system}. S'applique au prochain lancement.",
-			"saveError": "Impossible de changer le défaut du système."
+			"saveError": "Impossible de changer le défaut du système.",
+			"empty": "Aucun système trouvé sur cette Recalbox."
 		}
 	}
 }

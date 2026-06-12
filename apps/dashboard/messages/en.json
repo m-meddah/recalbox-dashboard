@@ -1030,7 +1030,8 @@
 			"auto": "Auto (Recalbox default)",
 			"save": "Save",
 			"saved": "Default emulator set for {system}. Applies on next launch.",
-			"saveError": "Could not change the system default."
+			"saveError": "Could not change the system default.",
+			"empty": "No systems found on this Recalbox."
 		}
 	}
 }
