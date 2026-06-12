@@ -131,6 +131,8 @@ export const games = sqliteTable(
 		description: text('description'),
 		hash: text('hash'),
 		region: text('region'),
+		emulator: text('emulator'),
+		core: text('core'),
 		favorite: int('favorite', { mode: 'boolean' }).notNull().default(false),
 		hidden: int('hidden', { mode: 'boolean' }).notNull().default(false),
 		playCount: int('play_count').default(0),

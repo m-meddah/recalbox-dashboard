@@ -1,5 +1,6 @@
 'use client'
 
+import { EmulatorOverrideButton } from '@/components/collection/emulator-override-button'
 import { LaunchGameButton } from '@/components/launch-game-button'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -272,7 +273,16 @@ export function GameTable({ system, regions }: Props) {
 										<Rating value={g.rating} />
 									</td>
 									<td className="px-2 py-2 text-right">
-										<LaunchGameButton romPath={g.romPath} system={g.system} name={g.name} />
+										<div className="flex items-center justify-end">
+											<EmulatorOverrideButton
+												romPath={g.romPath}
+												system={g.system}
+												name={g.name}
+												emulator={g.emulator}
+												core={g.core}
+											/>
+											<LaunchGameButton romPath={g.romPath} system={g.system} name={g.name} />
+										</div>
 									</td>
 								</tr>
 							))}

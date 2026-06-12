@@ -1,6 +1,7 @@
 import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import { NodeSSH } from 'node-ssh'
+import { shellQuote } from './shell'
 
 const EXEC_TIMEOUT_MS = 5000
 const CONNECT_TIMEOUT_MS = 3000
@@ -92,12 +93,12 @@ class SshClient {
 		for (const item of items) item.reject(err)
 	}
 
-	private async runExec(command: string, timeoutMs: number): Promise<string> {
+	private async runExec(command: string, timeoutMs: number, stdin?: string): Promise<string> {
 		if (!this.connected || !this.ssh.isConnected()) await this.connect()
 		const timeoutPromise = new Promise<never>((_, reject) =>
 			setTimeout(() => reject(new Error(`SSH command timed out: ${command}`)), timeoutMs),
 		)
-		const execPromise = this.ssh.execCommand(command).then((result) => {
+		const execPromise = this.ssh.execCommand(command, { stdin }).then((result) => {
 			if (result.stderr) logger.warn(`SSH stderr for "${command}": ${result.stderr}`)
 			return result.stdout.trim()
 		})
@@ -110,11 +111,11 @@ class SshClient {
 		}
 	}
 
-	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
+	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS, stdin?: string): Promise<string> {
 		await this.acquire()
 		try {
 			try {
-				return await this.runExec(command, timeoutMs)
+				return await this.runExec(command, timeoutMs, stdin)
 			} catch {
 				try {
 					await this.connect()
@@ -123,11 +124,30 @@ class SshClient {
 					this.failQueue(err)
 					throw err
 				}
-				return await this.runExec(command, timeoutMs)
+				return await this.runExec(command, timeoutMs, stdin)
 			}
 		} finally {
 			this.release()
 		}
+	}
+
+	/**
+	 * Write `content` to a remote file by streaming it over the command's stdin —
+	 * safe for large files (multi-MB gamelists) that would blow past ARG_MAX if
+	 * passed as a shell argument. When `backupPath` is given, the existing file is
+	 * copied there first (best-effort; missing source is ignored).
+	 */
+	async writeFile(
+		path: string,
+		content: string,
+		opts: { backupPath?: string; timeoutMs?: number } = {},
+	): Promise<void> {
+		const timeoutMs = opts.timeoutMs ?? 30_000
+		const quoted = shellQuote(path)
+		const backup = opts.backupPath
+			? `cp ${quoted} ${shellQuote(opts.backupPath)} 2>/dev/null; `
+			: ''
+		await this.exec(`${backup}cat > ${quoted}`, timeoutMs, content)
 	}
 
 	disconnect(): void {

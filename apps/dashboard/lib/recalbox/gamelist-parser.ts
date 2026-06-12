@@ -21,6 +21,10 @@ export type ParsedGame = {
 	lastPlayed?: Date
 	hash?: string
 	region?: string
+	/** Per-game emulator override (gamelist <emulator> tag), e.g. "libretro". */
+	emulator?: string
+	/** Per-game core override (gamelist <core> tag), e.g. "snes9x". */
+	core?: string
 }
 
 const parser = new XMLParser({
@@ -133,6 +137,8 @@ export function parseGamelist(xml: string, romsBasePath: string): ParsedGame[] {
 			lastPlayed: parseRecalboxDate(g.lastplayed),
 			hash: g.hash ? String(g.hash) : undefined,
 			region: g.region ? String(g.region) : undefined,
+			emulator: g.emulator ? String(g.emulator).trim() || undefined : undefined,
+			core: g.core ? String(g.core).trim() || undefined : undefined,
 		})
 	}
 

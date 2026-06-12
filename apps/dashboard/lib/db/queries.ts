@@ -99,6 +99,23 @@ const BATCH_SIZE = 500
  * Upsert a batch of parsed games for a given system.
  * Returns the number of inserted/updated rows.
  */
+/**
+ * Update a single game's emulator/core override in the local mirror after it
+ * has been written to the box's gamelist.xml. Returns the number of rows hit.
+ */
+export async function updateGameEmulatorOverride(
+	recalboxId: string,
+	romPath: string,
+	emulator: string | null,
+	core: string | null,
+): Promise<number> {
+	const res = await db
+		.update(games)
+		.set({ emulator, core, updatedAt: new Date() })
+		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
+	return res.changes ?? 0
+}
+
 export async function upsertGames(
 	parsedGames: ParsedGame[],
 	system: string,
@@ -133,6 +150,8 @@ export async function upsertGames(
 					description: g.description ?? null,
 					hash: g.hash ?? null,
 					region: g.region ?? null,
+					emulator: g.emulator ?? null,
+					core: g.core ?? null,
 					favorite: g.favorite,
 					hidden: g.hidden,
 					playCount: g.playCount ?? 0,
@@ -158,6 +177,8 @@ export async function upsertGames(
 					description: sql`excluded.description`,
 					hash: sql`excluded.hash`,
 					region: sql`excluded.region`,
+					emulator: sql`excluded.emulator`,
+					core: sql`excluded.core`,
 					favorite: sql`excluded.favorite`,
 					hidden: sql`excluded.hidden`,
 					playCount: sql`excluded.play_count`,
