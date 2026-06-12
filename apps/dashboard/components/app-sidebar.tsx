@@ -25,6 +25,7 @@ import {
 	MemoryStick,
 	Settings,
 	ShieldUser,
+	SlidersHorizontal,
 	Trophy,
 	UserRound,
 } from 'lucide-react'
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
 	{ href: '/stats', labelKey: 'stats', icon: BarChart3 },
 	{ href: '/collection', labelKey: 'collection', icon: Library },
 	{ href: '/bios', labelKey: 'bios', icon: MemoryStick },
+	{ href: '/configuration', labelKey: 'configuration', icon: SlidersHorizontal },
 	{ href: '/profile', labelKey: 'profile', icon: UserRound },
 	{ href: '/achievements', labelKey: 'achievements', icon: Trophy },
 	{ href: '/wrapped', labelKey: 'wrapped', icon: Gift },

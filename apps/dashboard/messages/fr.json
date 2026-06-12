@@ -48,7 +48,8 @@
 		"profile": "Profil",
 		"playTonight": "Jouer ce soir",
 		"bios": "BIOS",
-		"admin": "Admin"
+		"admin": "Admin",
+		"configuration": "Configuration"
 	},
 	"admin": {
 		"title": "Admin — Tous les utilisateurs",
@@ -178,6 +179,17 @@
 			"launched": "« {name} » démarre sur ta Recalbox.",
 			"error": "Impossible de lancer le jeu.",
 			"busy": "Un jeu est déjà en cours ({name}) — quitte-le d’abord."
+		},
+		"emulator": {
+			"action": "Émulateur",
+			"title": "Émulateur par jeu",
+			"description": "Choisis l'émulateur/core pour « {name} ». S'applique après le redémarrage d'EmulationStation.",
+			"systemDefault": "Défaut du système",
+			"restartNote": "L'enregistrement réécrit gamelist.xml et redémarre EmulationStation pour appliquer.",
+			"apply": "Appliquer & redémarrer ES",
+			"saved": "Émulateur défini pour « {name} » — EmulationStation redémarre.",
+			"error": "Impossible de changer l'émulateur.",
+			"busy": "Un jeu tourne ({name}) — quitte-le d'abord."
 		}
 	},
 	"stats": {
@@ -940,6 +952,85 @@
 			"currentMd5": "MD5 courant",
 			"expectedMd5": "MD5 attendu",
 			"validity": "Validité"
+		}
+	},
+	"config": {
+		"title": "Configuration Recalbox",
+		"subtitle": "Lis et modifie les réglages de ta Recalbox (recalbox.conf), comme le Web Manager.",
+		"back": "Retour aux sections",
+		"save": "Enregistrer",
+		"saved": "Réglages enregistrés",
+		"saveFailed": "Échec de l'enregistrement — Recalbox injoignable",
+		"saveNeedsRestart": "Certains changements s'appliquent après un redémarrage d'EmulationStation.",
+		"restartEs": "Redémarrer EmulationStation",
+		"restartTriggered": "EmulationStation redémarre",
+		"restartFailed": "Impossible de redémarrer EmulationStation",
+		"noChanges": "Aucun changement",
+		"pendingChanges": "{count, plural, one {# changement} other {# changements}} en attente",
+		"loadFailed": "Impossible de charger cette section depuis la Recalbox.",
+		"empty": "Aucun réglage exposé pour cette section.",
+		"riskyWarning": "Réglages sensibles. Une mauvaise valeur peut rendre la box injoignable ou nécessiter un redémarrage.",
+		"confirmTitle": "Appliquer ces réglages ?",
+		"confirmRisky": "Cette section peut affecter la connectivité ou le système. Vérifie les valeurs avant d'appliquer.",
+		"cancel": "Annuler",
+		"applyAnyway": "Appliquer",
+		"sections": {
+			"global": {
+				"title": "Global",
+				"desc": "Réglages d'émulation — shaders, netplay, RetroAchievements, vidéo"
+			},
+			"system": {
+				"title": "Système",
+				"desc": "Système & frontend — SSH, Samba, langue, splash, écran"
+			},
+			"audio": {
+				"title": "Audio",
+				"desc": "Périphérique de sortie audio & volume"
+			},
+			"scraper": {
+				"title": "Scraper",
+				"desc": "Scraper de métadonnées (ScreenScraper)"
+			},
+			"controllers": {
+				"title": "Manettes",
+				"desc": "Manettes & périphériques d'entrée"
+			},
+			"updates": {
+				"title": "Mises à jour",
+				"desc": "Canal de mise à jour système"
+			},
+			"hyperion": {
+				"title": "Éclairage d'ambiance",
+				"desc": "LED Hyperion / ambilight"
+			},
+			"kodi": {
+				"title": "Kodi",
+				"desc": "Centre multimédia Kodi"
+			},
+			"wifi": {
+				"title": "Wi-Fi & réseau",
+				"desc": "Réseau sans fil — une modification peut couper la connexion"
+			}
+		},
+		"systems": {
+			"title": "Systèmes & émulateurs",
+			"subtitle": "Émulateurs disponibles par système. Définis un émulateur/core par défaut pour tout un système.",
+			"readOnlyNote": "Lecture seule. Le Web Manager expose le catalogue d'émulateurs mais pas les choix par système — modifie-les depuis EmulationStation.",
+			"searchPlaceholder": "Rechercher un système…",
+			"speed": "Vitesse",
+			"compat": "Compatibilité",
+			"netplay": "Netplay",
+			"rating": {
+				"high": "Élevée",
+				"good": "Bonne",
+				"average": "Moyenne",
+				"low": "Faible"
+			},
+			"defaultEmulator": "Émulateur par défaut pour ce système",
+			"auto": "Auto (défaut Recalbox)",
+			"save": "Enregistrer",
+			"saved": "Émulateur par défaut défini pour {system}. S'applique au prochain lancement.",
+			"saveError": "Impossible de changer le défaut du système."
 		}
 	}
 }

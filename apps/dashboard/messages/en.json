@@ -48,7 +48,8 @@
 		"profile": "Profile",
 		"playTonight": "Play Tonight",
 		"bios": "BIOS",
-		"admin": "Admin"
+		"admin": "Admin",
+		"configuration": "Configuration"
 	},
 	"admin": {
 		"title": "Admin — All Users",
@@ -178,6 +179,17 @@
 			"launched": "“{name}” is starting on your Recalbox.",
 			"error": "Could not launch the game.",
 			"busy": "A game is already running ({name}) — quit it first."
+		},
+		"emulator": {
+			"action": "Emulator",
+			"title": "Per-game emulator",
+			"description": "Choose the emulator/core for “{name}”. Applies after EmulationStation restarts.",
+			"systemDefault": "System default",
+			"restartNote": "Saving rewrites gamelist.xml and restarts EmulationStation to apply.",
+			"apply": "Apply & restart ES",
+			"saved": "Emulator set for “{name}” — EmulationStation is restarting.",
+			"error": "Could not change the emulator.",
+			"busy": "A game is running ({name}) — quit it first."
 		}
 	},
 	"stats": {
@@ -940,6 +952,85 @@
 			"currentMd5": "Current MD5",
 			"expectedMd5": "Expected MD5",
 			"validity": "Validity"
+		}
+	},
+	"config": {
+		"title": "Recalbox configuration",
+		"subtitle": "Read and edit your Recalbox settings (recalbox.conf), like the Web Manager.",
+		"back": "Back to sections",
+		"save": "Save",
+		"saved": "Settings saved",
+		"saveFailed": "Could not save — Recalbox unreachable",
+		"saveNeedsRestart": "Some changes apply after an EmulationStation restart.",
+		"restartEs": "Restart EmulationStation",
+		"restartTriggered": "EmulationStation is restarting",
+		"restartFailed": "Could not restart EmulationStation",
+		"noChanges": "No changes",
+		"pendingChanges": "{count, plural, one {# change} other {# changes}} pending",
+		"loadFailed": "Could not load this section from the Recalbox.",
+		"empty": "No settings exposed for this section.",
+		"riskyWarning": "These are sensitive settings. A wrong value can make the box unreachable or require a reboot.",
+		"confirmTitle": "Apply these settings?",
+		"confirmRisky": "This section can affect connectivity or the system. Make sure the values are correct before applying.",
+		"cancel": "Cancel",
+		"applyAnyway": "Apply",
+		"sections": {
+			"global": {
+				"title": "Global",
+				"desc": "Emulation defaults — shaders, netplay, RetroAchievements, video"
+			},
+			"system": {
+				"title": "System",
+				"desc": "System & frontend — SSH, Samba, language, splash, screen"
+			},
+			"audio": {
+				"title": "Audio",
+				"desc": "Audio output device & volume"
+			},
+			"scraper": {
+				"title": "Scraper",
+				"desc": "Metadata scraper (ScreenScraper)"
+			},
+			"controllers": {
+				"title": "Controllers",
+				"desc": "Controllers & input devices"
+			},
+			"updates": {
+				"title": "Updates",
+				"desc": "System update channel"
+			},
+			"hyperion": {
+				"title": "Ambient lighting",
+				"desc": "Hyperion LED / ambilight"
+			},
+			"kodi": {
+				"title": "Kodi",
+				"desc": "Kodi media center"
+			},
+			"wifi": {
+				"title": "Wi-Fi & network",
+				"desc": "Wireless network — changing this may drop the connection"
+			}
+		},
+		"systems": {
+			"title": "Systems & emulators",
+			"subtitle": "Available emulators per system. Set a default emulator/core for a whole system.",
+			"readOnlyNote": "Read-only. The Web Manager exposes the emulator catalog but not per-system overrides — change those from EmulationStation.",
+			"searchPlaceholder": "Search a system…",
+			"speed": "Speed",
+			"compat": "Compatibility",
+			"netplay": "Netplay",
+			"rating": {
+				"high": "High",
+				"good": "Good",
+				"average": "Average",
+				"low": "Low"
+			},
+			"defaultEmulator": "Default emulator for this system",
+			"auto": "Auto (Recalbox default)",
+			"save": "Save",
+			"saved": "Default emulator set for {system}. Applies on next launch.",
+			"saveError": "Could not change the system default."
 		}
 	}
 }
