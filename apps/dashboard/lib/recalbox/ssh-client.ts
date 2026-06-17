@@ -102,13 +102,7 @@ class SshClient {
 			if (result.stderr) logger.warn(`SSH stderr for "${command}": ${result.stderr}`)
 			return result.stdout.trim()
 		})
-		try {
-			return await Promise.race([execPromise, timeoutPromise])
-		} catch (err) {
-			this.connected = false
-			logger.error('SSH exec failed, marking disconnected', err)
-			throw err
-		}
+		return await Promise.race([execPromise, timeoutPromise])
 	}
 
 	async exec(command: string, timeoutMs = EXEC_TIMEOUT_MS, stdin?: string): Promise<string> {
@@ -116,13 +110,25 @@ class SshClient {
 		try {
 			try {
 				return await this.runExec(command, timeoutMs, stdin)
-			} catch {
+			} catch (err) {
+				// A command-level failure (e.g. a slow read hitting the per-command
+				// timeout) is NOT a dead connection. Tearing down the shared client
+				// here would dispose() the connection mid-flight and abort every
+				// sibling command riding on it — the cascade that floods the logs
+				// with bursts of timeouts followed by a reconnect. If the transport
+				// is still up, fail just this one request and leave the rest alone.
+				if (this.ssh.isConnected()) {
+					logger.warn(`SSH command failed (connection still up): ${command}`)
+					throw err
+				}
+				this.connected = false
+				logger.error('SSH connection lost, reconnecting', err)
 				try {
 					await this.connect()
 				} catch (connectErr) {
-					const err = connectErr instanceof Error ? connectErr : new Error(String(connectErr))
-					this.failQueue(err)
-					throw err
+					const e = connectErr instanceof Error ? connectErr : new Error(String(connectErr))
+					this.failQueue(e)
+					throw e
 				}
 				return await this.runExec(command, timeoutMs, stdin)
 			}
