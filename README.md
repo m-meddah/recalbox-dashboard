@@ -7,15 +7,20 @@ year. Supports multiple Recalbox instances from a single dashboard.
 
 Runs on a machine on the same local network as your Recalbox — **not** on the Recalbox itself.
 
-> **🚀 Version 2.0 — Web Manager design language**
+> **🚀 Version 2.0 — Web Manager design language, config editing & a multi-user family edition**
 >
 > The whole UI has been reskinned to share the visual DNA of the built-in Recalbox
 > [Web Manager](https://wiki.recalbox.com/fr/basic-usage/features/webmanager) (navy/teal
 > palette, Roboto, collapsible icon rail) so your users never feel like they've landed in
 > a different app. 2.0 also brings **BIOS health**, a **Web-Manager-style monitoring view**
 > (per-core CPU + storage), a **revamped collection** (all systems with ≥1 ROM, region
-> filter, box-3D art), and the ability to **launch games on the Recalbox directly from the
-> dashboard**. See [What's new in 2.0](#whats-new-in-20).
+> filter, box-3D art), the ability to **launch games on the Recalbox directly from the
+> dashboard**, a **`recalbox.conf` config editor**, and a new **invitation-only multi-user
+> mode** so a whole family can share one install — across homes — over a mesh VPN. See
+> [What's new in 2.0](#whats-new-in-20).
+>
+> **Heads-up for upgraders:** every install now sits behind a login. Set a `BETTER_AUTH_SECRET`
+> and create one account — then it behaves like before.
 
 ## Why this dashboard?
 
@@ -81,9 +86,26 @@ Use both: the Web Manager for ops, this dashboard for analytics.
   **guarded against a game already running** on the box — both live (MQTT events disable the
   button) and server-side (reads `es_state.inf` before sending), so you never silently queue
   a game behind another.
+- **Recalbox config editor** (`/configuration`) — read and write `recalbox.conf` settings with
+  Web Manager parity, grouped into sections (global, system, audio, controllers, scraper,
+  updates, hyperion, kodi, wifi…). Secrets are masked, risky sections require a confirm, and
+  ES-restart-only settings are flagged. Editing requires *control* permission on the box.
+- **Per-system & per-game emulator overrides** — pick a different emulator/core for a whole
+  system or a single game, applied on the box over SSH.
+- **Online multi-user — family edition** — invitation-only accounts ([Better Auth](https://www.better-auth.com/)),
+  `admin`/`member` roles, and **per-Recalbox ownership** split into *view* vs *control*. Admins
+  invite others via single-use, expiring links; an admin overview lives at `/admin`. A Recalbox
+  `host` can be a Tailscale/tailnet address, so the dashboard reaches boxes **in other homes**
+  over a mesh VPN, and a `docker-compose.saas.yml` overlay exposes it on public HTTPS via
+  Tailscale Funnel. SSH passwords and IGDB secrets are encrypted at rest (AES-256-GCM). See
+  [docs/saas-deployment.md](docs/saas-deployment.md) and [docs/mesh-vpn-setup.md](docs/mesh-vpn-setup.md).
+- **Super Retrogamers real API client** — the integration moved from a stub to a real,
+  cached API client with per-ROM-region data.
 
-> **Upgrading from 1.x:** no data migration needed — same database, same connection settings.
-> This is a major version because the UI changed substantially; functionality is additive.
+> **Upgrading from 1.x:** your sessions, games and settings carry over. Two things are new in
+> 2.0 — the database gains a few tables (auth, invitations, per-machine ownership) applied
+> automatically on first boot, and **every install now requires a login**: set a
+> `BETTER_AUTH_SECRET` and create one account. See [Getting started](#getting-started).
 
 ## Installation
 
@@ -180,9 +202,8 @@ See [Getting started](#getting-started) below.
 recalbox-dashboard/
 ├── apps/
 │   └── dashboard/       # @recalbox/dashboard — Next.js 16 web app
-├── packages/
-│   └── scraper-core/    # @recalbox/scraper-core — shared scraping lib (stub)
-└── docker/              # s6-overlay service definitions and migration script
+├── docker/              # s6-overlay service definitions and migration script
+└── docs/                # deployment, mesh-VPN & multi-user (SaaS) guides
 ```
 
 ## Prerequisites
@@ -195,9 +216,24 @@ recalbox-dashboard/
 ```bash
 pnpm install
 cp apps/dashboard/.env.example apps/dashboard/.env.local
-# Edit .env.local: set RECALBOX_HOST, RECALBOX_SSH_USER, RECALBOX_SSH_PASSWORD
+# Edit .env.local:
+#   - RECALBOX_HOST, RECALBOX_SSH_USER, RECALBOX_SSH_PASSWORD (connection)
+#   - BETTER_AUTH_SECRET (required, 32+ chars: openssl rand -base64 32)
 pnpm dev          # http://localhost:3000
+
+# Create your first account (invitation-only — there is no open sign-up):
+pnpm --filter @recalbox/dashboard exec tsx scripts/create-user.ts you@example.com 'a-strong-password' admin
 ```
+
+> **Authentication is required.** Every page and API route sits behind a login. After the first
+> account, admins invite others from the admin area (single-use, expiring links). For a public,
+> multi-user deployment see [docs/saas-deployment.md](docs/saas-deployment.md).
+>
+> Already have plaintext SSH/IGDB secrets in your DB? Encrypt them at rest (idempotent):
+>
+> ```bash
+> pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts
+> ```
 
 ## Scripts
 
@@ -232,7 +268,7 @@ See [docs/mqtt-api.md](docs/mqtt-api.md) for the full topic contract.
 | -------- | ---- | ------- |
 | MQTT | 1883 | Real-time game events |
 | SSH | 22 | System stats snapshots, image/media proxy, per-core CPU, and game launch |
-| HTTP | 81 | Recalbox Web Manager API (BIOS health, storage info) |
+| HTTP | 81 | Recalbox Web Manager API (BIOS health, storage info, config read/write) |
 
 Game launch reaches EmulationStation's UDP listener (port **1337**) — but the datagram is
 sent **from the box** over the existing SSH connection (a fresh client-side UDP send can't
@@ -364,13 +400,20 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Ticket 21 — Taste Profile (`/profile`): inferred weights per system / genre / decade / developer, comfort games, maturity score, 30-day quality metrics
 - [x] Ticket 22 — "What to Play Tonight" (`/play-tonight`): mood + time-aware content-based recommendation engine with skip, launch, and confidence levels
 
-### Version 2.0 — Web Manager parity & game launch
+### Version 2.0 — Web Manager parity, config editing & multi-user
 
 - [x] UI refonte — reskin to the Recalbox Web Manager design language (navy/teal palette, derived dark mode, Roboto, collapsible icon rail + mobile drawer), restyled overview/home, regenerated favicons & PWA icons
 - [x] BIOS health page (`/bios`) — present / mismatch / missing per BIOS, filters and search, via the Web Manager API
 - [x] Monitoring redesign — per-core CPU bar chart + Web-Manager-style storage rows (`GET /api/monitoring`)
 - [x] Collection revamp — systems grid (all systems with ≥1 ROM) + per-system table with box-3D art, ratings, region column & filter, favorites filter
 - [x] Launch games from the dashboard — collection ▶ and Play Tonight launch via EmulationStation's UDP listener, guarded against a game already running (live MQTT + server-side `es_state.inf`)
+- [x] Recalbox config editor (`/configuration`) — read/write `recalbox.conf` sections with Web Manager parity, masked secrets, risky-section confirm, ES-restart hints (view/control gated)
+- [x] Per-system & per-game emulator/core overrides applied over SSH
+- [x] Authentication (Better Auth, invitation-only) — login gate on all routes, `admin`/`member` roles, first user via `create-user` CLI
+- [x] Per-Recalbox ownership & scoping — view vs control permissions, admin overview (`/admin`), single-use invitation links
+- [x] Mesh-VPN reach — Tailscale/tailnet hosts (IPv6) so the dashboard manages boxes across homes; `docker-compose.saas.yml` + Tailscale Funnel for public HTTPS
+- [x] Credentials encrypted at rest — AES-256-GCM for SSH passwords and IGDB secrets, with an idempotent backfill script
+- [x] Super Retrogamers real API client — replaced the stub, per-ROM-region data with caching
 
 ## RetroAchievements integration
 
@@ -577,6 +620,62 @@ screen, served by `GET /api/monitoring`:
 - **Per-core CPU** — a vertical bar per logical core (`getPerCoreUsage` over SSH)
 - **Storage** — the user-facing `share` and `boot` partitions only (de-duplicated by
   filesystem), each as an HDD row with a usage bar and percentage (Web Manager API)
+
+## Configuration editor (`/configuration`)
+
+Read and write `recalbox.conf` settings straight from the dashboard, with Web Manager parity.
+Keys are grouped into sections (**global**, **system**, **audio**, **controllers**, **scraper**,
+**updates**, **hyperion**, **kodi**, **wifi**, …) and rendered generically from the uniform
+Web Manager configuration API.
+
+- **Secrets are protected** — password / API-key / Wi-Fi-PSK fields are masked (`••••`) in the
+  API response, never logged, and an untouched masked field never overwrites the stored value.
+- **Risky sections** (system, Wi-Fi) require an explicit confirm before saving; settings that
+  only take effect after an EmulationStation restart are flagged.
+- **Permissions** — viewing a section requires *view* on the active Recalbox; saving requires
+  *control* (see [Authentication & multi-user](#authentication--multi-user)).
+
+Beyond `recalbox.conf`, you can set a **per-system** or **per-game emulator/core override**,
+applied on the box over SSH — handy when one title runs better on an alternate core.
+
+| Route | Description |
+| ----- | ----------- |
+| `GET / POST /api/recalbox/config/[section]` | Read / write a config section (secrets masked) |
+| `POST /api/recalbox/system-emulator` | Set a per-system emulator/core override |
+| `POST /api/collection/emulator-override` | Set a per-game emulator/core override |
+
+## Authentication & multi-user
+
+The dashboard is **invitation-only** and built on [Better Auth](https://www.better-auth.com/).
+Every page and API route sits behind a login — there is no open sign-up.
+
+```bash
+# Create the first account from the CLI:
+pnpm --filter @recalbox/dashboard exec tsx scripts/create-user.ts you@example.com 'pw' admin
+# in Docker: docker compose exec recalbox-dashboard node /app/create-user.js you@example.com 'pw' admin
+```
+
+- **First account** — created from the CLI (no UI bootstrap); see the command below.
+- **Roles** — `admin` and `member`. Admins can invite others and see the admin overview.
+- **Invitation links** — admins generate single-use, hashed, expiring tokens. The invitee
+  opens a public `/accept-invite` page, sets a password, and is in.
+- **Per-Recalbox ownership** — each Recalbox has an owner; access splits into **view** (see its
+  stats/collection) and **control** (power, launch, sync, config). Members only see and act on
+  machines shared with them.
+- **Admin overview** (`/admin`) — read-only list of users and machines, admin-only.
+- **Credentials at rest** — SSH passwords and IGDB secrets are encrypted with AES-256-GCM,
+  keyed from `BETTER_AUTH_SECRET` (or a separate `CREDENTIALS_SECRET`).
+
+| Env var | Required | Purpose |
+| ------- | -------- | ------- |
+| `BETTER_AUTH_SECRET` | ✅ | Signs sessions; also derives the credential-encryption key (32+ chars) |
+| `BETTER_AUTH_URL` | ✅ | Public base URL of the dashboard |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | public deploy | Comma-separated origins accepted for CSRF / cross-origin |
+| `CREDENTIALS_SECRET` | optional | Rotate the credential key independently of the auth secret |
+
+For an **online, multi-home family setup** — reaching Recalbox machines across houses over a
+mesh VPN and exposing the dashboard on public HTTPS via Tailscale Funnel — see
+[docs/mesh-vpn-setup.md](docs/mesh-vpn-setup.md) and [docs/saas-deployment.md](docs/saas-deployment.md).
 
 ## Contributing
 
