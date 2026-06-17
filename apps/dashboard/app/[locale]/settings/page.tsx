@@ -92,7 +92,8 @@ type RaForm = z.infer<typeof raFormSchema>
 const srFormSchema = z.object({
 	enabled: z.boolean(),
 	apiUrl: z.string().max(256),
-	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
+	apiKey: z.string().max(256),
+	preferredRegion: z.enum(['FR', 'EU', 'WOR', 'US', 'JP', 'ASI', '']),
 })
 type SrForm = z.infer<typeof srFormSchema>
 
@@ -755,29 +756,36 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 	} | null>(null)
 	const [enriching, setEnriching] = useState(false)
 	const [enrichProgress, setEnrichProgress] = useState<string | null>(null)
+	const [showApiKey, setShowApiKey] = useState(false)
 
 	const form = useForm<SrForm>({
 		resolver: zodResolver(srFormSchema),
 		defaultValues: {
 			enabled: config.superRetrogamers.enabled,
 			apiUrl: config.superRetrogamers.apiUrl,
+			apiKey: config.superRetrogamers.apiKey,
 			preferredRegion: config.superRetrogamers.preferredRegion,
 		},
 	})
 	const isDirty = form.formState.isDirty
 
 	async function onSave(values: SrForm) {
+		const body: Record<string, unknown> = { superRetrogamers: values }
+		if (!values.apiKey) {
+			;(body.superRetrogamers as Record<string, unknown>).apiKey = undefined
+		}
 		try {
 			const res = await fetch('/api/settings', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ superRetrogamers: values }),
+				body: JSON.stringify(body),
 			})
 			if (!res.ok) throw new Error()
 			const updated: AppConfig = await res.json()
 			form.reset({
 				enabled: updated.superRetrogamers.enabled,
 				apiUrl: updated.superRetrogamers.apiUrl,
+				apiKey: updated.superRetrogamers.apiKey,
 				preferredRegion: updated.superRetrogamers.preferredRegion,
 			})
 			toast.success(t('saved'))
@@ -861,9 +869,12 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="">{t('regionDefault')}</SelectItem>
-										<SelectItem value="US">US</SelectItem>
+										<SelectItem value="FR">FR</SelectItem>
 										<SelectItem value="EU">EU</SelectItem>
+										<SelectItem value="WOR">WOR</SelectItem>
+										<SelectItem value="US">US</SelectItem>
 										<SelectItem value="JP">JP</SelectItem>
+										<SelectItem value="ASI">ASI</SelectItem>
 									</SelectContent>
 								</Select>
 							</FormControl>
@@ -880,6 +891,34 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 								<Input placeholder="https://super-retrogamers.com/api/v1" {...field} />
 							</FormControl>
 							<FormDescription>{t('apiUrlHint')}</FormDescription>
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name="apiKey"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>{t('apiKey')}</FormLabel>
+							<FormControl>
+								<div className="flex gap-2">
+									<Input
+										{...field}
+										type={showApiKey ? 'text' : 'password'}
+										placeholder={t('apiKeyPlaceholder')}
+										className="flex-1 font-mono text-sm"
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => setShowApiKey((v) => !v)}
+									>
+										{showApiKey ? t('hideApiKey') : t('showApiKey')}
+									</Button>
+								</div>
+							</FormControl>
+							<FormDescription>{t('apiKeyHint')}</FormDescription>
 						</FormItem>
 					)}
 				/>

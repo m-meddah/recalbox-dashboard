@@ -28,6 +28,7 @@ export function getDefaults(): AppConfig {
 		superRetrogamers: {
 			enabled: false,
 			apiUrl: '',
+			apiKey: process.env.SUPER_RETROGAMERS_API_KEY ?? '',
 			preferredRegion: '',
 		},
 		mqttPublish: {

@@ -61,7 +61,8 @@ const putBodySchema = z.object({
 					message: 'Must be a valid HTTP(S) URL',
 				})
 				.optional(),
-			preferredRegion: z.enum(['US', 'EU', 'JP', '']).optional(),
+			apiKey: z.string().max(256).optional(),
+			preferredRegion: z.enum(['FR', 'EU', 'WOR', 'US', 'JP', 'ASI', '']).optional(),
 		})
 		.optional(),
 	mqttPublish: z
@@ -106,6 +107,10 @@ export async function PUT(req: NextRequest) {
 	if (partial.retroachievements?.apiKey === PASSWORD_MASK) {
 		const { apiKey: _omit, ...raWithoutKey } = partial.retroachievements
 		partial.retroachievements = raWithoutKey
+	}
+	if (partial.superRetrogamers?.apiKey === PASSWORD_MASK) {
+		const { apiKey: _omit, ...srWithoutKey } = partial.superRetrogamers
+		partial.superRetrogamers = srWithoutKey
 	}
 
 	// Persist recalbox connection fields to the recalboxes table (the settings

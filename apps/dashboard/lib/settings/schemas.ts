@@ -11,7 +11,8 @@ const retroachievementsConfigSchema = z.object({
 const superRetrogamersConfigSchema = z.object({
 	enabled: z.boolean(),
 	apiUrl: z.string().max(256),
-	preferredRegion: z.enum(['US', 'EU', 'JP', '']),
+	apiKey: z.string().max(256),
+	preferredRegion: z.enum(['FR', 'EU', 'WOR', 'US', 'JP', 'ASI', '']),
 })
 
 const mqttPublishConfigSchema = z.object({
@@ -70,6 +71,10 @@ export function maskedConfig(cfg: AppConfig): AppConfig {
 		retroachievements: {
 			...cfg.retroachievements,
 			apiKey: cfg.retroachievements?.apiKey ? '***' : '',
+		},
+		superRetrogamers: {
+			...cfg.superRetrogamers,
+			apiKey: cfg.superRetrogamers?.apiKey ? '***' : '',
 		},
 	}
 }
