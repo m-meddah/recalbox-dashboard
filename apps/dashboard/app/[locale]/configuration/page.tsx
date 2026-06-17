@@ -49,6 +49,78 @@ export default async function ConfigurationIndexPage({ params }: Props) {
 						</CardHeader>
 					</Card>
 				</Link>
+
+				<Link href="/configuration/region">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('region.title')}</CardTitle>
+								<CardDescription>{t('region.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
+
+				<Link href="/configuration/performance">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('performance.title')}</CardTitle>
+								<CardDescription>{t('performance.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
+
+				<Link href="/configuration/parental">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('parental.title')}</CardTitle>
+								<CardDescription>{t('parental.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
+
+				<Link href="/configuration/collections">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('esCollections.title')}</CardTitle>
+								<CardDescription>{t('esCollections.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
+
+				<Link href="/configuration/video">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('video.title')}</CardTitle>
+								<CardDescription>{t('video.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
+
+				<Link href="/configuration/netplay">
+					<Card className="hover:border-primary/50 transition-colors">
+						<CardHeader className="flex-row items-center justify-between gap-2">
+							<div className="space-y-1">
+								<CardTitle className="text-base">{t('netplay.title')}</CardTitle>
+								<CardDescription>{t('netplay.subtitle')}</CardDescription>
+							</div>
+							<ChevronRight className="text-muted-foreground size-5 shrink-0" />
+						</CardHeader>
+					</Card>
+				</Link>
 			</div>
 		</div>
 	)

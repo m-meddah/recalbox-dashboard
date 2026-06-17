@@ -1037,6 +1037,107 @@
 			"saved": "Default emulator set for {system}. Applies on next launch.",
 			"saveError": "Could not change the system default.",
 			"empty": "No systems found on this Recalbox."
+		},
+		"region": {
+			"title": "ROM region preferences",
+			"subtitle": "Which regional version to prefer when several ROMs share a name, and how to de-duplicate.",
+			"region": "Preferred region",
+			"auto": "Auto (from system language)",
+			"fallback": "Fallback order",
+			"oneGameOneRom": "One game, one ROM (hide duplicates)",
+			"showOnlyLatest": "Show only the latest version",
+			"codes": {
+				"eu": "Europe",
+				"us": "USA",
+				"jp": "Japan",
+				"fr": "France",
+				"de": "Germany",
+				"es": "Spain",
+				"it": "Italy",
+				"uk": "United Kingdom",
+				"world": "World"
+			}
+		},
+		"performance": {
+			"title": "Performance & overclock",
+			"subtitle": "Pick an overclock profile for your board, with temperature and throttling guardrails.",
+			"unsupported": "Overclocking profiles are not available for this board ({model}).",
+			"profile": "Overclock profile",
+			"profiles": {
+				"stock": "Default (no overclock)",
+				"medium": "Medium",
+				"high": "High"
+			},
+			"apply": "Apply",
+			"applied": "Overclock profile saved.",
+			"applyFailed": "Could not change the overclock profile.",
+			"current": "Current profile: {profile}",
+			"warning": "Overclocking needs adequate active cooling and only takes effect after a reboot. If the console becomes unstable or throttles, revert to Default.",
+			"rebootNeeded": "Reboot the console to apply.",
+			"reboot": "Reboot console",
+			"rebootTriggered": "Reboot requested.",
+			"rebootFailed": "Could not reboot the console.",
+			"throttleOk": "No throttling",
+			"throttleWarn": "Throttling detected",
+			"confirmTitle": "Apply overclock profile?",
+			"confirmBody": "This changes the CPU/GPU clocks. Make sure your Raspberry Pi has proper cooling. The change applies after a reboot.",
+			"rebootConfirmTitle": "Reboot the console?",
+			"rebootConfirmBody": "The Recalbox will restart now. Any running game will be closed."
+		},
+		"unsaved": "Unsaved changes",
+		"parental": {
+			"title": "Parental control",
+			"subtitle": "Hide adult-rated games from EmulationStation.",
+			"fields": {
+				"filteradultgames": "Filter out adult games",
+				"filteradultgamesDesc": "Games flagged as adult are hidden from every system."
+			}
+		},
+		"netplay": {
+			"title": "Netplay",
+			"subtitle": "Play compatible games online with other RetroArch players.",
+			"fields": {
+				"enabled": "Enable netplay",
+				"nickname": "Nickname",
+				"nicknamePlaceholder": "Your online name",
+				"port": "Port",
+				"lobby": "Lobby URL"
+			}
+		},
+		"esCollections": {
+			"title": "Arcade & virtual collections",
+			"subtitle": "Group arcade games and create automatic collections in EmulationStation.",
+			"fields": {
+				"arcade": "Arcade metasystem",
+				"arcadeDesc": "Group MAME, FBNeo and Neo-Geo into a single Arcade system.",
+				"includeNeogeo": "Include Neo-Geo in Arcade",
+				"hideOriginals": "Hide the original systems",
+				"allGames": "All games collection",
+				"multiplayers": "Multiplayer games collection",
+				"lastPlayed": "Last played collection"
+			}
+		},
+		"video": {
+			"title": "Display & shaders",
+			"subtitle": "Global rendering defaults applied to every emulator.",
+			"fields": {
+				"shaderset": "Shader set",
+				"ratio": "Aspect ratio",
+				"smooth": "Smooth (bilinear filtering)",
+				"integerscale": "Integer scaling (pixel perfect)",
+				"rewind": "Rewind",
+				"rewindDesc": "Lets you rewind gameplay. Costs some performance.",
+				"autosave": "Auto save/load states",
+				"autosaveDesc": "Automatically save on exit and restore on launch."
+			},
+			"shadersetOptions": {
+				"none": "None",
+				"retro": "Retro",
+				"scanlines": "Scanlines",
+				"crtcurved": "CRT curved"
+			},
+			"ratioAuto": "Auto",
+			"ratioCustom": "Custom"
 		}
 	}
 }

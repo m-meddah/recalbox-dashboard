@@ -1,5 +1,12 @@
 # Super Retrogamers Public API — Specification
 
+> **⚠️ Draft — partly superseded.** This was written from the dashboard's wishlist before
+> the SR codebase was inspected. Two corrections from the verified review (2026-06-14):
+> the endpoint needs an **`X-API-Key`** shared secret (SR blocks bots + rate-limits — no
+> open CORS), and **`characters` is always `[]`** (no such relation in the SR schema).
+> See [super-retrogamers-api-integration.md](super-retrogamers-api-integration.md) for the
+> verified mapping and the ready-to-run implementation prompts.
+
 Version: 1.0 (Draft)  
 Base URL: `https://super-retrogamers.com/api/v1`
 

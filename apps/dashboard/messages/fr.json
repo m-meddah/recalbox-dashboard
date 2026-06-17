@@ -1037,6 +1037,107 @@
 			"saved": "Émulateur par défaut défini pour {system}. S'applique au prochain lancement.",
 			"saveError": "Impossible de changer le défaut du système.",
 			"empty": "Aucun système trouvé sur cette Recalbox."
+		},
+		"region": {
+			"title": "Préférences de région ROM",
+			"subtitle": "Quelle version régionale privilégier quand plusieurs ROM portent le même nom, et comment dédupliquer.",
+			"region": "Région préférée",
+			"auto": "Auto (selon la langue système)",
+			"fallback": "Ordre de repli",
+			"oneGameOneRom": "Un jeu, une ROM (masquer les doublons)",
+			"showOnlyLatest": "Afficher seulement la dernière version",
+			"codes": {
+				"eu": "Europe",
+				"us": "États-Unis",
+				"jp": "Japon",
+				"fr": "France",
+				"de": "Allemagne",
+				"es": "Espagne",
+				"it": "Italie",
+				"uk": "Royaume-Uni",
+				"world": "Monde"
+			}
+		},
+		"performance": {
+			"title": "Performance & overclock",
+			"subtitle": "Choisis un profil d'overclock pour ta carte, avec garde-fous température et throttling.",
+			"unsupported": "Aucun profil d'overclock disponible pour cette carte ({model}).",
+			"profile": "Profil d'overclock",
+			"profiles": {
+				"stock": "Défaut (sans overclock)",
+				"medium": "Moyen",
+				"high": "Élevé"
+			},
+			"apply": "Appliquer",
+			"applied": "Profil d'overclock enregistré.",
+			"applyFailed": "Impossible de changer le profil d'overclock.",
+			"current": "Profil actuel : {profile}",
+			"warning": "L'overclock nécessite un refroidissement actif suffisant et ne prend effet qu'après un redémarrage. Si la console devient instable ou throttle, reviens au profil Défaut.",
+			"rebootNeeded": "Redémarre la console pour appliquer.",
+			"reboot": "Redémarrer la console",
+			"rebootTriggered": "Redémarrage demandé.",
+			"rebootFailed": "Impossible de redémarrer la console.",
+			"throttleOk": "Pas de throttling",
+			"throttleWarn": "Throttling détecté",
+			"confirmTitle": "Appliquer le profil d'overclock ?",
+			"confirmBody": "Ceci modifie les fréquences CPU/GPU. Assure-toi que ton Raspberry Pi est bien refroidi. Le changement s'applique après un redémarrage.",
+			"rebootConfirmTitle": "Redémarrer la console ?",
+			"rebootConfirmBody": "La Recalbox va redémarrer maintenant. Tout jeu en cours sera fermé."
+		},
+		"unsaved": "Modifications non enregistrées",
+		"parental": {
+			"title": "Contrôle parental",
+			"subtitle": "Masquer les jeux classés adultes dans EmulationStation.",
+			"fields": {
+				"filteradultgames": "Filtrer les jeux adultes",
+				"filteradultgamesDesc": "Les jeux marqués adultes sont masqués sur tous les systèmes."
+			}
+		},
+		"netplay": {
+			"title": "Netplay",
+			"subtitle": "Joue en ligne aux jeux compatibles avec d'autres joueurs RetroArch.",
+			"fields": {
+				"enabled": "Activer le netplay",
+				"nickname": "Pseudo",
+				"nicknamePlaceholder": "Ton nom en ligne",
+				"port": "Port",
+				"lobby": "URL du lobby"
+			}
+		},
+		"esCollections": {
+			"title": "Arcade & collections virtuelles",
+			"subtitle": "Regroupe les jeux d'arcade et crée des collections automatiques dans EmulationStation.",
+			"fields": {
+				"arcade": "Métasystème Arcade",
+				"arcadeDesc": "Regroupe MAME, FBNeo et Neo-Geo dans un seul système Arcade.",
+				"includeNeogeo": "Inclure Neo-Geo dans Arcade",
+				"hideOriginals": "Masquer les systèmes d'origine",
+				"allGames": "Collection tous les jeux",
+				"multiplayers": "Collection jeux multijoueurs",
+				"lastPlayed": "Collection derniers joués"
+			}
+		},
+		"video": {
+			"title": "Affichage & shaders",
+			"subtitle": "Réglages de rendu globaux appliqués à tous les émulateurs.",
+			"fields": {
+				"shaderset": "Jeu de shaders",
+				"ratio": "Format d'image",
+				"smooth": "Lissage (filtrage bilinéaire)",
+				"integerscale": "Mise à l'échelle entière (pixel perfect)",
+				"rewind": "Rembobinage",
+				"rewindDesc": "Permet de rembobiner le jeu. Coûte un peu de performance.",
+				"autosave": "Sauvegarde auto des états",
+				"autosaveDesc": "Sauvegarde automatiquement en quittant et restaure au lancement."
+			},
+			"shadersetOptions": {
+				"none": "Aucun",
+				"retro": "Rétro",
+				"scanlines": "Scanlines",
+				"crtcurved": "CRT incurvé"
+			},
+			"ratioAuto": "Auto",
+			"ratioCustom": "Personnalisé"
 		}
 	}
 }
