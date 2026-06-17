@@ -51,7 +51,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -745,18 +745,55 @@ function RetroAchievementsTab({ config }: { config: AppConfig }) {
 
 // ─── Integrations tab ────────────────────────────────────────────────────────
 
+type SrTestResult = { ok: boolean; latencyMs?: number; error?: string }
+
+type SrUiState = {
+	testing: boolean
+	testResult: SrTestResult | null
+	enriching: boolean
+	enrichProgress: string | null
+	showApiKey: boolean
+}
+
+type SrUiAction =
+	| { type: 'testStart' }
+	| { type: 'testResult'; result: SrTestResult }
+	| { type: 'enrichStart' }
+	| { type: 'enrichProgress'; progress: string }
+	| { type: 'enrichEnd' }
+	| { type: 'toggleApiKey' }
+
+const initialSrUiState: SrUiState = {
+	testing: false,
+	testResult: null,
+	enriching: false,
+	enrichProgress: null,
+	showApiKey: false,
+}
+
+function srUiReducer(state: SrUiState, action: SrUiAction): SrUiState {
+	switch (action.type) {
+		case 'testStart':
+			return { ...state, testing: true, testResult: null }
+		case 'testResult':
+			return { ...state, testing: false, testResult: action.result }
+		case 'enrichStart':
+			return { ...state, enriching: true, enrichProgress: null }
+		case 'enrichProgress':
+			return { ...state, enrichProgress: action.progress }
+		case 'enrichEnd':
+			return { ...state, enriching: false }
+		case 'toggleApiKey':
+			return { ...state, showApiKey: !state.showApiKey }
+		default:
+			return state
+	}
+}
+
 function IntegrationsTab({ config }: { config: AppConfig }) {
 	const t = useTranslations('settings.integrations')
 	const tc = useTranslations('common')
-	const [testing, setTesting] = useState(false)
-	const [testResult, setTestResult] = useState<{
-		ok: boolean
-		latencyMs?: number
-		error?: string
-	} | null>(null)
-	const [enriching, setEnriching] = useState(false)
-	const [enrichProgress, setEnrichProgress] = useState<string | null>(null)
-	const [showApiKey, setShowApiKey] = useState(false)
+	const [ui, dispatch] = useReducer(srUiReducer, initialSrUiState)
 
 	const form = useForm<SrForm>({
 		resolver: zodResolver(srFormSchema),
@@ -795,22 +832,18 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 	}
 
 	async function handleTest() {
-		setTesting(true)
-		setTestResult(null)
+		dispatch({ type: 'testStart' })
 		try {
 			const res = await fetch('/api/super-retrogamers/test-connection', { method: 'POST' })
 			const data = await res.json()
-			setTestResult(data)
+			dispatch({ type: 'testResult', result: data })
 		} catch {
-			setTestResult({ ok: false, error: 'Network error' })
-		} finally {
-			setTesting(false)
+			dispatch({ type: 'testResult', result: { ok: false, error: 'Network error' } })
 		}
 	}
 
 	async function handleEnrich() {
-		setEnriching(true)
-		setEnrichProgress(null)
+		dispatch({ type: 'enrichStart' })
 		try {
 			const res = await fetch('/api/super-retrogamers/enrich-collection', { method: 'POST' })
 			if (!res.body) return
@@ -824,9 +857,12 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 					try {
 						const event = JSON.parse(line)
 						if (event.type === 'progress') {
-							setEnrichProgress(`${event.done} / ${event.total}`)
+							dispatch({ type: 'enrichProgress', progress: `${event.done} / ${event.total}` })
 						} else if (event.type === 'complete') {
-							setEnrichProgress(t('enrichDone', { matched: event.matched, total: event.total }))
+							dispatch({
+								type: 'enrichProgress',
+								progress: t('enrichDone', { matched: event.matched, total: event.total }),
+							})
 						}
 					} catch {}
 				}
@@ -834,7 +870,7 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 		} catch {
 			toast.error(t('enrichError'))
 		} finally {
-			setEnriching(false)
+			dispatch({ type: 'enrichEnd' })
 		}
 	}
 
@@ -904,7 +940,7 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 								<div className="flex gap-2">
 									<Input
 										{...field}
-										type={showApiKey ? 'text' : 'password'}
+										type={ui.showApiKey ? 'text' : 'password'}
 										placeholder={t('apiKeyPlaceholder')}
 										className="flex-1 font-mono text-sm"
 									/>
@@ -912,9 +948,9 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 										type="button"
 										variant="outline"
 										size="sm"
-										onClick={() => setShowApiKey((v) => !v)}
+										onClick={() => dispatch({ type: 'toggleApiKey' })}
 									>
-										{showApiKey ? t('hideApiKey') : t('showApiKey')}
+										{ui.showApiKey ? t('hideApiKey') : t('showApiKey')}
 									</Button>
 								</div>
 							</FormControl>
@@ -929,23 +965,23 @@ function IntegrationsTab({ config }: { config: AppConfig }) {
 					<Button type="submit" disabled={!isDirty}>
 						{tc('save')}
 					</Button>
-					<Button type="button" variant="secondary" onClick={handleTest} disabled={testing}>
-						{testing ? t('testing') : t('testConnection')}
+					<Button type="button" variant="secondary" onClick={handleTest} disabled={ui.testing}>
+						{ui.testing ? t('testing') : t('testConnection')}
 					</Button>
-					<Button type="button" variant="secondary" onClick={handleEnrich} disabled={enriching}>
-						{enriching ? (enrichProgress ?? t('enriching')) : t('enrich')}
+					<Button type="button" variant="secondary" onClick={handleEnrich} disabled={ui.enriching}>
+						{ui.enriching ? (ui.enrichProgress ?? t('enriching')) : t('enrich')}
 					</Button>
 				</div>
-				{testResult?.ok === true && (
+				{ui.testResult?.ok === true && (
 					<Alert>
 						<AlertDescription className="text-green-600">
-							{t('testOk', { ms: testResult.latencyMs ?? 0 })}
+							{t('testOk', { ms: ui.testResult.latencyMs ?? 0 })}
 						</AlertDescription>
 					</Alert>
 				)}
-				{testResult?.ok === false && (
+				{ui.testResult?.ok === false && (
 					<Alert variant="destructive">
-						<AlertDescription>{testResult.error ?? t('testFailed')}</AlertDescription>
+						<AlertDescription>{ui.testResult.error ?? t('testFailed')}</AlertDescription>
 					</Alert>
 				)}
 			</form>
