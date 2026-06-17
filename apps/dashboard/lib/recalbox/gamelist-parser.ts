@@ -19,6 +19,8 @@ export type ParsedGame = {
 	hidden: boolean
 	playCount?: number
 	lastPlayed?: Date
+	/** Cumulative play time in seconds (gamelist <gametime> tag, Recalbox "temps joué"). */
+	playTimeSeconds?: number
 	hash?: string
 	region?: string
 	/** Per-game emulator override (gamelist <emulator> tag), e.g. "libretro". */
@@ -135,6 +137,7 @@ export function parseGamelist(xml: string, romsBasePath: string): ParsedGame[] {
 			hidden: toBoolean(g.hidden),
 			playCount: toNumber(g.playcount),
 			lastPlayed: parseRecalboxDate(g.lastplayed),
+			playTimeSeconds: toNumber(g.gametime),
 			hash: g.hash ? String(g.hash) : undefined,
 			region: g.region ? String(g.region) : undefined,
 			emulator: g.emulator ? String(g.emulator).trim() || undefined : undefined,

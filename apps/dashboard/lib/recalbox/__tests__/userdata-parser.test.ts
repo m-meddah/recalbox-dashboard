@@ -15,13 +15,25 @@ describe('parseUserdataIni', () => {
 
 	it('parses all known keys', () => {
 		const map = parseUserdataIni(
-			'./game.zip:favorite=true,hidden=false,playcount=3,lastplayed=20260315T204512',
+			'./game.zip:favorite=true,hidden=false,playcount=3,lastplayed=20260315T204512,timeplayed=3600',
 		)
 		const entry = map.get('game.zip')
 		expect(entry?.favorite).toBe(true)
 		expect(entry?.hidden).toBe(false)
 		expect(entry?.playCount).toBe(3)
 		expect(entry?.lastPlayed?.getUTCFullYear()).toBe(2026)
+		expect(entry?.timePlayedSeconds).toBe(3600)
+	})
+
+	it('parses timeplayed in seconds', () => {
+		const map = parseUserdataIni('./game.zip:playcount=2,timeplayed=300')
+		expect(map.get('game.zip')?.timePlayedSeconds).toBe(300)
+	})
+
+	it('leaves timePlayedSeconds undefined when timeplayed is absent or invalid', () => {
+		const map = parseUserdataIni('./a.zip:playcount=1\n./b.zip:timeplayed=oops')
+		expect(map.get('a.zip')?.timePlayedSeconds).toBeUndefined()
+		expect(map.get('b.zip')?.timePlayedSeconds).toBeUndefined()
 	})
 
 	it('handles paths in subdirectories', () => {

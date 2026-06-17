@@ -15,7 +15,7 @@
 import { isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../lib/db/index'
 import { gameInheritedStats, games } from '../lib/db/schema'
-import { syncInheritedStats } from '../lib/recalbox/sync-inherited-stats'
+import { importInheritedStatsFromGames } from '../lib/recalbox/sync-inherited-stats'
 
 const isDryRun = process.argv.includes('--dry-run')
 const isClear = process.argv.includes('--clear')
@@ -33,9 +33,16 @@ async function importInheritedStats() {
 			system: games.system,
 			playCount: games.playCount,
 			lastPlayed: games.lastPlayed,
+			playTimeSeconds: games.playTimeSeconds,
 		})
 		.from(games)
-		.where(or(sql`${games.playCount} > 0`, isNotNull(games.lastPlayed)))
+		.where(
+			or(
+				sql`${games.playCount} > 0`,
+				isNotNull(games.lastPlayed),
+				sql`${games.playTimeSeconds} > 0`,
+			),
+		)
 
 	if (candidates.length === 0) {
 		console.log('No games with playCount or lastPlayed found. Run a collection sync first.')
@@ -58,13 +65,7 @@ async function importInheritedStats() {
 		return
 	}
 
-	const entries = candidates.map((g) => ({
-		gameId: g.id,
-		playCount: g.playCount ?? 0,
-		lastPlayedAt: g.lastPlayed ?? null,
-	}))
-
-	const { imported } = await syncInheritedStats(db, entries)
+	const { imported } = await importInheritedStatsFromGames(db)
 
 	console.log(`\nUpserted ${imported} inherited stat row(s).`)
 	console.log('Run `pnpm gamelist:clear` to undo.')

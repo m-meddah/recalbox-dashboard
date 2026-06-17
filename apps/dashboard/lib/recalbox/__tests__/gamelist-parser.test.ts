@@ -93,6 +93,14 @@ describe('parseGamelist — snes fixture', () => {
 		expect(games[1]?.lastPlayed?.getUTCFullYear()).toBe(2026)
 	})
 
+	it('parses gametime into playTimeSeconds', () => {
+		expect(games[1]?.playTimeSeconds).toBe(3600)
+	})
+
+	it('leaves playTimeSeconds undefined when gametime is absent', () => {
+		expect(games[0]?.playTimeSeconds).toBeUndefined()
+	})
+
 	it('parses hidden=true', () => {
 		expect(games[2]?.hidden).toBe(true)
 	})

@@ -48,6 +48,31 @@ describe('hasBouncedWithoutCommitting', () => {
 	it('returns false with only 1 bounce', () => {
 		expect(hasBouncedWithoutCommitting(makeStats({ bounceCount: 1 }))).toBe(false)
 	})
+
+	it('returns true when inherited shows repeated tiny launches and no significant sessions', () => {
+		// playCount 4, ~50s per launch, never stuck → bounced before tracking
+		expect(
+			hasBouncedWithoutCommitting(
+				makeStats({ inherited: { playCount: 4, lastPlayedAt: new Date(), playTimeSeconds: 200 } }),
+			),
+		).toBe(true)
+	})
+
+	it('returns false when inherited launches are few even if short', () => {
+		expect(
+			hasBouncedWithoutCommitting(
+				makeStats({ inherited: { playCount: 2, lastPlayedAt: new Date(), playTimeSeconds: 100 } }),
+			),
+		).toBe(false)
+	})
+
+	it('returns false when inherited total time is substantial', () => {
+		expect(
+			hasBouncedWithoutCommitting(
+				makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date(), playTimeSeconds: 7200 } }),
+			),
+		).toBe(false)
+	})
 })
 
 describe('isConfirmedTaste', () => {
@@ -62,6 +87,22 @@ describe('isConfirmedTaste', () => {
 	it('returns false with only 2 significant sessions and no marathon', () => {
 		expect(isConfirmedTaste(makeStats({ significantSessions: 2, meaningfulCount: 2 }))).toBe(false)
 	})
+
+	it('returns true with 2h+ of inherited play time (pre-tracking history)', () => {
+		expect(
+			isConfirmedTaste(
+				makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date(), playTimeSeconds: 9000 } }),
+			),
+		).toBe(true)
+	})
+
+	it('returns false with high inherited playCount but tiny total time', () => {
+		expect(
+			isConfirmedTaste(
+				makeStats({ inherited: { playCount: 10, lastPlayedAt: new Date(), playTimeSeconds: 600 } }),
+			),
+		).toBe(false)
+	})
 })
 
 describe('isUntested', () => {
@@ -74,15 +115,19 @@ describe('isUntested', () => {
 	})
 
 	it('returns false when inherited playCount >= 3 and no measured sessions', () => {
-		expect(isUntested(makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date() } }))).toBe(
-			false,
-		)
+		expect(
+			isUntested(
+				makeStats({ inherited: { playCount: 5, lastPlayedAt: new Date(), playTimeSeconds: 0 } }),
+			),
+		).toBe(false)
 	})
 
 	it('returns true when inherited playCount < 3 and no real sessions', () => {
-		expect(isUntested(makeStats({ inherited: { playCount: 2, lastPlayedAt: new Date() } }))).toBe(
-			true,
-		)
+		expect(
+			isUntested(
+				makeStats({ inherited: { playCount: 2, lastPlayedAt: new Date(), playTimeSeconds: 0 } }),
+			),
+		).toBe(true)
 	})
 })
 
@@ -107,7 +152,7 @@ describe('monthsSinceLastMeaningfulPlay', () => {
 		oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
 		const months = monthsSinceLastMeaningfulPlay(
-			makeStats({ inherited: { playCount: 5, lastPlayedAt: oneYearAgo } }),
+			makeStats({ inherited: { playCount: 5, lastPlayedAt: oneYearAgo, playTimeSeconds: 0 } }),
 		)
 		expect(months).toBeGreaterThan(11)
 		expect(months).toBeLessThan(13)

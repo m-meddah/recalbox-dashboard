@@ -137,6 +137,8 @@ export const games = sqliteTable(
 		hidden: int('hidden', { mode: 'boolean' }).notNull().default(false),
 		playCount: int('play_count').default(0),
 		lastPlayed: int('last_played', { mode: 'timestamp' }),
+		/** Cumulative play time in seconds (Recalbox "temps joué"). */
+		playTimeSeconds: int('play_time_seconds').default(0),
 		diskSource: text('disk_source'),
 		syncedAt: int('synced_at', { mode: 'timestamp' }),
 		scrapeStatus: text('scrape_status', { enum: ['pending', 'done', 'failed'] })
@@ -226,7 +228,7 @@ export const pushSubscriptions = sqliteTable('push_subscriptions', {
 })
 
 /**
- * Statistiques héritées de gamelist-userdata.ini (playCount, lastPlayed).
+ * Statistiques héritées de gamelist-userdata.ini (playCount, lastPlayed, timeplayed).
  * Source of truth for the recommendation algorithm.
  * One row per game, upserted on each collection sync.
  */
@@ -236,6 +238,8 @@ export const gameInheritedStats = sqliteTable(
 		gameId: int('game_id').primaryKey(),
 		playCount: int('play_count').notNull().default(0),
 		lastPlayedAt: int('last_played_at', { mode: 'timestamp' }),
+		/** Cumulative play time in seconds inherited from gamelist userdata. */
+		playTimeSeconds: int('play_time_seconds').notNull().default(0),
 		importedAt: int('imported_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 		lastSyncedAt: int('last_synced_at', { mode: 'timestamp' })
 			.notNull()

@@ -43,6 +43,8 @@ export type GamePlayStats = {
 	inherited: {
 		playCount: number
 		lastPlayedAt: Date | null
+		/** Cumulative play time in seconds inherited from gamelist userdata. */
+		playTimeSeconds: number
 	} | null
 
 	// User calibration (null when absent)
@@ -158,6 +160,7 @@ export async function getGamePlayStatsBatch(
 				? {
 						playCount: inh.playCount,
 						lastPlayedAt: inh.lastPlayedAt,
+						playTimeSeconds: inh.playTimeSeconds,
 					}
 				: null,
 			calibration: cal

@@ -1,11 +1,13 @@
 import { canControlRecalbox } from '@/lib/auth/ownership'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
+import { db } from '@/lib/db'
 import { upsertGames } from '@/lib/db/queries'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { parseGamelist } from '@/lib/recalbox/gamelist-parser'
 import { readGamelist, readUserdataIni } from '@/lib/recalbox/gamelist-reader'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
+import { importInheritedStatsFromGames } from '@/lib/recalbox/sync-inherited-stats'
 import { invalidateSystemsCache, listSystems } from '@/lib/recalbox/systems'
 import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
 import type { NextRequest } from 'next/server'
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
 							if (ud.hidden !== undefined) game.hidden = ud.hidden
 							if (ud.playCount !== undefined) game.playCount = ud.playCount
 							if (ud.lastPlayed !== undefined) game.lastPlayed = ud.lastPlayed
+							if (ud.timePlayedSeconds !== undefined) game.playTimeSeconds = ud.timePlayedSeconds
 						}
 					}
 
@@ -96,6 +99,11 @@ export async function POST(req: NextRequest) {
 					write({ type: 'system', system: system.id, status: 'done', count: inserted })
 					logger.info(`sync: ${system.id} → ${inserted} games`)
 				}
+
+				// Refresh the recommendation algorithm's inherited-stats table from the
+				// freshly synced games so reco stays in step without a manual import.
+				const { imported } = await importInheritedStatsFromGames(db, recalboxId)
+				logger.info(`sync: refreshed ${imported} inherited stat row(s)`)
 
 				write({ type: 'done', totalGames, durationMs: Date.now() - t0 })
 			} catch (err) {

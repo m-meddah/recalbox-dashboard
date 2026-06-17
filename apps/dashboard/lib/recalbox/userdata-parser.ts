@@ -14,6 +14,8 @@ export type GameUserdata = {
 	hidden?: boolean
 	playCount?: number
 	lastPlayed?: Date
+	/** Cumulative play time in seconds (Recalbox "temps joué"). */
+	timePlayedSeconds?: number
 }
 
 /**
@@ -54,6 +56,9 @@ export function parseUserdataIni(content: string): Map<string, GameUserdata> {
 					break
 				case 'lastplayed':
 					entry.lastPlayed = parseRecalboxDate(val)
+					break
+				case 'timeplayed':
+					entry.timePlayedSeconds = Number.isNaN(Number(val)) ? undefined : Number(val)
 					break
 			}
 		}

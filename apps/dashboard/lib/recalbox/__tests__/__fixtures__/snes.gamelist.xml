@@ -42,6 +42,7 @@
 		<favorite>true</favorite>
 		<playcount>5</playcount>
 		<lastplayed>20260315T204512</lastplayed>
+		<gametime>3600</gametime>
 	</game>
 	<game source="Recalbox" timestamp="1777430324">
 		<hash>49A6CAE5</hash>

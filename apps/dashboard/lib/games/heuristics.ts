@@ -1,23 +1,47 @@
 import type { GamePlayStats } from './play-stats'
 
 /**
+ * Inherited play time (from gamelist userdata, "temps joué") above which we treat
+ * the game as genuinely enjoyed even without any scrobbled session — e.g. a game
+ * the user sank hours into before the dashboard started tracking.
+ */
+const SUBSTANTIAL_INHERITED_SECONDS = 7200 // 2 hours
+/** Average inherited seconds per launch below which repeated launches look like bouncing. */
+const INHERITED_BOUNCE_AVG_SECONDS = 120 // 2 minutes / launch
+
+/**
  * The user tried this game multiple times but never committed to a real session.
  * Signal to exclude the game from recommendations.
  *
- * Definition: ≥ 2 bounce sessions AND zero significant sessions.
+ * Definition (scrobbler): ≥ 2 bounce sessions AND zero significant sessions.
+ * Definition (inherited): ≥ 3 launches averaging < 2 min each, with no substantial
+ * total time and no significant scrobbler sessions — i.e. repeatedly opened and quit
+ * before tracking began.
  */
 export function hasBouncedWithoutCommitting(stats: GamePlayStats): boolean {
-	return stats.bounceCount >= 2 && stats.significantSessions === 0
+	if (stats.significantSessions > 0) return false
+	if (stats.bounceCount >= 2) return true
+
+	const inh = stats.inherited
+	if (inh && inh.playCount >= 3 && inh.playTimeSeconds < SUBSTANTIAL_INHERITED_SECONDS) {
+		const avgPerLaunch = inh.playTimeSeconds / inh.playCount
+		if (avgPerLaunch < INHERITED_BOUNCE_AVG_SECONDS) return true
+	}
+
+	return false
 }
 
 /**
  * The user demonstrably enjoys this game.
  * High-confidence signal for recommendations.
  *
- * Definition: ≥ 3 significant sessions OR ≥ 1 marathon session.
+ * Definition: ≥ 3 significant sessions, ≥ 1 marathon session, OR ≥ 2 hours of
+ * inherited play time accumulated before tracking began.
  */
 export function isConfirmedTaste(stats: GamePlayStats): boolean {
-	return stats.significantSessions >= 3 || stats.marathonCount >= 1
+	if (stats.significantSessions >= 3 || stats.marathonCount >= 1) return true
+	if ((stats.inherited?.playTimeSeconds ?? 0) >= SUBSTANTIAL_INHERITED_SECONDS) return true
+	return false
 }
 
 /**
