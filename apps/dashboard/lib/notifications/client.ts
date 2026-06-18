@@ -11,6 +11,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
 	if (typeof window === 'undefined') return null
 	if (!('serviceWorker' in navigator)) return null
+
+	// The service worker serves /_next/static/ chunks cache-first. In development those
+	// URLs are reused across recompiles, so a cached chunk gets served against freshly
+	// server-rendered HTML — causing hydration mismatches. Never run the SW outside
+	// production, and proactively clean up any registration/cache left over on the origin.
+	if (process.env.NODE_ENV !== 'production') {
+		await unregisterServiceWorkers()
+		return null
+	}
+
 	try {
 		return await navigator.serviceWorker.register('/sw.js', {
 			scope: '/',
@@ -18,6 +28,19 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 		})
 	} catch {
 		return null
+	}
+}
+
+async function unregisterServiceWorkers(): Promise<void> {
+	try {
+		const registrations = await navigator.serviceWorker.getRegistrations()
+		await Promise.all(registrations.map((reg) => reg.unregister()))
+		if ('caches' in window) {
+			const keys = await caches.keys()
+			await Promise.all(keys.map((key) => caches.delete(key)))
+		}
+	} catch {
+		// Best effort — cleanup failures must not break the app.
 	}
 }
 
