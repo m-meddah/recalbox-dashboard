@@ -1,15 +1,19 @@
 export async function register() {
 	if (process.env.NEXT_RUNTIME === 'nodejs') {
-		const [path, migrator, db, multiRecalbox] = await Promise.all([
+		const [path, migrator, dbMod, multiRecalbox, configStoreMod] = await Promise.all([
 			import('node:path'),
-			import('drizzle-orm/better-sqlite3/migrator'),
+			import('drizzle-orm/libsql/migrator'),
 			import('@/lib/db/index'),
 			import('@/lib/db/multi-recalbox-migration'),
+			import('@/lib/config-store'),
 		])
 
-		migrator.migrate(db.db, {
+		await migrator.migrate(dbMod.db, {
 			migrationsFolder: path.default.join(process.cwd(), 'drizzle/migrations'),
 		})
-		multiRecalbox.runMultiRecalboxMigrationIfNeeded()
+		await multiRecalbox.runMultiRecalboxMigrationIfNeeded()
+		// Load settings + recalboxes into the configStore cache so the synchronous
+		// getters work for the lifetime of this server process.
+		await configStoreMod.configStore.hydrate()
 	}
 }

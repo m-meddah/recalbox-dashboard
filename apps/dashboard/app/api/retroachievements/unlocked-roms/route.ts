@@ -16,7 +16,7 @@ export async function GET() {
 	}
 
 	// Get all romPaths that have at least one unlocked achievement via the mapping table
-	const rows = db
+	const rows = await db
 		.selectDistinct({ romPath: raGameMapping.romPath })
 		.from(raGameMapping)
 		.innerJoin(raAchievements, eq(raAchievements.gameId, raGameMapping.raGameId))

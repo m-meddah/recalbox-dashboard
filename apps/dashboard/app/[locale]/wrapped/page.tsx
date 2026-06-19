@@ -14,7 +14,7 @@ async function getAvailableYears(locale: string) {
 	const currentYear = new Date().getFullYear()
 	const currentMonth = new Date().getMonth() + 1
 
-	const yearRows = db
+	const yearRows = await db
 		.select({
 			year: sql<number>`strftime('%Y', datetime(${sessions.startedAt}, 'unixepoch'))`,
 			sessionCount: sql<number>`COUNT(*)`,
@@ -25,7 +25,7 @@ async function getAvailableYears(locale: string) {
 		.orderBy(desc(sql`strftime('%Y', datetime(${sessions.startedAt}, 'unixepoch'))`))
 		.all()
 
-	const cacheRows = db.select().from(wrappedCache).all()
+	const cacheRows = await db.select().from(wrappedCache).all()
 	const cacheByYear = Object.fromEntries(cacheRows.map((r) => [`${r.year}-${r.locale}`, r]))
 
 	return yearRows.flatMap((r) => {

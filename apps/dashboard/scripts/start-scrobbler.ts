@@ -27,6 +27,10 @@ async function main() {
 
 	logger.info('Starting Recalbox scrobbler daemon...')
 
+	// Load settings + recalboxes into the configStore cache before anything reads
+	// it synchronously (MQTT pool subscriptions, config.get()).
+	await configStore.hydrate()
+
 	// Ensure VAPID keys exist (auto-generate if absent)
 	try {
 		await getOrCreateVapidKeys()
@@ -57,15 +61,15 @@ async function main() {
 
 	// Initialize config and track last known update timestamp
 	configStore.get()
-	let lastUpdatedAt = getLatestSettingUpdatedAt()
+	let lastUpdatedAt = await getLatestSettingUpdatedAt()
 
-	const configPollInterval = setInterval(() => {
+	const configPollInterval = setInterval(async () => {
 		try {
-			const latest = getLatestSettingUpdatedAt()
+			const latest = await getLatestSettingUpdatedAt()
 			if (latest > lastUpdatedAt) {
 				lastUpdatedAt = latest
 				logger.info('Scrobbler: config change detected, reloading...')
-				configStore.reload()
+				await configStore.reload()
 			}
 		} catch (err) {
 			logger.error('Scrobbler: error polling config', err)

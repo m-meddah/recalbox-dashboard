@@ -17,7 +17,7 @@ export async function GET() {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	if (!isAdmin(user)) return forbidden()
-	return NextResponse.json({ invitations: listPendingInvitations() })
+	return NextResponse.json({ invitations: await listPendingInvitations() })
 }
 
 export async function POST(req: NextRequest) {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 	const role = parsed.data.role ?? 'member'
 
 	try {
-		const { invitation, token } = createInvitation({ email, role, invitedByUserId: user.id })
+		const { invitation, token } = await createInvitation({ email, role, invitedByUserId: user.id })
 		const base = (process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, '')
 		const link = `${base}/accept-invite?token=${encodeURIComponent(token)}`
 		return NextResponse.json({ link, email, expiresAt: invitation.expiresAt })

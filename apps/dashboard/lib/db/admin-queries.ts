@@ -45,8 +45,8 @@ function toMachine(r: {
 export async function getAdminOverview(
 	deps: AdminOverviewDeps = defaultDeps,
 ): Promise<AdminOverview> {
-	const users = deps.listUsers()
-	const all = deps.listRecalboxes()
+	const users = await deps.listUsers()
+	const all = await deps.listRecalboxes()
 
 	const byOwner = new Map<string, AdminMachine[]>()
 	const unownedMachines: AdminMachine[] = []

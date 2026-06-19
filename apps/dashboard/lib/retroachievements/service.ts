@@ -53,7 +53,7 @@ export type RaGameProgress = {
 
 export async function getProfile(): Promise<RaProfile> {
 	const cacheKey = `profile:${getAuth().username}`
-	const cached = getCached<RaProfile>(cacheKey)
+	const cached = await getCached<RaProfile>(cacheKey)
 	if (cached) return cached
 
 	const raw = await withRateLimit(() => getUserProfile(getAuth(), { username: getAuth().username }))
@@ -70,14 +70,14 @@ export async function getProfile(): Promise<RaProfile> {
 		lastGameId: raw.lastGameId,
 	}
 
-	setCached(cacheKey, profile, getTtlSeconds('userProfile'))
+	await setCached(cacheKey, profile, getTtlSeconds('userProfile'))
 	return profile
 }
 
 async function getRecentAchievements(count = 20): Promise<RaAchievement[]> {
 	const { username } = getAuth()
 	const cacheKey = `recent-year:${username}`
-	const cached = getCached<RaAchievement[]>(cacheKey)
+	const cached = await getCached<RaAchievement[]>(cacheKey)
 	if (cached) return cached.slice(0, count)
 
 	const toDate = new Date()
@@ -101,14 +101,14 @@ async function getRecentAchievements(count = 20): Promise<RaAchievement[]> {
 		hardcoreMode: a.hardcoreMode,
 	}))
 
-	setCached(cacheKey, achievements, getTtlSeconds('recentAchievements'))
+	await setCached(cacheKey, achievements, getTtlSeconds('recentAchievements'))
 	return achievements.slice(0, count)
 }
 
 export async function getYearAchievements(): Promise<RaAchievement[]> {
 	const { username } = getAuth()
 	const cacheKey = `recent-year:${username}`
-	const cached = getCached<RaAchievement[]>(cacheKey)
+	const cached = await getCached<RaAchievement[]>(cacheKey)
 	if (cached) return cached
 
 	const toDate = new Date()
@@ -132,12 +132,12 @@ export async function getYearAchievements(): Promise<RaAchievement[]> {
 		hardcoreMode: a.hardcoreMode,
 	}))
 
-	setCached(cacheKey, achievements, getTtlSeconds('recentAchievements'))
+	await setCached(cacheKey, achievements, getTtlSeconds('recentAchievements'))
 	return achievements
 }
 
 export async function getAllGameProgress(): Promise<RaGameProgress[]> {
-	const rows = db.select().from(raGameProgress).orderBy(desc(raGameProgress.numAwarded)).all()
+	const rows = await db.select().from(raGameProgress).orderBy(desc(raGameProgress.numAwarded)).all()
 
 	return rows.map((r) => ({
 		gameId: r.gameId,
@@ -157,7 +157,7 @@ export async function getAllGameProgress(): Promise<RaGameProgress[]> {
 export async function getLiveGameProgress(): Promise<RaGameProgress[]> {
 	const { username } = getAuth()
 	const cacheKey = `live-progress:${username}`
-	const cached = getCached<RaGameProgress[]>(cacheKey)
+	const cached = await getCached<RaGameProgress[]>(cacheKey)
 	if (cached) return cached
 
 	const raw = await withRateLimit(() => getUserCompletedGames(getAuth(), { username }))
@@ -186,12 +186,12 @@ export async function getLiveGameProgress(): Promise<RaGameProgress[]> {
 		.filter((g) => g.numAwarded > 0)
 		.sort((a, b) => b.numAwarded - a.numAwarded)
 
-	setCached(cacheKey, progress, getTtlSeconds('gameProgress'))
+	await setCached(cacheKey, progress, getTtlSeconds('gameProgress'))
 	return progress
 }
 
 export async function getGameProgress(gameId: number): Promise<RaGameProgress | null> {
-	const row = db.select().from(raGameProgress).where(eq(raGameProgress.gameId, gameId)).get()
+	const row = await db.select().from(raGameProgress).where(eq(raGameProgress.gameId, gameId)).get()
 	if (!row) return null
 	return {
 		gameId: row.gameId,
@@ -220,7 +220,7 @@ async function getRecentAchievementsFromDb(
 }
 
 async function getUnlockedGameIds(): Promise<Set<number>> {
-	const rows = db.selectDistinct({ gameId: raAchievements.gameId }).from(raAchievements).all()
+	const rows = await db.selectDistinct({ gameId: raAchievements.gameId }).from(raAchievements).all()
 	return new Set(rows.map((r) => r.gameId))
 }
 

@@ -13,11 +13,11 @@ export function getTtlSeconds(kind: keyof typeof TTL): number {
 	return TTL[kind] ?? 60 * 60
 }
 
-export function getCached<T>(key: string): T | null {
-	const row = db.select().from(raCache).where(eq(raCache.key, key)).get()
+export async function getCached<T>(key: string): Promise<T | null> {
+	const row = await db.select().from(raCache).where(eq(raCache.key, key)).get()
 	if (!row) return null
 	if (row.expiresAt < new Date()) {
-		db.delete(raCache).where(eq(raCache.key, key)).run()
+		await db.delete(raCache).where(eq(raCache.key, key)).run()
 		return null
 	}
 	try {
@@ -27,21 +27,23 @@ export function getCached<T>(key: string): T | null {
 	}
 }
 
-export function setCached<T>(key: string, value: T, ttlSeconds: number): void {
+export async function setCached<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
 	const expiresAt = new Date(Date.now() + ttlSeconds * 1000)
 	const serialized = JSON.stringify(value)
-	db.insert(raCache)
+	await db
+		.insert(raCache)
 		.values({ key, value: serialized, expiresAt })
 		.onConflictDoUpdate({ target: raCache.key, set: { value: serialized, expiresAt } })
 		.run()
 }
 
-function invalidateCacheByPrefix(keyPrefix: string): void {
-	db.delete(raCache)
+async function invalidateCacheByPrefix(keyPrefix: string): Promise<void> {
+	await db
+		.delete(raCache)
 		.where(like(raCache.key, `${keyPrefix.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`))
 		.run()
 }
 
-export function purgeExpiredCache(): void {
-	db.delete(raCache).where(lt(raCache.expiresAt, new Date())).run()
+export async function purgeExpiredCache(): Promise<void> {
+	await db.delete(raCache).where(lt(raCache.expiresAt, new Date())).run()
 }

@@ -74,13 +74,13 @@ function similarityScore(a: string, b: string): number {
 
 async function getGameListCached(consoleId: number) {
 	const cacheKey = `gameList:${consoleId}`
-	const cached = getCached<Array<{ id: number; title: string }>>(cacheKey)
+	const cached = await getCached<Array<{ id: number; title: string }>>(cacheKey)
 	if (cached) return cached
 	const list = await withRateLimit(() =>
 		getGameList(getAuth(), { consoleId, shouldOnlyRetrieveGamesWithAchievements: true }),
 	)
 	const simplified = list.map((g) => ({ id: g.id, title: g.title }))
-	setCached(cacheKey, simplified, getTtlSeconds('gameMetadata'))
+	await setCached(cacheKey, simplified, getTtlSeconds('gameMetadata'))
 	return simplified
 }
 
@@ -89,7 +89,7 @@ export async function findRaGameForRom(
 	romPath: string,
 	system: string,
 ): Promise<number | null> {
-	const existing = db
+	const existing = await db
 		.select()
 		.from(raGameMapping)
 		.where(and(eq(raGameMapping.recalboxId, recalboxId), eq(raGameMapping.romPath, romPath)))
@@ -115,7 +115,8 @@ export async function findRaGameForRom(
 		}
 
 		if (bestScore >= 0.8 && bestId !== null) {
-			db.insert(raGameMapping)
+			await db
+				.insert(raGameMapping)
 				.values({
 					recalboxId,
 					romPath,
@@ -142,7 +143,8 @@ export async function setManualMapping(
 	romPath: string,
 	raGameId: number,
 ): Promise<void> {
-	db.insert(raGameMapping)
+	await db
+		.insert(raGameMapping)
 		.values({ recalboxId, romPath, raGameId, matchKind: 'manual', updatedAt: new Date() })
 		.onConflictDoUpdate({
 			target: [raGameMapping.recalboxId, raGameMapping.romPath],

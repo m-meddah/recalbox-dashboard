@@ -15,11 +15,12 @@ async function main() {
 	let changed = 0
 
 	// recalboxes.ssh_password
-	for (const row of db.select().from(recalboxes).all()) {
+	for (const row of await db.select().from(recalboxes).all()) {
 		if (row.sshPassword && !isEncrypted(row.sshPassword)) {
 			console.log(`recalbox ${row.id} (${row.name}): ssh_password -> encrypt`)
 			if (!dryRun) {
-				db.update(recalboxes)
+				await db
+					.update(recalboxes)
 					.set({ sshPassword: encryptSecret(row.sshPassword) })
 					.where(eq(recalboxes.id, row.id))
 					.run()
@@ -29,7 +30,7 @@ async function main() {
 	}
 
 	// igdb_credentials.client_secret / access_token (singleton row id=1)
-	const creds = db.select().from(igdbCredentials).where(eq(igdbCredentials.id, 1)).get()
+	const creds = await db.select().from(igdbCredentials).where(eq(igdbCredentials.id, 1)).get()
 	if (creds) {
 		const patch: { clientSecret?: string; accessToken?: string } = {}
 		if (creds.clientSecret && !isEncrypted(creds.clientSecret)) {

@@ -27,9 +27,9 @@ export class InvalidInvitationError extends Error {
 }
 
 export type CreateInvitationDeps = {
-	getUserByEmail: (email: string) => { id: string } | undefined
-	deletePendingByEmail: (email: string) => void
-	insertInvitation: (row: InvitationRow) => void
+	getUserByEmail: (email: string) => Promise<{ id: string } | undefined>
+	deletePendingByEmail: (email: string) => Promise<void>
+	insertInvitation: (row: InvitationRow) => Promise<void>
 	generateToken: () => { token: string; tokenHash: string }
 	newId: () => string
 	now: () => number
@@ -44,12 +44,12 @@ const defaultCreateDeps: CreateInvitationDeps = {
 	now: Date.now,
 }
 
-export function createInvitation(
+export async function createInvitation(
 	input: { email: string; role: string; invitedByUserId: string },
 	deps: CreateInvitationDeps = defaultCreateDeps,
-): { invitation: InvitationRow; token: string } {
-	if (deps.getUserByEmail(input.email)) throw new EmailAlreadyRegisteredError()
-	deps.deletePendingByEmail(input.email)
+): Promise<{ invitation: InvitationRow; token: string }> {
+	if (await deps.getUserByEmail(input.email)) throw new EmailAlreadyRegisteredError()
+	await deps.deletePendingByEmail(input.email)
 	const { token, tokenHash } = deps.generateToken()
 	const nowMs = deps.now()
 	const invitation: InvitationRow = {
@@ -62,12 +62,12 @@ export function createInvitation(
 		acceptedAt: null,
 		createdAt: nowMs,
 	}
-	deps.insertInvitation(invitation)
+	await deps.insertInvitation(invitation)
 	return { invitation, token }
 }
 
 export type ValidateInvitationDeps = {
-	getInvitationByTokenHash: (hash: string) => InvitationRow | undefined
+	getInvitationByTokenHash: (hash: string) => Promise<InvitationRow | undefined>
 	hashToken: (token: string) => string
 	now: () => number
 }
@@ -78,12 +78,12 @@ const defaultValidateDeps: ValidateInvitationDeps = {
 	now: Date.now,
 }
 
-export function validateInvitation(
+export async function validateInvitation(
 	token: string,
 	deps: ValidateInvitationDeps = defaultValidateDeps,
-): InvitationRow | null {
+): Promise<InvitationRow | null> {
 	if (!token) return null
-	const invite = deps.getInvitationByTokenHash(deps.hashToken(token))
+	const invite = await deps.getInvitationByTokenHash(deps.hashToken(token))
 	if (!invite) return null
 	if (invite.acceptedAt != null) return null
 	if (invite.expiresAt <= deps.now()) return null
@@ -91,9 +91,9 @@ export function validateInvitation(
 }
 
 export type AcceptInvitationDeps = {
-	validate: (token: string) => InvitationRow | null
+	validate: (token: string) => Promise<InvitationRow | null>
 	createUser: (args: { email: string; password: string; role: string }) => Promise<void>
-	markAccepted: (id: string, acceptedAt: number) => void
+	markAccepted: (id: string, acceptedAt: number) => Promise<void>
 	now: () => number
 }
 
@@ -116,9 +116,9 @@ export async function acceptInvitation(
 	input: { token: string; password: string },
 	deps: AcceptInvitationDeps = defaultAcceptDeps,
 ): Promise<{ email: string }> {
-	const invite = deps.validate(input.token)
+	const invite = await deps.validate(input.token)
 	if (!invite) throw new InvalidInvitationError()
 	await deps.createUser({ email: invite.email, password: input.password, role: invite.role })
-	deps.markAccepted(invite.id, deps.now())
+	await deps.markAccepted(invite.id, deps.now())
 	return { email: invite.email }
 }

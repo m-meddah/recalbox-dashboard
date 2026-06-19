@@ -76,13 +76,13 @@ export class SuperRetrogamersClient {
 		const region = resolveRegion(romRegion, cfg.preferredRegion)
 		// Same slug yields different data per region, so the region is part of the key.
 		const cacheKey = `game:${slug}:${region || 'FR'}`
-		const cached = getCachedStale<SrGame>(cacheKey)
+		const cached = await getCachedStale<SrGame>(cacheKey)
 		if (cached && !cached.stale) return cached.value
 
 		const url = `${this.baseUrl(cfg)}/games/${encodeURIComponent(slug)}${this.regionQuery(region)}`
 		const json = await this.request(url, cfg.apiKey)
 		const game = mapSrGame(json)
-		if (game) setCached(cacheKey, game)
+		if (game) await setCached(cacheKey, game)
 		return game
 	}
 
@@ -93,7 +93,9 @@ export class SuperRetrogamersClient {
 		const result: BulkLookupResult = {}
 		const uncached: string[] = []
 		for (const slug of slugs) {
-			const cached = getCachedStale<{ exists: boolean; url?: string } | boolean>(`exists:${slug}`)
+			const cached = await getCachedStale<{ exists: boolean; url?: string } | boolean>(
+				`exists:${slug}`,
+			)
 			if (cached && !cached.stale) {
 				result[slug] = normaliseExistsEntry(cached.value)
 			} else {
@@ -107,7 +109,7 @@ export class SuperRetrogamersClient {
 			const entry = fetched?.[slug] ?? { exists: false }
 			result[slug] = entry
 			// Only persist results from a successful query, never a transient failure.
-			if (fetched) setCached(`exists:${slug}`, entry)
+			if (fetched) await setCached(`exists:${slug}`, entry)
 		}
 		return result
 	}
@@ -118,14 +120,14 @@ export class SuperRetrogamersClient {
 
 		const region = cfg.preferredRegion || 'FR'
 		const cacheKey = `systems:${region}`
-		const cached = getCachedStale<SrSystem[]>(cacheKey)
+		const cached = await getCachedStale<SrSystem[]>(cacheKey)
 		if (cached && !cached.stale) return cached.value
 
 		const url = `${this.baseUrl(cfg)}/systems${this.regionQuery(cfg.preferredRegion)}`
 		const json = await this.request(url, cfg.apiKey)
 		if (json === null) return []
 		const systems = mapSrSystems(json)
-		setCached(cacheKey, systems)
+		await setCached(cacheKey, systems)
 		return systems
 	}
 

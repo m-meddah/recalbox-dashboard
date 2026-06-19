@@ -7,7 +7,7 @@ import { DEFAULT_PREFERENCES, type NotificationEvent, type NotificationPreferenc
 const PREFS_KEY = 'notifications.preferences'
 
 export async function getPreferences(): Promise<NotificationPreferences> {
-	const row = db.select().from(settings).where(eq(settings.key, PREFS_KEY)).get()
+	const row = await db.select().from(settings).where(eq(settings.key, PREFS_KEY)).get()
 	if (!row) return DEFAULT_PREFERENCES
 	try {
 		return { ...DEFAULT_PREFERENCES, ...JSON.parse(row.value) }
@@ -17,7 +17,7 @@ export async function getPreferences(): Promise<NotificationPreferences> {
 }
 
 export async function savePreferences(prefs: NotificationPreferences): Promise<void> {
-	upsertSetting(PREFS_KEY, JSON.stringify(prefs))
+	await upsertSetting(PREFS_KEY, JSON.stringify(prefs))
 }
 
 export function shouldNotify(event: NotificationEvent, prefs: NotificationPreferences): boolean {

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 	const region = resolveRegion(romRegion, configStore.get().superRetrogamers.preferredRegion)
 	const cacheKey = `game:${slug}:${region || 'FR'}`
 
-	const cached = getCachedStale<SrGame>(cacheKey)
+	const cached = await getCachedStale<SrGame>(cacheKey)
 	if (cached && !cached.stale) {
 		return NextResponse.json(cached.value)
 	}
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 	try {
 		const game = await srClient.getGame(slug, romRegion ?? undefined)
 		if (game) {
-			setCached(cacheKey, game)
+			await setCached(cacheKey, game)
 			return NextResponse.json(game)
 		}
 		if (cached?.stale) {

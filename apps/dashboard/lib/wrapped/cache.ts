@@ -13,7 +13,7 @@ function isCacheStale(generatedAt: Date, year: number): boolean {
 }
 
 export async function getCachedWrapped(year: number, locale: string): Promise<Wrapped | null> {
-	const row = db
+	const row = await db
 		.select()
 		.from(wrappedCache)
 		.where(and(eq(wrappedCache.year, year), eq(wrappedCache.locale, locale)))
@@ -36,7 +36,8 @@ export async function getCachedWrapped(year: number, locale: string): Promise<Wr
 }
 
 export async function writeCachedWrapped(wrapped: Wrapped, locale: string): Promise<void> {
-	db.insert(wrappedCache)
+	await db
+		.insert(wrappedCache)
 		.values({
 			year: wrapped.year,
 			locale,
@@ -54,7 +55,8 @@ export async function writeCachedWrapped(wrapped: Wrapped, locale: string): Prom
 }
 
 export async function invalidateWrappedCache(year: number, locale: string): Promise<void> {
-	db.delete(wrappedCache)
+	await db
+		.delete(wrappedCache)
 		.where(and(eq(wrappedCache.year, year), eq(wrappedCache.locale, locale)))
 		.run()
 }

@@ -22,13 +22,14 @@ import {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-export function getAllSettings(): Record<string, string> {
-	const rows = db.select().from(settings).all()
+export async function getAllSettings(): Promise<Record<string, string>> {
+	const rows = await db.select().from(settings).all()
 	return Object.fromEntries(rows.map((r) => [r.key, r.value]))
 }
 
-export function upsertSetting(key: string, value: string): void {
-	db.insert(settings)
+export async function upsertSetting(key: string, value: string): Promise<void> {
+	await db
+		.insert(settings)
 		.values({ key, value, updatedAt: new Date() })
 		.onConflictDoUpdate({
 			target: settings.key,
@@ -37,21 +38,21 @@ export function upsertSetting(key: string, value: string): void {
 		.run()
 }
 
-export function deleteSetting(key: string): void {
-	db.delete(settings).where(eq(settings.key, key)).run()
+export async function deleteSetting(key: string): Promise<void> {
+	await db.delete(settings).where(eq(settings.key, key)).run()
 }
 
-export function deleteSettingsByPrefix(prefix: string): void {
-	const rows = db.select({ key: settings.key }).from(settings).all()
+export async function deleteSettingsByPrefix(prefix: string): Promise<void> {
+	const rows = await db.select({ key: settings.key }).from(settings).all()
 	for (const row of rows) {
 		if (row.key.startsWith(prefix)) {
-			db.delete(settings).where(eq(settings.key, row.key)).run()
+			await db.delete(settings).where(eq(settings.key, row.key)).run()
 		}
 	}
 }
 
-export function getLatestSettingUpdatedAt(): number {
-	const row = db
+export async function getLatestSettingUpdatedAt(): Promise<number> {
+	const row = await db
 		.select({ latest: max(settings.updatedAt) })
 		.from(settings)
 		.get()
@@ -59,8 +60,8 @@ export function getLatestSettingUpdatedAt(): number {
 	return row.latest instanceof Date ? row.latest.getTime() : Number(row.latest)
 }
 
-export function isSetupComplete(): boolean {
-	const row = db.select().from(settings).where(eq(settings.key, SETUP_COMPLETED_KEY)).get()
+export async function isSetupComplete(): Promise<boolean> {
+	const row = await db.select().from(settings).where(eq(settings.key, SETUP_COMPLETED_KEY)).get()
 	return row?.value === 'true'
 }
 
@@ -113,7 +114,7 @@ export async function updateGameEmulatorOverride(
 		.update(games)
 		.set({ emulator, core, updatedAt: new Date() })
 		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
-	return res.changes ?? 0
+	return res.rowsAffected ?? 0
 }
 
 export async function upsertGames(
@@ -585,14 +586,15 @@ export async function getSessionStatsAllRecalboxes(
 
 // ─── Super Retrogamers ────────────────────────────────────────────────────────
 
-export function updateGameSrInfo(
+export async function updateGameSrInfo(
 	recalboxId: string,
 	romPath: string,
 	srSlug: string,
 	srHasPage: boolean,
 	srUrl: string | null,
-): void {
-	db.update(games)
+): Promise<void> {
+	await db
+		.update(games)
 		.set({
 			srSlug,
 			srHasPage: srHasPage ? 1 : 0,
@@ -603,11 +605,11 @@ export function updateGameSrInfo(
 		.run()
 }
 
-export function getGameSrInfo(
+export async function getGameSrInfo(
 	recalboxId: string,
 	romPath: string,
-): { srHasPage: number | null; srUrl: string | null } | null {
-	const row = db
+): Promise<{ srHasPage: number | null; srUrl: string | null } | null> {
+	const row = await db
 		.select({ srHasPage: games.srHasPage, srUrl: games.srUrl })
 		.from(games)
 		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
@@ -629,8 +631,8 @@ export type GameMedia = {
 }
 
 /** Full media + metadata for a single game, looked up by its ROM path (for the Now Playing hero). */
-export function getGameMedia(recalboxId: string, romPath: string): GameMedia | null {
-	const row = db
+export async function getGameMedia(recalboxId: string, romPath: string): Promise<GameMedia | null> {
+	const row = await db
 		.select({
 			screenshotPath: games.screenshotPath,
 			imagePath: games.imagePath,
@@ -661,24 +663,28 @@ export function getGameMedia(recalboxId: string, romPath: string): GameMedia | n
 	}
 }
 
-export function countSrStats(recalboxId?: string): { total: number; matched: number } {
+export async function countSrStats(
+	recalboxId?: string,
+): Promise<{ total: number; matched: number }> {
 	const totalWhere = recalboxId ? eq(games.recalboxId, recalboxId) : undefined
 	const matchedWhere = recalboxId
 		? and(eq(games.recalboxId, recalboxId), eq(games.srHasPage, 1))
 		: eq(games.srHasPage, 1)
-	const total = db.select({ count: count() }).from(games).where(totalWhere).get()?.count ?? 0
-	const matched = db.select({ count: count() }).from(games).where(matchedWhere).get()?.count ?? 0
-	return { total, matched }
+	const totalRow = await db.select({ count: count() }).from(games).where(totalWhere).get()
+	const matchedRow = await db.select({ count: count() }).from(games).where(matchedWhere).get()
+	return { total: totalRow?.count ?? 0, matched: matchedRow?.count ?? 0 }
 }
 
-export function listUncheckedGames(
+export async function listUncheckedGames(
 	limit: number,
 	recalboxId?: string,
-): Array<{
-	romPath: string
-	name: string
-	system: string
-}> {
+): Promise<
+	Array<{
+		romPath: string
+		name: string
+		system: string
+	}>
+> {
 	const whereClause = recalboxId
 		? and(isNull(games.srCheckedAt), eq(games.recalboxId, recalboxId))
 		: isNull(games.srCheckedAt)

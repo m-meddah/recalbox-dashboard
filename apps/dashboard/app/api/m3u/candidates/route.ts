@@ -22,16 +22,12 @@ export async function GET(req: NextRequest) {
 	const ssh = getSshClient(recalboxId)
 	const candidates = await detectMultiDiscGames(ssh, recalboxId, system)
 
-	const presentSystems = [
-		...new Set(
-			db
-				.select({ system: games.system })
-				.from(games)
-				.where(inArray(games.system, [...MULTIDISC_SYSTEMS]))
-				.all()
-				.map((r) => r.system),
-		),
-	].sort()
+	const systemRows = await db
+		.select({ system: games.system })
+		.from(games)
+		.where(inArray(games.system, [...MULTIDISC_SYSTEMS]))
+		.all()
+	const presentSystems = [...new Set(systemRows.map((r) => r.system))].sort()
 
 	return NextResponse.json({ candidates, systems: presentSystems })
 }

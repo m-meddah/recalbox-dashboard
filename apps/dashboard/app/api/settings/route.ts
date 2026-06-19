@@ -119,10 +119,10 @@ export async function PUT(req: NextRequest) {
 	if (partial.recalbox && Object.keys(partial.recalbox).length > 0) {
 		const defaultRb = configStore.getDefaultRecalbox()
 		if (defaultRb) {
-			configStore.updateRecalboxConfig(defaultRb.id, partial.recalbox)
+			await configStore.updateRecalboxConfig(defaultRb.id, partial.recalbox)
 		}
 	}
 
-	const updated = configStore.update(partial)
+	const updated = await configStore.update(partial)
 	return NextResponse.json(maskedConfig(updated))
 }

@@ -5,9 +5,9 @@ import { asc, eq } from 'drizzle-orm'
 export type AppUser = { id: string; email: string; role: string }
 
 /** All registered users, ordered by email. Role defaults to 'member' when unset. */
-export function listUsers(): AppUser[] {
+export async function listUsers(): Promise<AppUser[]> {
 	try {
-		const rows = db
+		const rows = await db
 			.select({ id: userTable.id, email: userTable.email, role: userTable.role })
 			.from(userTable)
 			.orderBy(asc(userTable.email))
@@ -19,9 +19,9 @@ export function listUsers(): AppUser[] {
 }
 
 /** Look up a single user by email. Returns undefined when none exists. */
-export function getUserByEmail(email: string): AppUser | undefined {
+export async function getUserByEmail(email: string): Promise<AppUser | undefined> {
 	try {
-		const rows = db
+		const rows = await db
 			.select({ id: userTable.id, email: userTable.email, role: userTable.role })
 			.from(userTable)
 			.where(eq(userTable.email, email))

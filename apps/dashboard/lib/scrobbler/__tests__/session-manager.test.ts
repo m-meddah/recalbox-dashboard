@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { DB } from '@/lib/db'
 import * as schema from '@/lib/db/schema'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import Database from 'better-sqlite3'
@@ -9,6 +10,10 @@ import { SessionManager } from '../session-manager'
 
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle/migrations')
 
+// Tests run against an in-memory better-sqlite3 DB (sync, so test bodies can use
+// .all()/.run() without await). It is cast to DB when passed to code typed for the
+// libSQL driver — drizzle's better-sqlite3 queries resolve when awaited, so the
+// async production code works unchanged. Real libSQL is exercised by the live app.
 function makeDb() {
 	const sqlite = new Database(':memory:')
 	sqlite.pragma('journal_mode = WAL')
@@ -68,7 +73,7 @@ describe('SessionManager', () => {
 
 	beforeAll(() => {
 		db = makeDb()
-		manager = new SessionManager(db)
+		manager = new SessionManager(db as unknown as DB)
 	})
 
 	afterEach(async () => {
@@ -247,7 +252,7 @@ describe('SessionManager', () => {
 		await manager.openSession(startEvent('/roms/orphan.sfc', orphanStart), 'rb1')
 
 		// simulate daemon restart by creating a new manager with same db
-		const newManager = new SessionManager(db)
+		const newManager = new SessionManager(db as unknown as DB)
 		const recovered = await newManager.recoverOrphanSessions(12)
 		expect(recovered).toBe(1)
 

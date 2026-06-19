@@ -22,7 +22,7 @@ const isClear = process.argv.includes('--clear')
 
 async function clear() {
 	const result = await db.delete(gameInheritedStats)
-	console.log(`Cleared ${result.changes} inherited stat row(s).`)
+	console.log(`Cleared ${result.rowsAffected} inherited stat row(s).`)
 }
 
 async function importInheritedStats() {

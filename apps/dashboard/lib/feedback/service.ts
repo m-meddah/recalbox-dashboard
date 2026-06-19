@@ -51,7 +51,7 @@ class FeedbackService {
 
 	async getPending(): Promise<PendingFeedbackWithGame[]> {
 		const now = new Date()
-		return db
+		return (await db
 			.select({
 				id: pendingFeedback.id,
 				sessionId: pendingFeedback.sessionId,
@@ -68,7 +68,7 @@ class FeedbackService {
 			.innerJoin(games, eq(games.id, pendingFeedback.gameId))
 			.where(and(isNull(pendingFeedback.respondedAt), gt(pendingFeedback.expiresAt, now)))
 			.orderBy(pendingFeedback.createdAt)
-			.all() as PendingFeedbackWithGame[]
+			.all()) as PendingFeedbackWithGame[]
 	}
 
 	async respond(feedbackId: number, response: string): Promise<{ ratingApplied: string | null }> {

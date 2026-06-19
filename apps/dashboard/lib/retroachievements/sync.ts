@@ -24,7 +24,7 @@ async function syncRecentAchievements(): Promise<void> {
 
 	// Detect which achievements are genuinely new (not yet in DB)
 	const incomingIds = recent.map((a) => a.achievementId)
-	const existingRows = db
+	const existingRows = await db
 		.select({ id: raAchievements.id })
 		.from(raAchievements)
 		.where(inArray(raAchievements.id, incomingIds))
@@ -37,7 +37,8 @@ async function syncRecentAchievements(): Promise<void> {
 		const isNew = !existingIds.has(a.achievementId)
 		const imageUrl = `https://media.retroachievements.org/Badge/${a.badgeName}.png`
 
-		db.insert(raAchievements)
+		await db
+			.insert(raAchievements)
 			.values({
 				id: a.achievementId,
 				gameId: a.gameId,
@@ -55,7 +56,7 @@ async function syncRecentAchievements(): Promise<void> {
 			.run()
 
 		if (isNew) {
-			const gameProgress = db
+			const gameProgress = await db
 				.select()
 				.from(raGameProgress)
 				.where(eq(raGameProgress.gameId, a.gameId))
@@ -104,7 +105,8 @@ async function syncRecentAchievements(): Promise<void> {
 				.filter((a) => a.dateEarned !== undefined)
 				.reduce((sum, a) => sum + (a.points ?? 0), 0)
 
-			db.insert(raGameProgress)
+			await db
+				.insert(raGameProgress)
 				.values({
 					gameId,
 					title: info.title,
@@ -161,7 +163,8 @@ async function syncAllGameProgress(): Promise<void> {
 
 	for (const { numAwarded, numAwardedHardcore, entry } of byGameId.values()) {
 		if (numAwarded === 0) continue
-		db.insert(raGameProgress)
+		await db
+			.insert(raGameProgress)
 			.values({
 				gameId: entry.gameId,
 				title: entry.title,
@@ -193,7 +196,7 @@ export async function syncRetroAchievements(): Promise<void> {
 	try {
 		await syncAllGameProgress()
 		await syncRecentAchievements()
-		purgeExpiredCache()
+		await purgeExpiredCache()
 		logger.info('RA sync complete')
 	} catch (err) {
 		logger.error('RA sync failed', err)

@@ -18,24 +18,27 @@ export type PendingInvitation = Pick<
 	'id' | 'email' | 'role' | 'expiresAt' | 'createdAt'
 >
 
-export function insertInvitation(row: InvitationRow): void {
-	db.insert(invitations).values(row).run()
+export async function insertInvitation(row: InvitationRow): Promise<void> {
+	await db.insert(invitations).values(row).run()
 }
 
 /** Remove any not-yet-accepted invite for this email (used to upsert before inserting). */
-export function deletePendingByEmail(email: string): void {
-	db.delete(invitations)
+export async function deletePendingByEmail(email: string): Promise<void> {
+	await db
+		.delete(invitations)
 		.where(and(eq(invitations.email, email), isNull(invitations.acceptedAt)))
 		.run()
 }
 
-export function getInvitationByTokenHash(tokenHash: string): InvitationRow | undefined {
-	const rows = db.select().from(invitations).where(eq(invitations.tokenHash, tokenHash)).all()
+export async function getInvitationByTokenHash(
+	tokenHash: string,
+): Promise<InvitationRow | undefined> {
+	const rows = await db.select().from(invitations).where(eq(invitations.tokenHash, tokenHash)).all()
 	return rows[0] as InvitationRow | undefined
 }
 
 /** Pending = not accepted and not expired. Never exposes the token hash. */
-export function listPendingInvitations(): PendingInvitation[] {
+export async function listPendingInvitations(): Promise<PendingInvitation[]> {
 	return db
 		.select({
 			id: invitations.id,
@@ -50,10 +53,10 @@ export function listPendingInvitations(): PendingInvitation[] {
 		.all()
 }
 
-export function markAccepted(id: string, acceptedAt: number): void {
-	db.update(invitations).set({ acceptedAt }).where(eq(invitations.id, id)).run()
+export async function markAccepted(id: string, acceptedAt: number): Promise<void> {
+	await db.update(invitations).set({ acceptedAt }).where(eq(invitations.id, id)).run()
 }
 
-export function deleteInvitationById(id: string): void {
-	db.delete(invitations).where(eq(invitations.id, id)).run()
+export async function deleteInvitationById(id: string): Promise<void> {
+	await db.delete(invitations).where(eq(invitations.id, id)).run()
 }

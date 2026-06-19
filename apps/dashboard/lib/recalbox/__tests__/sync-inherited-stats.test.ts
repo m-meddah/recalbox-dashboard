@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { DB } from '@/lib/db'
 import * as schema from '@/lib/db/schema'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -8,11 +9,13 @@ import { importInheritedStatsFromGames, syncInheritedStats } from '../sync-inher
 
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle/migrations')
 
-function createTestDb() {
+// In-memory better-sqlite3 DB cast to DB: drizzle's better-sqlite3 queries resolve
+// when awaited, so the async (libSQL-typed) code under test runs unchanged here.
+function createTestDb(): DB {
 	const sqlite = new Database(':memory:')
 	const db = drizzle(sqlite, { schema })
 	migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
-	return db
+	return db as unknown as DB
 }
 
 function seedGame(

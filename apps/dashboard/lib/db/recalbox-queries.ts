@@ -16,51 +16,53 @@ function decryptRow(row: RecalboxRow): RecalboxRow {
 	}
 }
 
-export function listRecalboxes(): RecalboxRow[] {
+export async function listRecalboxes(): Promise<RecalboxRow[]> {
 	try {
-		return db.select().from(recalboxes).all().map(decryptRow)
+		const rows = await db.select().from(recalboxes).all()
+		return rows.map(decryptRow)
 	} catch (err) {
 		logger.error('listRecalboxes failed', err)
 		return []
 	}
 }
-export function getRecalbox(id: string): RecalboxRow | null {
+export async function getRecalbox(id: string): Promise<RecalboxRow | null> {
 	try {
-		const row = db.select().from(recalboxes).where(eq(recalboxes.id, id)).get()
+		const row = await db.select().from(recalboxes).where(eq(recalboxes.id, id)).get()
 		return row ? decryptRow(row) : null
 	} catch (err) {
 		logger.error('getRecalbox failed', err)
 		return null
 	}
 }
-export function getDefaultRecalbox(): RecalboxRow | null {
+export async function getDefaultRecalbox(): Promise<RecalboxRow | null> {
 	try {
-		const row = db.select().from(recalboxes).where(eq(recalboxes.isDefault, true)).get()
+		const row = await db.select().from(recalboxes).where(eq(recalboxes.isDefault, true)).get()
 		return row ? decryptRow(row) : null
 	} catch (err) {
 		logger.error('getDefaultRecalbox failed', err)
 		return null
 	}
 }
-export function insertRecalbox(row: RecalboxInsert): void {
-	db.insert(recalboxes)
+export async function insertRecalbox(row: RecalboxInsert): Promise<void> {
+	await db
+		.insert(recalboxes)
 		.values({ ...row, sshPassword: encryptSecret(row.sshPassword) })
 		.run()
 }
-export function updateRecalbox(id: string, patch: Partial<Omit<RecalboxInsert, 'id'>>): void {
+export async function updateRecalbox(
+	id: string,
+	patch: Partial<Omit<RecalboxInsert, 'id'>>,
+): Promise<void> {
 	const next =
 		patch.sshPassword !== undefined
 			? { ...patch, sshPassword: encryptSecret(patch.sshPassword) }
 			: patch
-	db.update(recalboxes).set(next).where(eq(recalboxes.id, id)).run()
+	await db.update(recalboxes).set(next).where(eq(recalboxes.id, id)).run()
 }
-export function deleteRecalbox(id: string): void {
-	db.delete(recalboxes).where(eq(recalboxes.id, id)).run()
+export async function deleteRecalbox(id: string): Promise<void> {
+	await db.delete(recalboxes).where(eq(recalboxes.id, id)).run()
 }
-export function setDefaultRecalbox(id: string): void {
-	db.update(recalboxes).set({ isDefault: false }).run()
-	db.update(recalboxes).set({ isDefault: true }).where(eq(recalboxes.id, id)).run()
-}
-function countRecalboxes(): number {
-	return db.select().from(recalboxes).all().length
+export async function setDefaultRecalbox(id: string): Promise<void> {
+	await db.update(recalboxes).set({ isDefault: false }).run()
+	await db.update(recalboxes).set({ isDefault: true }).where(eq(recalboxes.id, id)).run()
 }

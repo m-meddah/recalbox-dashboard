@@ -31,7 +31,7 @@ export async function POST() {
 					write({ type: 'error', message: 'No Recalbox configured' })
 					return
 				}
-				const allUnchecked = listUncheckedGames(10_000, recalboxId)
+				const allUnchecked = await listUncheckedGames(10_000, recalboxId)
 				write({ type: 'start', total: allUnchecked.length })
 				let done = 0
 				let matched = 0
@@ -52,7 +52,7 @@ export async function POST() {
 
 					for (const entry of slugEntries) {
 						const result = results[entry.slug] ?? { exists: false }
-						updateGameSrInfo(
+						await updateGameSrInfo(
 							recalboxId,
 							entry.romPath,
 							entry.slug,

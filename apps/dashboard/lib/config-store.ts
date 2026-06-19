@@ -121,11 +121,34 @@ declare interface ConfigStore {
 // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: typed EventEmitter pattern
 class ConfigStore extends EventEmitter {
 	private config: AppConfig | null = null
+	// In-memory caches so the read getters stay SYNCHRONOUS even though the libSQL
+	// driver is async. Populated by hydrate() (once at process startup) and kept in
+	// sync write-through on every mutation below.
+	private settingsRows: Record<string, string> = {}
+	private recalboxRows: RecalboxRow[] = []
+	private hydrated = false
+
+	/**
+	 * Load settings + recalboxes from the DB into memory. Must be awaited once at
+	 * each process entry point (Next.js instrumentation, scrobbler) before any
+	 * synchronous getter is used. Idempotent — safe to call again to refresh.
+	 */
+	async hydrate(): Promise<void> {
+		const [settingsRows, recalboxRows] = await Promise.all([getAllSettings(), listRecalboxes()])
+		this.settingsRows = settingsRows
+		this.recalboxRows = recalboxRows
+		this.config = null
+		this.hydrated = true
+	}
+
+	isHydrated(): boolean {
+		return this.hydrated
+	}
 
 	get(): AppConfig {
 		if (!this.config) {
-			const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
-			const first = listRecalboxes().find((r) => !r.archived)
+			const base = mergeDbIntoDefaults(getDefaults(), this.settingsRows)
+			const first = this.recalboxRows.find((r) => !r.archived)
 			if (first)
 				base.recalbox = {
 					host: first.host,
@@ -140,8 +163,8 @@ class ConfigStore extends EventEmitter {
 	}
 
 	getForRecalbox(id: string): AppConfig {
-		const base = mergeDbIntoDefaults(getDefaults(), getAllSettings())
-		const row = getRecalbox(id)
+		const base = mergeDbIntoDefaults(getDefaults(), this.settingsRows)
+		const row = this.recalboxRows.find((r) => r.id === id)
 		if (row)
 			base.recalbox = {
 				host: row.host,
@@ -153,13 +176,16 @@ class ConfigStore extends EventEmitter {
 		return base
 	}
 
-	update(partial: DeepPartial<AppConfig>): AppConfig {
+	async update(partial: DeepPartial<AppConfig>): Promise<AppConfig> {
 		const prev = this.get()
 		const next = deepMerge(prev, partial)
 		const flat = flattenConfig(next)
 		const prevFlat = flattenConfig(prev)
 		for (const [k, v] of Object.entries(flat)) {
-			if (prevFlat[k] !== v) upsertSetting(k, v)
+			if (prevFlat[k] !== v) {
+				await upsertSetting(k, v)
+				this.settingsRows[k] = v
+			}
 		}
 		const scopes = changedScopes(prev, next)
 		this.config = next
@@ -170,11 +196,12 @@ class ConfigStore extends EventEmitter {
 		return next
 	}
 
-	reset(scope?: keyof AppConfig): AppConfig {
+	async reset(scope?: keyof AppConfig): Promise<AppConfig> {
 		const defaults = getDefaults()
 		const prev = this.get()
 		if (scope) {
-			deleteSettingsByPrefix(`${scope}.`)
+			await deleteSettingsByPrefix(`${scope}.`)
+			this.dropSettingsByPrefix(`${scope}.`)
 			const next = { ...prev, [scope]: defaults[scope] }
 			this.config = next
 			if (JSON.stringify(prev[scope]) !== JSON.stringify(next[scope])) {
@@ -183,7 +210,10 @@ class ConfigStore extends EventEmitter {
 			}
 			return next
 		}
-		for (const s of Object.keys(defaults) as (keyof AppConfig)[]) deleteSettingsByPrefix(`${s}.`)
+		for (const s of Object.keys(defaults) as (keyof AppConfig)[]) {
+			await deleteSettingsByPrefix(`${s}.`)
+			this.dropSettingsByPrefix(`${s}.`)
+		}
 		this.config = defaults
 		const scopes = changedScopes(prev, defaults)
 		if (scopes.length > 0) {
@@ -193,53 +223,62 @@ class ConfigStore extends EventEmitter {
 		return defaults
 	}
 
-	reload(): AppConfig {
-		this.config = null
+	private dropSettingsByPrefix(prefix: string): void {
+		for (const key of Object.keys(this.settingsRows)) {
+			if (key.startsWith(prefix)) delete this.settingsRows[key]
+		}
+	}
+
+	async reload(): Promise<AppConfig> {
+		await this.hydrate()
 		return this.get()
 	}
 
-	markSetupComplete(): void {
-		upsertSetting(SETUP_COMPLETED_KEY, 'true')
+	async markSetupComplete(): Promise<void> {
+		await upsertSetting(SETUP_COMPLETED_KEY, 'true')
+		this.settingsRows[SETUP_COMPLETED_KEY] = 'true'
 	}
 
 	getRecalboxes(): RecalboxInstance[] {
-		return listRecalboxes().map(rowToInstance)
+		return this.recalboxRows.map(rowToInstance)
 	}
 
 	getRecalbox(id: string): RecalboxInstance | null {
-		const row = getRecalbox(id)
+		const row = this.recalboxRows.find((r) => r.id === id)
 		return row ? rowToInstance(row) : null
 	}
 
 	getDefaultRecalbox(): RecalboxInstance | null {
-		const row = getDefaultRecalbox()
+		const row = this.recalboxRows.find((r) => r.isDefault)
 		if (row) return rowToInstance(row)
-		const all = listRecalboxes()
-		const first = all[0]
+		const first = this.recalboxRows[0]
 		return first ? rowToInstance(first) : null
 	}
 
-	addRecalbox(
+	async addRecalbox(
 		config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived' | 'ownerUserId'>,
 		ownerUserId: string | null = null,
-	): RecalboxInstance {
-		const all = listRecalboxes()
+	): Promise<RecalboxInstance> {
 		const id = randomUUID()
 		const row = {
 			id,
 			...config,
-			isDefault: all.length === 0,
+			isDefault: this.recalboxRows.length === 0,
 			archived: false,
 			ownerUserId,
 			createdAt: new Date(),
 		}
-		insertRecalbox(row)
-		const instance = rowToInstance({
-			...row,
-			color: config.color ?? null,
-			iconEmoji: config.iconEmoji ?? null,
-			lastConnectedAt: null,
-		})
+		await insertRecalbox(row)
+		const inserted = await getRecalbox(id)
+		if (inserted) this.recalboxRows.push(inserted)
+		const instance = rowToInstance(
+			inserted ?? {
+				...row,
+				color: config.color ?? null,
+				iconEmoji: config.iconEmoji ?? null,
+				lastConnectedAt: null,
+			},
+		)
 		this.emit('recalbox:added', { recalbox: instance })
 		if (instance.isDefault) {
 			this.config = null
@@ -248,8 +287,11 @@ class ConfigStore extends EventEmitter {
 		return instance
 	}
 
-	updateRecalboxConfig(id: string, patch: Partial<Omit<RecalboxInstance, 'id'>>): void {
-		updateRecalbox(id, {
+	async updateRecalboxConfig(
+		id: string,
+		patch: Partial<Omit<RecalboxInstance, 'id'>>,
+	): Promise<void> {
+		await updateRecalbox(id, {
 			...(patch.name !== undefined && { name: patch.name }),
 			...(patch.host !== undefined && { host: patch.host }),
 			...(patch.sshUser !== undefined && { sshUser: patch.sshUser }),
@@ -260,23 +302,27 @@ class ConfigStore extends EventEmitter {
 			...(patch.iconEmoji !== undefined && { iconEmoji: patch.iconEmoji }),
 			...(patch.archived !== undefined && { archived: patch.archived }),
 		})
-		const updated = getRecalbox(id)
+		const updated = await getRecalbox(id)
 		if (!updated) return
+		const idx = this.recalboxRows.findIndex((r) => r.id === id)
+		if (idx >= 0) this.recalboxRows[idx] = updated
 		const instance = rowToInstance(updated)
 		this.emit('recalbox:updated', { recalbox: instance })
 		this.config = null
 		this.emit('changed:recalbox', this.get())
 	}
 
-	removeRecalbox(id: string): void {
-		deleteRecalbox(id)
+	async removeRecalbox(id: string): Promise<void> {
+		await deleteRecalbox(id)
+		this.recalboxRows = this.recalboxRows.filter((r) => r.id !== id)
 		this.config = null
 		this.emit('recalbox:removed', { id })
 		this.emit('changed:recalbox', this.get())
 	}
 
-	setDefaultRecalbox(id: string): void {
-		setDefaultRecalbox(id)
+	async setDefaultRecalbox(id: string): Promise<void> {
+		await setDefaultRecalbox(id)
+		this.recalboxRows = this.recalboxRows.map((r) => ({ ...r, isDefault: r.id === id }))
 		this.config = null
 		const instance = this.getRecalbox(id)
 		if (instance) this.emit('recalbox:updated', { recalbox: instance })

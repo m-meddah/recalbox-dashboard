@@ -70,7 +70,7 @@ export async function sendWebPush(notification: Notification): Promise<void> {
 	const { publicKey, privateKey } = await getOrCreateVapidKeys()
 	webpush.setVapidDetails('mailto:noreply@recalbox.local', publicKey, privateKey)
 
-	const subs = db.select().from(pushSubscriptions).all()
+	const subs = await db.select().from(pushSubscriptions).all()
 	if (subs.length === 0) return
 
 	const payload = JSON.stringify(buildPushPayload(notification))
@@ -82,14 +82,18 @@ export async function sendWebPush(notification: Notification): Promise<void> {
 					{ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
 					payload,
 				)
-				db.update(pushSubscriptions)
+				await db
+					.update(pushSubscriptions)
 					.set({ lastUsedAt: new Date() })
 					.where(eq(pushSubscriptions.endpoint, sub.endpoint))
 					.run()
 			} catch (err: unknown) {
 				const status = (err as { statusCode?: number }).statusCode
 				if (status === 410 || status === 404) {
-					db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint)).run()
+					await db
+						.delete(pushSubscriptions)
+						.where(eq(pushSubscriptions.endpoint, sub.endpoint))
+						.run()
 				}
 			}
 		}),

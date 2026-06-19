@@ -34,7 +34,7 @@ class NotificationService extends EventEmitter {
 
 		const inQuiet = isInQuietHours(prefs)
 
-		const row = db
+		const row = await db
 			.insert(notifications)
 			.values({
 				type: event.type,
@@ -54,18 +54,23 @@ class NotificationService extends EventEmitter {
 	}
 
 	async markRead(id: number): Promise<void> {
-		db.update(notifications)
+		await db
+			.update(notifications)
 			.set({ readAt: new Date() })
 			.where(and(eq(notifications.id, id), isNull(notifications.readAt)))
 			.run()
 	}
 
 	async markAllRead(): Promise<void> {
-		db.update(notifications).set({ readAt: new Date() }).where(isNull(notifications.readAt)).run()
+		await db
+			.update(notifications)
+			.set({ readAt: new Date() })
+			.where(isNull(notifications.readAt))
+			.run()
 	}
 
 	async getUnreadCount(): Promise<number> {
-		const rows = db
+		const rows = await db
 			.select({ id: notifications.id })
 			.from(notifications)
 			.where(isNull(notifications.readAt))
@@ -93,7 +98,7 @@ class NotificationService extends EventEmitter {
 	}
 
 	async markPushedInApp(id: number): Promise<boolean> {
-		const result = db
+		const result = await db
 			.update(notifications)
 			.set({ pushedInApp: true })
 			.where(and(eq(notifications.id, id), eq(notifications.pushedInApp, false)))

@@ -10,21 +10,25 @@ async function main() {
 		console.error('Without a recalboxId, assigns ALL currently-unowned recalboxes to the user.')
 		process.exit(1)
 	}
-	const owner = db.select().from(userTable).where(eq(userTable.email, email)).get()
+	const owner = await db.select().from(userTable).where(eq(userTable.email, email)).get()
 	if (!owner) {
 		console.error(`No user found with email ${email}`)
 		process.exit(1)
 	}
 	if (recalboxId) {
-		db.update(recalboxes).set({ ownerUserId: owner.id }).where(eq(recalboxes.id, recalboxId)).run()
+		await db
+			.update(recalboxes)
+			.set({ ownerUserId: owner.id })
+			.where(eq(recalboxes.id, recalboxId))
+			.run()
 		console.log(`Assigned recalbox ${recalboxId} to ${email}`)
 	} else {
-		const res = db
+		const res = await db
 			.update(recalboxes)
 			.set({ ownerUserId: owner.id })
 			.where(isNull(recalboxes.ownerUserId))
 			.run()
-		console.log(`Assigned ${res.changes} unowned recalbox(es) to ${email}`)
+		console.log(`Assigned ${res.rowsAffected} unowned recalbox(es) to ${email}`)
 	}
 }
 

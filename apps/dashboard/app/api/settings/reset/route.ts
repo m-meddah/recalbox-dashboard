@@ -23,6 +23,6 @@ export async function POST(req: NextRequest) {
 	const parsed = bodySchema.safeParse(body)
 	const scope = parsed.success ? parsed.data.scope : undefined
 
-	const updated = configStore.reset(scope as keyof AppConfig | undefined)
+	const updated = await configStore.reset(scope as keyof AppConfig | undefined)
 	return NextResponse.json(maskedConfig(updated))
 }

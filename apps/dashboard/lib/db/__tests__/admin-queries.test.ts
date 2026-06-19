@@ -34,9 +34,9 @@ const recalboxes = [
 function makeDeps() {
 	const getStats = vi.fn(async (ids: string[]) => statsWith(ids.length * 100))
 	return {
-		listUsers: () => users,
+		listUsers: async () => users,
 		// biome-ignore lint/suspicious/noExplicitAny: test fixture row shape
-		listRecalboxes: () => recalboxes as any,
+		listRecalboxes: async () => recalboxes as any,
 		getStats,
 	}
 }
@@ -78,7 +78,7 @@ describe('getAdminOverview', () => {
 
 	it('returns null unassigned when every machine is owned', async () => {
 		const deps = makeDeps()
-		deps.listRecalboxes = () => [recalboxes[0], recalboxes[1]] as never
+		deps.listRecalboxes = async () => [recalboxes[0], recalboxes[1]] as never
 		const overview = await getAdminOverview(deps)
 		expect(overview.unassigned).toBeNull()
 	})

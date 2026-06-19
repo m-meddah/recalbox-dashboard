@@ -77,7 +77,7 @@ export async function detectMultiDiscGames(
 
 	const systemSet = new Set(systemFilter)
 
-	const rows = db
+	const rows = await db
 		.select({ system: games.system, romPath: games.romPath })
 		.from(games)
 		.where(and(inArray(games.system, systemFilter), eq(games.recalboxId, recalboxId)))

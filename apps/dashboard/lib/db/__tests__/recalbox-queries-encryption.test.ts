@@ -43,7 +43,7 @@ beforeEach(() => {
 describe('recalbox-queries encryption', () => {
 	it('stores ssh_password encrypted but reads it back decrypted', async () => {
 		const { insertRecalbox, getRecalbox } = await import('../recalbox-queries')
-		insertRecalbox({
+		await insertRecalbox({
 			id: 'r1',
 			name: 'Box',
 			host: '10.0.0.1',
@@ -65,13 +65,13 @@ describe('recalbox-queries encryption', () => {
 		expect(rawRow.ssh_password.startsWith('enc:v1:')).toBe(true)
 		expect(rawRow.ssh_password).not.toContain('recalboxroot')
 
-		const read = getRecalbox('r1')
+		const read = await getRecalbox('r1')
 		expect(read?.sshPassword).toBe('recalboxroot')
 	})
 
 	it('re-encrypts on updateRecalbox and decrypts on read', async () => {
 		const { insertRecalbox, updateRecalbox, getRecalbox } = await import('../recalbox-queries')
-		insertRecalbox({
+		await insertRecalbox({
 			id: 'r2',
 			name: 'Box2',
 			host: '10.0.0.2',
@@ -86,18 +86,18 @@ describe('recalbox-queries encryption', () => {
 			createdAt: new Date(),
 			ownerUserId: null,
 		})
-		updateRecalbox('r2', { sshPassword: 'newpass' })
+		await updateRecalbox('r2', { sshPassword: 'newpass' })
 
 		const rawRow = sqlite.prepare('SELECT ssh_password FROM recalboxes WHERE id = ?').get('r2') as {
 			ssh_password: string
 		}
 		expect(rawRow.ssh_password.startsWith('enc:v1:')).toBe(true)
-		expect(getRecalbox('r2')?.sshPassword).toBe('newpass')
+		expect((await getRecalbox('r2'))?.sshPassword).toBe('newpass')
 	})
 
 	it('listRecalboxes decrypts every row', async () => {
 		const { insertRecalbox, listRecalboxes } = await import('../recalbox-queries')
-		insertRecalbox({
+		await insertRecalbox({
 			id: 'r3',
 			name: 'Box3',
 			host: '10.0.0.3',
@@ -112,7 +112,7 @@ describe('recalbox-queries encryption', () => {
 			createdAt: new Date(),
 			ownerUserId: null,
 		})
-		expect(listRecalboxes().map((r) => r.sshPassword)).toEqual(['p3'])
+		expect((await listRecalboxes()).map((r) => r.sshPassword)).toEqual(['p3'])
 	})
 
 	it('reads legacy plaintext rows unchanged', async () => {
@@ -122,6 +122,6 @@ describe('recalbox-queries encryption', () => {
 				'INSERT INTO recalboxes (id, name, host, ssh_user, ssh_password, created_at) VALUES (?,?,?,?,?,?)',
 			)
 			.run('r4', 'Legacy', '10.0.0.4', 'root', 'plain-legacy', Date.now())
-		expect(getRecalbox('r4')?.sshPassword).toBe('plain-legacy')
+		expect((await getRecalbox('r4'))?.sshPassword).toBe('plain-legacy')
 	})
 })

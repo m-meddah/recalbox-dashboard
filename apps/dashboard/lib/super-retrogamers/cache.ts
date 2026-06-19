@@ -14,11 +14,11 @@ function ttlFor(key: string): number {
 	return TTL_MS.systems
 }
 
-function getCached<T>(key: string): T | null {
-	const row = db.select().from(srCache).where(eq(srCache.key, key)).get()
+async function getCached<T>(key: string): Promise<T | null> {
+	const row = await db.select().from(srCache).where(eq(srCache.key, key)).get()
 	if (!row) return null
 	if (row.expiresAt < new Date()) {
-		db.delete(srCache).where(eq(srCache.key, key)).run()
+		await db.delete(srCache).where(eq(srCache.key, key)).run()
 		return null
 	}
 	try {
@@ -28,8 +28,8 @@ function getCached<T>(key: string): T | null {
 	}
 }
 
-export function getCachedStale<T>(key: string): { value: T; stale: boolean } | null {
-	const row = db.select().from(srCache).where(eq(srCache.key, key)).get()
+export async function getCachedStale<T>(key: string): Promise<{ value: T; stale: boolean } | null> {
+	const row = await db.select().from(srCache).where(eq(srCache.key, key)).get()
 	if (!row) return null
 	try {
 		return { value: JSON.parse(row.value) as T, stale: row.expiresAt < new Date() }
@@ -38,9 +38,10 @@ export function getCachedStale<T>(key: string): { value: T; stale: boolean } | n
 	}
 }
 
-export function setCached(key: string, value: unknown): void {
+export async function setCached(key: string, value: unknown): Promise<void> {
 	const expiresAt = new Date(Date.now() + ttlFor(key))
-	db.insert(srCache)
+	await db
+		.insert(srCache)
 		.values({ key, value: JSON.stringify(value), expiresAt })
 		.onConflictDoUpdate({
 			target: srCache.key,
