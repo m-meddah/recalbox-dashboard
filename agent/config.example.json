@@ -1,0 +1,9 @@
+{
+	"cloud_url": "https://example.com/api/agent/ingest",
+	"token": "REPLACE_WITH_PER_RECALBOX_ENROLLMENT_TOKEN",
+	"recalbox_id": "spike",
+	"mqtt_host": "127.0.0.1",
+	"mqtt_port": 1883,
+	"min_duration_sec": 10,
+	"http_timeout_sec": 10
+}
