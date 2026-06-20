@@ -15,10 +15,14 @@ import * as schema from './schema'
 //   same replica file (embedded replicas are single-writer per file).
 const remoteUrl = process.env.TURSO_DATABASE_URL
 const authToken = process.env.TURSO_AUTH_TOKEN
-// The scrobbler runs as `tsx scripts/start-scrobbler.ts` (dev) or `node scrobbler.js`
-// (prod bundle); the web server (`next dev` / `server.js`) never has "scrobbler" in argv.
+// The embedded replica is for the long-running web server only. The scrobbler
+// (`tsx scripts/start-scrobbler.ts` / `node scrobbler.js`) and one-shot scripts
+// under scripts/ use the direct remote client — they are write-mostly or
+// short-lived, and it keeps them from opening (or colliding on) the replica file.
 const isScrobbler = process.argv.some((a) => a.includes('scrobbler'))
-const useReplica = Boolean(remoteUrl) && !isScrobbler && process.env.TURSO_DISABLE_REPLICA !== '1'
+const isOneShotScript = process.argv.some((a) => /(^|[\\/])scripts[\\/]/.test(a))
+const useReplica =
+	Boolean(remoteUrl) && !isScrobbler && !isOneShotScript && process.env.TURSO_DISABLE_REPLICA !== '1'
 
 // Reuse the client across dev hot-reloads so we don't open multiple replica sync
 // loops on the same file within one process.

@@ -89,7 +89,7 @@ export const sessions = sqliteTable(
 		romPath: text('rom_path').notNull(),
 		autoClosed: int('auto_closed', { mode: 'boolean' }).default(false),
 		closedReason: text('closed_reason'),
-		source: text('source', { enum: ['scrobbler', 'manual'] })
+		source: text('source', { enum: ['scrobbler', 'agent', 'manual'] })
 			.notNull()
 			.default('scrobbler'),
 		durationConfidence: text('duration_confidence', { enum: ['measured', 'estimated'] })
@@ -540,6 +540,26 @@ export const invitations = sqliteTable(
 		createdAt: int('created_at').notNull(),
 	},
 	(table) => [index('invitations_token_hash_idx').on(table.tokenHash)],
+)
+
+// Per-Recalbox machine tokens used by the on-device agent to authenticate its
+// outbound session pushes (Bearer). Only the SHA-256 hash is stored; the raw
+// token is shown once at creation. Multiple rows per Recalbox allow rotation.
+export const agentTokens = sqliteTable(
+	'agent_tokens',
+	{
+		id: text('id').primaryKey(),
+		recalboxId: text('recalbox_id').notNull(),
+		tokenHash: text('token_hash').notNull().unique(),
+		name: text('name'),
+		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+		lastUsedAt: int('last_used_at', { mode: 'timestamp' }),
+		revokedAt: int('revoked_at', { mode: 'timestamp' }),
+	},
+	(t) => [
+		index('idx_agent_tokens_recalbox').on(t.recalboxId),
+		index('idx_agent_tokens_token_hash').on(t.tokenHash),
+	],
 )
 
 export * from '@/lib/auth/auth-schema'
