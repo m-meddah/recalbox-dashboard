@@ -15,6 +15,10 @@ build/
 *.sqlite
 *.db-shm
 *.db-wal
+# libSQL embedded replica sidecar files (Turso local replica)
+*.db-info
+*.db-client_wal_index
+recalbox-replica.db*
 
 # Environment variables
 .env

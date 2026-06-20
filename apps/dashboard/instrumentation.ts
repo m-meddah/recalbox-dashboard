@@ -8,6 +8,10 @@ export async function register() {
 			import('@/lib/config-store'),
 		])
 
+		// Hydrate the embedded replica from the Turso primary first, so the migrator
+		// sees the already-migrated schema instead of replaying it against an empty
+		// local file. No-op when not using a replica.
+		await dbMod.syncDb()
 		await migrator.migrate(dbMod.db, {
 			migrationsFolder: path.default.join(process.cwd(), 'drizzle/migrations'),
 		})
