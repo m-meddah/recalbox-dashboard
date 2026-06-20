@@ -1,5 +1,5 @@
 import { getBearerToken } from '@/lib/agent/bearer'
-import { ingestAgentSession } from '@/lib/agent/ingest'
+import { ingestSnapshot } from '@/lib/agent/ingest-snapshot'
 import { db } from '@/lib/db'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
 import { logger } from '@/lib/logger'
@@ -9,18 +9,13 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Matches the payload the on-device agent posts (snake_case). recalbox_id/source
-// in the body are intentionally ignored — the bearer token is the source of
-// truth for which Recalbox this belongs to.
 const Payload = z.object({
-	started_at: z.coerce.date(),
-	ended_at: z.coerce.date(),
-	duration_seconds: z.number().int().nonnegative(),
-	system: z.string().min(1),
-	rom_path: z.string().min(1),
-	game_name: z.string().nullish(),
-	auto_closed: z.boolean().optional(),
-	closed_reason: z.string().nullish(),
+	captured_at: z.coerce.date(),
+	cpu_percent: z.number().nullish(),
+	mem_used_mb: z.number().nullish(),
+	mem_total_mb: z.number().nullish(),
+	temp_celsius: z.number().nullish(),
+	uptime_seconds: z.number().int().nullish(),
 })
 
 export async function POST(req: NextRequest) {
@@ -47,22 +42,17 @@ export async function POST(req: NextRequest) {
 	const p = parsed.data
 
 	try {
-		const result = await ingestAgentSession(db, resolved.recalboxId, {
-			startedAt: p.started_at,
-			endedAt: p.ended_at,
-			durationSeconds: p.duration_seconds,
-			system: p.system,
-			romPath: p.rom_path,
-			gameName: p.game_name ?? null,
-			autoClosed: p.auto_closed ?? false,
-			closedReason: p.closed_reason ?? null,
+		const { id } = await ingestSnapshot(db, resolved.recalboxId, {
+			capturedAt: p.captured_at,
+			cpuPercent: p.cpu_percent ?? null,
+			memUsedMb: p.mem_used_mb ?? null,
+			memTotalMb: p.mem_total_mb ?? null,
+			tempCelsius: p.temp_celsius ?? null,
+			uptimeSeconds: p.uptime_seconds ?? null,
 		})
-		return NextResponse.json(
-			{ ok: true, created: result.created, sessionId: result.sessionId },
-			{ status: result.created ? 201 : 200 },
-		)
+		return NextResponse.json({ ok: true, id }, { status: 201 })
 	} catch (e) {
-		logger.error('[agent/ingest] failed', e)
+		logger.error('[agent/snapshots] failed', e)
 		return NextResponse.json({ error: 'ingest_failed' }, { status: 500 })
 	}
 }

@@ -52,6 +52,7 @@ def load_config():
         "mqtt_port": 1883,
         "min_duration_sec": 10,
         "http_timeout_sec": 10,
+        "snapshot_interval_sec": 60,
     }
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -119,6 +120,38 @@ def parse_es_event(payload: bytes):
     return None
 
 
+# ── HTTP helpers ─────────────────────────────────────────────────────────────
+def endpoint_for(cfg, name):
+    """Resolve a sibling endpoint URL from cloud_url.
+
+    cloud_url points at the session ingest endpoint (…/api/agent/ingest); we
+    derive siblings like …/api/agent/snapshots from it, so a config that sets
+    either the full ingest URL or just the base works.
+    """
+    url = (cfg.get("cloud_url") or "").rstrip("/")
+    if url.endswith("/ingest"):
+        url = url[: -len("/ingest")]
+    return (url + "/" + name) if url else ""
+
+
+def http_post_json(url, payload, token, timeout):
+    """POST payload as JSON. Returns True on 2xx, False otherwise. Never raises."""
+    if not url:
+        return False
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return 200 <= resp.status < 300
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        log.warning("POST %s failed: %s", url, e)
+        return False
+
+
 # ── Cloud delivery (HTTPS POST + disk buffer) ────────────────────────────────
 class Deliverer:
     def __init__(self, cfg):
@@ -126,25 +159,18 @@ class Deliverer:
         self.lock = threading.Lock()
 
     def _post(self, session: dict) -> bool:
-        url = self.cfg.get("cloud_url")
+        url = endpoint_for(self.cfg, "ingest")
         if not url:
             log.error("No cloud_url configured; cannot push")
             return False
-        body = json.dumps(session).encode("utf-8")
-        req = urllib.request.Request(url, data=body, method="POST")
-        req.add_header("Content-Type", "application/json")
-        token = self.cfg.get("token")
-        if token:
-            req.add_header("Authorization", "Bearer " + token)
-        ctx = ssl.create_default_context()
-        try:
-            with urllib.request.urlopen(req, timeout=self.cfg.get("http_timeout_sec", 10), context=ctx) as resp:
-                ok = 200 <= resp.status < 300
-                log.info("POST %s -> %s for %s", url, resp.status, session.get("rom_path"))
-                return ok
-        except (urllib.error.URLError, OSError, ValueError) as e:
-            log.warning("POST failed (%s) for %s -> buffering", e, session.get("rom_path"))
-            return False
+        ok = http_post_json(url, session, self.cfg.get("token"), self.cfg.get("http_timeout_sec", 10))
+        log.info(
+            "POST %s -> %s for %s",
+            url,
+            "ok" if ok else "FAILED (buffering)",
+            session.get("rom_path"),
+        )
+        return ok
 
     def deliver(self, session: dict):
         if not self._post(session):
@@ -249,6 +275,97 @@ class SessionTracker:
             log.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
 
 
+# ── System snapshots (CPU / RAM / temp / uptime, pushed periodically) ─────────
+def _read_first_line(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return f.readline().strip()
+
+
+def read_cpu_temp():
+    """CPU temperature in °C from /sys/class/thermal (millidegrees)."""
+    try:
+        return int(_read_first_line("/sys/class/thermal/thermal_zone0/temp")) / 1000
+    except (OSError, ValueError):
+        return None
+
+
+def read_uptime():
+    try:
+        return float(_read_first_line("/proc/uptime").split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _proc_stat():
+    parts = [int(x) for x in _read_first_line("/proc/stat").split()[1:]]
+    idle = parts[3] + (parts[4] if len(parts) > 4 else 0)  # idle + iowait
+    total = sum(parts[:8])
+    return total, idle
+
+
+def read_cpu_usage():
+    """CPU usage % from two /proc/stat reads 200 ms apart (mirrors system-stats.ts)."""
+    try:
+        t1, i1 = _proc_stat()
+        time.sleep(0.2)
+        t2, i2 = _proc_stat()
+        td, idd = t2 - t1, i2 - i1
+        if td <= 0:
+            return None
+        return round((td - idd) / td * 1000) / 10
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def read_mem_mb():
+    """(total_mb, used_mb) from /proc/meminfo; used = total - available."""
+    try:
+        info = {}
+        with open("/proc/meminfo", "r", encoding="utf-8") as f:
+            for line in f:
+                key, _, value = line.partition(":")
+                info[key] = int(value.strip().split()[0])  # kB
+        total = info["MemTotal"] / 1024
+        avail = info.get("MemAvailable", info.get("MemFree", 0)) / 1024
+        return round(total), round(total - avail)
+    except (OSError, ValueError, KeyError, IndexError):
+        return None, None
+
+
+def gather_snapshot():
+    total_mb, used_mb = read_mem_mb()
+    uptime = read_uptime()
+    return {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "cpu_percent": read_cpu_usage(),
+        "mem_used_mb": used_mb,
+        "mem_total_mb": total_mb,
+        "temp_celsius": read_cpu_temp(),
+        "uptime_seconds": int(uptime) if uptime is not None else None,
+    }
+
+
+def snapshot_loop(cfg):
+    """Periodically gather + push a system snapshot. Best-effort (no buffering)."""
+    url = endpoint_for(cfg, "snapshots")
+    interval = int(cfg.get("snapshot_interval_sec", 60))
+    token = cfg.get("token")
+    timeout = cfg.get("http_timeout_sec", 10)
+    while True:
+        try:
+            snap = gather_snapshot()
+            ok = http_post_json(url, snap, token, timeout)
+            log.info(
+                "snapshot -> %s (cpu=%s%% temp=%s)",
+                "ok" if ok else "failed",
+                snap.get("cpu_percent"),
+                snap.get("temp_celsius"),
+            )
+        except Exception as e:  # never let the thread die
+            log.error("snapshot_loop error: %s", e)
+        time.sleep(interval)
+
+
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
 def build_client():
     """Construct a paho client that works on both paho-mqtt 1.x and 2.x."""
@@ -277,6 +394,8 @@ def main():
     tracker = SessionTracker(cfg, deliverer)
 
     threading.Thread(target=deliverer.flush_loop, daemon=True).start()
+    threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
+    log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 60))
 
     def on_connect(client, userdata, flags, *args):
         log.info("MQTT connected, subscribing to %s", ES_EVENT_TOPIC)
