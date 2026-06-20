@@ -44,3 +44,7 @@ pnpm-debug.log*
 
 # Git worktrees (managed by Claude Code)
 .claude/worktrees/
+
+# Python
+__pycache__/
+*.pyc
