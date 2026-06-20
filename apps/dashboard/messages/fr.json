@@ -14,6 +14,23 @@
 		"expires": "expire le {date}",
 		"revoke": "Révoquer"
 	},
+	"agentTokens": {
+		"heading": "Jetons d'agent",
+		"description": "Les jetons permettent à l'agent embarqué d'envoyer les sessions de jeu vers le cloud. Génères-en un et colle-le dans le config.json de l'agent sur cette Recalbox.",
+		"namePlaceholder": "Libellé (ex. Pi du salon)",
+		"generate": "Générer un jeton",
+		"generating": "Génération…",
+		"onceWarning": "Copie-le maintenant — le jeton n'est affiché qu'une seule fois.",
+		"copyConfig": "Copier le config.json",
+		"copied": "Copié !",
+		"none": "Aucun jeton actif.",
+		"unnamed": "Jeton sans nom",
+		"lastUsed": "utilisé {date}",
+		"neverUsed": "jamais utilisé",
+		"revoke": "Révoquer",
+		"revokeConfirm": "Révoquer ce jeton ? L'agent qui l'utilise ne pourra plus envoyer de données.",
+		"createError": "Impossible de générer le jeton."
+	},
 	"acceptInvite": {
 		"title": "Acceptez votre invitation",
 		"subtitle": "Définissez un mot de passe pour {email}.",

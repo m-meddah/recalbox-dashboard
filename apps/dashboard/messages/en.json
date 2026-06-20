@@ -14,6 +14,23 @@
 		"expires": "expires {date}",
 		"revoke": "Revoke"
 	},
+	"agentTokens": {
+		"heading": "Agent tokens",
+		"description": "Tokens let the on-device agent push play sessions to the cloud. Generate one and paste it into the agent's config.json on this Recalbox.",
+		"namePlaceholder": "Label (e.g. Living-room Pi)",
+		"generate": "Generate token",
+		"generating": "Generating…",
+		"onceWarning": "Copy this now — the token is shown only once.",
+		"copyConfig": "Copy config.json",
+		"copied": "Copied!",
+		"none": "No active tokens.",
+		"unnamed": "Unnamed token",
+		"lastUsed": "last used {date}",
+		"neverUsed": "never used",
+		"revoke": "Revoke",
+		"revokeConfirm": "Revoke this token? The agent using it will no longer be able to push.",
+		"createError": "Could not generate the token."
+	},
 	"acceptInvite": {
 		"title": "Accept your invitation",
 		"subtitle": "Set a password for {email}.",

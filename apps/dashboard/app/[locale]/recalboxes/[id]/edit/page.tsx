@@ -1,5 +1,6 @@
 'use client'
 
+import { AgentTokensSection } from '@/components/agent-tokens-section'
 import { RecalboxForm, type RecalboxFormValues } from '@/components/recalbox-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -96,6 +97,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 					{t('edit.delete')}
 				</Button>
 			</div>
+			<AgentTokensSection recalboxId={id} />
 		</div>
 	)
 }
