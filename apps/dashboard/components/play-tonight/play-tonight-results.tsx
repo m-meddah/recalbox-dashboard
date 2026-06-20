@@ -34,15 +34,26 @@ export function PlayTonightResults({
 	const loading = results.forRequestId !== requestId
 
 	useEffect(() => {
+		const controller = new AbortController()
 		fetch('/api/play-tonight/recommend', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ availableMinutes: time, mood }),
+			signal: controller.signal,
 		})
 			.then((r) => r.json())
 			.then((d) => {
 				setResults({ recs: d.recommendations ?? [], forRequestId: requestId })
 			})
+			.catch((err) => {
+				// Ignore aborts from superseded requests / StrictMode's double-invoke;
+				// surface other failures as an empty result instead of an endless spinner.
+				if (err?.name === 'AbortError') return
+				setResults({ recs: [], forRequestId: requestId })
+			})
+		// Cancel the in-flight request when time/mood/requestId changes (or on the
+		// StrictMode unmount), so superseded recommendations don't race or pile up.
+		return () => controller.abort()
 	}, [time, mood, requestId])
 
 	async function handleLaunch(game: ScoredGame) {

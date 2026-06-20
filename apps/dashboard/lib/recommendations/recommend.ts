@@ -22,7 +22,26 @@ import type { RecommendationContext, ScoredGame } from './types'
 
 const LAZY_MATCH_TOP_N = 30
 
-export async function recommend(
+// Single-flight registry: concurrent identical requests share one computation.
+const inFlight = new Map<string, Promise<ScoredGame[]>>()
+
+export function recommend(
+	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
+): Promise<ScoredGame[]> {
+	// Collapse concurrent identical requests (React StrictMode's double-invoke, or
+	// rapid duplicate submits) into a single computation. NOT a cache — the entry
+	// is dropped the moment it settles, so a later reshuffle recomputes fresh and
+	// the scoring jitter still yields variety. Also avoids logging the same
+	// recommendation twice when StrictMode fires the request twice.
+	const key = `${ctxInput.availableMinutes}:${ctxInput.mood}`
+	const existing = inFlight.get(key)
+	if (existing) return existing
+	const promise = computeRecommendations(ctxInput).finally(() => inFlight.delete(key))
+	inFlight.set(key, promise)
+	return promise
+}
+
+async function computeRecommendations(
 	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
 ): Promise<ScoredGame[]> {
 	const [profile, activeSkips, gamesList, statsMap, ratings, igdbRatingsMap, hltbDurationsMap] =
@@ -88,15 +107,19 @@ export async function recommend(
 
 	const finalists = selectFinalists(scored)
 
-	for (const f of finalists) {
-		await db.insert(recommendationLog).values({
-			gameId: f.gameId,
-			contextTimeMinutes: recommendationCtx.availableMinutes,
-			contextMood: recommendationCtx.mood,
-			score: f.score,
-			confidence: f.confidence,
-			reasons: f.reasons,
-		})
+	// Single batched INSERT — writes go to the Turso primary, so one round-trip
+	// instead of one per finalist.
+	if (finalists.length > 0) {
+		await db.insert(recommendationLog).values(
+			finalists.map((f) => ({
+				gameId: f.gameId,
+				contextTimeMinutes: recommendationCtx.availableMinutes,
+				contextMood: recommendationCtx.mood,
+				score: f.score,
+				confidence: f.confidence,
+				reasons: f.reasons,
+			})),
+		)
 	}
 
 	if (await isIgdbEnabled()) {
