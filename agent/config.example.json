@@ -7,5 +7,6 @@
 	"min_duration_sec": 10,
 	"http_timeout_sec": 10,
 	"snapshot_interval_sec": 60,
-	"collection_interval_sec": 21600
+	"collection_interval_sec": 21600,
+	"command_poll_interval_sec": 10
 }

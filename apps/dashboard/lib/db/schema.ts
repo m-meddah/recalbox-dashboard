@@ -562,4 +562,30 @@ export const agentTokens = sqliteTable(
 	],
 )
 
+/**
+ * Remote-control command queue. A user enqueues a command for a Recalbox; the
+ * on-device agent polls (outbound, NAT-friendly), claims pending rows, executes
+ * them locally and reports the result back. Replaces live SSH control.
+ */
+export const agentCommands = sqliteTable(
+	'agent_commands',
+	{
+		id: text('id').primaryKey(),
+		recalboxId: text('recalbox_id').notNull(),
+		// 'power' | 'launch' | 'conf' — validated against an allowlist before enqueue.
+		type: text('type').notNull(),
+		// Type-specific params (e.g. { action: 'reboot' }, { key, value }, { romPath, system }).
+		payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>(),
+		// 'pending' → 'claimed' (agent picked it up) → 'done' | 'failed'.
+		status: text('status').notNull().default('pending'),
+		createdBy: text('created_by'),
+		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
+		claimedAt: int('claimed_at', { mode: 'timestamp' }),
+		completedAt: int('completed_at', { mode: 'timestamp' }),
+		// Free-text result on success, or the error message on failure.
+		result: text('result'),
+	},
+	(t) => [index('idx_agent_commands_recalbox_status').on(t.recalboxId, t.status)],
+)
+
 export * from '@/lib/auth/auth-schema'

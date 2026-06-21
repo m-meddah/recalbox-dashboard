@@ -21,7 +21,9 @@ import glob
 import json
 import logging
 import os
+import re
 import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -55,6 +57,7 @@ def load_config():
         "http_timeout_sec": 10,
         "snapshot_interval_sec": 60,
         "collection_interval_sec": 21600,
+        "command_poll_interval_sec": 10,
     }
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -152,6 +155,24 @@ def http_post_json(url, payload, token, timeout):
     except (urllib.error.URLError, OSError, ValueError) as e:
         log.warning("POST %s failed: %s", url, e)
         return False
+
+
+def http_get_json(url, token, timeout):
+    """GET + parse a JSON body. Returns the parsed object, or None on any error."""
+    if not url:
+        return None
+    req = urllib.request.Request(url, method="GET")
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if not (200 <= resp.status < 300):
+                return None
+            return json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        log.warning("GET %s failed: %s", url, e)
+        return None
 
 
 # ── Cloud delivery (HTTPS POST + disk buffer) ────────────────────────────────
@@ -423,6 +444,117 @@ def collection_loop(cfg):
         time.sleep(interval)
 
 
+# ── Remote-control commands (poll → execute → report) ────────────────────────
+RECALBOX_CONF = "/recalbox/share/system/recalbox.conf"
+CONF_KEY_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def run_cmd(args, timeout=30):
+    """Run a command (argv list, NO shell). Returns (ok, output)."""
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        return proc.returncode == 0, (proc.stdout + proc.stderr).strip()
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, str(e)
+
+
+def set_conf_value(path, key, value):
+    """Set key=value in a recalbox.conf-style file, in place. Replaces the line
+    for `key` (commented or not), else appends it. No shell, no injection: the
+    key is validated and the value is written as a literal single line."""
+    line = "%s=%s" % (key, value)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except FileNotFoundError:
+        lines = []
+    pat = re.compile(r"^\s*;?\s*" + re.escape(key) + r"\s*=")
+    for i, existing in enumerate(lines):
+        if pat.match(existing):
+            lines[i] = line
+            break
+    else:
+        lines.append(line)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def exec_power(payload):
+    action = payload.get("action")
+    if action == "reboot":
+        return run_cmd(["reboot"])
+    if action == "shutdown":
+        return run_cmd(["poweroff"])
+    return False, "unknown power action: %s" % action
+
+
+def exec_conf(payload):
+    key = payload.get("key") or ""
+    value = "" if payload.get("value") is None else str(payload.get("value"))
+    if not CONF_KEY_RE.match(key):
+        return False, "invalid conf key"
+    try:
+        set_conf_value(RECALBOX_CONF, key, value)
+        return True, "%s=%s" % (key, value)
+    except OSError as e:
+        return False, str(e)
+
+
+def exec_launch(payload):
+    # Launching a game requires EmulationStation's device-specific mechanism,
+    # which must be verified on the box before wiring. The queue is ready; this
+    # executor is intentionally a no-op until that mechanism is confirmed.
+    return False, "launch not supported by agent yet"
+
+
+def execute_command(cmd):
+    ctype = cmd.get("type")
+    payload = cmd.get("payload") or {}
+    if ctype == "power":
+        return exec_power(payload)
+    if ctype == "conf":
+        return exec_conf(payload)
+    if ctype == "launch":
+        return exec_launch(payload)
+    return False, "unknown command type: %s" % ctype
+
+
+def report_result(result_url, token, timeout, cid, ok, output):
+    http_post_json(result_url, {"id": cid, "ok": ok, "result": (output or "")[:4096]}, token, timeout)
+
+
+def handle_command(cmd, result_url, token, timeout):
+    cid = cmd.get("id")
+    ctype = cmd.get("type")
+    log.info("command %s: %s", cid, ctype)
+    # Power cuts the agent off mid-flight, so report success first (the box is
+    # about to go down) and then execute.
+    if ctype == "power":
+        action = (cmd.get("payload") or {}).get("action")
+        report_result(result_url, token, timeout, cid, True, "executing power: %s" % action)
+        execute_command(cmd)
+        return
+    ok, output = execute_command(cmd)
+    report_result(result_url, token, timeout, cid, ok, output)
+
+
+def command_loop(cfg):
+    """Poll the cloud for pending commands, execute them locally, report back."""
+    url = endpoint_for(cfg, "commands")
+    result_url = (url + "/result") if url else ""
+    interval = int(cfg.get("command_poll_interval_sec", 10))
+    token = cfg.get("token")
+    timeout = cfg.get("http_timeout_sec", 10)
+    while True:
+        try:
+            data = http_get_json(url, token, timeout)
+            for cmd in (data or {}).get("commands") or []:
+                handle_command(cmd, result_url, token, timeout)
+        except Exception as e:  # never let the thread die
+            log.error("command_loop error: %s", e)
+        time.sleep(interval)
+
+
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
 def build_client():
     """Construct a paho client that works on both paho-mqtt 1.x and 2.x."""
@@ -455,6 +587,8 @@ def main():
     log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 60))
     threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
     log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
+    threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
+    log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 10))
 
     def on_connect(client, userdata, flags, *args):
         log.info("MQTT connected, subscribing to %s", ES_EVENT_TOPIC)
