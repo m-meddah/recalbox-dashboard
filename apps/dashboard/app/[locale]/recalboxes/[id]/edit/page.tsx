@@ -1,5 +1,6 @@
 'use client'
 
+import { AgentCommandsSection } from '@/components/agent-commands-section'
 import { AgentTokensSection } from '@/components/agent-tokens-section'
 import { RecalboxForm, type RecalboxFormValues } from '@/components/recalbox-form'
 import { Button } from '@/components/ui/button'
@@ -98,6 +99,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 				</Button>
 			</div>
 			<AgentTokensSection recalboxId={id} />
+			<AgentCommandsSection recalboxId={id} />
 		</div>
 	)
 }

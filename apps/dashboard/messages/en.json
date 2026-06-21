@@ -31,6 +31,24 @@
 		"revokeConfirm": "Revoke this token? The agent using it will no longer be able to push.",
 		"createError": "Could not generate the token."
 	},
+	"remoteControl": {
+		"heading": "Remote control",
+		"description": "Queue commands for this Recalbox. The on-device agent runs them the next time it checks in (a few seconds).",
+		"confHeading": "Set a recalbox.conf value",
+		"confKeyPlaceholder": "Key (e.g. audio.volume)",
+		"confValuePlaceholder": "Value",
+		"confSubmit": "Queue change",
+		"sent": "Command queued",
+		"sendError": "Could not queue the command.",
+		"history": "Recent commands",
+		"noHistory": "No commands yet.",
+		"status": {
+			"pending": "Pending",
+			"claimed": "Sent to agent",
+			"done": "Done",
+			"failed": "Failed"
+		}
+	},
 	"acceptInvite": {
 		"title": "Accept your invitation",
 		"subtitle": "Set a password for {email}.",

@@ -31,6 +31,24 @@
 		"revokeConfirm": "Révoquer ce jeton ? L'agent qui l'utilise ne pourra plus envoyer de données.",
 		"createError": "Impossible de générer le jeton."
 	},
+	"remoteControl": {
+		"heading": "Contrôle à distance",
+		"description": "Mettez des commandes en file pour cette Recalbox. L'agent embarqué les exécute à son prochain passage (quelques secondes).",
+		"confHeading": "Définir une valeur recalbox.conf",
+		"confKeyPlaceholder": "Clé (ex. audio.volume)",
+		"confValuePlaceholder": "Valeur",
+		"confSubmit": "Mettre en file",
+		"sent": "Commande mise en file",
+		"sendError": "Impossible de mettre la commande en file.",
+		"history": "Commandes récentes",
+		"noHistory": "Aucune commande pour le moment.",
+		"status": {
+			"pending": "En attente",
+			"claimed": "Envoyée à l'agent",
+			"done": "Terminée",
+			"failed": "Échec"
+		}
+	},
 	"acceptInvite": {
 		"title": "Acceptez votre invitation",
 		"subtitle": "Définissez un mot de passe pour {email}.",
