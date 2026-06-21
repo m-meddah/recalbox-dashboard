@@ -436,6 +436,9 @@ def push_collection(cfg):
 
 def collection_loop(cfg):
     interval = int(cfg.get("collection_interval_sec", 21600))
+    if interval <= 0:
+        log.info("Collection sync disabled (collection_interval_sec<=0)")
+        return
     while True:
         try:
             push_collection(cfg)
@@ -585,8 +588,11 @@ def main():
     threading.Thread(target=deliverer.flush_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
     log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 60))
-    threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
-    log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
+    if int(cfg.get("collection_interval_sec", 21600)) > 0:
+        threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
+        log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
+    else:
+        log.info("Collection sync disabled")
     threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
     log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 10))
 
