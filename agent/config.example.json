@@ -6,5 +6,6 @@
 	"mqtt_port": 1883,
 	"min_duration_sec": 10,
 	"http_timeout_sec": 10,
-	"snapshot_interval_sec": 60
+	"snapshot_interval_sec": 60,
+	"collection_interval_sec": 21600
 }

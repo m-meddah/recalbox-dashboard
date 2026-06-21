@@ -17,6 +17,7 @@ phases. The parsing/pairing logic mirrors the existing TS implementation:
   - apps/dashboard/lib/scrobbler/session-manager.ts (open/close, min-duration, auto-close)
 """
 
+import glob
 import json
 import logging
 import os
@@ -53,6 +54,7 @@ def load_config():
         "min_duration_sec": 10,
         "http_timeout_sec": 10,
         "snapshot_interval_sec": 60,
+        "collection_interval_sec": 21600,
     }
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -366,6 +368,61 @@ def snapshot_loop(cfg):
         time.sleep(interval)
 
 
+# ── Collection sync (ship gamelist.xml + userdata to the cloud parser) ────────
+def find_gamelists():
+    """Gamelist paths under external USB roms dirs (matches listSystems)."""
+    paths = []
+    for p in glob.glob("/recalbox/share/externals/usb*/recalbox/roms/*/gamelist.xml"):
+        system = os.path.basename(os.path.dirname(p))
+        if system == "ports" or system.startswith("."):
+            continue
+        paths.append(p)
+    return sorted(paths)
+
+
+def _read_text(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def push_collection(cfg):
+    """Ship each system's gamelist.xml (+ userdata.ini) to the cloud, which parses
+    and upserts. One request per system keeps payloads bounded; final=true on the
+    last one triggers the inherited-stats refresh once."""
+    url = endpoint_for(cfg, "collection")
+    token = cfg.get("token")
+    timeout = cfg.get("http_timeout_sec", 10)
+    paths = find_gamelists()
+    log.info("collection: %d gamelist(s) found", len(paths))
+    last = len(paths) - 1
+    for i, gpath in enumerate(paths):
+        xml = _read_text(gpath)
+        if xml is None:
+            continue
+        userdata = _read_text(os.path.join(os.path.dirname(gpath), "gamelist-userdata.ini"))
+        payload = {
+            "gamelist_path": gpath,
+            "gamelist_xml": xml,
+            "userdata_ini": userdata,
+            "final": i == last,
+        }
+        ok = http_post_json(url, payload, token, timeout)
+        log.info("collection: %s -> %s", gpath, "ok" if ok else "failed")
+
+
+def collection_loop(cfg):
+    interval = int(cfg.get("collection_interval_sec", 21600))
+    while True:
+        try:
+            push_collection(cfg)
+        except Exception as e:  # never let the thread die
+            log.error("collection_loop error: %s", e)
+        time.sleep(interval)
+
+
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
 def build_client():
     """Construct a paho client that works on both paho-mqtt 1.x and 2.x."""
@@ -396,6 +453,8 @@ def main():
     threading.Thread(target=deliverer.flush_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
     log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 60))
+    threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
+    log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
 
     def on_connect(client, userdata, flags, *args):
         log.info("MQTT connected, subscribing to %s", ES_EVENT_TOPIC)
