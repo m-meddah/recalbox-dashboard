@@ -1,6 +1,7 @@
 'use client'
 
 import { createAuthClient } from 'better-auth/react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -10,6 +11,7 @@ export default function LoginPage() {
 	const router = useRouter()
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
+	const [showPassword, setShowPassword] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 
@@ -39,14 +41,25 @@ export default function LoginPage() {
 					onChange={(e) => setEmail(e.target.value)}
 					className="rounded border px-3 py-2"
 				/>
-				<input
-					type="password"
-					required
-					placeholder="Password"
-					value={password}
-					onChange={(e) => setPassword(e.target.value)}
-					className="rounded border px-3 py-2"
-				/>
+				<div className="relative">
+					<input
+						type={showPassword ? 'text' : 'password'}
+						required
+						placeholder="Password"
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						className="w-full rounded border px-3 py-2 pr-10"
+					/>
+					<button
+						type="button"
+						onClick={() => setShowPassword((v) => !v)}
+						aria-label={showPassword ? 'Hide password' : 'Show password'}
+						aria-pressed={showPassword}
+						className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-800"
+					>
+						{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+					</button>
+				</div>
 				{error && <p className="text-sm text-red-500">{error}</p>}
 				<button type="submit" disabled={loading} className="rounded bg-black px-3 py-2 text-white">
 					{loading ? 'Signing in…' : 'Sign in'}
