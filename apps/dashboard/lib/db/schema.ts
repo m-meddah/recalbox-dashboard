@@ -588,4 +588,23 @@ export const agentCommands = sqliteTable(
 	(t) => [index('idx_agent_commands_recalbox_status').on(t.recalboxId, t.status)],
 )
 
+/**
+ * Live "now playing" state, one row per Recalbox. The on-device agent writes it
+ * from local MQTT (game start/stop); the SSE endpoint relays it to browsers via
+ * a DB poll when the cloud has no direct MQTT link to the box (serverless mode).
+ */
+export const nowPlaying = sqliteTable('now_playing', {
+	recalboxId: text('recalbox_id').primaryKey(),
+	playing: int('playing', { mode: 'boolean' }).notNull().default(false),
+	system: text('system'),
+	systemFullName: text('system_full_name'),
+	romPath: text('rom_path'),
+	gameName: text('game_name'),
+	imagePath: text('image_path'),
+	emulator: text('emulator'),
+	fromScreensaver: int('from_screensaver', { mode: 'boolean' }).notNull().default(false),
+	startedAt: int('started_at', { mode: 'timestamp' }),
+	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
 export * from '@/lib/auth/auth-schema'

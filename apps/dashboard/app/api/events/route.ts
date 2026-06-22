@@ -1,5 +1,7 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { db } from '@/lib/db'
+import { getAllNowPlaying, nowPlayingToEvent } from '@/lib/db/now-playing'
 import { feedbackService } from '@/lib/feedback/service'
 import { logger } from '@/lib/logger'
 import { getNotificationService } from '@/lib/notifications/service'
@@ -61,6 +63,7 @@ export async function GET(request: Request) {
 
 			const recalboxIds = configStore.getRecalboxes().flatMap((r) => (r.archived ? [] : [r.id]))
 			const cleanups: Array<() => void> = []
+			const clients = new Map<string, RecalboxMqttClient>()
 
 			for (const recalboxId of recalboxIds) {
 				let client: RecalboxMqttClient
@@ -69,6 +72,8 @@ export async function GET(request: Request) {
 				} catch {
 					continue
 				}
+
+				clients.set(recalboxId, client)
 
 				sendConnectionStatus(recalboxId, client.isConnected)
 				if (!recalboxIdFilter || recalboxIdFilter === recalboxId) {
@@ -133,6 +138,26 @@ export async function GET(request: Request) {
 			}
 			const pollInterval = setInterval(pollNotifications, 5000)
 
+			// Relay the agent-pushed now_playing row (serverless: cloud has no MQTT link to the box).
+			const nowPlayingState = new Map<string, string | null>()
+			const pollNowPlaying = async () => {
+				try {
+					for (const row of await getAllNowPlaying(db)) {
+						if (recalboxIdFilter && recalboxIdFilter !== row.recalboxId) continue
+						// When a live MQTT link exists for this box, let MQTT drive (avoid a double source).
+						if (clients.get(row.recalboxId)?.isConnected) continue
+						const key = row.playing ? (row.romPath ?? '') : null
+						if (nowPlayingState.get(row.recalboxId) === key) continue
+						nowPlayingState.set(row.recalboxId, key)
+						sendEvent(row.recalboxId, nowPlayingToEvent(row))
+					}
+				} catch (err) {
+					logger.error('Now-playing poll failed', err)
+				}
+			}
+			const nowPlayingPollInterval = setInterval(pollNowPlaying, 5000)
+			pollNowPlaying()
+
 			const sendFeedback = (feedbackId: number) => {
 				try {
 					controller.enqueue(
@@ -169,6 +194,7 @@ export async function GET(request: Request) {
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
 				clearInterval(feedbackPollInterval)
+				clearInterval(nowPlayingPollInterval)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
 				controller.close()

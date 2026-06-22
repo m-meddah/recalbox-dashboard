@@ -97,6 +97,7 @@ def parse_es_event(payload: bytes):
 
     system = data.get("system")
     game = data.get("game")
+    media = data.get("media")
 
     def sys_ok(v):
         return isinstance(v, dict) and isinstance(v.get("name"), str) and isinstance(v.get("fullname"), str)
@@ -108,8 +109,11 @@ def parse_es_event(payload: bytes):
         return {
             "type": "game:start",
             "system": system["name"],
+            "system_full_name": system["fullname"],
             "rom_path": game["romPath"],
             "game_name": game["name"],
+            "emulator": system.get("defaultEmulator") or None,
+            "image_path": (media.get("image") if isinstance(media, dict) else None) or None,
             "from_screensaver": False,
         }
     # startgameclip = screensaver demo clip: display-only, never a real session.
@@ -558,6 +562,19 @@ def command_loop(cfg):
         time.sleep(interval)
 
 
+# ── Now-playing relay (live game state, pushed on start/stop) ─────────────────
+def push_now_playing(cfg, payload):
+    """Push the box's live now-playing state. Best-effort (no buffer): a missed
+    update is corrected by the next start/stop event."""
+    url = endpoint_for(cfg, "now-playing")
+    ok = http_post_json(url, payload, cfg.get("token"), cfg.get("http_timeout_sec", 10))
+    log.info(
+        "now-playing %s -> %s",
+        "playing" if payload.get("playing") else "stopped",
+        "ok" if ok else "failed",
+    )
+
+
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
 def build_client():
     """Construct a paho client that works on both paho-mqtt 1.x and 2.x."""
@@ -610,8 +627,31 @@ def main():
         try:
             if ev["type"] == "game:start":
                 tracker.on_start(ev)
+                if not ev.get("from_screensaver"):
+                    push_now_playing(
+                        cfg,
+                        {
+                            "playing": True,
+                            "system": ev.get("system"),
+                            "system_full_name": ev.get("system_full_name"),
+                            "rom_path": ev.get("rom_path"),
+                            "game_name": ev.get("game_name"),
+                            "image_path": ev.get("image_path"),
+                            "emulator": ev.get("emulator"),
+                            "started_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
             elif ev["type"] == "game:stop":
                 tracker.on_stop(ev)
+                push_now_playing(
+                    cfg,
+                    {
+                        "playing": False,
+                        "system": ev.get("system"),
+                        "rom_path": ev.get("rom_path"),
+                        "game_name": ev.get("game_name"),
+                    },
+                )
         except Exception as e:  # never let a bad event kill the loop
             log.error("event handling error: %s", e)
 

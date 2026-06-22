@@ -169,6 +169,13 @@
       "when": 1782074878437,
       "tag": "0023_special_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1782077640347,
+      "tag": "0024_tiny_calypso",
+      "breakpoints": true
     }
   ]
 }
