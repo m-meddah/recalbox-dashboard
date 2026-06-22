@@ -176,6 +176,13 @@
       "when": 1782077640347,
       "tag": "0024_tiny_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1782107021454,
+      "tag": "0025_curious_beast",
+      "breakpoints": true
     }
   ]
 }

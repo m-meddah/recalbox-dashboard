@@ -17,6 +17,7 @@ phases. The parsing/pairing logic mirrors the existing TS implementation:
   - apps/dashboard/lib/scrobbler/session-manager.ts (open/close, min-duration, auto-close)
 """
 
+import base64
 import glob
 import json
 import logging
@@ -58,6 +59,8 @@ def load_config():
         "snapshot_interval_sec": 60,
         "collection_interval_sec": 21600,
         "command_poll_interval_sec": 10,
+        "artwork_poll_interval_sec": 30,
+        "artwork_max_bytes": 4000000,
     }
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -575,6 +578,48 @@ def push_now_playing(cfg, payload):
     )
 
 
+# ── Artwork upload (request-driven: cloud marks "wanted", agent uploads) ──────
+def upload_artwork(cfg, box_path):
+    """Read one box image file and upload its bytes to the cloud, which stores it
+    in object storage. Bounded by artwork_max_bytes (respects the cloud body limit)."""
+    if not box_path.startswith("/recalbox/"):
+        return  # defense-in-depth: only ever read from the share
+    try:
+        with open(box_path, "rb") as f:
+            raw = f.read()
+    except OSError as e:
+        log.warning("artwork read failed %s: %s", box_path, e)
+        return
+    max_bytes = int(cfg.get("artwork_max_bytes", 4000000))
+    if len(raw) == 0 or len(raw) > max_bytes:
+        log.info("artwork skip %s (%d bytes)", box_path, len(raw))
+        return
+    payload = {"box_path": box_path, "data": base64.b64encode(raw).decode("ascii")}
+    url = endpoint_for(cfg, "artwork")
+    ok = http_post_json(url, payload, cfg.get("token"), cfg.get("http_timeout_sec", 10))
+    log.info("artwork %s -> %s", box_path, "ok" if ok else "failed")
+
+
+def artwork_loop(cfg):
+    """Poll the cloud for artwork browsers requested but we haven't uploaded yet,
+    and upload each. Lazy/on-demand — no bulk sweep."""
+    interval = int(cfg.get("artwork_poll_interval_sec", 30))
+    if interval <= 0:
+        log.info("Artwork upload disabled (artwork_poll_interval_sec<=0)")
+        return
+    url = endpoint_for(cfg, "artwork")
+    token = cfg.get("token")
+    timeout = cfg.get("http_timeout_sec", 10)
+    while True:
+        try:
+            data = http_get_json(url, token, timeout)
+            for box_path in (data or {}).get("wanted") or []:
+                upload_artwork(cfg, box_path)
+        except Exception as e:  # never let the thread die
+            log.error("artwork_loop error: %s", e)
+        time.sleep(interval)
+
+
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
 def build_client():
     """Construct a paho client that works on both paho-mqtt 1.x and 2.x."""
@@ -612,6 +657,11 @@ def main():
         log.info("Collection sync disabled")
     threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
     log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 10))
+    if int(cfg.get("artwork_poll_interval_sec", 30)) > 0:
+        threading.Thread(target=artwork_loop, args=(cfg,), daemon=True).start()
+        log.info("Artwork upload poll every %ss", cfg.get("artwork_poll_interval_sec", 30))
+    else:
+        log.info("Artwork upload disabled")
 
     def on_connect(client, userdata, flags, *args):
         log.info("MQTT connected, subscribing to %s", ES_EVENT_TOPIC)

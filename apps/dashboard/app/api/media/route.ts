@@ -1,4 +1,6 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { db } from '@/lib/db'
+import { getArtwork, markWanted } from '@/lib/db/artwork'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { shellQuote } from '@/lib/recalbox/shell'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
@@ -40,6 +42,29 @@ export async function GET(request: Request) {
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
 		return new Response('No Recalbox configured', { status: 503 })
+	}
+
+	// Serverless path: artwork is mirrored to object storage by the agent. If we
+	// have it, redirect to the stored URL; otherwise mark it "wanted" so the agent
+	// uploads it on its next poll (request-driven, lazy).
+	const stored = await getArtwork(db, recalboxId, filePath).catch(() => undefined)
+	if (stored?.url) {
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: new URL(stored.url, request.url).toString(),
+				'Cache-Control': 'public, max-age=3600',
+			},
+		})
+	}
+	await markWanted(db, recalboxId, filePath).catch(() => {})
+
+	// When SSH media is disabled (deployed serverless), don't try to reach the box.
+	if (process.env.AGENT_ONLY_MEDIA === '1') {
+		return new Response('Image pending upload', {
+			status: 404,
+			headers: { 'Cache-Control': 'public, max-age=30' },
+		})
 	}
 
 	const ssh = getSshClient(recalboxId, 'media')

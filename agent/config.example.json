@@ -8,5 +8,7 @@
 	"http_timeout_sec": 10,
 	"snapshot_interval_sec": 60,
 	"collection_interval_sec": 21600,
-	"command_poll_interval_sec": 10
+	"command_poll_interval_sec": 10,
+	"artwork_poll_interval_sec": 30,
+	"artwork_max_bytes": 4000000
 }

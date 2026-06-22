@@ -607,4 +607,25 @@ export const nowPlaying = sqliteTable('now_playing', {
 	updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
 })
 
+/**
+ * Game artwork mirrored to object storage. Keyed by (recalbox, box file path).
+ * `url` null = "wanted" (a browser requested it but it isn't uploaded yet) → the
+ * agent polls these, reads the local file and uploads it (request-driven, lazy).
+ */
+export const artwork = sqliteTable(
+	'artwork',
+	{
+		recalboxId: text('recalbox_id').notNull(),
+		boxPath: text('box_path').notNull(),
+		url: text('url'),
+		contentType: text('content_type'),
+		wantedAt: int('wanted_at', { mode: 'timestamp' }),
+		uploadedAt: int('uploaded_at', { mode: 'timestamp' }),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.recalboxId, t.boxPath] }),
+		wantedIdx: index('idx_artwork_recalbox_uploaded').on(t.recalboxId, t.uploadedAt),
+	}),
+)
+
 export * from '@/lib/auth/auth-schema'
