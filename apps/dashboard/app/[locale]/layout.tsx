@@ -18,6 +18,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner'
 import { routing } from '@/i18n/routing'
 import { canControlRecalbox, getViewableRecalboxIds, isAdmin } from '@/lib/auth/ownership'
+import { isServerlessMode } from '@/lib/serverless'
 import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
@@ -77,6 +78,8 @@ export default async function LocaleLayout({ children, params }: Props) {
 	const activeRecalboxId = await getActiveRecalboxId()
 	const canControl = user && activeRecalboxId ? canControlRecalbox(user, activeRecalboxId) : false
 	const showAdmin = user ? isAdmin(user) : false
+	// Serverless: no SSH to the box — hide live-SSH UI (power, recalbox.conf editor).
+	const serverless = isServerlessMode()
 
 	return (
 		<html lang={locale} className={cn('font-sans', roboto.variable)} suppressHydrationWarning>
@@ -86,14 +89,14 @@ export default async function LocaleLayout({ children, params }: Props) {
 						<RecalboxEventsProvider>
 							<CanControlProvider value={canControl}>
 								<SidebarProvider>
-									<AppSidebar showAdmin={showAdmin} />
+									<AppSidebar showAdmin={showAdmin} serverless={serverless} />
 									<SidebarInset>
 										<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
 											<SidebarTrigger className="-ml-1" />
 											<div className="ml-auto flex items-center gap-2">
 												<NotificationBell />
 												<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
-												<PowerControls />
+												{!serverless && <PowerControls />}
 											</div>
 										</header>
 										<FeedbackPromptProvider>{children}</FeedbackPromptProvider>

@@ -3,6 +3,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
 import { CONFIG_SECTIONS } from '@/lib/recalbox/config-schema'
+import { isServerlessMode } from '@/lib/serverless'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
@@ -16,6 +17,8 @@ type Props = {
 export default async function ConfigSectionPage({ params }: Props) {
 	const { locale, section } = await params
 	setRequestLocale(locale as (typeof routing.locales)[number])
+	// Live recalbox.conf editing needs SSH to the box; unavailable in serverless mode.
+	if (isServerlessMode()) notFound()
 
 	const meta = CONFIG_SECTIONS.find((s) => s.id === section)
 	if (!meta) notFound()

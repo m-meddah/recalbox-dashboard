@@ -2,8 +2,10 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
 import { CONFIG_SECTIONS } from '@/lib/recalbox/config-schema'
+import { isServerlessMode } from '@/lib/serverless'
 import { ChevronRight } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +16,8 @@ type Props = {
 export default async function ConfigurationIndexPage({ params }: Props) {
 	const { locale } = await params
 	setRequestLocale(locale as (typeof routing.locales)[number])
+	// Live recalbox.conf editing needs SSH to the box; unavailable in serverless mode.
+	if (isServerlessMode()) notFound()
 	const t = await getTranslations('config')
 
 	return (

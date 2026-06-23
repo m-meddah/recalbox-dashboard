@@ -44,14 +44,19 @@ const NAV_ITEMS = [
 	{ href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const
 
-export function AppSidebar({ showAdmin = false }: { showAdmin?: boolean }) {
+export function AppSidebar({
+	showAdmin = false,
+	serverless = false,
+}: { showAdmin?: boolean; serverless?: boolean }) {
 	const t = useTranslations('nav')
 	const pathname = usePathname()
 	const { isMobile, setOpenMobile } = useSidebar()
 
+	// Serverless: live recalbox.conf editing needs SSH to the box → hide it.
+	const base = serverless ? NAV_ITEMS.filter((i) => i.href !== '/configuration') : NAV_ITEMS
 	const navItems = showAdmin
-		? [...NAV_ITEMS, { href: '/admin', labelKey: 'admin', icon: ShieldUser } as const]
-		: NAV_ITEMS
+		? [...base, { href: '/admin', labelKey: 'admin', icon: ShieldUser } as const]
+		: base
 
 	return (
 		<Sidebar collapsible="icon">
