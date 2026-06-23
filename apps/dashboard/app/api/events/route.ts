@@ -21,6 +21,10 @@ import type { RecalboxMqttClient } from '@/lib/recalbox/mqtt-client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+// Vercel caps a streaming function's lifetime; ask for the max (capped to the
+// plan). We self-close a bit before this so the client reconnects on a clean EOF
+// instead of an abrupt platform kill mid-message.
+export const maxDuration = 300
 
 export async function GET(request: Request) {
 	if (!(await getUser())) return unauthorized()
@@ -214,12 +218,23 @@ export async function GET(request: Request) {
 				}
 			}, 15000)
 
+			// Reconnect proactively before the platform kills a long stream.
+			const lifespan = setTimeout(
+				() => {
+					try {
+						controller.close()
+					} catch {}
+				},
+				(maxDuration - 10) * 1000,
+			)
+
 			request.signal.addEventListener('abort', () => {
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
 				clearInterval(feedbackPollInterval)
 				clearInterval(nowPlayingPollInterval)
 				clearInterval(connectionPollInterval)
+				clearTimeout(lifespan)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
 				controller.close()
