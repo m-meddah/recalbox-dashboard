@@ -40,15 +40,15 @@ RAW="${RAW%\"}"; RAW="${RAW#\"}"
 BETTER_AUTH_SECRET="$RAW" pnpm --filter @recalbox/dashboard exec tsx scripts/encrypt-credentials.ts
 ```
 
-Tests run in the `apps/dashboard` workspace; run a single test file:
+Tests run in the `apps/dashboard` workspace; run a single test file (use `pnpm exec`, there is no `vitest`/`drizzle-kit` package script):
 ```bash
-pnpm --filter @recalbox/dashboard vitest run lib/recalbox/__tests__/events.test.ts
+cd apps/dashboard && pnpm exec vitest run lib/recalbox/__tests__/events.test.ts
 ```
 
-Database migrations via Drizzle Kit:
+Database migrations via Drizzle Kit (env-aware: targets Turso when `TURSO_DATABASE_URL` is set, else local SQLite):
 ```bash
-pnpm --filter @recalbox/dashboard drizzle-kit generate
-pnpm --filter @recalbox/dashboard drizzle-kit migrate
+cd apps/dashboard && pnpm exec drizzle-kit generate
+cd apps/dashboard && pnpm exec drizzle-kit migrate
 ```
 
 Build the scrobbler as a standalone bundle (for Docker/production):
@@ -73,16 +73,25 @@ docker run --rm -p 3000:3000 \
 ### Monorepo
 
 ```
-apps/dashboard/        # @recalbox/dashboard — Next.js 16 App Router web app
-packages/scraper-core/ # @recalbox/scraper-core — shared scraping lib (stub)
+apps/dashboard/  # @recalbox/dashboard — Next.js 16 App Router web app
+agent/           # sr-agent — dependency-free Python agent that runs ON each Recalbox (serverless edition)
+docker/          # s6-overlay service definitions (single-container self-hosted deploy)
+docs/            # deployment, mesh-VPN, serverless & multi-user guides
 ```
 
-### Two separate processes
+### Two deployment models
+
+1. **Self-hosted (default)** — runs on a machine on your LAN (or reachable across homes via a mesh VPN); **pulls** from the Recalbox over SSH/MQTT and persists to **local SQLite**. This is the original model and the two-process setup below.
+2. **Serverless** — the Next.js app runs on Vercel against a **Turso/libSQL** cloud DB, and a **Python agent on each Recalbox pushes** data out over HTTPS (outbound → NAT-friendly, no always-on device at home). Enabled by env (`TURSO_DATABASE_URL`, `AGENT_ONLY_MEDIA=1`, …) — see `docs/serverless-deploy.md`. `lib/serverless.ts` `isServerlessMode()` turns SSH-only features off (media proxy → object storage; power/recalbox.conf editing → the agent command queue), so their UI is hidden.
+
+### Two separate processes (self-hosted)
 
 The dashboard runs as two independent processes that share the same SQLite database (WAL mode, concurrent access safe):
 
 1. **Next.js app** (`pnpm dev`) — serves the UI and API routes
 2. **Scrobbler daemon** (`pnpm scrobbler:dev`) — listens to MQTT events and writes sessions to SQLite even when no browser is open
+
+In serverless mode the scrobbler is **not** needed — the on-box agent does the scrobbling and pushes outbound.
 
 ### Key directories in `apps/dashboard/`
 
@@ -114,9 +123,26 @@ Recalbox MQTT broker
   → components/now-playing.tsx        (consumes context, no direct polling)
 ```
 
+In serverless mode there is no cloud→box MQTT, so `app/api/events/route.ts` also polls the `now_playing` table every 5s and emits `game:start`/`game:stop` for boxes whose MQTT is disconnected, and derives connection status from agent-token `lastUsedAt` recency — the now-playing UI works unchanged. The SSE route sets `maxDuration` and self-closes before it so the EventSource reconnects cleanly on Vercel.
+
 ### Media proxy
 
 `GET /api/media?path=/recalbox/share/...` proxies game cover images from the Recalbox filesystem over SSH (`base64 -w 0`). Paths are whitelisted to `/recalbox/share/` and shell-quoted before execution. A `test -f` check runs first to return a clean 404 for missing files.
+
+In serverless mode (`AGENT_ONLY_MEDIA=1`), `/api/media` instead redirects to artwork mirrored to object storage (`lib/storage`: Vercel Blob, or a local-fs dev adapter served by `/api/blob`); a miss marks the path "wanted" and the agent uploads it on its next poll (request-driven, no bulk sweep).
+
+### On-box agent (serverless edition)
+
+`agent/agent.py` is a dependency-free Python agent that runs on each Recalbox (RecalboxOS ships Python 3 + paho-mqtt; Node is absent). Enrolled with a per-box token (minted from the Recalbox **edit page** or `scripts/create-agent-token.ts`), it pushes outbound over HTTPS — every agent route authenticates with a `Bearer` token resolved to a `recalbox_id` (the body's recalbox id is ignored):
+
+- `POST /api/agent/ingest` — play sessions (pairs MQTT game:start/stop locally; buffers + retries offline)
+- `POST /api/agent/snapshots` — CPU/RAM/temp/uptime read from `/proc` + `/sys`
+- `POST /api/agent/collection` — raw `gamelist.xml` (+ userdata), parsed/upserted server-side; large lists are chunked under the cloud body limit
+- `POST /api/agent/now-playing` — live game state
+- `GET/POST /api/agent/artwork` — poll "wanted" images / upload them
+- `GET /api/agent/commands` + `POST /api/agent/commands/result` — poll the command queue, report results
+
+Token management: `/api/recalboxes/[id]/agent-tokens`. Enqueue control commands: `/api/recalboxes/[id]/commands` (owner-only). See `agent/README.md` and `docs/serverless-deploy.md`.
 
 ### i18n
 
@@ -130,17 +156,23 @@ The active instance is selected via an `active_recalbox_id` cookie so each brows
 
 In Docker, both the Next.js app and the scrobbler run inside a **single container** managed by [s6-overlay](https://github.com/just-containers/s6-overlay); service definitions live in `docker/s6-rc.d/`.
 
-### Database schema (SQLite via Drizzle)
+### Database schema (Drizzle; local SQLite or Turso/libSQL)
+
+The DB driver is env-driven (`lib/db/index.ts`): local **SQLite** by default, or **Turso/libSQL** when `TURSO_DATABASE_URL` is set. In serverless the web process uses a libSQL **embedded replica** (local reads, write-through to Turso); the scrobbler and one-shot scripts use direct-remote. Kill switch: `TURSO_DISABLE_REPLICA=1`.
 
 - `recalboxes` — registered Recalbox instances (connection params, color, emoji, archived flag)
-- `sessions` — game play sessions (start/end timestamps, romPath, system, duration, recalbox_id)
-- `games` — collection imported from `gamelist.xml` files via SSH (metadata, artwork paths, favorites, region)
-- `system_snapshots` — periodic CPU/RAM/temp snapshots from SSH
+- `sessions` — game play sessions (start/end timestamps, romPath, system, duration, recalbox_id; `source` can be `agent`)
+- `games` — collection imported from `gamelist.xml` (over SSH self-hosted, or pushed by the agent)
+- `system_snapshots` — periodic CPU/RAM/temp snapshots (SSH, or agent push)
 - `settings` — flat key-value store for all app config (format: `scope.key`)
 - `notifications` / `push_subscriptions` — in-app and Web Push notification state
 - `ra_achievements` / `ra_game_progress` / `ra_game_mapping` / `ra_cache` — RetroAchievements sync data
 - `sr_cache` — Super Retrogamers page lookup cache
 - `wrapped_cache` — pre-generated annual recap data keyed by `(year, locale)`
+- `agent_tokens` — per-Recalbox machine tokens for the on-box agent (sha256-hashed at rest)
+- `agent_commands` — remote-control command queue (power/conf/launch), agent-polled
+- `now_playing` — live game state pushed by the agent (relayed to browsers via the SSE DB poll)
+- `artwork` — game artwork mirrored to object storage (box path → stored URL; null = "wanted")
 
 ### Configuration
 

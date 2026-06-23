@@ -1,16 +1,19 @@
 # Recalbox Dashboard v2.0.0
 
-_Released 2026-06-17_
+_Released 2026-06-23_
 
 **Web Manager design language, BIOS health, live monitoring, a revamped collection, a Recalbox
-config editor, game launch — and a new online, multi-user family edition with accounts.**
+config editor, game launch, a new online multi-user family edition with accounts — and an
+optional serverless edition you can run from anywhere, with nothing always-on at home.**
 
 This is a major release. The whole UI now shares the visual DNA of the built-in Recalbox
 [Web Manager](https://wiki.recalbox.com/fr/basic-usage/features/webmanager), so your users
 never feel like they've landed in a different app. On top of the reskin, 2.0 mirrors several
 Web Manager views in its own design, lets you **edit `recalbox.conf` and launch games**, and
 introduces an **invitation-only multi-user mode** so a whole family can share one install —
-across homes — over a mesh VPN.
+across homes — over a mesh VPN. And for the first time you can run it **serverless** — on Vercel,
+with a tiny agent on the Recalbox that pushes data to the cloud — so you can check in from
+anywhere with **nothing always-on at home**.
 
 > **Upgrading from 1.x?** Your sessions, games and settings carry over untouched. Two things
 > are new in 2.0: the database picks up a few additional tables (auth, invitations, per-machine
@@ -102,6 +105,33 @@ even across different homes:
   AES-256-GCM, keyed from `BETTER_AUTH_SECRET` (or a separate `CREDENTIALS_SECRET`). A backfill
   script encrypts any existing plaintext in place.
 
+### Serverless edition — run it from anywhere, nothing always-on at home ☁️
+
+Self-hosting on a LAN box (or across homes over a mesh VPN) is still the simple default — but 2.0
+adds an **optional serverless edition** so you can consult your retrogaming from anywhere, even
+with the Recalbox off, and **without keeping any extra device running at home**.
+
+- **On-Recalbox agent** — a dependency-free Python agent (`agent/`) runs on the Recalbox itself
+  (RecalboxOS already ships Python 3 + MQTT; it survives OS updates and reboots via a boot hook).
+  It subscribes to the local MQTT broker and **pushes data outbound over HTTPS**, so it traverses
+  home NAT with no port-forwarding.
+- **What it pushes** — play sessions (scrobbled on the box, buffered + retried while offline),
+  system-monitoring snapshots, the game collection (gamelists, split into chunks for large
+  systems), and live **now playing** state (relayed to browsers so the existing UI is unchanged).
+- **Remote control without SSH** — reboot/shutdown and `recalbox.conf` edits are queued in the
+  cloud; the agent **polls** the queue, applies them on the box, and reports back. (Game launch is
+  wired end-to-end; its device-side executor is pending.)
+- **Artwork via object storage** — game art is mirrored to object storage (Vercel Blob) on demand:
+  the first request for a cover marks it "wanted", the agent uploads it, and it's served from the
+  CDN thereafter — replacing the live SSH media proxy.
+- **Cloud stack** — the Next.js app runs on **Vercel** against a **Turso/libSQL** database (a gentle
+  migration of the existing Drizzle schema). Per-Recalbox **agent enrolment tokens** are minted
+  from the Recalbox edit page, and the whole multi-user layer (accounts, ownership, encrypted
+  credentials) applies unchanged. Live-SSH-only UI (power buttons, the config editor) is hidden in
+  this mode since it's superseded by the agent.
+
+Full runbook: [docs/serverless-deploy.md](docs/serverless-deploy.md).
+
 ### Edit your Recalbox config (`/configuration`) 🛠️
 
 A new configuration editor with Web Manager parity: read and write `recalbox.conf` settings
@@ -171,6 +201,11 @@ caching), feeding the existing collection touchpoints.
 | `ALL /api/auth/[...all]` | Better Auth handler (sign-in, session, account) |
 | `POST / GET / DELETE /api/invitations` | Create, list, and revoke invitations (admin) |
 | `GET /api/invitations/validate` · `POST /api/invitations/accept` | Validate a token and accept an invite (public) |
+| `POST /api/agent/ingest` · `/snapshots` · `/collection` · `/now-playing` | Agent push: sessions, monitoring, collection, live now-playing (serverless; Bearer token) |
+| `GET / POST /api/agent/artwork` | Agent pulls "wanted" artwork paths / uploads images to object storage |
+| `GET /api/agent/commands` · `POST /api/agent/commands/result` | Agent polls the remote-control queue and reports results |
+| `GET / POST / DELETE /api/recalboxes/:id/agent-tokens` | Mint / list / revoke a box's agent enrolment tokens (owner) |
+| `POST / GET /api/recalboxes/:id/commands` | Enqueue / list remote-control commands (owner) |
 
 ### Connections
 
@@ -182,6 +217,10 @@ caching), feeding the existing collection touchpoints.
 
 Game launch reaches EmulationStation's UDP listener (port **1337**), but the datagram is sent
 from the box over SSH — no extra port needs to be open from the dashboard host.
+
+> The table above is the **self-hosted** model. In the **serverless edition** the cloud never
+> connects to the box: the on-Recalbox agent makes **outbound** HTTPS calls instead, so nothing at
+> home needs to be reachable.
 
 ---
 
@@ -208,6 +247,14 @@ Use the `docker-compose.saas.yml` overlay and expose the dashboard over public H
 Tailscale Funnel — full walk-through (secrets, trusted origins, rate limiting) in
 [docs/saas-deployment.md](docs/saas-deployment.md). To reach Recalbox machines in other homes,
 see [docs/mesh-vpn-setup.md](docs/mesh-vpn-setup.md).
+
+### Serverless edition (Vercel + Turso)
+
+Run the dashboard on Vercel against a Turso/libSQL DB, with the Python agent on each Recalbox —
+no always-on host, no port-forwarding. Set `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`
+(plus `TURSO_DISABLE_REPLICA=1` for the build), `BLOB_READ_WRITE_TOKEN`, `AGENT_ONLY_MEDIA=1` and
+the `BETTER_AUTH_*` vars; bootstrap your admin account; then enrol each box's agent from its
+Recalbox edit page. Full step-by-step in [docs/serverless-deploy.md](docs/serverless-deploy.md).
 
 ### From source
 

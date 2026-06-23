@@ -5,7 +5,9 @@ statistics, achievement progress, BIOS health, live monitoring, a browsable game
 collection you can launch from your couch, and an annual recap of your retrogaming
 year. Supports multiple Recalbox instances from a single dashboard.
 
-Runs on a machine on the same local network as your Recalbox — **not** on the Recalbox itself.
+Run it **self-hosted** on a machine on your network (not on the Recalbox itself) — or, new in 2.0,
+**serverless** (on Vercel, with a tiny agent on the Recalbox) so you can check in from anywhere
+with nothing extra always-on at home. See [Deployment models](#deployment-models).
 
 > **🚀 Version 2.0 — Web Manager design language, config editing & a multi-user family edition**
 >
@@ -16,8 +18,9 @@ Runs on a machine on the same local network as your Recalbox — **not** on the 
 > (per-core CPU + storage), a **revamped collection** (all systems with ≥1 ROM, region
 > filter, box-3D art), the ability to **launch games on the Recalbox directly from the
 > dashboard**, a **`recalbox.conf` config editor**, and a new **invitation-only multi-user
-> mode** so a whole family can share one install — across homes — over a mesh VPN. See
-> [What's new in 2.0](#whats-new-in-20).
+> mode** so a whole family can share one install — across homes — over a mesh VPN. It also adds
+> an optional **serverless edition** (Vercel + Turso + a small on-Recalbox agent) to consult your
+> data from anywhere with nothing always-on at home. See [What's new in 2.0](#whats-new-in-20).
 >
 > **Heads-up for upgraders:** every install now sits behind a login. Set a `BETTER_AUTH_SECRET`
 > and create one account — then it behaves like before.
@@ -101,11 +104,35 @@ Use both: the Web Manager for ops, this dashboard for analytics.
   [docs/saas-deployment.md](docs/saas-deployment.md) and [docs/mesh-vpn-setup.md](docs/mesh-vpn-setup.md).
 - **Super Retrogamers real API client** — the integration moved from a stub to a real,
   cached API client with per-ROM-region data.
+- **Serverless edition (optional)** — run the dashboard on **Vercel** against a **Turso/libSQL**
+  cloud DB, with a dependency-free **Python agent on each Recalbox** that *pushes* data out over
+  HTTPS (sessions, monitoring, collection, now-playing) and handles remote control via a polled
+  command queue and artwork via object storage. No port-forwarding and **nothing always-on at
+  home** — you can check in even when the Recalbox is off. Self-hosted (below) stays the simple
+  default. See [Deployment models](#deployment-models) and [docs/serverless-deploy.md](docs/serverless-deploy.md).
 
 > **Upgrading from 1.x:** your sessions, games and settings carry over. Two things are new in
 > 2.0 — the database gains a few tables (auth, invitations, per-machine ownership) applied
 > automatically on first boot, and **every install now requires a login**: set a
 > `BETTER_AUTH_SECRET` and create one account. See [Getting started](#getting-started).
+
+## Deployment models
+
+The dashboard supports two deployment models — pick one:
+
+| | **Self-hosted** (default) | **Serverless** (new in 2.0) |
+| --- | --- | --- |
+| Runs on | A machine on your network (Docker, PM2, systemd) | Vercel (the app) + a tiny Python agent on each Recalbox |
+| Database | Local SQLite | Turso / libSQL (cloud) |
+| Data flow | The app **pulls** from the box over SSH/MQTT | The agent **pushes** out over HTTPS (NAT-friendly) |
+| Always-on at home | The host machine | **Nothing** (the box, only while it's on) |
+| Reach a box across homes | Mesh VPN (Tailscale) | Built in (outbound push) |
+| Best for | A homelab / always-on box on your LAN | "Check my retrogaming from anywhere, no extra device" |
+
+**Self-hosted** is the simple default — follow [Installation](#installation) below. For the
+**serverless edition**, follow the runbook in [docs/serverless-deploy.md](docs/serverless-deploy.md)
+(Vercel + Turso + Vercel Blob; enrol each box's agent from its Recalbox edit page). The whole
+multi-user layer (accounts, ownership, encrypted credentials) works in both.
 
 ## Installation
 
@@ -202,8 +229,9 @@ See [Getting started](#getting-started) below.
 recalbox-dashboard/
 ├── apps/
 │   └── dashboard/       # @recalbox/dashboard — Next.js 16 web app
+├── agent/               # sr-agent — Python agent that runs ON each Recalbox (serverless edition)
 ├── docker/              # s6-overlay service definitions and migration script
-└── docs/                # deployment, mesh-VPN & multi-user (SaaS) guides
+└── docs/                # deployment, mesh-VPN, serverless & multi-user (SaaS) guides
 ```
 
 ## Prerequisites
@@ -274,6 +302,11 @@ Game launch reaches EmulationStation's UDP listener (port **1337**) — but the 
 sent **from the box** over the existing SSH connection (a fresh client-side UDP send can't
 reliably resolve `recalbox.local`), so no extra port needs to be open from the dashboard host.
 
+> These inbound connections apply to the **self-hosted** model. In the **serverless edition** the
+> cloud never connects to the box: the on-Recalbox agent makes **outbound** HTTPS calls instead
+> (sessions, monitoring, collection, now-playing), polls a command queue for remote control, and
+> uploads artwork to object storage — so nothing at home needs to be reachable.
+
 ## Stack
 
 - **Next.js 16** — App Router, Turbopack
@@ -291,6 +324,11 @@ The dashboard runs as two independent processes sharing the same SQLite database
 2. **Scrobbler daemon** — listens to MQTT events and writes sessions to SQLite, even when no browser is open
 
 In Docker, both are managed by [s6-overlay](https://github.com/just-containers/s6-overlay) inside a single container.
+
+> **Serverless edition:** instead of these two long-running processes, the Next.js app runs on
+> Vercel against Turso/libSQL and a dependency-free Python agent on each Recalbox *pushes* data
+> out over HTTPS — no scrobbler daemon, no always-on host. The same DB driver (`lib/db`) targets
+> Turso when `TURSO_DATABASE_URL` is set. See [docs/serverless-deploy.md](docs/serverless-deploy.md).
 
 ### Real-time events
 
