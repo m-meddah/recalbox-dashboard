@@ -58,6 +58,7 @@ def load_config():
         "http_timeout_sec": 10,
         "snapshot_interval_sec": 60,
         "collection_interval_sec": 21600,
+        "collection_max_xml_bytes": 3500000,
         "command_poll_interval_sec": 10,
         "artwork_poll_interval_sec": 30,
         "artwork_max_bytes": 4000000,
@@ -416,21 +417,56 @@ def _read_text(path):
         return None
 
 
+def iter_gamelist_chunks(xml, max_bytes):
+    """Split a gamelist into <gameList>-wrapped chunks, each holding whole <game>
+    blocks under ~max_bytes. Used only for systems whose full gamelist exceeds the
+    cloud body limit; the server upserts per romPath so chunks accumulate (nothing
+    is wiped). Yields nothing when there are no <game> blocks (caller sends whole)."""
+    blocks = re.findall(r"<game\b[^>]*>.*?</game>", xml, re.DOTALL)
+    if not blocks:
+        return
+    header, footer = '<?xml version="1.0"?>\n<gameList>\n', "\n</gameList>\n"
+    cur, size = [], 0
+    for b in blocks:
+        bl = len(b.encode("utf-8"))
+        if cur and size + bl > max_bytes:
+            yield header + "\n".join(cur) + footer
+            cur, size = [], 0
+        cur.append(b)
+        size += bl
+    if cur:
+        yield header + "\n".join(cur) + footer
+
+
 def push_collection(cfg):
     """Ship each system's gamelist.xml (+ userdata.ini) to the cloud, which parses
-    and upserts. One request per system keeps payloads bounded; final=true on the
-    last one triggers the inherited-stats refresh once."""
+    and upserts. Large gamelists are split into chunks under the cloud body limit
+    (~4.5 MB on Vercel); final=true on the very last request triggers the
+    inherited-stats refresh once."""
     url = endpoint_for(cfg, "collection")
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
+    max_xml = int(cfg.get("collection_max_xml_bytes", 3_500_000))
     paths = find_gamelists()
     log.info("collection: %d gamelist(s) found", len(paths))
-    last = len(paths) - 1
-    for i, gpath in enumerate(paths):
+
+    # Build the whole job list first so final=true lands on the actual last request.
+    jobs = []  # list of (gpath, xml_or_chunk, userdata)
+    for gpath in paths:
         xml = _read_text(gpath)
         if xml is None:
             continue
         userdata = _read_text(os.path.join(os.path.dirname(gpath), "gamelist-userdata.ini"))
+        if len(xml.encode("utf-8")) > max_xml:
+            chunks = list(iter_gamelist_chunks(xml, max_xml)) or [xml]
+            log.info("collection: %s large, split into %d chunk(s)", gpath, len(chunks))
+        else:
+            chunks = [xml]
+        for c in chunks:
+            jobs.append((gpath, c, userdata))
+
+    last = len(jobs) - 1
+    for i, (gpath, xml, userdata) in enumerate(jobs):
         payload = {
             "gamelist_path": gpath,
             "gamelist_xml": xml,
@@ -438,7 +474,7 @@ def push_collection(cfg):
             "final": i == last,
         }
         ok = http_post_json(url, payload, token, timeout)
-        log.info("collection: %s -> %s", gpath, "ok" if ok else "failed")
+        log.info("collection: %s [%d/%d] -> %s", gpath, i + 1, len(jobs), "ok" if ok else "failed")
 
 
 def collection_loop(cfg):
