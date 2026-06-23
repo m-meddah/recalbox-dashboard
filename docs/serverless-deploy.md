@@ -109,27 +109,28 @@ benefit from anyway, so direct-remote is the right runtime mode too.)
 - **SSH media proxy**: off via `AGENT_ONLY_MEDIA=1`. Covers populate lazily as the
   agent fulfills "wanted" uploads (first view of a cover queues it).
 - **Live SSH control** (power / recalbox.conf): superseded by the **command queue**
-  (edit page → Remote control). The legacy SSH `PowerControls` and
-  `/configuration` editor still call `/api/system/power` & `/api/recalbox/config`,
-  which won't reach the box in serverless mode — gate or remove them (see "Known
-  limitations").
+  (edit page → Remote control), and the legacy SSH `PowerControls` + `/configuration`
+  UI are **automatically hidden** when `AGENT_ONLY_MEDIA=1`.
 
-## Known limitations / follow-ups
+## Resolved follow-ups (already in the build)
 
-- **Connection / "LIVE" status**: still derived from the (now-absent) cloud→box
-  MQTT, so it can read "offline" even while data flows. Derive agent liveness from
-  recent snapshot/now-playing `updatedAt` instead. *(code follow-up)*
-- **SSE on Vercel**: `/api/events` is a long-lived stream; Vercel functions have a
-  max duration, so it will disconnect periodically (the client auto-reconnects, and
-  the now-playing/notification DB polls re-emit state on reconnect). For crisp
-  realtime, consider a short browser poll or a dedicated SSE host later.
-- **SSH-only UI** (`PowerControls`, `/configuration`): hide them when
-  `AGENT_ONLY_MEDIA`/serverless, or repoint conf editing to the command queue. *(code follow-up)*
-- **Large gamelists > ~4.5 MB** exceed Vercel's request body limit (observed:
-  fbneo/psx/nds on the test box). The agent ships one system per request; very
-  large systems need chunking or a raised limit. *(code follow-up)*
+- **Connection / "LIVE" status** now derives from agent liveness (the token's
+  `lastUsedAt`, touched on every agent request) when the cloud→box MQTT is down. *(70a5091)*
+- **SSE on Vercel**: `/api/events` sets `maxDuration` and **self-closes ~10 s before
+  it**, so the EventSource reconnects on a clean EOF instead of an abrupt platform
+  kill; reconnect re-emits initial state. *(d5fabe1)*
+- **SSH-only UI** (`PowerControls`, `/configuration`) is **hidden** when
+  `AGENT_ONLY_MEDIA=1` (`isServerlessMode()`); the config pages also 404. *(4ab210e)*
+- **Large gamelists (> ~4.5 MB)** are split into `<gameList>` chunks under
+  `collection_max_xml_bytes` (server upserts per romPath, so chunks accumulate). *(441cc49)*
+
+## Known limitations
+
 - **now-playing staleness**: if a game crashes without an `endgame` MQTT event the
   row stays "playing" until the next start/stop (no in-game heartbeat).
+- **Bulk artwork**: covers populate **lazily** (request-driven) — the whole
+  collection's art isn't pre-uploaded; the first view of each cover queues it for
+  the agent to upload.
 
 ## Post-deploy smoke checks
 
