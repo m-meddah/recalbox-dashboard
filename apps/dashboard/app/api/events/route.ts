@@ -1,6 +1,7 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db'
+import { AGENT_LIVENESS_MS, getAgentLastSeen } from '@/lib/db/agent-liveness'
 import { getAllNowPlaying, nowPlayingToEvent } from '@/lib/db/now-playing'
 import { feedbackService } from '@/lib/feedback/service'
 import { logger } from '@/lib/logger'
@@ -158,6 +159,29 @@ export async function GET(request: Request) {
 			const nowPlayingPollInterval = setInterval(pollNowPlaying, 5000)
 			pollNowPlaying()
 
+			// Serverless connection status: with no cloud→box MQTT, derive online from the
+			// agent's recency (token lastUsedAt). Only for boxes whose MQTT isn't connected.
+			const connOnline = new Map<string, boolean>()
+			const pollConnection = async () => {
+				try {
+					const lastSeen = await getAgentLastSeen(db)
+					const now = Date.now()
+					for (const recalboxId of recalboxIds) {
+						if (recalboxIdFilter && recalboxIdFilter !== recalboxId) continue
+						if (clients.get(recalboxId)?.isConnected) continue
+						const seen = lastSeen.get(recalboxId)
+						const online = seen ? now - seen.getTime() < AGENT_LIVENESS_MS : false
+						if (connOnline.get(recalboxId) === online) continue
+						connOnline.set(recalboxId, online)
+						sendConnectionStatus(recalboxId, online)
+					}
+				} catch (err) {
+					logger.error('Connection liveness poll failed', err)
+				}
+			}
+			const connectionPollInterval = setInterval(pollConnection, 5000)
+			pollConnection()
+
 			const sendFeedback = (feedbackId: number) => {
 				try {
 					controller.enqueue(
@@ -195,6 +219,7 @@ export async function GET(request: Request) {
 				clearInterval(pollInterval)
 				clearInterval(feedbackPollInterval)
 				clearInterval(nowPlayingPollInterval)
+				clearInterval(connectionPollInterval)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
 				controller.close()
