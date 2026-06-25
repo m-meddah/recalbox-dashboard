@@ -18,9 +18,13 @@ class IgdbSimilarityProvider implements SimilarityProvider {
 	async getSimilarToAny(gameIds: number[]): Promise<Set<number>> {
 		if (gameIds.length === 0) return new Set()
 
+		// Resolve every anchor in parallel: uncached anchors each trigger one IGDB
+		// fetch, so a sequential loop would stack their latencies. The discovery
+		// anchor set is broader than the comfort-game list, which makes this matter.
+		const lists = await Promise.all(gameIds.map((id) => this.getSimilarGamesInCollection(id)))
+
 		const result = new Set<number>()
-		for (const gameId of gameIds) {
-			const similar = await this.getSimilarGamesInCollection(gameId)
+		for (const similar of lists) {
 			for (const id of similar) result.add(id)
 		}
 		for (const id of gameIds) result.delete(id)

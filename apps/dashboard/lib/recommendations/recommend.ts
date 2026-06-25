@@ -14,7 +14,7 @@ import { matchHltbAsync } from '@/lib/hltb/match-single'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
-import { and, eq, gt, isNotNull } from 'drizzle-orm'
+import { and, count, eq, gt, isNotNull } from 'drizzle-orm'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
 import { selectFinalists } from './select-finalists'
 import { getSimilarityProvider } from './similarity-provider'
@@ -41,9 +41,11 @@ export function recommend(
 	return promise
 }
 
-async function computeRecommendations(
+export async function computeRecommendations(
 	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
+	opts: { persist?: boolean } = {},
 ): Promise<ScoredGame[]> {
+	const persist = opts.persist !== false
 	const [profile, activeSkips, gamesList, statsMap, ratings, igdbRatingsMap, hltbDurationsMap] =
 		await Promise.all([
 			getUserProfile(),
@@ -76,11 +78,25 @@ async function computeRecommendations(
 	const excludedGameIds = activeSkips.map((s) => s.gameId)
 	const recommendationCtx: RecommendationContext = { ...ctxInput, excludedGameIds }
 	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
+	const recentlyShown = await loadRecentlyShown()
 
 	const provider = await getSimilarityProvider()
-	const similarToComfortGames = await provider.getSimilarToAny(profile.comfortGames)
+	// In discovery mood we broaden the IGDB anchor set beyond the comfort games so
+	// the "similar to favorite" boost can pull in fresh, never-played titles instead
+	// of funnelling through the same handful of cached comfort anchors. Other moods
+	// keep the comfort-game anchors only.
+	const similarityAnchors =
+		ctxInput.mood === 'discovery'
+			? buildDiscoveryAnchors(profile.comfortGames, statsMap, ratingsMap)
+			: profile.comfortGames
+	const similarToComfortGames = await provider.getSimilarToAny(similarityAnchors)
 
-	const scoringCtx: ScoringContext = { profile, similarToComfortGames, recommendationCtx }
+	const scoringCtx: ScoringContext = {
+		profile,
+		similarToComfortGames,
+		recommendationCtx,
+		recentlyShown,
+	}
 
 	const scored: ScoredGame[] = []
 	for (const game of gamesList) {
@@ -109,7 +125,7 @@ async function computeRecommendations(
 
 	// Single batched INSERT — writes go to the Turso primary, so one round-trip
 	// instead of one per finalist.
-	if (finalists.length > 0) {
+	if (persist && finalists.length > 0) {
 		await db.insert(recommendationLog).values(
 			finalists.map((f) => ({
 				gameId: f.gameId,
@@ -122,11 +138,12 @@ async function computeRecommendations(
 		)
 	}
 
-	if (await isIgdbEnabled()) {
-		triggerLazyMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
+	if (persist) {
+		if (await isIgdbEnabled()) {
+			triggerLazyMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
+		}
+		triggerLazyHltbMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
 	}
-
-	triggerLazyHltbMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
 
 	return finalists
 }
@@ -158,6 +175,24 @@ async function loadHltbDurations(): Promise<Map<number, HltbDurations>> {
 	)
 }
 
+const ROTATION_WINDOW_HOURS = 12
+
+/**
+ * How many times each game was presented in the recent rotation window. Feeds the
+ * anti-repetition penalty so reshuffles surface fresh games instead of the same
+ * high-scoring finalists every time. Indexed on presented_at, so this stays cheap.
+ */
+async function loadRecentlyShown(): Promise<Map<number, number>> {
+	const cutoff = new Date(Date.now() - ROTATION_WINDOW_HOURS * 60 * 60 * 1000)
+	const rows = await db
+		.select({ gameId: recommendationLog.gameId, shows: count() })
+		.from(recommendationLog)
+		.where(gt(recommendationLog.presentedAt, cutoff))
+		.groupBy(recommendationLog.gameId)
+		.all()
+	return new Map(rows.map((r) => [r.gameId, r.shows]))
+}
+
 async function loadIgdbRatings(): Promise<Map<number, number>> {
 	const rows = await db
 		.select({ gameId: gameIgdbMapping.gameId, rating: igdbGameCache.rating })
@@ -183,6 +218,36 @@ async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {
 	for (const id of gameIds) {
 		if (!mappedSet.has(id)) matchHltbAsync(id)
 	}
+}
+
+const DISCOVERY_EXTRA_ANCHORS = 12
+
+/**
+ * Anchor set for the discovery similarity boost: the comfort games plus the user's
+ * strongest taste signals — `love`-rated games and the most-played titles (by
+ * inherited gamelist playtime, since the scrobbler may have no sessions yet). A
+ * wider seed pool means the IGDB "similar to favorite" boost reaches more
+ * never-played candidates rather than the same comfort-anchor neighbours.
+ */
+function buildDiscoveryAnchors(
+	comfortGames: number[],
+	statsMap: Awaited<ReturnType<typeof getGamePlayStatsBatch>>,
+	ratingsMap: Map<number, 'love' | 'like' | 'dislike' | 'unknown'>,
+): number[] {
+	const anchors = new Set<number>(comfortGames)
+
+	for (const [gameId, rating] of ratingsMap) {
+		if (rating === 'love') anchors.add(gameId)
+	}
+
+	const topPlayed = Array.from(statsMap.entries())
+		.map(([gameId, stats]) => [gameId, stats.inherited?.playTimeSeconds ?? 0] as const)
+		.filter(([, seconds]) => seconds > 0)
+		.sort((a, b) => b[1] - a[1])
+		.slice(0, DISCOVERY_EXTRA_ANCHORS)
+	for (const [gameId] of topPlayed) anchors.add(gameId)
+
+	return Array.from(anchors)
 }
 
 function parseGenres(raw: string | null): string[] {

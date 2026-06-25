@@ -47,10 +47,12 @@ function makeCtx(
 	profile: UserProfile = makeProfile(),
 	similarToComfortGames: Set<number> = new Set(),
 	ctxOverrides: Partial<RecommendationContext> = {},
+	recentlyShown: Map<number, number> = new Map(),
 ): ScoringContext {
 	return {
 		profile,
 		similarToComfortGames,
+		recentlyShown,
 		recommendationCtx: {
 			availableMinutes: 60,
 			mood: 'surprise',
@@ -202,17 +204,92 @@ describe('scoreGame', () => {
 			expect(chill.score).toBeGreaterThan(neutral.score)
 		})
 
-		it('scores lower in discovery mood than neutral (same game, measured sessions)', () => {
+		it('is excluded entirely in discovery mood, but kept in neutral', () => {
 			const profile = makeProfile({ comfortGames: [1] })
-			// measuredSessions > 0 so isUntested = false, avoiding discovery untested bonus
 			const stats = makeStats({ significantSessions: 3, measuredSessions: 3, meaningfulCount: 3 })
 			const discoverCtx = makeCtx(profile, new Set(), { mood: 'discovery' })
 			const neutralCtx = makeCtx(profile, new Set(), { mood: 'surprise' })
-			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
-			const discover = scoreGame(makeGame({ gameId: 1, stats }), discoverCtx)!
-			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
-			const neutral = scoreGame(makeGame({ gameId: 1, stats }), neutralCtx)!
-			expect(discover.score).toBeLessThan(neutral.score)
+			expect(scoreGame(makeGame({ gameId: 1, stats }), discoverCtx)).toBeNull()
+			expect(scoreGame(makeGame({ gameId: 1, stats }), neutralCtx)).not.toBeNull()
+		})
+	})
+
+	describe('discovery — break the comfort-zone funnel', () => {
+		it('does not add the favorite-console bonus in discovery', () => {
+			const profile = makeProfile({ systemsWeights: [w('snes', 0.9)] })
+			const surprise = scoreGame(
+				makeGame({ system: 'snes' }),
+				makeCtx(profile, new Set(), { mood: 'surprise' }),
+			)
+			const discovery = scoreGame(
+				makeGame({ system: 'snes' }),
+				makeCtx(profile, new Set(), { mood: 'discovery' }),
+			)
+			expect(surprise?.scoreBreakdown?.systemMatch).toBe(27)
+			expect(discovery?.scoreBreakdown?.systemMatch).toBeUndefined()
+			expect(discovery?.reasons.some((r) => r.key === 'favoriteConsole')).toBe(false)
+		})
+
+		it('halves the IGDB similarity boost in discovery', () => {
+			const game = makeGame({ gameId: 42 })
+			const surprise = scoreGame(game, makeCtx(makeProfile(), new Set([42]), { mood: 'surprise' }))
+			const discovery = scoreGame(
+				game,
+				makeCtx(makeProfile(), new Set([42]), { mood: 'discovery' }),
+			)
+			expect(surprise?.scoreBreakdown?.igdbSimilarBoost).toBe(50)
+			expect(discovery?.scoreBreakdown?.igdbSimilarBoost).toBe(25)
+		})
+	})
+
+	describe('rotation — anti-repetition penalty', () => {
+		it('penalizes a recently shown game, capped at -40', () => {
+			const shownTwice = scoreGame(
+				makeGame({ gameId: 7 }),
+				makeCtx(makeProfile(), new Set(), {}, new Map([[7, 2]])),
+			)
+			const shownManyTimes = scoreGame(
+				makeGame({ gameId: 7 }),
+				makeCtx(makeProfile(), new Set(), {}, new Map([[7, 99]])),
+			)
+			expect(shownTwice?.scoreBreakdown?.recentlyShownPenalty).toBe(-20)
+			expect(shownManyTimes?.scoreBreakdown?.recentlyShownPenalty).toBe(-40)
+		})
+
+		it('leaves never-shown games untouched', () => {
+			const result = scoreGame(makeGame({ gameId: 7 }), makeCtx())
+			expect(result?.scoreBreakdown?.recentlyShownPenalty).toBeUndefined()
+		})
+	})
+
+	describe('mood discovery — only never-played, never-favorited', () => {
+		const discoveryCtx = (profile = makeProfile()) =>
+			makeCtx(profile, new Set(), { mood: 'discovery' })
+
+		it('keeps a never-played, non-favorite game', () => {
+			expect(scoreGame(makeGame({ gameId: 1, stats: null }), discoveryCtx())).not.toBeNull()
+		})
+
+		it('excludes a game with measured sessions', () => {
+			const stats = makeStats({ measuredSessions: 2, significantSessions: 1 })
+			expect(scoreGame(makeGame({ gameId: 1, stats }), discoveryCtx())).toBeNull()
+		})
+
+		it('excludes a game with inherited play history', () => {
+			const stats = makeStats({
+				inherited: { playCount: 1, playTimeSeconds: 600, lastPlayedAt: null },
+			})
+			expect(scoreGame(makeGame({ gameId: 1, stats }), discoveryCtx())).toBeNull()
+		})
+
+		it('excludes a comfort game even if never played', () => {
+			const profile = makeProfile({ comfortGames: [1] })
+			expect(scoreGame(makeGame({ gameId: 1, stats: null }), discoveryCtx(profile))).toBeNull()
+		})
+
+		it('excludes a love- or like-rated game', () => {
+			expect(scoreGame(makeGame({ gameId: 1, rating: 'love' }), discoveryCtx())).toBeNull()
+			expect(scoreGame(makeGame({ gameId: 1, rating: 'like' }), discoveryCtx())).toBeNull()
 		})
 	})
 

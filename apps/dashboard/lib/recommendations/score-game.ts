@@ -34,6 +34,12 @@ export type ScoringContext = {
 	profile: UserProfile
 	similarToComfortGames: Set<number>
 	recommendationCtx: RecommendationContext
+	/**
+	 * gameId → number of times it was presented in the recent rotation window.
+	 * Drives the anti-repetition penalty so the same finalists don't resurface on
+	 * every reshuffle. Empty when rotation is disabled (e.g. unit tests).
+	 */
+	recentlyShown: Map<number, number>
 }
 
 const CHILL_GENRES = ['Puzzle', 'Platform', 'Platformer', 'Casual', 'Sports']
@@ -55,6 +61,22 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	if (game.rating === 'dislike') return null
 	if (ctx.profile.bouncerGames.includes(game.gameId) && game.rating !== 'love') return null
 	if (game.stats && hasBouncedWithoutCommitting(game.stats) && game.rating !== 'love') return null
+
+	// ── DISCOVERY: keep only games never played AND never favorited ──
+	// The discovery mood surfaces fresh territory: anything the user has already
+	// launched (measured session or inherited gamelist playtime) or marked as a
+	// favorite (comfort game / love / like) is excluded outright, so the ranking
+	// can only contain genuinely new candidates.
+	if (mood === 'discovery') {
+		const everPlayed =
+			!!game.stats &&
+			(game.stats.measuredSessions > 0 || (game.stats.inherited?.playCount ?? 0) > 0)
+		const favorited =
+			ctx.profile.comfortGames.includes(game.gameId) ||
+			game.rating === 'love' ||
+			game.rating === 'like'
+		if (everPlayed || favorited) return null
+	}
 
 	// ── MOOD finish ──
 	if (mood === 'finish') {
@@ -106,7 +128,10 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 	// ── CONTENT-BASED (profil) ──
 	const systemWeight = getWeightFor(ctx.profile.systemsWeights, game.system)
-	if (systemWeight > 0.1) {
+	// Discovery deliberately skips the favourite-console bonus: rewarding the user's
+	// top systems just funnels their existing comfort zone back to the top, which is
+	// the opposite of discovery. Familiarity is handled by the discovery bonuses below.
+	if (systemWeight > 0.1 && mood !== 'discovery') {
 		const pts = Math.round(30 * systemWeight)
 		score += pts
 		breakdown.systemMatch = pts
@@ -150,9 +175,13 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	}
 
 	// ── IGDB BOOST ──
+	// Halved in discovery so "similar to a favourite" stays a hint rather than a
+	// lock — otherwise the same never-played neighbours of comfort games (e.g. the
+	// usual SNES/Neo Geo classics) dominate the discovery ranking every time.
 	if (ctx.similarToComfortGames.has(game.gameId)) {
-		score += 50
-		breakdown.igdbSimilarBoost = 50
+		const pts = mood === 'discovery' ? 25 : 50
+		score += pts
+		breakdown.igdbSimilarBoost = pts
 		igdbBoosted = true
 		reasons.push({ key: 'similarToFavorite' })
 	}
@@ -173,14 +202,13 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			score += 15
 			breakdown.confirmedTaste = 15
 		}
+		// Comfort games never reach here in discovery mood — they are excluded by the
+		// hard filter above.
 		if (ctx.profile.comfortGames.includes(game.gameId)) {
 			if (mood === 'chill' || mood === 'nostalgia') {
 				score += 20
 				breakdown.comfortGameMatch = 20
 				reasons.push({ key: 'comfortGame' })
-			} else if (mood === 'discovery') {
-				score -= 15
-				breakdown.comfortGameInDiscovery = -15
 			} else {
 				score += 5
 				breakdown.comfortGameSlight = 5
@@ -268,6 +296,18 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 			score += 10
 			breakdown.discoveryWellRated = 10
 		}
+	}
+
+	// ── ROTATION (anti-repetition) ──
+	// Each time a game was presented in the recent window it loses points, capped so
+	// a strong match isn't buried forever. As it stops being shown the penalty rolls
+	// off the window, letting it return — this is what breaks the "always the same
+	// three" loop across reshuffles.
+	const shows = ctx.recentlyShown.get(game.gameId) ?? 0
+	if (shows > 0) {
+		const penalty = -Math.min(shows * 10, 40)
+		score += penalty
+		breakdown.recentlyShownPenalty = penalty
 	}
 
 	// ── JITTER ──
