@@ -48,8 +48,9 @@ export default function IgdbReviewPage() {
 			.then((r) => r.json())
 			.then((data: { systems: SystemEntry[] }) => {
 				setSystems(data.systems)
-				if (data.systems.length > 0) {
-					setActiveSystem(data.systems[0]!.system)
+				const [first] = data.systems
+				if (first) {
+					setActiveSystem(first.system)
 				}
 				setLoadingSystems(false)
 			})
@@ -72,11 +73,10 @@ export default function IgdbReviewPage() {
 	function afterConfirm(gameId: number, confirmedSystem: string) {
 		setItems((prev) => prev.filter((item) => item.gameId !== gameId))
 		setSystems((prev) => {
-			const updated = prev
-				.map((s) =>
-					s.system === confirmedSystem ? { ...s, count: s.count - 1 } : s,
-				)
-				.filter((s) => s.count > 0)
+			const updated = prev.flatMap((s) => {
+				const next = s.system === confirmedSystem ? { ...s, count: s.count - 1 } : s
+				return next.count > 0 ? [next] : []
+			})
 			const stillActive = updated.find((s) => s.system === confirmedSystem)
 			if (!stillActive) {
 				setActiveSystem(updated[0]?.system ?? null)
@@ -145,9 +145,7 @@ export default function IgdbReviewPage() {
 				</div>
 			</div>
 
-			{loadingSystems && (
-				<p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>
-			)}
+			{loadingSystems && <p className="text-muted-foreground text-sm">{t('igdbReview.loading')}</p>}
 
 			{!loadingSystems && systems.length === 0 && (
 				<Card>
@@ -279,10 +277,7 @@ function ReviewItemRow({
 							<div className="flex-1 min-w-0">
 								<span className="truncate block">{candidate.igdbName}</span>
 							</div>
-							<Badge
-								variant={i === 0 ? 'default' : 'secondary'}
-								className="text-xs shrink-0"
-							>
+							<Badge variant={i === 0 ? 'default' : 'secondary'} className="text-xs shrink-0">
 								{Math.round(candidate.confidence * 100)}%
 							</Badge>
 							<Button
@@ -319,7 +314,11 @@ function ReviewItemRow({
 						className="text-green-600 border-green-200 hover:bg-green-50"
 						onClick={() => {
 							if (item.igdbId && item.igdbName) {
-								onSelect({ igdbId: item.igdbId, igdbName: item.igdbName, confidence: item.confidence ?? 0 })
+								onSelect({
+									igdbId: item.igdbId,
+									igdbName: item.igdbName,
+									confidence: item.confidence ?? 0,
+								})
 							} else {
 								onReject()
 							}

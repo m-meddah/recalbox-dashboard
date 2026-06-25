@@ -86,6 +86,7 @@ export function AgentTokensSection({ recalboxId }: { recalboxId: string }) {
 					<input
 						type="text"
 						placeholder={t('namePlaceholder')}
+						aria-label={t('namePlaceholder')}
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						className="flex-1 rounded border px-3 py-2 text-sm"
@@ -97,7 +98,9 @@ export function AgentTokensSection({ recalboxId }: { recalboxId: string }) {
 
 				{minted && (
 					<div className="space-y-2 rounded border bg-muted p-3">
-						<p className="font-medium text-amber-600 text-xs dark:text-amber-500">{t('onceWarning')}</p>
+						<p className="font-medium text-amber-600 text-xs dark:text-amber-500">
+							{t('onceWarning')}
+						</p>
 						<pre className="overflow-x-auto rounded bg-background p-2 text-xs">{configSnippet}</pre>
 						<Button type="button" variant="outline" size="sm" onClick={copyConfig}>
 							{copied ? t('copied') : t('copyConfig')}

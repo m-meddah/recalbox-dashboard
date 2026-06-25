@@ -9,6 +9,14 @@ export function formatDuration(seconds: number): string {
 	return `${h}h${String(remainMin).padStart(2, '0')}`
 }
 
+// Built once at module load (locale-data tables are expensive to rebuild per call).
+// The app only routes `en`/`fr`; unknown locales fall back to `en`.
+const enRelativeTimeFormat = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+const RELATIVE_TIME_FORMATTERS: Record<string, Intl.RelativeTimeFormat> = {
+	en: enRelativeTimeFormat,
+	fr: new Intl.RelativeTimeFormat('fr', { numeric: 'auto' }),
+}
+
 export function formatRelativeDate(date: Date, locale = 'en'): string {
 	const now = Date.now()
 	const diffMs = date.getTime() - now
@@ -17,7 +25,7 @@ export function formatRelativeDate(date: Date, locale = 'en'): string {
 	const diffHour = Math.round(diffMin / 60)
 	const diffDay = Math.round(diffHour / 24)
 
-	const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+	const rtf = RELATIVE_TIME_FORMATTERS[locale] ?? enRelativeTimeFormat
 
 	if (Math.abs(diffSec) < 60) return rtf.format(diffSec, 'seconds')
 	if (Math.abs(diffMin) < 60) return rtf.format(diffMin, 'minutes')

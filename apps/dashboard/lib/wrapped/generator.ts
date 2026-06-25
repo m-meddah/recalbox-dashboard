@@ -405,15 +405,19 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 			sessionCount: r.sessionCount,
 			imagePath: r.imagePath ?? null,
 		})),
-		...inheritedTopGamesRows
-			.filter((r) => r.gameName && !sessionRomPaths.has(r.gameName))
-			.map((r) => ({
-				gameName: r.gameName ?? '',
-				system: r.system,
-				playtimeSec: r.estimatedPlaytimeSec,
-				sessionCount: r.playCount,
-				imagePath: r.imagePath ?? null,
-			})),
+		...inheritedTopGamesRows.flatMap((r) =>
+			r.gameName && !sessionRomPaths.has(r.gameName)
+				? [
+						{
+							gameName: r.gameName,
+							system: r.system,
+							playtimeSec: r.estimatedPlaytimeSec,
+							sessionCount: r.playCount,
+							imagePath: r.imagePath ?? null,
+						},
+					]
+				: [],
+		),
 	]
 		.sort((a, b) => b.playtimeSec - a.playtimeSec)
 		.slice(0, 5)

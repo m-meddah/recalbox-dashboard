@@ -241,8 +241,10 @@ function buildDiscoveryAnchors(
 	}
 
 	const topPlayed = Array.from(statsMap.entries())
-		.map(([gameId, stats]) => [gameId, stats.inherited?.playTimeSeconds ?? 0] as const)
-		.filter(([, seconds]) => seconds > 0)
+		.flatMap(([gameId, stats]) => {
+			const seconds = stats.inherited?.playTimeSeconds ?? 0
+			return seconds > 0 ? [[gameId, seconds] as const] : []
+		})
 		.sort((a, b) => b[1] - a[1])
 		.slice(0, DISCOVERY_EXTRA_ANCHORS)
 	for (const [gameId] of topPlayed) anchors.add(gameId)

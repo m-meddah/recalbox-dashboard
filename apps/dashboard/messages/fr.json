@@ -52,6 +52,7 @@
 	"acceptInvite": {
 		"title": "Acceptez votre invitation",
 		"subtitle": "Définissez un mot de passe pour {email}.",
+		"email": "E-mail",
 		"passwordPlaceholder": "Mot de passe (8 caractères min)",
 		"confirmPlaceholder": "Confirmez le mot de passe",
 		"submit": "Créer le compte",
@@ -205,7 +206,9 @@
 			"players": "Joueurs",
 			"rating": "Note",
 			"loading": "Chargement…",
-			"region": "Région"
+			"region": "Région",
+			"cover": "Jaquette",
+			"actions": "Actions"
 		},
 		"launch": {
 			"action": "Lancer",

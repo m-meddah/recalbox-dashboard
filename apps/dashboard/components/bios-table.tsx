@@ -133,6 +133,7 @@ export function BiosTable() {
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder={t('search')}
+					aria-label={t('search')}
 					className="h-9 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-64"
 				/>
 			</div>
@@ -177,7 +178,7 @@ export function BiosTable() {
 											<BiosPath path={e.path} />
 										</td>
 										<td className="hidden px-4 py-3 align-top font-mono text-xs lg:table-cell">
-											{e.currentMd5 || <span className="text-muted-foreground">—</span>}
+											{e.currentMd5 || <span className="text-muted-foreground">{'—'}</span>}
 										</td>
 										<td className="hidden px-4 py-3 align-top font-mono text-xs text-muted-foreground lg:table-cell">
 											{e.expectedMd5.length ? (

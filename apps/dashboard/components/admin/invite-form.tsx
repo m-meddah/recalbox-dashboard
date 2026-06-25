@@ -50,11 +50,16 @@ export function InviteForm({ onCreated }: { onCreated: () => void }) {
 					type="email"
 					required
 					placeholder={t('emailPlaceholder')}
+					aria-label={t('emailPlaceholder')}
 					value={email}
 					onChange={(e) => setEmail(e.target.value)}
 					className="flex-1 rounded border px-3 py-2"
 				/>
-				<button type="submit" disabled={loading} className="rounded bg-black px-3 py-2 text-white">
+				<button
+					type="submit"
+					disabled={loading}
+					className="rounded bg-zinc-950 px-3 py-2 text-white"
+				>
 					{loading ? t('creating') : t('create')}
 				</button>
 			</form>

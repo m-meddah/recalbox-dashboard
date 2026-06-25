@@ -22,9 +22,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 	const tokens = await listAgentTokens(db, id)
 	return NextResponse.json({
 		// Active tokens only, and never expose the stored hash.
-		tokens: tokens
-			.filter((t) => !t.revokedAt)
-			.map((t) => ({ id: t.id, name: t.name, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt })),
+		tokens: tokens.flatMap((t) =>
+			t.revokedAt
+				? []
+				: [{ id: t.id, name: t.name, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt }],
+		),
 	})
 }
 
@@ -46,7 +48,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 	const base = (process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, '')
 	// `token` is the raw value — returned once, never stored or retrievable again.
 	return NextResponse.json(
-		{ token, id: row.id, name: row.name, createdAt: row.createdAt, ingestUrl: `${base}/api/agent/ingest` },
+		{
+			token,
+			id: row.id,
+			name: row.name,
+			createdAt: row.createdAt,
+			ingestUrl: `${base}/api/agent/ingest`,
+		},
 		{ status: 201 },
 	)
 }

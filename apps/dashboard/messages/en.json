@@ -52,6 +52,7 @@
 	"acceptInvite": {
 		"title": "Accept your invitation",
 		"subtitle": "Set a password for {email}.",
+		"email": "Email",
 		"passwordPlaceholder": "Password (min 8 characters)",
 		"confirmPlaceholder": "Confirm password",
 		"submit": "Create account",
@@ -205,7 +206,9 @@
 			"players": "Players",
 			"rating": "Rating",
 			"loading": "Loading…",
-			"region": "Region"
+			"region": "Region",
+			"cover": "Cover",
+			"actions": "Actions"
 		},
 		"launch": {
 			"action": "Launch",

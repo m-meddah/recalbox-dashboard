@@ -46,7 +46,7 @@ function Cover({ game }: { game: Game }) {
 
 /** Five-star rating from a 0..1 score, like the Web Manager. */
 function Rating({ value }: { value: number | null }) {
-	if (value === null) return <span className="text-muted-foreground">—</span>
+	if (value === null) return <span className="text-muted-foreground">{'—'}</span>
 	const stars = Math.round(value * 5)
 	return (
 		<span className="flex gap-0.5" title={`${Math.round(value * 100)}%`}>
@@ -93,8 +93,10 @@ function SortHeader({
 
 export function GameTable({ system, regions }: Props) {
 	const t = useTranslations('collection')
-	const [data, setData] = useState<ApiResponse | null>(null)
-	const [loading, setLoading] = useState(true)
+	// Tag the result with the url it loaded for; `loading` then derives from whether
+	// the current url has a matching result — no setLoading-in-effect (which renders a
+	// stale frame between the two commits).
+	const [result, setResult] = useState<{ url: string; data: ApiResponse | null } | null>(null)
 	const [search, setSearch] = useState('')
 	const [favoritesOnly, setFavoritesOnly] = useState(false)
 	const [region, setRegion] = useState('')
@@ -130,20 +132,22 @@ export function GameTable({ system, regions }: Props) {
 
 	useEffect(() => {
 		let active = true
-		setLoading(true)
 		fetch(url)
 			.then((r) => r.json())
 			.then((d: ApiResponse) => {
-				if (active) {
-					setData(d)
-					setLoading(false)
-				}
+				if (active) setResult({ url, data: d })
 			})
-			.catch(() => active && setLoading(false))
+			.catch(() => {
+				// Keep any previously loaded rows but stop the spinner for this url.
+				if (active) setResult((prev) => ({ url, data: prev?.data ?? null }))
+			})
 		return () => {
 			active = false
 		}
 	}, [url])
+
+	const data = result?.data ?? null
+	const loading = result?.url !== url
 
 	const toggleSort = (col: SortBy) => {
 		if (sortBy === col) {
@@ -194,6 +198,7 @@ export function GameTable({ system, regions }: Props) {
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder={t('filters.search')}
+					aria-label={t('filters.search')}
 					className="h-9 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-64"
 				/>
 			</div>
@@ -203,8 +208,8 @@ export function GameTable({ system, regions }: Props) {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-								<th className="px-3 py-3" />
-								<th className="px-3 py-3">
+								<th className="p-3" aria-label={t('table.cover')} />
+								<th className="p-3">
 									<SortHeader
 										col="name"
 										label={t('table.name')}
@@ -213,12 +218,12 @@ export function GameTable({ system, regions }: Props) {
 										onToggle={toggleSort}
 									/>
 								</th>
-								<th className="px-3 py-3 font-medium">{t('table.publisher')}</th>
-								<th className="px-3 py-3 font-medium">{t('table.developer')}</th>
-								<th className="px-3 py-3 font-medium">{t('table.genre')}</th>
-								<th className="px-3 py-3 text-center font-medium">{t('table.region')}</th>
-								<th className="px-3 py-3 text-center font-medium">{t('table.players')}</th>
-								<th className="px-3 py-3">
+								<th className="p-3 font-medium">{t('table.publisher')}</th>
+								<th className="p-3 font-medium">{t('table.developer')}</th>
+								<th className="p-3 font-medium">{t('table.genre')}</th>
+								<th className="p-3 text-center font-medium">{t('table.region')}</th>
+								<th className="p-3 text-center font-medium">{t('table.players')}</th>
+								<th className="p-3">
 									<SortHeader
 										col="rating"
 										label={t('table.rating')}
@@ -227,7 +232,7 @@ export function GameTable({ system, regions }: Props) {
 										onToggle={toggleSort}
 									/>
 								</th>
-								<th className="px-3 py-3" />
+								<th className="p-3" aria-label={t('table.actions')} />
 							</tr>
 						</thead>
 						<tbody>
@@ -263,7 +268,7 @@ export function GameTable({ system, regions }: Props) {
 												{g.region}
 											</span>
 										) : (
-											<span className="text-muted-foreground">—</span>
+											<span className="text-muted-foreground">{'—'}</span>
 										)}
 									</td>
 									<td className="px-3 py-2 text-center tabular-nums text-muted-foreground">
@@ -272,7 +277,7 @@ export function GameTable({ system, regions }: Props) {
 									<td className="px-3 py-2">
 										<Rating value={g.rating} />
 									</td>
-									<td className="px-2 py-2 text-right">
+									<td className="p-2 text-right">
 										<div className="flex items-center justify-end">
 											<EmulatorOverrideButton
 												romPath={g.romPath}

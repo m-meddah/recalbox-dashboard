@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 
 /**
  * Whether the current user may CONTROL the active Recalbox (launch/power/sync/etc.).
@@ -20,5 +20,5 @@ export function CanControlProvider({
 }
 
 export function useCanControl(): boolean {
-	return useContext(CanControlContext)
+	return use(CanControlContext)
 }

@@ -10,7 +10,7 @@ export function isAdmin(user: AuthedUser): boolean {
 export function getViewableRecalboxIds(user: AuthedUser): string[] {
 	const all = configStore.getRecalboxes()
 	if (isAdmin(user)) return all.map((r) => r.id)
-	return all.filter((r) => r.ownerUserId === user.id).map((r) => r.id)
+	return all.flatMap((r) => (r.ownerUserId === user.id ? [r.id] : []))
 }
 
 /** Whether the user may READ a specific recalbox. */

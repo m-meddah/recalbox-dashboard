@@ -73,6 +73,7 @@ export function SystemGrid({ systems }: { systems: SystemEntry[] }) {
 				value={search}
 				onChange={(e) => setSearch(e.target.value)}
 				placeholder={t('filters.search')}
+				aria-label={t('filters.search')}
 				className="h-9 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-72"
 			/>
 

@@ -96,12 +96,14 @@ export default function AcceptInvitePage() {
 					type="email"
 					value={state.email}
 					readOnly
+					aria-label={t('email')}
 					className="rounded border bg-muted px-3 py-2"
 				/>
 				<input
 					type="password"
 					required
 					placeholder={t('passwordPlaceholder')}
+					aria-label={t('passwordPlaceholder')}
 					value={password}
 					onChange={(e) => setPassword(e.target.value)}
 					className="rounded border px-3 py-2"
@@ -110,6 +112,7 @@ export default function AcceptInvitePage() {
 					type="password"
 					required
 					placeholder={t('confirmPlaceholder')}
+					aria-label={t('confirmPlaceholder')}
 					value={confirm}
 					onChange={(e) => setConfirm(e.target.value)}
 					className="rounded border px-3 py-2"
@@ -118,7 +121,7 @@ export default function AcceptInvitePage() {
 				<button
 					type="submit"
 					disabled={submitting}
-					className="rounded bg-black px-3 py-2 text-white"
+					className="rounded bg-zinc-950 px-3 py-2 text-white"
 				>
 					{submitting ? t('submitting') : t('submit')}
 				</button>

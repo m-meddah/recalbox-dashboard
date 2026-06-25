@@ -37,6 +37,7 @@ export default function LoginPage() {
 					type="email"
 					required
 					placeholder="Email"
+					aria-label="Email"
 					value={email}
 					onChange={(e) => setEmail(e.target.value)}
 					className="rounded border px-3 py-2"
@@ -46,6 +47,7 @@ export default function LoginPage() {
 						type={showPassword ? 'text' : 'password'}
 						required
 						placeholder="Password"
+						aria-label="Password"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						className="w-full rounded border px-3 py-2 pr-10"
@@ -57,11 +59,15 @@ export default function LoginPage() {
 						aria-pressed={showPassword}
 						className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-800"
 					>
-						{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+						{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
 					</button>
 				</div>
 				{error && <p className="text-sm text-red-500">{error}</p>}
-				<button type="submit" disabled={loading} className="rounded bg-black px-3 py-2 text-white">
+				<button
+					type="submit"
+					disabled={loading}
+					className="rounded bg-zinc-950 px-3 py-2 text-white"
+				>
 					{loading ? 'Signing in…' : 'Sign in'}
 				</button>
 			</form>

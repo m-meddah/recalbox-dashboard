@@ -79,7 +79,7 @@ export function ShareDialog({ year, slideIndex, locale, onClose }: Props) {
 					))}
 				</div>
 
-				<div className="mb-4 flex justify-center rounded-xl overflow-hidden bg-black border border-white/10 h-40">
+				<div className="mb-4 flex justify-center rounded-xl overflow-hidden bg-zinc-950 border border-white/10 h-40">
 					<Image
 						src={imageUrl}
 						alt="Preview"

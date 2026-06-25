@@ -80,29 +80,34 @@ function GameCard({ game }: { game: GameStartEvent }) {
 		srHasPage: null,
 		srUrl: null,
 	})
-	const [media, setMedia] = useState<GameMedia | null>(null)
-	const [boxFailed, setBoxFailed] = useState(false)
-	const [shotFailed, setShotFailed] = useState(false)
+	// Keep media keyed by the rom it loaded for, so it derives back to null the
+	// instant the prop changes — no reset-in-effect (which renders a stale frame
+	// between the two commits).
+	const [mediaState, setMediaState] = useState<{ rom: string; data: GameMedia | null }>({
+		rom: '',
+		data: null,
+	})
+	// Track which image URL failed instead of a boolean we'd have to reset on change.
+	const [failedSrc, setFailedSrc] = useState<{ box?: string; shot?: string }>({})
 
 	useEffect(() => {
-		setMedia(null)
-		setBoxFailed(false)
-		setShotFailed(false)
-		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(game.romPath)}`)
+		const rom = game.romPath
+		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(rom)}`)
 			.then((r) => r.json())
 			.then((data: { srHasPage: number | null; srUrl: string | null }) => setSrInfo(data))
 			.catch(() => {})
-		fetch(`/api/game-media?romPath=${encodeURIComponent(game.romPath)}`)
+		fetch(`/api/game-media?romPath=${encodeURIComponent(rom)}`)
 			.then((r) => r.json())
-			.then((data: GameMedia) => setMedia(data))
+			.then((data: GameMedia) => setMediaState({ rom, data }))
 			.catch(() => {})
 	}, [game.romPath])
 
+	const media = mediaState.rom === game.romPath ? mediaState.data : null
 	const screenshotUrl =
 		mediaUrl(media?.screenshotPath) ?? mediaUrl(media?.imagePath) ?? mediaUrl(game.imagePath)
 	const boxUrl = mediaUrl(media?.thumbnailPath)
-	const showBox = !!boxUrl && !boxFailed
-	const showShot = !!screenshotUrl && !shotFailed
+	const showBox = !!boxUrl && failedSrc.box !== boxUrl
+	const showShot = !!screenshotUrl && failedSrc.shot !== screenshotUrl
 
 	const meta = [
 		media?.releaseYear ? String(media.releaseYear) : null,
@@ -124,7 +129,7 @@ function GameCard({ game }: { game: GameStartEvent }) {
 						sizes="(max-width: 1024px) 100vw, 560px"
 						className="object-contain"
 						unoptimized
-						onError={() => setShotFailed(true)}
+						onError={() => setFailedSrc((f) => ({ ...f, shot: screenshotUrl ?? undefined }))}
 					/>
 				) : (
 					<div className="flex h-full items-center justify-center">
@@ -161,7 +166,7 @@ function GameCard({ game }: { game: GameStartEvent }) {
 						height={160}
 						className="absolute bottom-3 left-3 h-28 w-auto -rotate-3 rounded-md shadow-2xl ring-1 ring-black/30"
 						unoptimized
-						onError={() => setBoxFailed(true)}
+						onError={() => setFailedSrc((f) => ({ ...f, box: boxUrl ?? undefined }))}
 					/>
 				)}
 

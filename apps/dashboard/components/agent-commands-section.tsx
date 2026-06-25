@@ -174,6 +174,7 @@ export function AgentCommandsSection({ recalboxId }: { recalboxId: string }) {
 						<input
 							type="text"
 							placeholder={t('confKeyPlaceholder')}
+							aria-label={t('confKeyPlaceholder')}
 							value={confKey}
 							onChange={(e) => setConfKey(e.target.value)}
 							className="flex-1 rounded border px-3 py-2 text-sm"
@@ -181,6 +182,7 @@ export function AgentCommandsSection({ recalboxId }: { recalboxId: string }) {
 						<input
 							type="text"
 							placeholder={t('confValuePlaceholder')}
+							aria-label={t('confValuePlaceholder')}
 							value={confValue}
 							onChange={(e) => setConfValue(e.target.value)}
 							className="flex-1 rounded border px-3 py-2 text-sm"

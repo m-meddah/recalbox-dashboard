@@ -121,9 +121,10 @@ export async function getGamePlayStatsBatch(
 	])
 
 	const result = new Map<number, GamePlayStats>()
+	const sessionAggById = new Map(sessionAgg.map((a) => [a.gameId, a]))
 
 	for (const gameId of allGameIds) {
-		const s = sessionAgg.find((a) => a.gameId === gameId)
+		const s = sessionAggById.get(gameId)
 		const inh = inheritedMap.get(gameId)
 		const cal = calibMap.get(gameId)
 

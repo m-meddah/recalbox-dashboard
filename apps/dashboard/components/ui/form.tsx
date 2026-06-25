@@ -26,11 +26,14 @@ const FormField = <
 	TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
 	...props
-}: ControllerProps<TFieldValues, TName>) => (
-	<FormFieldContext.Provider value={{ name: props.name }}>
-		<Controller {...props} />
-	</FormFieldContext.Provider>
-)
+}: ControllerProps<TFieldValues, TName>) => {
+	const value = React.useMemo(() => ({ name: props.name }), [props.name])
+	return (
+		<FormFieldContext.Provider value={value}>
+			<Controller {...props} />
+		</FormFieldContext.Provider>
+	)
+}
 
 type FormItemContextValue = { id: string }
 const FormItemContext = React.createContext<FormItemContextValue>({} as FormItemContextValue)
@@ -57,8 +60,9 @@ function FormItem({
 	...props
 }: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
 	const id = React.useId()
+	const value = React.useMemo(() => ({ id }), [id])
 	return (
-		<FormItemContext.Provider value={{ id }}>
+		<FormItemContext.Provider value={value}>
 			<div ref={ref} className={cn('space-y-2', className)} {...props} />
 		</FormItemContext.Provider>
 	)

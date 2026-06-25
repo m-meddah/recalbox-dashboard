@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const createSchema = z.object({
-	email: z.string().email().max(254),
+	email: z.email().max(254),
 	role: z.enum(['member', 'admin']).optional(),
 })
 

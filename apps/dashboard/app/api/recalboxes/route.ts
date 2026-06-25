@@ -14,8 +14,7 @@ export async function GET() {
 	const viewable = new Set(getViewableRecalboxIds(user))
 	const all = configStore
 		.getRecalboxes()
-		.filter((rb) => viewable.has(rb.id))
-		.map((rb) => ({ ...rb, sshPassword: '***' }))
+		.flatMap((rb) => (viewable.has(rb.id) ? [{ ...rb, sshPassword: '***' }] : []))
 	return NextResponse.json(all)
 }
 
