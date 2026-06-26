@@ -916,6 +916,10 @@
 					"title": "Tes avis après session",
 					"desc": "Les retours post-session pèsent fort. Un 'love' compte double, un 'dislike' coupe les recos."
 				},
+				"favorites": {
+					"title": "Tes jeux favoris",
+					"desc": "Les jeux que tu marques en favori sur ta Recalbox (le ❤️) comptent comme un 'like' : ils remontent dans les recos, même jamais lancés."
+				},
 				"igdb": {
 					"title": "IGDB (jeux similaires)",
 					"desc": "Pour tes comfort games, on récupère ce que la communauté IGDB a aimé d'autre, puis on cherche dans ta collection."

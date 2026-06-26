@@ -23,6 +23,8 @@ export type GameForScoring = {
 	igdbRating: number | null
 	stats: GamePlayStats | null
 	rating: 'love' | 'like' | 'dislike' | 'unknown' | null
+	/** EmulationStation favorite (the heart marked on the box), synced from gamelist.xml. */
+	favorite: boolean
 	hltbDurations: {
 		mainStory: number | null
 		mainExtras: number | null
@@ -65,8 +67,8 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	// ── DISCOVERY: keep only games never played AND never favorited ──
 	// The discovery mood surfaces fresh territory: anything the user has already
 	// launched (measured session or inherited gamelist playtime) or marked as a
-	// favorite (comfort game / love / like) is excluded outright, so the ranking
-	// can only contain genuinely new candidates.
+	// favorite (comfort game / love / like / EmulationStation heart) is excluded
+	// outright, so the ranking can only contain genuinely new candidates.
 	if (mood === 'discovery') {
 		const everPlayed =
 			!!game.stats &&
@@ -74,7 +76,8 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		const favorited =
 			ctx.profile.comfortGames.includes(game.gameId) ||
 			game.rating === 'love' ||
-			game.rating === 'like'
+			game.rating === 'like' ||
+			game.favorite
 		if (everPlayed || favorited) return null
 	}
 
@@ -194,6 +197,12 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	} else if (game.rating === 'like') {
 		score += 15
 		breakdown.ratingLike = 15
+	} else if (game.favorite) {
+		// The EmulationStation favorite (heart on the box) acts as an implicit "like"
+		// when the user hasn't rated the game in the dashboard — same weight, so a
+		// hearted game surfaces without double-counting an explicit love/like above.
+		score += 15
+		breakdown.favoriteBoost = 15
 	}
 
 	// ── ENGAGEMENT ──
@@ -387,6 +396,7 @@ function computeConfidence(
 	if (igdbBoosted) return 'high'
 	if (game.stats && isConfirmedTaste(game.stats)) return 'high'
 	if (game.rating === 'like') return 'medium'
+	if (game.favorite) return 'medium'
 	const sw = getWeightFor(ctx.profile.systemsWeights, game.system)
 	const gw = Math.max(0, ...game.genres.map((g) => getWeightFor(ctx.profile.genresWeights, g)))
 	if (sw >= 0.5 && gw >= 0.4) return 'medium'

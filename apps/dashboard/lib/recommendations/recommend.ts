@@ -65,6 +65,7 @@ export async function computeRecommendations(
 					releaseDate: games.releaseDate,
 					developer: games.developer,
 					scrapedRating: games.rating,
+					favorite: games.favorite,
 				})
 				.from(games)
 				.where(eq(games.hidden, false))
@@ -115,6 +116,7 @@ export async function computeRecommendations(
 			igdbRating: igdbRatingsMap.get(game.gameId) ?? null,
 			stats: statsMap.get(game.gameId) ?? null,
 			rating: ratingsMap.get(game.gameId) ?? null,
+			favorite: game.favorite,
 			hltbDurations: hltbDurationsMap.get(game.gameId) ?? null,
 		}
 		const result = scoreGame(g, scoringCtx)

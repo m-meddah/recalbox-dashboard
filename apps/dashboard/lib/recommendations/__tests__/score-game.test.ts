@@ -77,6 +77,7 @@ function makeGame(overrides: Partial<GameForScoring> = {}): GameForScoring {
 		igdbRating: null,
 		stats: null,
 		rating: null,
+		favorite: false,
 		hltbDurations: null,
 		...overrides,
 	}
@@ -290,6 +291,41 @@ describe('scoreGame', () => {
 		it('excludes a love- or like-rated game', () => {
 			expect(scoreGame(makeGame({ gameId: 1, rating: 'love' }), discoveryCtx())).toBeNull()
 			expect(scoreGame(makeGame({ gameId: 1, rating: 'like' }), discoveryCtx())).toBeNull()
+		})
+
+		it('excludes a favorited game (treated like a like)', () => {
+			expect(scoreGame(makeGame({ gameId: 1, favorite: true }), discoveryCtx())).toBeNull()
+		})
+	})
+
+	describe('favorite games (EmulationStation heart)', () => {
+		it('adds +15 like an implicit like when the game is unrated', () => {
+			const favorited = scoreGame(makeGame({ favorite: true }), makeCtx())
+			const plain = scoreGame(makeGame({ favorite: false }), makeCtx())
+			expect(favorited?.scoreBreakdown?.favoriteBoost).toBe(15)
+			expect(plain?.scoreBreakdown?.favoriteBoost).toBeUndefined()
+		})
+
+		it('does not double-count when the game is already rated like', () => {
+			const result = scoreGame(makeGame({ favorite: true, rating: 'like' }), makeCtx())
+			expect(result?.scoreBreakdown?.ratingLike).toBe(15)
+			expect(result?.scoreBreakdown?.favoriteBoost).toBeUndefined()
+		})
+
+		it('does not double-count when the game is already rated love', () => {
+			const result = scoreGame(makeGame({ favorite: true, rating: 'love' }), makeCtx())
+			expect(result?.scoreBreakdown?.ratingLove).toBe(35)
+			expect(result?.scoreBreakdown?.favoriteBoost).toBeUndefined()
+		})
+
+		it('still excludes a disliked game even if favorited', () => {
+			expect(scoreGame(makeGame({ favorite: true, rating: 'dislike' }), makeCtx())).toBeNull()
+		})
+
+		it('gives medium confidence like a like rating', () => {
+			// biome-ignore lint/style/noNonNullAssertion: game always scores in test context
+			const result = scoreGame(makeGame({ favorite: true }), makeCtx())!
+			expect(result.confidence).toBe('medium')
 		})
 	})
 

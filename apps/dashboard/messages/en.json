@@ -916,6 +916,10 @@
 					"title": "Your post-session feedback",
 					"desc": "Post-session feedback counts a lot. A 'love' doubles the weight, a 'dislike' stops recommendations."
 				},
+				"favorites": {
+					"title": "Your favorite games",
+					"desc": "Games you favorite on your Recalbox (the ❤️) count as a 'like': they rank higher in recommendations, even if never launched."
+				},
 				"igdb": {
 					"title": "IGDB (similar games)",
 					"desc": "For your comfort games, we fetch what the IGDB community also enjoyed, then look for matches in your collection."

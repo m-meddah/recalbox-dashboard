@@ -10,6 +10,7 @@ import {
 	MessageSquareHeart,
 	Network,
 	Sparkles,
+	Star,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
@@ -109,6 +110,11 @@ export default function PlayTonightAboutPage() {
 						icon={MessageSquareHeart}
 						title={t('sources.feedback.title')}
 						desc={t('sources.feedback.desc')}
+					/>
+					<Source
+						icon={Star}
+						title={t('sources.favorites.title')}
+						desc={t('sources.favorites.desc')}
 					/>
 					{igdbEnabled && (
 						<Source
