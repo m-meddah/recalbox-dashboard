@@ -4,7 +4,7 @@ const TARGET = 3
 
 export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 	if (scored.length === 0) return []
-	const sorted = scored.toSorted((a, b) => b.score - a.score)
+	const sorted = dedupeByNameAndSystem(scored.toSorted((a, b) => b.score - a.score))
 	if (sorted.length <= TARGET) return sorted
 
 	const first = sorted[0]
@@ -29,4 +29,23 @@ export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 	}
 
 	return result
+}
+
+/**
+ * Collapse duplicate ROM rows: the collection can hold several entries with the same
+ * name on the same system (regional variants, redumps), which would otherwise let the
+ * same game fill two finalist slots. Keep the first of each (name, system) — the input
+ * is already sorted by score, so that's the highest-scored copy. Same-name games on
+ * different systems are kept (they're genuinely different choices).
+ */
+function dedupeByNameAndSystem(sorted: ScoredGame[]): ScoredGame[] {
+	const seen = new Set<string>()
+	const deduped: ScoredGame[] = []
+	for (const g of sorted) {
+		const key = `${g.name}\t${g.system}`
+		if (seen.has(key)) continue
+		seen.add(key)
+		deduped.push(g)
+	}
+	return deduped
 }

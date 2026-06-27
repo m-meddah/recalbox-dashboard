@@ -70,4 +70,29 @@ describe('selectFinalists', () => {
 		)
 		expect(selectFinalists(input)).toHaveLength(3)
 	})
+
+	it('deduplicates duplicate ROM rows (same name + system), keeping the higher score', () => {
+		const input = [
+			makeScored({ gameId: 1, score: 100, name: 'Metal Slug', system: 'fbneo' }),
+			makeScored({ gameId: 2, score: 95, name: 'Metal Slug', system: 'fbneo' }), // dup ROM
+			makeScored({ gameId: 3, score: 90, name: 'Contra', system: 'nes' }),
+			makeScored({ gameId: 4, score: 85, name: 'Zelda', system: 'snes' }),
+		]
+		const result = selectFinalists(input)
+		const keys = result.map((g) => `${g.name}|${g.system}`)
+		expect(new Set(keys).size).toBe(keys.length) // no duplicate (name, system)
+		expect(result.some((g) => g.gameId === 2)).toBe(false) // lower-scored dup dropped
+		expect(result.some((g) => g.gameId === 1)).toBe(true)
+	})
+
+	it('keeps same-name games on different systems', () => {
+		const input = [
+			makeScored({ gameId: 1, score: 100, name: 'Aladdin', system: 'snes' }),
+			makeScored({ gameId: 2, score: 95, name: 'Aladdin', system: 'megadrive' }),
+			makeScored({ gameId: 3, score: 50, name: 'Other', system: 'nes', confidence: 'exploration' }),
+		]
+		const result = selectFinalists(input)
+		expect(result.some((g) => g.gameId === 1)).toBe(true)
+		expect(result.some((g) => g.gameId === 2)).toBe(true)
+	})
 })

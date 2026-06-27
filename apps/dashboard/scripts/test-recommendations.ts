@@ -26,7 +26,10 @@ function fmtReasons(g: ScoredGame): string {
 function line(g: ScoredGame): string {
 	const name = g.name.length > 42 ? `${g.name.slice(0, 41)}…` : g.name
 	const igdb = g.igdbBoosted ? ' ⚡IGDB' : ''
-	return `    • ${name.padEnd(42)} [${g.system.padEnd(10)}] ${String(Math.round(g.score)).padStart(4)}pts  ${g.confidence.padEnd(11)} ${fmtReasons(g)}${igdb}`
+	// favoriteBoost is only set when the game is an EmulationStation favorite that
+	// isn't already rated love/like — i.e. the favorite is what gave it the +15.
+	const fav = g.scoreBreakdown?.favoriteBoost ? ' ⭐fav' : ''
+	return `    • ${name.padEnd(42)} [${g.system.padEnd(10)}] ${String(Math.round(g.score)).padStart(4)}pts  ${g.confidence.padEnd(11)} ${fmtReasons(g)}${igdb}${fav}`
 }
 
 async function main() {
