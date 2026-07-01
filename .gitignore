@@ -51,3 +51,6 @@ pnpm-debug.log*
 # Python
 __pycache__/
 *.pyc
+
+# Vercel
+.vercel

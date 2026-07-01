@@ -1,0 +1,32 @@
+# Build artifacts & caches (Vercel rebuilds from source)
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+
+# Local SQLite databases, libSQL embedded replicas, and backups (never deploy)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*-replica.db
+**/*.db
+**/*-replica.db
+*.bak-*
+**/*.bak-*
+
+# Local object-storage dev adapter
+.storage
+**/.storage
+
+# Secrets & local env (env vars come from Vercel project settings)
+.env
+.env.local
+**/.env.local
+**/.env*.local
+
+# VCS / misc
+.git
+*.log
