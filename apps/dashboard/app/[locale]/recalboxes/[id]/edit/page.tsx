@@ -3,6 +3,7 @@
 import { AgentCommandsSection } from '@/components/agent-commands-section'
 import { AgentTokensSection } from '@/components/agent-tokens-section'
 import { RecalboxForm, type RecalboxFormValues } from '@/components/recalbox-form'
+import { useServerless } from '@/components/serverless-provider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from '@/i18n/navigation'
@@ -14,6 +15,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 	const { id } = use(params)
 	const t = useTranslations('recalboxes')
 	const router = useRouter()
+	const serverless = useServerless()
 	const [loading, setLoading] = useState(false)
 	const [deleting, setDeleting] = useState(false)
 	const [rb, setRb] = useState<(RecalboxFormValues & { name: string }) | null>(null)
@@ -87,6 +89,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 						loading={loading}
 						testUrl={`/api/recalboxes/${id}/test-connection`}
 						submitLabel={t('edit.submit')}
+						serverless={serverless}
 					/>
 				</CardContent>
 			</Card>

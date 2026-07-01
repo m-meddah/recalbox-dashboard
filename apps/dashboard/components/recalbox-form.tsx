@@ -40,9 +40,19 @@ type Props = {
 	testUrl?: string
 	submitLabel?: string
 	loading?: boolean
+	/** Serverless deploy: the cloud has no SSH/MQTT path to the box, so the live
+	 * connection test is meaningless — hide it (the on-box agent reports liveness). */
+	serverless?: boolean
 }
 
-export function RecalboxForm({ defaultValues, onSubmit, testUrl, submitLabel, loading }: Props) {
+export function RecalboxForm({
+	defaultValues,
+	onSubmit,
+	testUrl,
+	submitLabel,
+	loading,
+	serverless,
+}: Props) {
 	const t = useTranslations('recalboxes.form')
 	const tc = useTranslations('common')
 	const [testing, setTesting] = useState(false)
@@ -194,27 +204,31 @@ export function RecalboxForm({ defaultValues, onSubmit, testUrl, submitLabel, lo
 						)}
 					/>
 				</div>
-				<div className="flex gap-2">
-					<Button type="button" variant="outline" onClick={handleTest} disabled={testing}>
-						{testing ? t('testing') : t('test')}
-					</Button>
-				</div>
-				{testResult && (
-					<div className="space-y-2 text-sm">
-						{[
-							{ label: 'SSH', r: testResult.ssh },
-							{ label: 'MQTT', r: testResult.mqtt },
-						].map(({ label, r }) => (
-							<div key={label} className="flex items-center gap-2 border rounded p-2">
-								<span className={r.success ? 'text-green-500' : 'text-red-500'}>
-									{r.success ? '✓' : '✗'}
-								</span>
-								<span className="font-medium w-12">{label}</span>
-								<span className="text-muted-foreground flex-1">{r.error ?? 'OK'}</span>
-								<span className="text-muted-foreground">{r.latencyMs}ms</span>
+				{!serverless && (
+					<>
+						<div className="flex gap-2">
+							<Button type="button" variant="outline" onClick={handleTest} disabled={testing}>
+								{testing ? t('testing') : t('test')}
+							</Button>
+						</div>
+						{testResult && (
+							<div className="space-y-2 text-sm">
+								{[
+									{ label: 'SSH', r: testResult.ssh },
+									{ label: 'MQTT', r: testResult.mqtt },
+								].map(({ label, r }) => (
+									<div key={label} className="flex items-center gap-2 border rounded p-2">
+										<span className={r.success ? 'text-green-500' : 'text-red-500'}>
+											{r.success ? '✓' : '✗'}
+										</span>
+										<span className="font-medium w-12">{label}</span>
+										<span className="text-muted-foreground flex-1">{r.error ?? 'OK'}</span>
+										<span className="text-muted-foreground">{r.latencyMs}ms</span>
+									</div>
+								))}
 							</div>
-						))}
-					</div>
+						)}
+					</>
 				)}
 				<Button type="submit" disabled={loading}>
 					{submitLabel ?? tc('save')}

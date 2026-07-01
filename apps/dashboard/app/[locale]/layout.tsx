@@ -14,14 +14,15 @@ import { PowerControls } from '@/components/power-controls'
 import { InstallBanner } from '@/components/pwa/install-banner'
 import { ServiceWorkerUpdater } from '@/components/pwa/service-worker-updater'
 import { RecalboxSwitcher } from '@/components/recalbox-switcher'
+import { ServerlessProvider } from '@/components/serverless-provider'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { routing } from '@/i18n/routing'
 import { canControlRecalbox, getViewableRecalboxIds, isAdmin } from '@/lib/auth/ownership'
-import { isServerlessMode } from '@/lib/serverless'
 import { getUser } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
+import { isServerlessMode } from '@/lib/serverless'
 import { cn } from '@/lib/utils'
 import { RecalboxEventsProvider } from '../recalbox-events-provider'
 
@@ -86,28 +87,30 @@ export default async function LocaleLayout({ children, params }: Props) {
 			<body>
 				<ThemeProvider>
 					<NextIntlClientProvider>
-						<RecalboxEventsProvider>
-							<CanControlProvider value={canControl}>
-								<SidebarProvider>
-									<AppSidebar showAdmin={showAdmin} serverless={serverless} />
-									<SidebarInset>
-										<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
-											<SidebarTrigger className="-ml-1" />
-											<div className="ml-auto flex items-center gap-2">
-												<NotificationBell />
-												<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
-												{!serverless && <PowerControls />}
-											</div>
-										</header>
-										<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
-									</SidebarInset>
-								</SidebarProvider>
-								<NotificationListener />
-								<ServiceWorkerUpdater />
-								<InstallBanner />
-								<Toaster />
-							</CanControlProvider>
-						</RecalboxEventsProvider>
+						<ServerlessProvider value={serverless}>
+							<RecalboxEventsProvider>
+								<CanControlProvider value={canControl}>
+									<SidebarProvider>
+										<AppSidebar showAdmin={showAdmin} serverless={serverless} />
+										<SidebarInset>
+											<header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+												<SidebarTrigger className="-ml-1" />
+												<div className="ml-auto flex items-center gap-2">
+													<NotificationBell />
+													<RecalboxSwitcher recalboxes={recalboxes} activeId={activeRecalboxId} />
+													{!serverless && <PowerControls />}
+												</div>
+											</header>
+											<FeedbackPromptProvider>{children}</FeedbackPromptProvider>
+										</SidebarInset>
+									</SidebarProvider>
+									<NotificationListener />
+									<ServiceWorkerUpdater />
+									<InstallBanner />
+									<Toaster />
+								</CanControlProvider>
+							</RecalboxEventsProvider>
+						</ServerlessProvider>
 					</NextIntlClientProvider>
 				</ThemeProvider>
 			</body>

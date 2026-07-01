@@ -1,6 +1,7 @@
 'use client'
 
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { useServerless } from '@/components/serverless-provider'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -114,6 +115,7 @@ type TestResult = {
 // ─── Recalbox tab ────────────────────────────────────────────────────────────
 
 function RecalboxTab({ config }: { config: AppConfig }) {
+	const serverless = useServerless()
 	const t = useTranslations('settings.recalbox')
 	const tc = useTranslations('common')
 	const [showPassword, setShowPassword] = useState(false)
@@ -289,28 +291,30 @@ function RecalboxTab({ config }: { config: AppConfig }) {
 					/>
 				</div>
 
-				{/* Test connection */}
-				<div className="space-y-3">
-					<Button type="button" variant="outline" onClick={onTest} disabled={testing}>
-						{testing ? t('testing') : t('testConnection')}
-					</Button>
-					{testResult && (
-						<div className="space-y-2">
-							<TestResultRow
-								label="SSH"
-								success={testResult.ssh.success}
-								latency={testResult.ssh.latencyMs}
-								error={testResult.ssh.error}
-							/>
-							<TestResultRow
-								label="MQTT"
-								success={testResult.mqtt.success}
-								latency={testResult.mqtt.latencyMs}
-								error={testResult.mqtt.error}
-							/>
-						</div>
-					)}
-				</div>
+				{/* Test connection (SSH/MQTT — hidden in serverless: no direct link to the box) */}
+				{!serverless && (
+					<div className="space-y-3">
+						<Button type="button" variant="outline" onClick={onTest} disabled={testing}>
+							{testing ? t('testing') : t('testConnection')}
+						</Button>
+						{testResult && (
+							<div className="space-y-2">
+								<TestResultRow
+									label="SSH"
+									success={testResult.ssh.success}
+									latency={testResult.ssh.latencyMs}
+									error={testResult.ssh.error}
+								/>
+								<TestResultRow
+									label="MQTT"
+									success={testResult.mqtt.success}
+									latency={testResult.mqtt.latencyMs}
+									error={testResult.mqtt.error}
+								/>
+							</div>
+						)}
+					</div>
+				)}
 
 				<div className="flex gap-2">
 					<Button
