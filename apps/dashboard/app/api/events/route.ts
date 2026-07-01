@@ -176,7 +176,11 @@ export async function GET(request: Request) {
 				try {
 					const lastSeen = await getAgentLastSeen(db)
 					const now = Date.now()
-					for (const recalboxId of recalboxIds) {
+					// Union configStore boxes with any that have an agent token — so a fresh
+					// agent reports "online" even if configStore isn't hydrated in this
+					// (cold serverless) invocation.
+					const ids = new Set<string>([...recalboxIds, ...lastSeen.keys()])
+					for (const recalboxId of ids) {
 						if (recalboxIdFilter && recalboxIdFilter !== recalboxId) continue
 						if (clients.get(recalboxId)?.isConnected) continue
 						const seen = lastSeen.get(recalboxId)
