@@ -41,8 +41,13 @@ export function formatRelativeDate(date: Date, locale = 'en'): string {
 }
 
 export function toDateKey(date: Date): string {
-	const y = date.getFullYear()
-	const m = String(date.getMonth() + 1).padStart(2, '0')
-	const d = String(date.getDate()).padStart(2, '0')
-	return `${y}-${m}-${d}`
+	// Bucket by wall-clock day in APP_TIME_ZONE (Vercel runs UTC; TZ is reserved),
+	// so a session played at 00:30 CEST counts on that day, not the UTC day before.
+	// en-CA formats as YYYY-MM-DD.
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone: APP_TIME_ZONE,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+	}).format(date)
 }
