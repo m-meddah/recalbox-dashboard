@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { gameCalibration, gameInheritedStats, sessions } from '@/lib/db/schema'
+import { REAL_PLAY_SOURCES, gameCalibration, gameInheritedStats, sessions } from '@/lib/db/schema'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 /**
@@ -96,7 +96,7 @@ export async function getGamePlayStatsBatch(
       `,
 		})
 		.from(sessions)
-		.where(and(eq(sessions.source, 'scrobbler'), gameFilter))
+		.where(and(inArray(sessions.source, REAL_PLAY_SOURCES), gameFilter))
 		.groupBy(sessions.gameId)
 
 	// Inherited stats

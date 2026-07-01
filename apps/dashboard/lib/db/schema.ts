@@ -110,6 +110,14 @@ export const sessions = sqliteTable(
 	}),
 )
 
+/**
+ * Sources that represent real, automatically-recorded play: the self-hosted
+ * scrobbler daemon and the serverless on-box agent. Stats/profile/play-stats
+ * count these (but not 'manual'). NOTE: some queries embed this as a raw SQL
+ * literal `IN ('scrobbler', 'agent')` — keep those in sync with this list.
+ */
+export const REAL_PLAY_SOURCES: Array<'scrobbler' | 'agent'> = ['scrobbler', 'agent']
+
 export const games = sqliteTable(
 	'games',
 	{

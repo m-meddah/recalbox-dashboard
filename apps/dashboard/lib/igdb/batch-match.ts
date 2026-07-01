@@ -37,7 +37,7 @@ async function getPlayedGames(): Promise<GameRow[]> {
 		.from(games)
 		.where(
 			or(
-				sql`EXISTS (SELECT 1 FROM ${sessions} WHERE ${sessions.gameId} = ${games.id} AND ${sessions.source} = 'scrobbler')`,
+				sql`EXISTS (SELECT 1 FROM ${sessions} WHERE ${sessions.gameId} = ${games.id} AND ${sessions.source} IN ('scrobbler', 'agent'))`,
 				sql`EXISTS (SELECT 1 FROM ${gameInheritedStats} WHERE ${gameInheritedStats.gameId} = ${games.id} AND ${gameInheritedStats.playCount} >= 1)`,
 				eq(games.favorite, true),
 			),

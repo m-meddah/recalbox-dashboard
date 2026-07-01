@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import {
+	REAL_PLAY_SOURCES,
 	type WeightedItem,
 	gameInheritedStats,
 	gameRatings,
@@ -63,7 +64,7 @@ export async function computeUserProfile(): Promise<void> {
 				classification: sessions.classification,
 			})
 			.from(sessions)
-			.where(and(eq(sessions.source, 'scrobbler'), isNotNull(sessions.classification)))
+			.where(and(inArray(sessions.source, REAL_PLAY_SOURCES), isNotNull(sessions.classification)))
 			.all(),
 		db
 			.select({

@@ -1,5 +1,12 @@
 import { db } from '@/lib/db/index'
-import { gameInheritedStats, games, sessions, settings, systemSnapshots } from '@/lib/db/schema'
+import {
+	REAL_PLAY_SOURCES,
+	gameInheritedStats,
+	games,
+	sessions,
+	settings,
+	systemSnapshots,
+} from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
@@ -245,7 +252,7 @@ export async function listGames(
 				SELECT 1 FROM ${sessions}
 				WHERE ${sessions.romPath} = ${games.romPath}
 				AND ${sessions.recalboxId} IS ${games.recalboxId}
-				AND ${sessions.source} = 'scrobbler'
+				AND ${sessions.source} IN ('scrobbler', 'agent')
 				AND ${sessions.endedAt} IS NOT NULL
 			)`,
 		)
@@ -266,7 +273,7 @@ export async function listGames(
 			COALESCE((
 				SELECT MAX(s.started_at) FROM sessions s
 				WHERE s.rom_path = ${games.romPath}
-				AND s.source = 'scrobbler'
+				AND s.source IN ('scrobbler', 'agent')
 				AND s.ended_at IS NOT NULL
 			), 0),
 			COALESCE(${games.lastPlayed}, 0)
@@ -477,7 +484,7 @@ export async function getSessionStats(
 
 	const baseConditions: SQL[] = [
 		sql`${sessions.endedAt} IS NOT NULL`,
-		sql`${sessions.source} = 'scrobbler'`,
+		inArray(sessions.source, REAL_PLAY_SOURCES),
 	]
 	if (recalboxId) baseConditions.push(sql`${sessions.recalboxId} = ${recalboxId}`)
 	if (recalboxIds) {
