@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getArtwork, markWanted } from '@/lib/db/artwork'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
+import { logoNameForSystem } from '@/lib/recalbox/system-logo-alias'
 import { isServerlessMode } from '@/lib/serverless'
 
 export const dynamic = 'force-dynamic'
@@ -32,11 +33,15 @@ export async function GET(request: Request) {
 		return new Response('No Recalbox configured', { status: 503 })
 	}
 
+	// Some ES ids don't match the theme's logo filename (e.g. wswan → wonderswan).
+	// Resolve via the alias map (identity otherwise). Alias values are [a-z0-9]+ too.
+	const logo = logoNameForSystem(system)
+
 	// Serverless: no SSH to the box. Mirror the logo through object storage via the
-	// artwork "wanted" queue (region-less <id>.png), exactly like the media proxy.
+	// artwork "wanted" queue (region-less <logo>.png), exactly like the media proxy.
 	// LOGO_DIR is under /recalbox/, which the agent is allowed to read & upload.
 	if (isServerlessMode()) {
-		const boxPath = `${LOGO_DIR}/${system}.png`
+		const boxPath = `${LOGO_DIR}/${logo}.png`
 		const stored = await getArtwork(db, recalboxId, boxPath).catch(() => undefined)
 		if (stored?.url) {
 			return new Response(null, {
@@ -61,7 +66,7 @@ export async function GET(request: Request) {
 	// <id>.png when no regional variant exists. REGION comes from the box's own conf (not
 	// client input); `system` is validated to [a-z0-9]+ and LOGO_DIR is a constant, so the
 	// interpolated path is safe.
-	const cmd = `REGION=$(grep -E '^emulationstation\\.theme\\.region=' /recalbox/share/system/recalbox.conf 2>/dev/null | head -1 | cut -d= -f2 | tr -d '\\r'); for f in "${LOGO_DIR}/${system}-$REGION.png" "${LOGO_DIR}/${system}.png"; do if [ -f "$f" ]; then base64 -w 0 "$f"; exit 0; fi; done; printf '__NF__'`
+	const cmd = `REGION=$(grep -E '^emulationstation\\.theme\\.region=' /recalbox/share/system/recalbox.conf 2>/dev/null | head -1 | cut -d= -f2 | tr -d '\\r'); for f in "${LOGO_DIR}/${logo}-$REGION.png" "${LOGO_DIR}/${logo}.png"; do if [ -f "$f" ]; then base64 -w 0 "$f"; exit 0; fi; done; printf '__NF__'`
 
 	try {
 		const result = await ssh.exec(cmd, 15_000)
