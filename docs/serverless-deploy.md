@@ -48,7 +48,7 @@ Browser ─► Vercel (Next.js: UI + agent ingest API)
 |---|---|
 | `TURSO_DATABASE_URL` | `libsql://recalbox-dashboard-fradz.aws-eu-west-1.turso.io` |
 | `TURSO_AUTH_TOKEN` | Turso token (rotate with `turso db tokens create recalbox-dashboard`) |
-| `TURSO_DISABLE_REPLICA` | `1` — **required at build**, recommended at runtime on Vercel (see caveat). Direct-remote libSQL; no local replica file. |
+| `TURSO_DISABLE_REPLICA` | Do **not** set this in Vercel's dashboard env vars — it's baked into the `build` script instead (see caveat). Setting it here would also disable the replica at runtime and slow down every DB read. |
 | `BLOB_READ_WRITE_TOKEN` | from the Vercel Blob store. When set, artwork goes to Blob; absent → local-fs dev adapter. |
 | `AGENT_ONLY_MEDIA` | `1` — `/api/media` serves only stored artwork (no SSH); a miss marks the file "wanted" for the agent to upload. |
 | `BETTER_AUTH_SECRET` | 32+ chars (`openssl rand -base64 32`). **Must match** the secret used to encrypt creds at rest — never regenerate after first deploy. |
@@ -69,11 +69,18 @@ opens the **embedded replica file**, and parallel build workers opening the same
 file fail with `SQLite failure: database is locked` (observed locally, build
 aborts on `/api/agent/now-playing`).
 
-**Fix:** set `TURSO_DISABLE_REPLICA=1` so the build (and Vercel runtime) uses a
-direct-remote libSQL client with no local file. Verified: the build succeeds with
-the flag set. (Embedded replicas are a local-read latency optimization for a
-long-lived host; on Vercel's ephemeral functions there's no persistent file to
-benefit from anyway, so direct-remote is the right runtime mode too.)
+**Fix:** the `build` script in `package.json` sets `TURSO_DISABLE_REPLICA=1`
+itself (`TURSO_DISABLE_REPLICA=1 next build`), so the build uses a direct-remote
+libSQL client with no local file — no Vercel env var needed for this.
+
+**Do not also set `TURSO_DISABLE_REPLICA` as a Vercel env var** — that applies at
+runtime too, and the embedded replica is exactly what makes read-heavy endpoints
+fast there. A warm Vercel function instance reuses the same libSQL client (and
+its synced local file) across requests, so the replica does help despite the
+function being "ephemeral" — only a cold start pays the initial sync cost.
+Without it, every DB read becomes a Turso network round-trip; the recommender
+alone (`/api/play-tonight/recommend`) fires a dozen+ queries per call and was
+measured at ~1 minute with the replica disabled at runtime.
 
 ## First deploy
 

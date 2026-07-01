@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getEsState } from '@/lib/recalbox/es-state'
 import { launchGame } from '@/lib/recalbox/launch-game'
+import { prefetchArtwork } from '@/lib/recommendations/artwork-prefetch'
 import { and, desc, eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -58,12 +59,21 @@ export async function POST(req: NextRequest) {
 	try {
 		const recalboxId = await getActiveRecalboxId()
 		const game = await db
-			.select({ romPath: games.romPath, system: games.system })
+			.select({
+				romPath: games.romPath,
+				system: games.system,
+				imageUrl: games.imagePath,
+				videoUrl: games.videoPath,
+			})
 			.from(games)
 			.where(eq(games.id, gameId))
 			.get()
 
 		if (recalboxId && game && canControlRecalbox(user, recalboxId)) {
+			// Whatever happens next (busy or not), this game was just chosen to play
+			// tonight — give the agent's artwork poll a head start on it.
+			prefetchArtwork(recalboxId, [game])
+
 			// Don't stack a launch on top of a game already running on the box.
 			const state = await getEsState(recalboxId)
 			if (state?.gameRunning) {

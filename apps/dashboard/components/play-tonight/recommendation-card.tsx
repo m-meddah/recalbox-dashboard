@@ -4,11 +4,48 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { translateGenre } from '@/lib/genres/genre-map'
+import { getRetryDelayMs, withCacheBust } from '@/lib/recommendations/media-retry'
 import type { ScoredGame } from '@/lib/recommendations/types'
 import { cn } from '@/lib/utils'
 import { HelpCircle, Play, Sparkles, Target, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
+
+/**
+ * A freshly-recommended game's media often isn't mirrored to blob storage yet
+ * (the agent only starts uploading after the first 404), so the initial load
+ * can fail. Retries a few times on error so it self-heals once the agent
+ * catches up, without the user reloading the page.
+ */
+function useRetryingMedia(path: string | null) {
+	const [attempt, setAttempt] = useState(0)
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+	useEffect(() => {
+		return () => {
+			if (timerRef.current) clearTimeout(timerRef.current)
+		}
+	}, [])
+
+	const clearPendingRetry = () => {
+		if (timerRef.current) {
+			clearTimeout(timerRef.current)
+			timerRef.current = null
+		}
+	}
+
+	const handleError = () => {
+		const delay = getRetryDelayMs(attempt)
+		if (delay === null) return
+		clearPendingRetry()
+		timerRef.current = setTimeout(() => setAttempt((a) => a + 1), delay)
+	}
+
+	const src = path ? withCacheBust(`/api/media?path=${encodeURIComponent(path)}`, attempt) : null
+
+	return { src, onError: handleError, onLoad: clearPendingRetry }
+}
 
 const CONF_STYLE = {
 	high: { icon: Target, cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10' },
@@ -40,11 +77,13 @@ export function RecommendationCard({
 	const tg = (genre: string) => translateGenre(genre, locale)
 	const conf = CONF_STYLE[game.confidence]
 	const ConfIcon = conf.icon
+	const video = useRetryingMedia(game.videoUrl)
+	const image = useRetryingMedia(game.imageUrl)
 
 	return (
 		<Card className="overflow-hidden flex flex-col h-full">
 			<div className="relative aspect-video bg-muted overflow-hidden">
-				{game.videoUrl ? (
+				{game.videoUrl && video.src ? (
 					<video
 						autoPlay
 						muted
@@ -52,15 +91,19 @@ export function RecommendationCard({
 						playsInline
 						aria-label={`Video preview of ${game.name}`}
 						className="w-full h-full object-contain"
-						src={`/api/media?path=${encodeURIComponent(game.videoUrl)}`}
+						src={video.src}
+						onError={video.onError}
+						onLoadedData={video.onLoad}
 					/>
-				) : game.imageUrl ? (
+				) : game.imageUrl && image.src ? (
 					<Image
-						src={`/api/media?path=${encodeURIComponent(game.imageUrl)}`}
+						src={image.src}
 						alt={game.name}
 						width={300}
 						height={169}
 						className="w-full h-full object-contain"
+						onError={image.onError}
+						onLoad={image.onLoad}
 					/>
 				) : null}
 				<div

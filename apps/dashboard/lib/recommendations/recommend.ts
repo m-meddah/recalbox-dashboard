@@ -15,6 +15,7 @@ import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
 import { and, count, eq, gt, isNotNull } from 'drizzle-orm'
+import { prefetchArtwork } from './artwork-prefetch'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
 import { selectFinalists } from './select-finalists'
 import { getSimilarityProvider } from './similarity-provider'
@@ -27,6 +28,7 @@ const inFlight = new Map<string, Promise<ScoredGame[]>>()
 
 export function recommend(
 	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
+	recalboxId?: string | null,
 ): Promise<ScoredGame[]> {
 	// Collapse concurrent identical requests (React StrictMode's double-invoke, or
 	// rapid duplicate submits) into a single computation. NOT a cache — the entry
@@ -36,14 +38,16 @@ export function recommend(
 	const key = `${ctxInput.availableMinutes}:${ctxInput.mood}`
 	const existing = inFlight.get(key)
 	if (existing) return existing
-	const promise = computeRecommendations(ctxInput).finally(() => inFlight.delete(key))
+	const promise = computeRecommendations(ctxInput, { recalboxId }).finally(() =>
+		inFlight.delete(key),
+	)
 	inFlight.set(key, promise)
 	return promise
 }
 
 export async function computeRecommendations(
 	ctxInput: Omit<RecommendationContext, 'excludedGameIds'>,
-	opts: { persist?: boolean } = {},
+	opts: { persist?: boolean; recalboxId?: string | null } = {},
 ): Promise<ScoredGame[]> {
 	const persist = opts.persist !== false
 	const [profile, activeSkips, gamesList, statsMap, ratings, igdbRatingsMap, hltbDurationsMap] =
@@ -145,6 +149,9 @@ export async function computeRecommendations(
 			triggerLazyMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
 		}
 		triggerLazyHltbMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
+		// Give the agent's artwork poll a head start: mark the finalists' media
+		// wanted now, before the browser even renders a card and 404s on it.
+		if (opts.recalboxId) prefetchArtwork(opts.recalboxId, finalists)
 	}
 
 	return finalists

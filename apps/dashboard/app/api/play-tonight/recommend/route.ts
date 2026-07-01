@@ -1,5 +1,6 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { recommend } from '@/lib/recommendations/recommend'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -17,7 +18,8 @@ export async function POST(req: NextRequest) {
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.format() }, { status: 400 })
 
 	try {
-		const recommendations = await recommend(parsed.data)
+		const recalboxId = await getActiveRecalboxId()
+		const recommendations = await recommend(parsed.data, recalboxId)
 		return NextResponse.json({ recommendations })
 	} catch (e: unknown) {
 		logger.error('[recommend] failed', e)
