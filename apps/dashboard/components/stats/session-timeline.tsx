@@ -1,6 +1,6 @@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RecentSession } from '@/lib/stats/calculators'
-import { formatDuration, formatRelativeDate } from '@/lib/stats/formatters'
+import { APP_TIME_ZONE, formatDuration, formatRelativeDate } from '@/lib/stats/formatters'
 import { getLocale, getTranslations } from 'next-intl/server'
 
 type Props = {
@@ -38,7 +38,11 @@ export async function SessionTimeline({ sessions }: Props) {
 					<div key={s.id} className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted/50">
 						<div className="hidden shrink-0 text-right sm:block">
 							<p className="text-xs font-mono text-muted-foreground">
-								{s.startedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+								{s.startedAt.toLocaleTimeString(locale, {
+									hour: '2-digit',
+									minute: '2-digit',
+									timeZone: APP_TIME_ZONE,
+								})}
 							</p>
 							<p className="text-[10px] text-muted-foreground/60">
 								{formatRelativeDate(s.startedAt, locale)}

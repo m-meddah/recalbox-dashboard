@@ -17,6 +17,13 @@ const RELATIVE_TIME_FORMATTERS: Record<string, Intl.RelativeTimeFormat> = {
 	fr: new Intl.RelativeTimeFormat('fr', { numeric: 'auto' }),
 }
 
+/**
+ * Timezone for rendering absolute wall-clock times on the server. Vercel runs in
+ * UTC and the `TZ` env var is reserved, so server components must pass this
+ * explicitly (otherwise a 23:39 CEST session renders as 21:39 UTC).
+ */
+export const APP_TIME_ZONE = 'Europe/Paris'
+
 export function formatRelativeDate(date: Date, locale = 'en'): string {
 	const now = Date.now()
 	const diffMs = date.getTime() - now
