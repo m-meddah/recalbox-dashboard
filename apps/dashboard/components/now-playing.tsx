@@ -74,6 +74,41 @@ function mediaUrl(path: string | null | undefined): string | null {
 	return path ? `/api/media?path=${encodeURIComponent(path)}` : null
 }
 
+/**
+ * In serverless mode, /api/media and /api/system-logo return 404 until the on-box
+ * agent uploads the file (≤~30s, request-driven). A plain onError would fall back
+ * permanently, so we retry the src a few times (cache-busted) before giving up —
+ * the image then appears on its own once uploaded, with no manual reload.
+ */
+function useRetryingImage(src: string | null, retries = 5, delayMs = 7000) {
+	const [attempt, setAttempt] = useState(0)
+	const [errored, setErrored] = useState(false)
+	// Reset retry state when the src changes — the "adjust state during render"
+	// pattern (no effect, so no spurious dependency on a value we only use as a key).
+	const [lastSrc, setLastSrc] = useState(src)
+	if (src !== lastSrc) {
+		setLastSrc(src)
+		setAttempt(0)
+		setErrored(false)
+	}
+	useEffect(() => {
+		if (!errored || attempt >= retries) return
+		const id = setTimeout(() => {
+			setErrored(false)
+			setAttempt((a) => a + 1)
+		}, delayMs)
+		return () => clearTimeout(id)
+	}, [errored, attempt, retries, delayMs])
+	const exhausted = errored && attempt >= retries
+	const effectiveSrc =
+		!src || exhausted
+			? null
+			: attempt === 0
+				? src
+				: `${src}${src.includes('?') ? '&' : '?'}retry=${attempt}`
+	return { src: effectiveSrc, onError: () => setErrored(true) }
+}
+
 function GameCard({ game }: { game: GameStartEvent }) {
 	const elapsed = useElapsedTime(game.startedAt)
 	const [srInfo, setSrInfo] = useState<{ srHasPage: number | null; srUrl: string | null }>({
@@ -87,9 +122,6 @@ function GameCard({ game }: { game: GameStartEvent }) {
 		rom: '',
 		data: null,
 	})
-	// Track which image URL failed instead of a boolean we'd have to reset on change.
-	const [failedSrc, setFailedSrc] = useState<{ box?: string; shot?: string }>({})
-
 	useEffect(() => {
 		const rom = game.romPath
 		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(rom)}`)
@@ -106,8 +138,10 @@ function GameCard({ game }: { game: GameStartEvent }) {
 	const screenshotUrl =
 		mediaUrl(media?.screenshotPath) ?? mediaUrl(media?.imagePath) ?? mediaUrl(game.imagePath)
 	const boxUrl = mediaUrl(media?.thumbnailPath)
-	const showBox = !!boxUrl && failedSrc.box !== boxUrl
-	const showShot = !!screenshotUrl && failedSrc.shot !== screenshotUrl
+	const shot = useRetryingImage(screenshotUrl)
+	const box = useRetryingImage(boxUrl)
+	const showShot = !!shot.src
+	const showBox = !!box.src
 
 	const meta = [
 		media?.releaseYear ? String(media.releaseYear) : null,
@@ -123,13 +157,13 @@ function GameCard({ game }: { game: GameStartEvent }) {
 			<div className="relative aspect-video w-full bg-gradient-to-br from-slate-700 to-slate-950">
 				{showShot ? (
 					<Image
-						src={screenshotUrl as string}
+						src={shot.src as string}
 						alt={game.gameName}
 						fill
 						sizes="(max-width: 1024px) 100vw, 560px"
 						className="object-contain"
 						unoptimized
-						onError={() => setFailedSrc((f) => ({ ...f, shot: screenshotUrl ?? undefined }))}
+						onError={shot.onError}
 					/>
 				) : (
 					<div className="flex h-full items-center justify-center">
@@ -160,13 +194,13 @@ function GameCard({ game }: { game: GameStartEvent }) {
 				{/* Box art */}
 				{showBox && (
 					<Image
-						src={boxUrl as string}
+						src={box.src as string}
 						alt=""
 						width={120}
 						height={160}
 						className="absolute bottom-3 left-3 h-28 w-auto -rotate-3 rounded-md shadow-2xl ring-1 ring-black/30"
 						unoptimized
-						onError={() => setFailedSrc((f) => ({ ...f, box: boxUrl ?? undefined }))}
+						onError={box.onError}
 					/>
 				)}
 
@@ -193,19 +227,21 @@ function GameCard({ game }: { game: GameStartEvent }) {
 
 /** Real console brand logo from the Recalbox theme, with an emoji fallback when it can't load. */
 function SystemLogo({ systemId }: { systemId: string }) {
-	const [failed, setFailed] = useState(false)
-	if (failed || !systemId) {
+	const logo = useRetryingImage(
+		systemId ? `/api/system-logo?system=${encodeURIComponent(systemId)}` : null,
+	)
+	if (!logo.src || !systemId) {
 		return <span className="text-4xl leading-none">{systemEmoji(systemId)}</span>
 	}
 	return (
 		<Image
-			src={`/api/system-logo?system=${encodeURIComponent(systemId)}`}
+			src={logo.src}
 			alt=""
 			width={96}
 			height={96}
 			className="w-full h-full object-contain p-2"
 			unoptimized
-			onError={() => setFailed(true)}
+			onError={logo.onError}
 		/>
 	)
 }

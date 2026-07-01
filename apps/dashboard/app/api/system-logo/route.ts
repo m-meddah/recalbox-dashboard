@@ -1,6 +1,9 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { db } from '@/lib/db'
+import { getArtwork, markWanted } from '@/lib/db/artwork'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
+import { isServerlessMode } from '@/lib/serverless'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -27,6 +30,28 @@ export async function GET(request: Request) {
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
 		return new Response('No Recalbox configured', { status: 503 })
+	}
+
+	// Serverless: no SSH to the box. Mirror the logo through object storage via the
+	// artwork "wanted" queue (region-less <id>.png), exactly like the media proxy.
+	// LOGO_DIR is under /recalbox/, which the agent is allowed to read & upload.
+	if (isServerlessMode()) {
+		const boxPath = `${LOGO_DIR}/${system}.png`
+		const stored = await getArtwork(db, recalboxId, boxPath).catch(() => undefined)
+		if (stored?.url) {
+			return new Response(null, {
+				status: 302,
+				headers: {
+					Location: new URL(stored.url, request.url).toString(),
+					'Cache-Control': 'public, max-age=86400',
+				},
+			})
+		}
+		await markWanted(db, recalboxId, boxPath).catch(() => {})
+		return new Response('Logo pending upload', {
+			status: 404,
+			headers: { 'Cache-Control': 'public, max-age=30' },
+		})
 	}
 
 	const ssh = getSshClient(recalboxId, 'media')

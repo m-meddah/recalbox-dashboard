@@ -3,6 +3,7 @@ import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db'
 import { AGENT_LIVENESS_MS, getAgentLastSeen } from '@/lib/db/agent-liveness'
 import { getAllNowPlaying, nowPlayingToEvent } from '@/lib/db/now-playing'
+import { getLatestSnapshots, snapshotToSystemInfo } from '@/lib/db/system-info'
 import { feedbackService } from '@/lib/feedback/service'
 import { logger } from '@/lib/logger'
 import { getNotificationService } from '@/lib/notifications/service'
@@ -18,6 +19,7 @@ import type {
 } from '@/lib/recalbox/events'
 import { mqttPool } from '@/lib/recalbox/mqtt-client'
 import type { RecalboxMqttClient } from '@/lib/recalbox/mqtt-client'
+import { isServerlessMode } from '@/lib/serverless'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -70,58 +72,62 @@ export async function GET(request: Request) {
 			const cleanups: Array<() => void> = []
 			const clients = new Map<string, RecalboxMqttClient>()
 
-			for (const recalboxId of recalboxIds) {
-				let client: RecalboxMqttClient
-				try {
-					client = mqttPool.getClient(recalboxId)
-				} catch {
-					continue
-				}
-
-				clients.set(recalboxId, client)
-
-				sendConnectionStatus(recalboxId, client.isConnected)
-				if (!recalboxIdFilter || recalboxIdFilter === recalboxId) {
-					if (client.lastKnownGame) {
-						sendEvent(recalboxId, client.lastKnownGame)
-					} else if (client.lastKnownScreensaverGame) {
-						sendEvent(recalboxId, client.lastKnownScreensaverGame)
-					} else if (client.isScreensaverActive) {
-						sendEvent(recalboxId, { type: 'screensaver:start' })
-					} else if (client.lastKnownBrowsing) {
-						sendEvent(recalboxId, client.lastKnownBrowsing)
+			// Serverless: the cloud has no MQTT link to the (NAT'd) box, so a cloud MQTT
+			// client would only ever emit connection:down and fight the agent-liveness
+			// signal below. Skip it entirely — pollConnection + pollNowPlaying drive the UI.
+			if (!isServerlessMode())
+				for (const recalboxId of recalboxIds) {
+					let client: RecalboxMqttClient
+					try {
+						client = mqttPool.getClient(recalboxId)
+					} catch {
+						continue
 					}
+
+					clients.set(recalboxId, client)
+
+					sendConnectionStatus(recalboxId, client.isConnected)
+					if (!recalboxIdFilter || recalboxIdFilter === recalboxId) {
+						if (client.lastKnownGame) {
+							sendEvent(recalboxId, client.lastKnownGame)
+						} else if (client.lastKnownScreensaverGame) {
+							sendEvent(recalboxId, client.lastKnownScreensaverGame)
+						} else if (client.isScreensaverActive) {
+							sendEvent(recalboxId, { type: 'screensaver:start' })
+						} else if (client.lastKnownBrowsing) {
+							sendEvent(recalboxId, client.lastKnownBrowsing)
+						}
+					}
+
+					const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
+					const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
+					const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
+					const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
+					const onScreensaverStart = (e: ScreensaverStartEvent) => sendEvent(recalboxId, e)
+					const onScreensaverStop = (e: ScreensaverStopEvent) => sendEvent(recalboxId, e)
+					const onUp = () => sendConnectionStatus(recalboxId, true)
+					const onDown = () => sendConnectionStatus(recalboxId, false)
+
+					client.on('game:start', onGameStart)
+					client.on('game:stop', onGameStop)
+					client.on('system:change', onSystemChange)
+					client.on('system:info', onSystemInfo)
+					client.on('screensaver:start', onScreensaverStart)
+					client.on('screensaver:stop', onScreensaverStop)
+					client.on('connection:up', onUp)
+					client.on('connection:down', onDown)
+
+					cleanups.push(() => {
+						client.off('game:start', onGameStart)
+						client.off('game:stop', onGameStop)
+						client.off('system:change', onSystemChange)
+						client.off('system:info', onSystemInfo)
+						client.off('screensaver:start', onScreensaverStart)
+						client.off('screensaver:stop', onScreensaverStop)
+						client.off('connection:up', onUp)
+						client.off('connection:down', onDown)
+					})
 				}
-
-				const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
-				const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
-				const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
-				const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
-				const onScreensaverStart = (e: ScreensaverStartEvent) => sendEvent(recalboxId, e)
-				const onScreensaverStop = (e: ScreensaverStopEvent) => sendEvent(recalboxId, e)
-				const onUp = () => sendConnectionStatus(recalboxId, true)
-				const onDown = () => sendConnectionStatus(recalboxId, false)
-
-				client.on('game:start', onGameStart)
-				client.on('game:stop', onGameStop)
-				client.on('system:change', onSystemChange)
-				client.on('system:info', onSystemInfo)
-				client.on('screensaver:start', onScreensaverStart)
-				client.on('screensaver:stop', onScreensaverStop)
-				client.on('connection:up', onUp)
-				client.on('connection:down', onDown)
-
-				cleanups.push(() => {
-					client.off('game:start', onGameStart)
-					client.off('game:stop', onGameStop)
-					client.off('system:change', onSystemChange)
-					client.off('system:info', onSystemInfo)
-					client.off('screensaver:start', onScreensaverStart)
-					client.off('screensaver:stop', onScreensaverStop)
-					client.off('connection:up', onUp)
-					client.off('connection:down', onDown)
-				})
-			}
 
 			const onNotificationCreated = (notif: Notification) => {
 				notifService.markPushedInApp(notif.id).then((claimed) => {
@@ -186,6 +192,25 @@ export async function GET(request: Request) {
 			const connectionPollInterval = setInterval(pollConnection, 5000)
 			pollConnection()
 
+			// Serverless system stats: emit system:info from the latest agent snapshot
+			// (the cloud has no MQTT to read CPU/temp live). Only for MQTT-disconnected boxes.
+			const systemInfoState = new Map<string, number>()
+			const pollSystemInfo = async () => {
+				try {
+					for (const [recalboxId, row] of await getLatestSnapshots(db)) {
+						if (recalboxIdFilter && recalboxIdFilter !== recalboxId) continue
+						if (clients.get(recalboxId)?.isConnected) continue
+						if (systemInfoState.get(recalboxId) === row.id) continue
+						systemInfoState.set(recalboxId, row.id)
+						sendEvent(recalboxId, snapshotToSystemInfo(row))
+					}
+				} catch (err) {
+					logger.error('System-info poll failed', err)
+				}
+			}
+			const systemInfoPollInterval = setInterval(pollSystemInfo, 5000)
+			pollSystemInfo()
+
 			const sendFeedback = (feedbackId: number) => {
 				try {
 					controller.enqueue(
@@ -234,6 +259,7 @@ export async function GET(request: Request) {
 				clearInterval(feedbackPollInterval)
 				clearInterval(nowPlayingPollInterval)
 				clearInterval(connectionPollInterval)
+				clearInterval(systemInfoPollInterval)
 				clearTimeout(lifespan)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
