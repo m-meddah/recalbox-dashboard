@@ -13,7 +13,7 @@ import { matchHltbAsync } from '@/lib/hltb/match-single'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
-import { and, count, eq, gt, isNotNull } from 'drizzle-orm'
+import { and, count, eq, gt, inArray, isNotNull } from 'drizzle-orm'
 import { prefetchArtwork } from './artwork-prefetch'
 import { loadRecommenderGames } from './games-cache'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
@@ -200,16 +200,28 @@ async function loadIgdbRatings(): Promise<Map<number, number>> {
 	return new Map(rows.map((r) => [r.gameId, r.rating as number]))
 }
 
-async function triggerLazyMatching(gameIds: number[]): Promise<void> {
-	const matched = await db.select({ gameId: gameIgdbMapping.gameId }).from(gameIgdbMapping).all()
+export async function triggerLazyMatching(gameIds: number[]): Promise<void> {
+	if (gameIds.length === 0) return
+	// Only ask about the candidates, not the whole mapping table — this runs on
+	// every recommend and used to full-scan game_igdb_mapping just to check ≤30 ids.
+	const matched = await db
+		.select({ gameId: gameIgdbMapping.gameId })
+		.from(gameIgdbMapping)
+		.where(inArray(gameIgdbMapping.gameId, gameIds))
+		.all()
 	const matchedSet = new Set(matched.map((m) => m.gameId))
 	for (const id of gameIds.filter((id) => !matchedSet.has(id)).slice(0, 5)) {
 		matchGameAsync(id)
 	}
 }
 
-async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {
-	const mapped = await db.select({ gameId: gameHltbMapping.gameId }).from(gameHltbMapping).all()
+export async function triggerLazyHltbMatching(gameIds: number[]): Promise<void> {
+	if (gameIds.length === 0) return
+	const mapped = await db
+		.select({ gameId: gameHltbMapping.gameId })
+		.from(gameHltbMapping)
+		.where(inArray(gameHltbMapping.gameId, gameIds))
+		.all()
 	const mappedSet = new Set(mapped.map((m) => m.gameId))
 	for (const id of gameIds) {
 		if (!mappedSet.has(id)) matchHltbAsync(id)
