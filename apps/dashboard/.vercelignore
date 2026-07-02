@@ -1,0 +1,24 @@
+# CLI deploys (vercel --prod) upload this directory directly — Vercel doesn't
+# walk up to the repo-root .vercelignore since rootDirectory is apps/dashboard.
+# Mirrors ../../.vercelignore for that deploy path.
+
+# Build artifacts & caches (Vercel rebuilds from source)
+node_modules
+.next
+.turbo
+
+# Local SQLite databases, libSQL embedded replicas, and backups (never deploy)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*-replica.db
+*.bak-*
+
+# Local object-storage dev adapter
+.storage
+
+# Secrets & local env (env vars come from Vercel project settings)
+.env
+.env.local
+.env*.local

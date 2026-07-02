@@ -19,6 +19,8 @@ build/
 *.db-info
 *.db-client_wal_index
 recalbox-replica.db*
+# DB backups (local only now that everything lives in Turso)
+*.bak-*
 
 # Local-filesystem artwork store (dev; prod uses Vercel Blob)
 .storage/
