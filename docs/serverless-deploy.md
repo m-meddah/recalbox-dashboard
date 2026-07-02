@@ -48,7 +48,7 @@ Browser ─► Vercel (Next.js: UI + agent ingest API)
 |---|---|
 | `TURSO_DATABASE_URL` | `libsql://recalbox-dashboard-fradz.aws-eu-west-1.turso.io` |
 | `TURSO_AUTH_TOKEN` | Turso token (rotate with `turso db tokens create recalbox-dashboard`) |
-| `TURSO_DISABLE_REPLICA` | Do **not** set this in Vercel's dashboard env vars — it's baked into the `build` script instead (see caveat). Setting it here would also disable the replica at runtime and slow down every DB read. |
+| `TURSO_DISABLE_REPLICA` | Set to `1` on Vercel (build **and** runtime). Keeps libSQL in direct-remote mode. **Do not remove it to "go faster" — see the embedded-replica warning below.** |
 | `BLOB_READ_WRITE_TOKEN` | from the Vercel Blob store. When set, artwork goes to Blob; absent → local-fs dev adapter. |
 | `AGENT_ONLY_MEDIA` | `1` — `/api/media` serves only stored artwork (no SSH); a miss marks the file "wanted" for the agent to upload. |
 | `BETTER_AUTH_SECRET` | 32+ chars (`openssl rand -base64 32`). **Must match** the secret used to encrypt creds at rest — never regenerate after first deploy. |
@@ -61,26 +61,34 @@ The old self-hosted vars (`RECALBOX_HOST`, `MQTT_*`, `GAMELIST_BASE_PATH`,
 `DATABASE_PATH`) are **not used** in serverless mode (Recalbox instances live in the
 `recalboxes` table; connectivity is push-only).
 
-## ⚠️ Build caveat — disable the embedded replica at build
+## ⚠️ Keep the embedded replica DISABLED on Vercel (`TURSO_DISABLE_REPLICA=1`)
 
-`next build` collects page data by importing every route, including the agent
-routes that import `@/lib/db`. With `TURSO_DATABASE_URL` set, the db singleton
-opens the **embedded replica file**, and parallel build workers opening the same
-file fail with `SQLite failure: database is locked` (observed locally, build
-aborts on `/api/agent/now-playing`).
+The libSQL **embedded replica** (a local SQLite file synced from the Turso
+primary) is a great optimization for a long-lived host — but a **trap on Vercel
+serverless**. Two independent failures, both observed in production:
 
-**Fix:** the `build` script in `package.json` sets `TURSO_DISABLE_REPLICA=1`
-itself (`TURSO_DISABLE_REPLICA=1 next build`), so the build uses a direct-remote
-libSQL client with no local file — no Vercel env var needed for this.
+1. **Build:** `next build` imports every route (incl. the agent routes that pull
+   in `@/lib/db`); parallel build workers opening the same replica file fail with
+   `SQLite failure: database is locked`.
+2. **Runtime:** Vercel functions have a **read-only** filesystem except `/tmp`,
+   and each cold start starts with an empty replica → libSQL throws
+   `sync error: invalid local state: metadata file exists but db file does not`
+   and the whole Node process exits (every route 500s, site down). Pointing
+   `TURSO_REPLICA_PATH` at `/tmp` avoids the crash but triggers the real killer:
+   **every cold start re-syncs the entire ~100 MB DB from the primary.** With the
+   on-box agent polling several routes every few seconds — each an independently
+   cold-starting function — this burned **4.79 GB of Turso "embedded syncs" in
+   ~1 hour**, blew past the free tier's 3 GB/month, and Turso **froze all reads**
+   on the database (`BLOCKED: SQL read operations are forbidden`).
 
-**Do not also set `TURSO_DISABLE_REPLICA` as a Vercel env var** — that applies at
-runtime too, and the embedded replica is exactly what makes read-heavy endpoints
-fast there. A warm Vercel function instance reuses the same libSQL client (and
-its synced local file) across requests, so the replica does help despite the
-function being "ephemeral" — only a cold start pays the initial sync cost.
-Without it, every DB read becomes a Turso network round-trip; the recommender
-alone (`/api/play-tonight/recommend`) fires a dozen+ queries per call and was
-measured at ~1 minute with the replica disabled at runtime.
+**Rule:** `TURSO_DISABLE_REPLICA=1` at **both** build and runtime on Vercel.
+Direct-remote mode does zero syncs. It makes reads network round-trips, so the
+speed-up must come from **caching in the app** (e.g. the recommender's whole-table
+scan is memoized — see `lib/recommendations/games-cache.ts`) and from **not
+polling the DB more than necessary** — never from the embedded replica.
+
+The `build` script hard-codes it (`TURSO_DISABLE_REPLICA=1 next build`) so a build
+can't regress; the Vercel **env var** covers runtime. Keep both.
 
 ## First deploy
 

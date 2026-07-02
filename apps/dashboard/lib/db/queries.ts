@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/schema'
 import type { ParsedGame } from '@/lib/recalbox/gamelist-parser'
 import type { SystemStats } from '@/lib/recalbox/system-stats'
+import { clearRecommenderGamesCache } from '@/lib/recommendations/games-cache'
 import { SETUP_COMPLETED_KEY } from '@/lib/settings/schemas'
 import {
 	type SQL,
@@ -201,6 +202,10 @@ export async function upsertGames(
 
 		total += batch.length
 	}
+
+	// The recommender serves games from a short-lived in-memory snapshot; drop it
+	// so a freshly-imported collection shows up without waiting for the TTL.
+	clearRecommenderGamesCache()
 
 	return total
 }

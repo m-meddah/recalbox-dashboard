@@ -28,6 +28,19 @@ export const runtime = 'nodejs'
 // instead of an abrupt platform kill mid-message.
 export const maxDuration = 300
 
+// Each open SSE stream re-runs these DB polls for its whole lifetime, so every
+// tab is a steady Turso read load. On the serverless/Turso backend that is a real
+// quota cost (an idle tab left open all day = tens of thousands of reads), so the
+// intervals are deliberately relaxed — a few seconds of extra lag on a status
+// pill or the temperature gauge is invisible, but it cuts the read rate ~4×.
+// Live game start/stop still arrives promptly (10s) so the now-playing card feels
+// responsive; the slow-moving signals (connection, CPU/temp) poll least often.
+const NOW_PLAYING_POLL_MS = 10_000
+const NOTIFICATIONS_POLL_MS = 20_000
+const CONNECTION_POLL_MS = 30_000
+const SYSTEM_INFO_POLL_MS = 30_000
+const FEEDBACK_POLL_MS = 30_000
+
 export async function GET(request: Request) {
 	if (!(await getUser())) return unauthorized()
 	const url = new URL(request.url)
@@ -147,7 +160,7 @@ export async function GET(request: Request) {
 					logger.error('Notification poll failed', err)
 				}
 			}
-			const pollInterval = setInterval(pollNotifications, 5000)
+			const pollInterval = setInterval(pollNotifications, NOTIFICATIONS_POLL_MS)
 
 			// Relay the agent-pushed now_playing row (serverless: cloud has no MQTT link to the box).
 			const nowPlayingState = new Map<string, string | null>()
@@ -166,7 +179,7 @@ export async function GET(request: Request) {
 					logger.error('Now-playing poll failed', err)
 				}
 			}
-			const nowPlayingPollInterval = setInterval(pollNowPlaying, 5000)
+			const nowPlayingPollInterval = setInterval(pollNowPlaying, NOW_PLAYING_POLL_MS)
 			pollNowPlaying()
 
 			// Serverless connection status: with no cloud→box MQTT, derive online from the
@@ -193,7 +206,7 @@ export async function GET(request: Request) {
 					logger.error('Connection liveness poll failed', err)
 				}
 			}
-			const connectionPollInterval = setInterval(pollConnection, 5000)
+			const connectionPollInterval = setInterval(pollConnection, CONNECTION_POLL_MS)
 			pollConnection()
 
 			// Serverless system stats: emit system:info from the latest agent snapshot
@@ -212,7 +225,7 @@ export async function GET(request: Request) {
 					logger.error('System-info poll failed', err)
 				}
 			}
-			const systemInfoPollInterval = setInterval(pollSystemInfo, 5000)
+			const systemInfoPollInterval = setInterval(pollSystemInfo, SYSTEM_INFO_POLL_MS)
 			pollSystemInfo()
 
 			const sendFeedback = (feedbackId: number) => {
@@ -236,7 +249,7 @@ export async function GET(request: Request) {
 					logger.error('Feedback poll failed', err)
 				}
 			}
-			const feedbackPollInterval = setInterval(pollFeedback, 5000)
+			const feedbackPollInterval = setInterval(pollFeedback, FEEDBACK_POLL_MS)
 			pollFeedback()
 
 			const heartbeat = setInterval(() => {

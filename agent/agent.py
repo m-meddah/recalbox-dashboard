@@ -379,7 +379,7 @@ def gather_snapshot():
 def snapshot_loop(cfg):
     """Periodically gather + push a system snapshot. Best-effort (no buffering)."""
     url = endpoint_for(cfg, "snapshots")
-    interval = int(cfg.get("snapshot_interval_sec", 60))
+    interval = int(cfg.get("snapshot_interval_sec", 300))
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
     while True:
@@ -588,7 +588,7 @@ def command_loop(cfg):
     """Poll the cloud for pending commands, execute them locally, report back."""
     url = endpoint_for(cfg, "commands")
     result_url = (url + "/result") if url else ""
-    interval = int(cfg.get("command_poll_interval_sec", 10))
+    interval = int(cfg.get("command_poll_interval_sec", 60))
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
     while True:
@@ -639,7 +639,7 @@ def upload_artwork(cfg, box_path):
 def artwork_loop(cfg):
     """Poll the cloud for artwork browsers requested but we haven't uploaded yet,
     and upload each. Lazy/on-demand — no bulk sweep."""
-    interval = int(cfg.get("artwork_poll_interval_sec", 30))
+    interval = int(cfg.get("artwork_poll_interval_sec", 60))
     if interval <= 0:
         log.info("Artwork upload disabled (artwork_poll_interval_sec<=0)")
         return
@@ -685,17 +685,17 @@ def main():
 
     threading.Thread(target=deliverer.flush_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
-    log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 60))
+    log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 300))
     if int(cfg.get("collection_interval_sec", 21600)) > 0:
         threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
         log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
     else:
         log.info("Collection sync disabled")
     threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
-    log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 10))
-    if int(cfg.get("artwork_poll_interval_sec", 30)) > 0:
+    log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 60))
+    if int(cfg.get("artwork_poll_interval_sec", 60)) > 0:
         threading.Thread(target=artwork_loop, args=(cfg,), daemon=True).start()
-        log.info("Artwork upload poll every %ss", cfg.get("artwork_poll_interval_sec", 30))
+        log.info("Artwork upload poll every %ss", cfg.get("artwork_poll_interval_sec", 60))
     else:
         log.info("Artwork upload disabled")
 

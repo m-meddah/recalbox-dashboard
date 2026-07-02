@@ -3,7 +3,6 @@ import {
 	gameHltbMapping,
 	gameIgdbMapping,
 	gameRatings,
-	games,
 	hltbCache,
 	igdbGameCache,
 	recommendationLog,
@@ -16,6 +15,7 @@ import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
 import { and, count, eq, gt, isNotNull } from 'drizzle-orm'
 import { prefetchArtwork } from './artwork-prefetch'
+import { loadRecommenderGames } from './games-cache'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
 import { selectFinalists } from './select-finalists'
 import { getSimilarityProvider } from './similarity-provider'
@@ -58,22 +58,9 @@ export async function computeRecommendations(
 				.from(recommendationSkip)
 				.where(gt(recommendationSkip.expiresAt, new Date()))
 				.all(),
-			db
-				.select({
-					gameId: games.id,
-					name: games.name,
-					system: games.system,
-					imageUrl: games.imagePath,
-					videoUrl: games.videoPath,
-					genres: games.genre,
-					releaseDate: games.releaseDate,
-					developer: games.developer,
-					scrapedRating: games.rating,
-					favorite: games.favorite,
-				})
-				.from(games)
-				.where(eq(games.hidden, false))
-				.all(),
+			// Cached (short TTL): the whole-collection scan is the app's biggest
+			// Turso row-read; a reshuffle burst reuses one snapshot. See games-cache.ts.
+			loadRecommenderGames(),
 			getGamePlayStatsBatch(),
 			db.select().from(gameRatings).all(),
 			loadIgdbRatings(),
