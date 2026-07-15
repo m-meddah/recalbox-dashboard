@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { index, int, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import type { StorageMount } from '@/lib/recalbox/storage'
 
 export const recalboxes = sqliteTable(
 	'recalboxes',
@@ -181,6 +182,7 @@ export const systemSnapshots = sqliteTable(
 		memTotalMb: real('mem_total_mb'),
 		tempCelsius: real('temp_celsius'),
 		uptimeSeconds: int('uptime_seconds'),
+		storage: text('storage', { mode: 'json' }).$type<StorageMount[]>(),
 	},
 	(t) => ({
 		recalboxIdIdx: index('idx_snapshots_recalbox_id').on(t.recalboxId),

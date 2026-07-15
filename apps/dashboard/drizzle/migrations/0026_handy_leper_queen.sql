@@ -1,0 +1,1 @@
+ALTER TABLE `system_snapshots` ADD `storage` text;
