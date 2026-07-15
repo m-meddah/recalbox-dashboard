@@ -2,9 +2,11 @@ import { FeedbackInboxNudge } from '@/components/feedback/feedback-inbox-nudge'
 import { MonitoringPanel } from '@/components/monitoring-panel'
 import { NowPlaying } from '@/components/now-playing'
 import { OverviewHero } from '@/components/overview-hero'
+import { ServerlessSystemPanel } from '@/components/serverless-system-panel'
 import { SystemStatsChart } from '@/components/system-stats-chart'
 import { SectionLabel } from '@/components/ui/section-label'
 import type { routing } from '@/i18n/routing'
+import { isServerlessMode } from '@/lib/serverless'
 import { setRequestLocale } from 'next-intl/server'
 import { getTranslations } from 'next-intl/server'
 import { Suspense } from 'react'
@@ -41,7 +43,7 @@ export default async function Home({ params }: Props) {
 					>
 						<SystemStatsChart />
 					</Suspense>
-					<MonitoringPanel />
+					{isServerlessMode() ? <ServerlessSystemPanel /> : <MonitoringPanel />}
 				</section>
 			</div>
 		</main>
