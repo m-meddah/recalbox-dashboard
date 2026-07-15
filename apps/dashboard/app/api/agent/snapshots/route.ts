@@ -9,6 +9,14 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const StorageItem = z.object({
+	label: z.string(),
+	mount: z.string(),
+	usedBytes: z.number(),
+	sizeBytes: z.number(),
+	percent: z.number(),
+})
+
 const Payload = z.object({
 	captured_at: z.coerce.date(),
 	cpu_percent: z.number().nullish(),
@@ -16,6 +24,8 @@ const Payload = z.object({
 	mem_total_mb: z.number().nullish(),
 	temp_celsius: z.number().nullish(),
 	uptime_seconds: z.number().int().nullish(),
+	// Lenient: a malformed storage array must not drop the whole snapshot.
+	storage: z.array(StorageItem).nullish().catch(null),
 })
 
 export async function POST(req: NextRequest) {
@@ -49,6 +59,7 @@ export async function POST(req: NextRequest) {
 			memTotalMb: p.mem_total_mb ?? null,
 			tempCelsius: p.temp_celsius ?? null,
 			uptimeSeconds: p.uptime_seconds ?? null,
+			storage: p.storage ?? null,
 		})
 		return NextResponse.json({ ok: true, id }, { status: 201 })
 	} catch (e) {

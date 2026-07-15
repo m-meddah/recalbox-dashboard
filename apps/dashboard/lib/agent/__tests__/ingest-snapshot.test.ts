@@ -49,4 +49,22 @@ describe('ingestSnapshot', () => {
 		expect(row?.memTotalMb).toBeNull()
 		expect(row?.tempCelsius).toBeNull()
 	})
+
+	it('stores the storage array', async () => {
+		const storage = [
+			{ label: 'share', mount: '/recalbox/share', usedBytes: 500, sizeBytes: 1000, percent: 50 },
+		]
+		await ingestSnapshot(db as unknown as DB, 'rb1', {
+			capturedAt: new Date('2026-06-20T20:00:00.000Z'),
+			storage,
+		})
+		const row = db.select().from(schema.systemSnapshots).all()[0]
+		expect(row?.storage).toEqual(storage)
+	})
+
+	it('stores null storage when omitted', async () => {
+		await ingestSnapshot(db as unknown as DB, 'rb1', { capturedAt: new Date() })
+		const row = db.select().from(schema.systemSnapshots).all()[0]
+		expect(row?.storage).toBeNull()
+	})
 })

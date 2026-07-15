@@ -61,6 +61,7 @@ describe('snapshotToSystemInfo', () => {
 			memTotalMb: 4096,
 			tempCelsius: 58.4,
 			uptimeSeconds: 1000,
+			storage: null,
 		})
 		expect(ev).toEqual({
 			type: 'system:info',
@@ -82,6 +83,7 @@ describe('snapshotToSystemInfo', () => {
 			memTotalMb: null,
 			tempCelsius: null,
 			uptimeSeconds: null,
+			storage: null,
 		})
 		expect(ev.cpuPercent).toBe(0)
 		expect(ev.tempCelsius).toBe(0)

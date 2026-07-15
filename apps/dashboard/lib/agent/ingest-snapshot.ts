@@ -1,5 +1,6 @@
 import type { DB } from '@/lib/db'
 import { systemSnapshots } from '@/lib/db/schema'
+import type { StorageMount } from '@/lib/recalbox/storage'
 
 export type AgentSnapshotInput = {
 	capturedAt: Date
@@ -8,6 +9,7 @@ export type AgentSnapshotInput = {
 	memTotalMb?: number | null
 	tempCelsius?: number | null
 	uptimeSeconds?: number | null
+	storage?: StorageMount[] | null
 }
 
 /**
@@ -30,6 +32,7 @@ export async function ingestSnapshot(
 			memTotalMb: input.memTotalMb ?? null,
 			tempCelsius: input.tempCelsius ?? null,
 			uptimeSeconds: input.uptimeSeconds ?? null,
+			storage: input.storage ?? null,
 		})
 		.returning({ id: systemSnapshots.id })
 	const row = rows[0]
