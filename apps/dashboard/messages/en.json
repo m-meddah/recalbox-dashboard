@@ -118,7 +118,9 @@
 			"cpu": "CPU",
 			"cores": "CPU cores",
 			"storage": "Storage",
-			"core": "Core"
+			"core": "Core",
+			"ram": "RAM",
+			"uptime": "Uptime"
 		},
 		"overview": {
 			"title": "Overview",
