@@ -5,6 +5,8 @@
 // - EmulationStation appends a second copy of the JSON in the same MQTT payload (double-publish bug).
 //   We recover by slicing to the position reported in the SyntaxError.
 
+import type { StorageMount } from '@/lib/recalbox/storage'
+
 const ES_EVENT_TOPIC = 'Recalbox/WebAPI/EmulationStation/Event'
 const SYSTEM_INFO_TOPIC = 'Recalbox/WebAPI/SystemInfo'
 
@@ -53,6 +55,10 @@ export type SystemInfoEvent = {
 	memUsedMb: number
 	memTotalMb: number
 	tempCelsius: number
+	/** Seconds since boot (agent snapshots only; undefined over MQTT). */
+	uptimeSeconds?: number
+	/** Per-mount disk usage (agent snapshots only; undefined over MQTT). */
+	storage?: StorageMount[]
 }
 
 export type RecalboxEvent =

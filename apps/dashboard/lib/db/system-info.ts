@@ -34,5 +34,7 @@ export function snapshotToSystemInfo(row: SnapshotRow): SystemInfoEvent {
 		memUsedMb: row.memUsedMb ?? 0,
 		memTotalMb: row.memTotalMb ?? 0,
 		tempCelsius: row.tempCelsius ?? 0,
+		uptimeSeconds: row.uptimeSeconds ?? undefined,
+		storage: row.storage ?? undefined,
 	}
 }

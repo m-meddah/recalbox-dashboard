@@ -61,7 +61,9 @@ describe('snapshotToSystemInfo', () => {
 			memTotalMb: 4096,
 			tempCelsius: 58.4,
 			uptimeSeconds: 1000,
-			storage: null,
+			storage: [
+				{ label: 'share', mount: '/recalbox/share', usedBytes: 5, sizeBytes: 10, percent: 50 },
+			],
 		})
 		expect(ev).toEqual({
 			type: 'system:info',
@@ -70,6 +72,10 @@ describe('snapshotToSystemInfo', () => {
 			memUsedMb: 500,
 			memTotalMb: 4096,
 			tempCelsius: 58.4,
+			uptimeSeconds: 1000,
+			storage: [
+				{ label: 'share', mount: '/recalbox/share', usedBytes: 5, sizeBytes: 10, percent: 50 },
+			],
 		})
 	})
 
@@ -87,5 +93,7 @@ describe('snapshotToSystemInfo', () => {
 		})
 		expect(ev.cpuPercent).toBe(0)
 		expect(ev.tempCelsius).toBe(0)
+		expect(ev.uptimeSeconds).toBeUndefined()
+		expect(ev.storage).toBeUndefined()
 	})
 })
