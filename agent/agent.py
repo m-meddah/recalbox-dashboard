@@ -363,6 +363,61 @@ def read_mem_mb():
         return None, None
 
 
+# Pseudo/virtual filesystems we never report as storage (mirrors the dashboard's
+# fetchStorageInfo filter, which drops overlay/tmpfs/squashfs/dev/etc.).
+_STORAGE_SKIP_FSTYPES = {
+    "proc", "sysfs", "devtmpfs", "devpts", "tmpfs", "overlay", "squashfs",
+    "cgroup", "cgroup2", "mqueue", "debugfs", "tracefs", "securityfs",
+    "pstore", "bpf", "configfs", "fusectl", "ramfs", "autofs", "hugetlbfs",
+    "efivarfs", "binfmt_misc", "nsfs", "selinuxfs", "rpc_pipefs",
+}
+
+
+def read_storage():
+    """List of {label, mount, usedBytes, sizeBytes, percent} for real mounts.
+
+    Best-effort: returns [] on any failure so a storage read never drops a snapshot.
+    """
+    try:
+        out = []
+        seen_mounts = set()
+        seen_devices = set()
+        with open("/proc/mounts", "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                device, mount, fstype = parts[0], parts[1], parts[2]
+                if fstype in _STORAGE_SKIP_FSTYPES or mount in seen_mounts:
+                    continue
+                # Skip bind-mount duplicates: the same real device mounted twice.
+                if device.startswith("/dev/") and device in seen_devices:
+                    continue
+                seen_mounts.add(mount)
+                seen_devices.add(device)
+                try:
+                    st = os.statvfs(mount)
+                except OSError:
+                    continue
+                size = st.f_blocks * st.f_frsize
+                if size <= 0:
+                    continue
+                free = st.f_bavail * st.f_frsize
+                used = size - free
+                label = mount.rstrip("/").split("/")[-1] or device.split("/")[-1] or mount
+                out.append({
+                    "label": label,
+                    "mount": mount,
+                    "usedBytes": used,
+                    "sizeBytes": size,
+                    "percent": round(used / size * 100),
+                })
+        out.sort(key=lambda m: m["percent"], reverse=True)
+        return out
+    except Exception:
+        return []
+
+
 def gather_snapshot():
     total_mb, used_mb = read_mem_mb()
     uptime = read_uptime()
@@ -373,6 +428,7 @@ def gather_snapshot():
         "mem_total_mb": total_mb,
         "temp_celsius": read_cpu_temp(),
         "uptime_seconds": int(uptime) if uptime is not None else None,
+        "storage": read_storage(),
     }
 
 
