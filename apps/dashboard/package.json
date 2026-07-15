@@ -7,7 +7,7 @@
 		"dev:mobile": "next dev --turbopack --hostname 0.0.0.0",
 		"dev:all": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack\" \"tsx watch scripts/start-scrobbler.ts\"",
 		"dev:all:mobile": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack --hostname 0.0.0.0\" \"tsx watch scripts/start-scrobbler.ts\"",
-		"build": "TURSO_DISABLE_REPLICA=1 next build",
+		"build": "drizzle-kit migrate && TURSO_DISABLE_REPLICA=1 next build",
 		"start": "next start",
 		"scrobbler": "tsx scripts/start-scrobbler.ts",
 		"scrobbler:dev": "tsx watch scripts/start-scrobbler.ts",

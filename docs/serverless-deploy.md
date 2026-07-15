@@ -88,8 +88,8 @@ speed-up must come from **caching in the app** (e.g. the recommender's whole-tab
 scan is memoized — see `lib/recommendations/games-cache.ts`) and from **not
 polling the DB more than necessary** — never from the embedded replica.
 
-The `build` script hard-codes it (`TURSO_DISABLE_REPLICA=1 next build`) so a build
-can't regress; the Vercel **env var** covers runtime. Keep both.
+The `build` script hard-codes it (`… next build` with `TURSO_DISABLE_REPLICA=1`) so a
+build can't regress; the Vercel **env var** covers runtime. Keep both.
 
 **Code guardrail (added after the incident):** `lib/db/should-use-replica.ts` now makes
 the replica **opt-in on Vercel** — whenever `process.env.VERCEL === '1'` it is OFF unless
@@ -98,6 +98,21 @@ the replica **opt-in on Vercel** — whenever `process.env.VERCEL === '1'` it is
 drove the second Fluid-Active-CPU overage: an enabled replica syncs every 5 s on every
 warm instance, re-syncs the whole DB on each cold start, and turns every local read into
 billed Active CPU. Direct-remote makes those reads network I/O (not Active CPU) instead.
+
+## Migrations run at build time, not per cold start
+
+The `build` script runs `drizzle-kit migrate` before `next build`, so schema migrations
+are applied **once per deployment**. `instrumentation.ts` therefore **skips** `migrate()`
+at runtime whenever `process.env.VERCEL === '1'` (self-hosted still migrates at boot — a
+single long-lived process). This removes a per-cold-start read of the migrations journal
+and, more importantly, a race where several parallel cold-starting instances try to apply
+the same migration at once.
+
+Because the Turso env vars are scoped to the **Production** environment, the build's
+`drizzle-kit migrate` only touches Turso on a production build; preview and local builds
+have no `TURSO_DATABASE_URL` (and `drizzle-kit` doesn't read `.env.local`) so they fall
+back to a throwaway local SQLite file. Trade-off: a production build now needs the DB
+reachable — if Turso is down, the build fails (which is the right time to not ship).
 
 ## First deploy
 

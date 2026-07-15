@@ -21,9 +21,16 @@ export async function register() {
 		// sees the already-migrated schema instead of replaying it against an empty
 		// local file. No-op when not using a replica.
 		await dbMod.syncDb()
-		await migrator.migrate(dbMod.db, {
-			migrationsFolder: path.default.join(process.cwd(), 'drizzle/migrations'),
-		})
+		// On Vercel, schema migrations run at DEPLOY time (the `build` script runs
+		// `drizzle-kit migrate`) — NOT per cold start. Running migrate() on every cold
+		// start re-reads the migrations journal each time and, worse, lets parallel
+		// cold-starting instances race to apply the same migration. Self-hosted keeps
+		// runtime migrate: a single long-lived process, the natural place for it.
+		if (process.env.VERCEL !== '1') {
+			await migrator.migrate(dbMod.db, {
+				migrationsFolder: path.default.join(process.cwd(), 'drizzle/migrations'),
+			})
+		}
 		await multiRecalbox.runMultiRecalboxMigrationIfNeeded()
 		// Load settings + recalboxes into the configStore cache so the synchronous
 		// getters work for the lifetime of this server process.
