@@ -48,7 +48,8 @@ Browser ─► Vercel (Next.js: UI + agent ingest API)
 |---|---|
 | `TURSO_DATABASE_URL` | `libsql://recalbox-dashboard-fradz.aws-eu-west-1.turso.io` |
 | `TURSO_AUTH_TOKEN` | Turso token (rotate with `turso db tokens create recalbox-dashboard`) |
-| `TURSO_DISABLE_REPLICA` | Set to `1` on Vercel (build **and** runtime). Keeps libSQL in direct-remote mode. **Do not remove it to "go faster" — see the embedded-replica warning below.** |
+| `TURSO_DISABLE_REPLICA` | Set to `1` on Vercel (build **and** runtime). Keeps libSQL in direct-remote mode. Since the code now also forces direct-remote whenever `VERCEL=1` (see below), this is belt-and-suspenders — but keep it for the build step. **Do not try to "go faster" with the replica — see the embedded-replica warning below.** |
+| `TURSO_ENABLE_REPLICA` | **Leave unset.** The only way to opt the embedded replica *back on* on Vercel. Do not set it unless you have read the warning below and accept the Fluid-CPU / sync-quota cost. |
 | `BLOB_READ_WRITE_TOKEN` | from the Vercel Blob store. When set, artwork goes to Blob; absent → local-fs dev adapter. |
 | `AGENT_ONLY_MEDIA` | `1` — `/api/media` serves only stored artwork (no SSH); a miss marks the file "wanted" for the agent to upload. |
 | `BETTER_AUTH_SECRET` | 32+ chars (`openssl rand -base64 32`). **Must match** the secret used to encrypt creds at rest — never regenerate after first deploy. |
@@ -89,6 +90,14 @@ polling the DB more than necessary** — never from the embedded replica.
 
 The `build` script hard-codes it (`TURSO_DISABLE_REPLICA=1 next build`) so a build
 can't regress; the Vercel **env var** covers runtime. Keep both.
+
+**Code guardrail (added after the incident):** `lib/db/should-use-replica.ts` now makes
+the replica **opt-in on Vercel** — whenever `process.env.VERCEL === '1'` it is OFF unless
+`TURSO_ENABLE_REPLICA=1` is explicitly set. So even a missing or fat-fingered
+`TURSO_DISABLE_REPLICA` can no longer silently run the replica in production. This also
+drove the second Fluid-Active-CPU overage: an enabled replica syncs every 5 s on every
+warm instance, re-syncs the whole DB on each cold start, and turns every local read into
+billed Active CPU. Direct-remote makes those reads network I/O (not Active CPU) instead.
 
 ## First deploy
 

@@ -37,9 +37,12 @@ export const maxDuration = 300
 // responsive; the slow-moving signals (connection, CPU/temp) poll least often.
 const NOW_PLAYING_POLL_MS = 10_000
 const NOTIFICATIONS_POLL_MS = 20_000
-const CONNECTION_POLL_MS = 30_000
-const SYSTEM_INFO_POLL_MS = 30_000
-const FEEDBACK_POLL_MS = 30_000
+// connection + system-info + feedback are batched into ONE loop (was three timers).
+const SLOW_POLL_MS = 30_000
+// Idle backoff (serverless only): no game playing and no box online, so widen every
+// loop — the on-box agent only pushes every few minutes; faster polling buys nothing.
+const IDLE_NOW_PLAYING_MS = 30_000
+const IDLE_SLOW_POLL_MS = 60_000
 
 export async function GET(request: Request) {
 	if (!(await getUser())) return unauthorized()
@@ -179,8 +182,6 @@ export async function GET(request: Request) {
 					logger.error('Now-playing poll failed', err)
 				}
 			}
-			const nowPlayingPollInterval = setInterval(pollNowPlaying, NOW_PLAYING_POLL_MS)
-			pollNowPlaying()
 
 			// Serverless connection status: with no cloud→box MQTT, derive online from the
 			// agent's recency (token lastUsedAt). Only for boxes whose MQTT isn't connected.
@@ -206,8 +207,6 @@ export async function GET(request: Request) {
 					logger.error('Connection liveness poll failed', err)
 				}
 			}
-			const connectionPollInterval = setInterval(pollConnection, CONNECTION_POLL_MS)
-			pollConnection()
 
 			// Serverless system stats: emit system:info from the latest agent snapshot
 			// (the cloud has no MQTT to read CPU/temp live). Only for MQTT-disconnected boxes.
@@ -225,8 +224,6 @@ export async function GET(request: Request) {
 					logger.error('System-info poll failed', err)
 				}
 			}
-			const systemInfoPollInterval = setInterval(pollSystemInfo, SYSTEM_INFO_POLL_MS)
-			pollSystemInfo()
 
 			const sendFeedback = (feedbackId: number) => {
 				try {
@@ -249,8 +246,44 @@ export async function GET(request: Request) {
 					logger.error('Feedback poll failed', err)
 				}
 			}
-			const feedbackPollInterval = setInterval(pollFeedback, FEEDBACK_POLL_MS)
-			pollFeedback()
+			// Batched, adaptive polling. The three slow signals (connection, system stats,
+			// feedback) share ONE loop instead of three timers; now-playing keeps its own.
+			// When serverless AND idle (nothing playing, no box online) both loops back off
+			// — the on-box agent only pushes every few minutes, so tighter polling would
+			// just burn Fluid Active CPU / Turso reads and hold the instance warm for nothing.
+			let closed = false
+			const anyGameActive = () => {
+				for (const key of nowPlayingState.values()) if (key !== null) return true
+				return false
+			}
+			const anyBoxOnline = () => {
+				for (const c of clients.values()) if (c.isConnected) return true
+				for (const online of connOnline.values()) if (online) return true
+				return false
+			}
+			const idle = () => isServerlessMode() && !anyGameActive() && !anyBoxOnline()
+
+			let nowPlayingTimer: ReturnType<typeof setTimeout>
+			const loopNowPlaying = async () => {
+				await pollNowPlaying()
+				if (closed) return
+				nowPlayingTimer = setTimeout(
+					loopNowPlaying,
+					idle() ? IDLE_NOW_PLAYING_MS : NOW_PLAYING_POLL_MS,
+				)
+			}
+
+			let slowTimer: ReturnType<typeof setTimeout>
+			const loopSlow = async () => {
+				await pollConnection()
+				await pollSystemInfo()
+				await pollFeedback()
+				if (closed) return
+				slowTimer = setTimeout(loopSlow, idle() ? IDLE_SLOW_POLL_MS : SLOW_POLL_MS)
+			}
+
+			loopNowPlaying()
+			loopSlow()
 
 			const heartbeat = setInterval(() => {
 				try {
@@ -263,6 +296,11 @@ export async function GET(request: Request) {
 			// Reconnect proactively before the platform kills a long stream.
 			const lifespan = setTimeout(
 				() => {
+					// A clean server-side close does not always fire request abort, so stop
+					// the poll loops here too — never keep scheduling DB polls after close.
+					closed = true
+					clearTimeout(nowPlayingTimer)
+					clearTimeout(slowTimer)
 					try {
 						controller.close()
 					} catch {}
@@ -271,12 +309,11 @@ export async function GET(request: Request) {
 			)
 
 			request.signal.addEventListener('abort', () => {
+				closed = true
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
-				clearInterval(feedbackPollInterval)
-				clearInterval(nowPlayingPollInterval)
-				clearInterval(connectionPollInterval)
-				clearInterval(systemInfoPollInterval)
+				clearTimeout(nowPlayingTimer)
+				clearTimeout(slowTimer)
 				clearTimeout(lifespan)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)

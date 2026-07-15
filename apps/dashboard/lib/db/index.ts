@@ -1,28 +1,29 @@
 import { type Client, createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from './schema'
+import { shouldUseReplica } from './should-use-replica'
 
 // libSQL driver (Turso).
 //
 // - No Turso configured (pure local dev): a local SQLite file.
-// - Turso + web process: EMBEDDED REPLICA. A local SQLite file kept in sync with
-//   the Turso primary. Reads are served from the local file (instant, like the
-//   old better-sqlite3 setup); writes go straight through to the primary. Without
+// - Turso + web process (SELF-HOSTED): EMBEDDED REPLICA. A local SQLite file kept in
+//   sync with the Turso primary. Reads are served from the local file (instant, like
+//   the old better-sqlite3 setup); writes go straight through to the primary. Without
 //   this, every read is a network round-trip — read-heavy endpoints (the
 //   recommender loads the whole `games` table) took ~10s.
+// - Turso + web process (VERCEL): DIRECT REMOTE by default — the replica is a Fluid
+//   Active CPU / cold-start re-sync footgun there. Opt in with TURSO_ENABLE_REPLICA=1.
 // - Turso + scrobbler process: direct remote. It is write-heavy / read-light, so
 //   it skips the replica — which also guarantees the two processes never open the
 //   same replica file (embedded replicas are single-writer per file).
 const remoteUrl = process.env.TURSO_DATABASE_URL
 const authToken = process.env.TURSO_AUTH_TOKEN
-// The embedded replica is for the long-running web server only. The scrobbler
-// (`tsx scripts/start-scrobbler.ts` / `node scrobbler.js`) and one-shot scripts
-// under scripts/ use the direct remote client — they are write-mostly or
-// short-lived, and it keeps them from opening (or colliding on) the replica file.
-const isScrobbler = process.argv.some((a) => a.includes('scrobbler'))
-const isOneShotScript = process.argv.some((a) => /(^|[\\/])scripts[\\/]/.test(a))
-const useReplica =
-	Boolean(remoteUrl) && !isScrobbler && !isOneShotScript && process.env.TURSO_DISABLE_REPLICA !== '1'
+// Embedded replica (long-running web server) vs. direct-remote. The scrobbler and
+// one-shot scripts always go direct (write-mostly / short-lived, avoids colliding on
+// the single-writer replica file). On Vercel the replica is OFF unless explicitly
+// opted in (TURSO_ENABLE_REPLICA=1) — there it burns Fluid Active CPU and re-syncs the
+// whole DB on every cold start. Full policy in should-use-replica.ts.
+const useReplica = shouldUseReplica()
 
 // Reuse the client across dev hot-reloads so we don't open multiple replica sync
 // loops on the same file within one process.
