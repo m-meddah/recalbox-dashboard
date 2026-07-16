@@ -42,6 +42,20 @@ CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
 
 FLUSH_INTERVAL_SEC = 15
+# Cap the offline buffer so a long outage / bad token / wrong URL can't grow it without
+# bound on a storage-constrained console. Keep the newest sessions, drop the oldest.
+MAX_BUFFER_LINES = 5000
+
+
+def _int_cfg(cfg, key, default):
+    """int(cfg[key]) with a safe fallback — a malformed config value must never kill a
+    loop thread (an uncaught ValueError/TypeError at thread start disables that feature
+    for the whole process lifetime)."""
+    try:
+        return int(cfg.get(key, default))
+    except (TypeError, ValueError):
+        log.warning("Invalid %s in config (%r), using default %s", key, cfg.get(key), default)
+        return default
 
 log = logging.getLogger("sr-agent")
 
@@ -65,7 +79,11 @@ def load_config():
     }
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            defaults.update(json.load(f))
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            defaults.update(loaded)
+        else:
+            log.error("config.json is not a JSON object (%s), using defaults", type(loaded).__name__)
     except FileNotFoundError:
         log.warning("No config.json at %s, using defaults", CONFIG_PATH)
     except (json.JSONDecodeError, OSError) as e:
@@ -206,15 +224,37 @@ class Deliverer:
     def deliver(self, session: dict):
         if not self._post(session):
             self._buffer_append(session)
-        else:
-            # opportunistic flush of anything left over
-            self.flush()
+        # Draining the backlog is left to flush_loop (its own thread). Doing it here would
+        # run on paho's MQTT callback thread and block keepalive/PINGREQ for N×timeout after
+        # an outage — risking a disconnect and missed game:start/stop events right when
+        # connectivity is restored.
 
     def _buffer_append(self, session: dict):
         with self.lock:
             with open(BUFFER_PATH, "a", encoding="utf-8") as f:
                 f.write(json.dumps(session) + "\n")
+                f.flush()
+                os.fsync(f.fileno())  # survive a hard power-off (plug yank)
+            self._trim()
         log.info("Buffered session for %s (pending=%d)", session.get("rom_path"), self._count())
+
+    def _trim(self):
+        """Cap the buffer to MAX_BUFFER_LINES, keeping the newest. Caller holds self.lock."""
+        try:
+            with open(BUFFER_PATH, "r", encoding="utf-8") as f:
+                lines = [ln for ln in f.read().splitlines() if ln.strip()]
+        except FileNotFoundError:
+            return
+        if len(lines) <= MAX_BUFFER_LINES:
+            return
+        kept = lines[-MAX_BUFFER_LINES:]
+        tmp = BUFFER_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(kept) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, BUFFER_PATH)
+        log.warning("Buffer over cap: dropped %d oldest sessions", len(lines) - len(kept))
 
     def _count(self) -> int:
         try:
@@ -246,6 +286,8 @@ class Deliverer:
                 tmp = BUFFER_PATH + ".tmp"
                 with open(tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(remaining) + "\n")
+                    f.flush()
+                    os.fsync(f.fileno())
                 os.replace(tmp, BUFFER_PATH)
             else:
                 os.remove(BUFFER_PATH)
@@ -454,7 +496,7 @@ def gather_snapshot():
 def snapshot_loop(cfg):
     """Periodically gather + push a system snapshot. Best-effort (no buffering)."""
     url = endpoint_for(cfg, "snapshots")
-    interval = int(cfg.get("snapshot_interval_sec", 300))
+    interval = _int_cfg(cfg, "snapshot_interval_sec", 300)
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
     while True:
@@ -553,7 +595,7 @@ def push_collection(cfg):
 
 
 def collection_loop(cfg):
-    interval = int(cfg.get("collection_interval_sec", 21600))
+    interval = _int_cfg(cfg, "collection_interval_sec", 21600)
     if interval <= 0:
         log.info("Collection sync disabled (collection_interval_sec<=0)")
         return
@@ -667,7 +709,7 @@ def command_loop(cfg):
     """Poll the cloud for pending commands, execute them locally, report back."""
     url = endpoint_for(cfg, "commands")
     result_url = (url + "/result") if url else ""
-    interval = int(cfg.get("command_poll_interval_sec", 60))
+    interval = _int_cfg(cfg, "command_poll_interval_sec", 60)
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
     while True:
@@ -723,7 +765,7 @@ def upload_artwork(cfg, box_path):
 def artwork_loop(cfg):
     """Poll the cloud for artwork browsers requested but we haven't uploaded yet,
     and upload each. Lazy/on-demand — no bulk sweep."""
-    interval = int(cfg.get("artwork_poll_interval_sec", 60))
+    interval = _int_cfg(cfg, "artwork_poll_interval_sec", 60)
     if interval <= 0:
         log.info("Artwork upload disabled (artwork_poll_interval_sec<=0)")
         return
