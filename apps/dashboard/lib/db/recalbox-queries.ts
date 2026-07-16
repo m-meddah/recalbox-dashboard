@@ -1,6 +1,17 @@
 import { decryptSecret, encryptSecret } from '@/lib/crypto/credentials'
-import { db } from '@/lib/db/index'
-import { recalboxes } from '@/lib/db/schema'
+import { type DB, db } from '@/lib/db/index'
+import {
+	agentCommands,
+	agentTokens,
+	artwork,
+	games,
+	notifications,
+	nowPlaying,
+	raGameMapping,
+	recalboxes,
+	sessions,
+	systemSnapshots,
+} from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
 import { eq } from 'drizzle-orm'
 
@@ -59,8 +70,26 @@ export async function updateRecalbox(
 			: patch
 	await db.update(recalboxes).set(next).where(eq(recalboxes.id, id)).run()
 }
-export async function deleteRecalbox(id: string): Promise<void> {
-	await db.delete(recalboxes).where(eq(recalboxes.id, id)).run()
+export async function deleteRecalbox(id: string, database: DB = db): Promise<void> {
+	// The schema declares no FK constraints, so cascade every dependent row explicitly.
+	// Deleting the box's agent_tokens also REVOKES them — otherwise the on-device agent
+	// keeps authenticating and pushing into now-orphaned rows forever (a data-integrity
+	// leak and an auth gap).
+	//
+	// Order matters: dependents first, the `recalboxes` row LAST. If this is interrupted
+	// mid-cascade the box still exists (nothing is left orphaned without a parent) and a
+	// retry simply finishes the job. Sequential rather than a transaction to stay portable
+	// across the libSQL (prod) and better-sqlite3 (tests) drivers.
+	await database.delete(sessions).where(eq(sessions.recalboxId, id)).run()
+	await database.delete(games).where(eq(games.recalboxId, id)).run()
+	await database.delete(systemSnapshots).where(eq(systemSnapshots.recalboxId, id)).run()
+	await database.delete(notifications).where(eq(notifications.recalboxId, id)).run()
+	await database.delete(raGameMapping).where(eq(raGameMapping.recalboxId, id)).run()
+	await database.delete(nowPlaying).where(eq(nowPlaying.recalboxId, id)).run()
+	await database.delete(artwork).where(eq(artwork.recalboxId, id)).run()
+	await database.delete(agentCommands).where(eq(agentCommands.recalboxId, id)).run()
+	await database.delete(agentTokens).where(eq(agentTokens.recalboxId, id)).run()
+	await database.delete(recalboxes).where(eq(recalboxes.id, id)).run()
 }
 export async function setDefaultRecalbox(id: string): Promise<void> {
 	await db.update(recalboxes).set({ isDefault: false }).run()
