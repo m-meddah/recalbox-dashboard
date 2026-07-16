@@ -8,7 +8,6 @@ import {
 	recommendationLog,
 	recommendationSkip,
 } from '@/lib/db/schema'
-import { getGamePlayStatsBatch } from '@/lib/games/play-stats'
 import { matchHltbAsync } from '@/lib/hltb/match-single'
 import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
@@ -16,6 +15,7 @@ import { getUserProfile } from '@/lib/profile/get-profile'
 import { and, count, eq, gt, inArray, isNotNull } from 'drizzle-orm'
 import { prefetchArtwork } from './artwork-prefetch'
 import { loadRecommenderGames } from './games-cache'
+import { loadRecommenderPlayStats } from './play-stats-cache'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
 import { selectFinalists } from './select-finalists'
 import { getSimilarityProvider } from './similarity-provider'
@@ -61,7 +61,7 @@ export async function computeRecommendations(
 			// Cached (short TTL): the whole-collection scan is the app's biggest
 			// Turso row-read; a reshuffle burst reuses one snapshot. See games-cache.ts.
 			loadRecommenderGames(),
-			getGamePlayStatsBatch(),
+			loadRecommenderPlayStats(),
 			db.select().from(gameRatings).all(),
 			loadIgdbRatings(),
 			loadHltbDurations(),
@@ -239,7 +239,7 @@ const DISCOVERY_EXTRA_ANCHORS = 12
  */
 function buildDiscoveryAnchors(
 	comfortGames: number[],
-	statsMap: Awaited<ReturnType<typeof getGamePlayStatsBatch>>,
+	statsMap: Awaited<ReturnType<typeof loadRecommenderPlayStats>>,
 	ratingsMap: Map<number, 'love' | 'like' | 'dislike' | 'unknown'>,
 ): number[] {
 	const anchors = new Set<number>(comfortGames)
