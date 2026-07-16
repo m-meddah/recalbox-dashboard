@@ -20,9 +20,20 @@ export async function proxy(request: NextRequest) {
 	// Determine locale from path or default
 	const segments = pathname.split('/').filter(Boolean)
 	const firstSegment = segments[0]
-	const locale = routing.locales.includes(firstSegment as (typeof routing.locales)[number])
-		? firstSegment
-		: routing.defaultLocale
+	const isLocalePrefixed = routing.locales.includes(
+		firstSegment as (typeof routing.locales)[number],
+	)
+
+	// Static assets (manifest, icons, sw.js, *.svg, …) live at the ROOT, never under a
+	// locale — page routes are always /{locale}/…. So a dotted path that is NOT
+	// locale-prefixed is an asset: serve it directly. This is what closes the old hole
+	// where the matcher skipped auth for ANY path containing a dot, letting e.g.
+	// /en/collection/foo.bar reach a data-fetching page unauthenticated.
+	if (!isLocalePrefixed && /\.[a-z0-9]+$/i.test(pathname)) {
+		return NextResponse.next()
+	}
+
+	const locale = isLocalePrefixed ? firstSegment : routing.defaultLocale
 
 	const hasSession = getSessionCookie(request) != null
 	const isLoginPage = pathname === `/${locale}/login` || pathname.endsWith('/login')
@@ -41,7 +52,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-	// Skip Next internals and any path that looks like a static file (contains a dot),
-	// e.g. /recalbox/*.svg, /icons/*, /manifest.webmanifest — these are served directly.
-	matcher: ['/((?!_next/static|_next/image|.*\\..*).*)'],
+	// Run on everything except Next's static/image pipelines. Dotted paths are handled
+	// inside the middleware (the asset pass-through above) so that dotted PAGE routes
+	// still get the auth check — the matcher must NOT blanket-skip anything with a dot.
+	matcher: ['/((?!_next/static|_next/image).*)'],
 }
