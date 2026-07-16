@@ -89,7 +89,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 				<ThemeProvider>
 					<NextIntlClientProvider>
 						<ServerlessProvider value={serverless}>
-							<RecalboxEventsProvider>
+							<RecalboxEventsProvider recalboxId={activeRecalboxId}>
 								<CanControlProvider value={canControl}>
 									<SidebarProvider>
 										<AppSidebar showAdmin={showAdmin} serverless={serverless} />
