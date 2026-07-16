@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest) {
 	}
 	const parsed = bodySchema.safeParse(body)
 	if (!parsed.success) return NextResponse.json({ error: 'Invalid id' }, { status: 422 })
-	if (!canViewRecalbox(user, parsed.data.id))
+	if (!(await canViewRecalbox(user, parsed.data.id)))
 		return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	await setActiveRecalboxId(parsed.data.id)
 	return NextResponse.json({ ok: true })

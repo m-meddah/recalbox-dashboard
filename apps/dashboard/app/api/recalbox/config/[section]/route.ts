@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
 
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	if (!canViewRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canViewRecalbox(user, recalboxId))) return forbidden()
 
 	const host = configStore.getRecalbox(recalboxId)?.host
 	if (!host) return NextResponse.json({ fields: [] })
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<NextRespo
 
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	if (!canControlRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
 	const host = configStore.getRecalbox(recalboxId)?.host
 	if (!host) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })

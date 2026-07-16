@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 	// before the NDJSON stream (and its 200 status) starts. A null id is handled inside
 	// the stream with an error event, as before.
 	const activeId = await getActiveRecalboxId()
-	if (activeId && !canControlRecalbox(user, activeId)) return forbidden()
+	if (activeId && !(await canControlRecalbox(user, activeId))) return forbidden()
 	const targetSystem = req.nextUrl.searchParams.get('system') ?? undefined
 
 	const encoder = new TextEncoder()

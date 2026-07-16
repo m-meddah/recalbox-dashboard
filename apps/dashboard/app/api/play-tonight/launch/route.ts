@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 			.where(eq(games.id, gameId))
 			.get()
 
-		if (recalboxId && game && canControlRecalbox(user, recalboxId)) {
+		if (recalboxId && game && (await canControlRecalbox(user, recalboxId))) {
 			// Whatever happens next (busy or not), this game was just chosen to play
 			// tonight — give the agent's artwork poll a head start on it.
 			prefetchArtwork(recalboxId, [game])

@@ -1,6 +1,6 @@
 import { canControlRecalbox } from '@/lib/auth/ownership'
+import { loadRecalbox } from '@/lib/auth/recalbox-acl'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
-import { configStore } from '@/lib/config-store'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { type FrontendAction, restartFrontend } from '@/lib/recalbox/web-config'
@@ -23,9 +23,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	if (!canControlRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
-	const host = configStore.getRecalbox(recalboxId)?.host
+	const host = (await loadRecalbox(recalboxId))?.host
 	if (!host) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 
 	try {

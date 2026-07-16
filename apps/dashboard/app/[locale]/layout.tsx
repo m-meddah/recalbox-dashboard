@@ -19,8 +19,8 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner'
 import { routing } from '@/i18n/routing'
 import { canControlRecalbox, getViewableRecalboxIds, isAdmin } from '@/lib/auth/ownership'
+import { loadRecalboxes } from '@/lib/auth/recalbox-acl'
 import { getUser } from '@/lib/auth/require-user'
-import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { isServerlessMode } from '@/lib/serverless'
 import { cn } from '@/lib/utils'
@@ -74,10 +74,11 @@ export default async function LocaleLayout({ children, params }: Props) {
 	setRequestLocale(locale)
 
 	const user = await getUser()
-	const viewable = user ? new Set(getViewableRecalboxIds(user)) : new Set<string>()
-	const recalboxes = configStore.getRecalboxes().filter((rb) => viewable.has(rb.id))
+	const viewable = user ? new Set(await getViewableRecalboxIds(user)) : new Set<string>()
+	const recalboxes = (user ? await loadRecalboxes() : []).filter((rb) => viewable.has(rb.id))
 	const activeRecalboxId = await getActiveRecalboxId()
-	const canControl = user && activeRecalboxId ? canControlRecalbox(user, activeRecalboxId) : false
+	const canControl =
+		user && activeRecalboxId ? await canControlRecalbox(user, activeRecalboxId) : false
 	const showAdmin = user ? isAdmin(user) : false
 	// Serverless: no SSH to the box — hide live-SSH UI (power, recalbox.conf editor).
 	const serverless = isServerlessMode()

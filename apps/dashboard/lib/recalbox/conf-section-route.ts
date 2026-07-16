@@ -23,7 +23,7 @@ export function createConfSectionHandlers(specs: readonly FieldSpec[], name: str
 
 		const recalboxId = await getActiveRecalboxId()
 		if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-		if (!canViewRecalbox(user, recalboxId)) return forbidden()
+		if (!(await canViewRecalbox(user, recalboxId))) return forbidden()
 
 		try {
 			const values = await readConfSection(recalboxId, specs)
@@ -52,7 +52,7 @@ export function createConfSectionHandlers(specs: readonly FieldSpec[], name: str
 
 		const recalboxId = await getActiveRecalboxId()
 		if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-		if (!canControlRecalbox(user, recalboxId)) return forbidden()
+		if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
 		try {
 			const ok = await writeConfSection(recalboxId, result.changes)

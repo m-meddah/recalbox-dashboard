@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	if (!canControlRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
 	// ES owns gamelist.xml and rewrites it on exit — never edit it mid-game or our
 	// change would be clobbered. The client also restarts ES right after to apply.

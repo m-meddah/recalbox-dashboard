@@ -13,7 +13,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	const { id, tokenId } = await params
-	if (!canControlRecalbox(user, id)) return forbidden()
+	if (!(await canControlRecalbox(user, id))) return forbidden()
 
 	// Make sure the token actually belongs to this Recalbox before revoking, so a
 	// controller of one machine can't revoke another machine's token by id.

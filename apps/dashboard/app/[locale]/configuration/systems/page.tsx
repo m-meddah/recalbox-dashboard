@@ -2,7 +2,7 @@ import { SystemsCatalog } from '@/components/config/systems-catalog'
 import { buttonVariants } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
-import { configStore } from '@/lib/config-store'
+import { loadRecalbox } from '@/lib/auth/recalbox-acl'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { readSystemEmulatorOverrides } from '@/lib/recalbox/system-emulator'
 import { fetchSystemsCatalog } from '@/lib/recalbox/web-config'
@@ -24,7 +24,7 @@ export default async function SystemsCatalogPage({ params }: Props) {
 
 	// Load on the server and hand the data to the client component as props —
 	// no client-side fetch-in-effect needed.
-	const host = recalboxId ? (configStore.getRecalbox(recalboxId)?.host ?? null) : null
+	const host = recalboxId ? ((await loadRecalbox(recalboxId))?.host ?? null) : null
 	const [systems, overrides] = await Promise.all([
 		host ? fetchSystemsCatalog(host) : Promise.resolve([]),
 		recalboxId ? readSystemEmulatorOverrides(recalboxId) : Promise.resolve({}),

@@ -1,28 +1,30 @@
+import { loadRecalboxes } from '@/lib/auth/recalbox-acl'
 import type { AuthedUser } from '@/lib/auth/require-user'
-import { configStore } from '@/lib/config-store'
 
 export function isAdmin(user: AuthedUser): boolean {
 	return user.role === 'admin'
 }
 
 /** Recalbox ids the user may READ. Admin sees all; members see only what they own.
- * Reads from the configStore in-memory cache (sync) so request-path gating stays synchronous. */
-export function getViewableRecalboxIds(user: AuthedUser): string[] {
-	const all = configStore.getRecalboxes()
+ * Async because ownership MUST be decided against the DB: the in-memory configStore
+ * cache goes stale across serverless instances. See recalbox-acl.ts. */
+export async function getViewableRecalboxIds(user: AuthedUser): Promise<string[]> {
+	const all = await loadRecalboxes()
 	if (isAdmin(user)) return all.map((r) => r.id)
 	return all.flatMap((r) => (r.ownerUserId === user.id ? [r.id] : []))
 }
 
 /** Whether the user may READ a specific recalbox. */
-export function canViewRecalbox(user: AuthedUser, recalboxId: string): boolean {
+export async function canViewRecalbox(user: AuthedUser, recalboxId: string): Promise<boolean> {
 	if (isAdmin(user)) return true
-	const row = configStore.getRecalboxes().find((r) => r.id === recalboxId)
-	return row?.ownerUserId === user.id
+	const all = await loadRecalboxes()
+	return all.find((r) => r.id === recalboxId)?.ownerUserId === user.id
 }
 
 /** Whether the user may CONTROL (write/launch/power) a recalbox. Owner only — admins are
  * read-only on machines they do not own, and nobody controls an unowned machine. */
-export function canControlRecalbox(user: AuthedUser, recalboxId: string): boolean {
-	const row = configStore.getRecalboxes().find((r) => r.id === recalboxId)
+export async function canControlRecalbox(user: AuthedUser, recalboxId: string): Promise<boolean> {
+	const all = await loadRecalboxes()
+	const row = all.find((r) => r.id === recalboxId)
 	return row != null && row.ownerUserId != null && row.ownerUserId === user.id
 }

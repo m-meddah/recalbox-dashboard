@@ -14,7 +14,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	const { id } = await params
-	if (!canViewRecalbox(user, id)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+	if (!(await canViewRecalbox(user, id)))
+		return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	return NextResponse.json({ ...rb, sshPassword: '***' })
@@ -36,7 +37,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	const { id } = await params
-	if (!canControlRecalbox(user, id)) return forbidden()
+	if (!(await canControlRecalbox(user, id))) return forbidden()
 	if (!configStore.getRecalbox(id))
 		return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	let body: unknown
@@ -60,7 +61,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	const { id } = await params
-	if (!canControlRecalbox(user, id)) return forbidden()
+	if (!(await canControlRecalbox(user, id))) return forbidden()
 	if (!configStore.getRecalbox(id))
 		return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const all = configStore.getRecalboxes().filter((r) => !r.archived)

@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 	}
-	if (!canControlRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
 	const ssh = getSshClient(recalboxId)
 

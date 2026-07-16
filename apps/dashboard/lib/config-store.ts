@@ -8,6 +8,7 @@ import {
 	getRecalbox,
 	insertRecalbox,
 	listRecalboxes,
+	rowToInstance,
 	setDefaultRecalbox,
 	updateRecalbox,
 } from '@/lib/db/recalbox-queries'
@@ -79,23 +80,6 @@ function changedScopes(prev: AppConfig, next: AppConfig): (keyof AppConfig)[] {
 	return scopes
 }
 
-function rowToInstance(row: RecalboxRow): RecalboxInstance {
-	return {
-		id: row.id,
-		name: row.name,
-		host: row.host,
-		sshUser: row.sshUser,
-		sshPassword: row.sshPassword,
-		sshPort: row.sshPort,
-		mqttPort: row.mqttPort,
-		color: row.color,
-		iconEmoji: row.iconEmoji,
-		ownerUserId: row.ownerUserId ?? null,
-		isDefault: row.isDefault ?? false,
-		archived: row.archived ?? false,
-	}
-}
-
 interface ConfigStoreEvents {
 	changed: (config: AppConfig) => void
 	'changed:recalbox': (config: AppConfig) => void
@@ -124,6 +108,12 @@ class ConfigStore extends EventEmitter {
 	// In-memory caches so the read getters stay SYNCHRONOUS even though the libSQL
 	// driver is async. Populated by hydrate() (once at process startup) and kept in
 	// sync write-through on every mutation below.
+	//
+	// Write-through only keeps THIS process current, so these rows are trustworthy
+	// only in a single long-lived process (scrobbler, MQTT/SSH pools). On Vercel each
+	// warm instance drifts from the DB forever. Never gate authorization or the web
+	// request path on getRecalboxes()/getRecalbox() — use lib/auth/recalbox-acl.ts,
+	// which reads the DB per request.
 	private settingsRows: Record<string, string> = {}
 	private recalboxRows: RecalboxRow[] = []
 	private hydrated = false

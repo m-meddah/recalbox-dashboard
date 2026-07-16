@@ -1,6 +1,6 @@
 import { canViewRecalbox } from '@/lib/auth/ownership'
+import { loadRecalbox } from '@/lib/auth/recalbox-acl'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
-import { configStore } from '@/lib/config-store'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { fetchSystemsCatalog } from '@/lib/recalbox/web-config'
 import { NextResponse } from 'next/server'
@@ -14,9 +14,9 @@ export async function GET(): Promise<NextResponse> {
 
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	if (!canViewRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canViewRecalbox(user, recalboxId))) return forbidden()
 
-	const host = configStore.getRecalbox(recalboxId)?.host
+	const host = (await loadRecalbox(recalboxId))?.host
 	if (!host) return NextResponse.json({ systems: [] })
 
 	const systems = await fetchSystemsCatalog(host)

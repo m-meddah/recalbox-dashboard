@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export async function GET() {
 	const user = await getUser()
 	if (!user) return unauthorized()
-	const viewable = new Set(getViewableRecalboxIds(user))
+	const viewable = new Set(await getViewableRecalboxIds(user))
 	const all = configStore
 		.getRecalboxes()
 		.flatMap((rb) => (viewable.has(rb.id) ? [{ ...rb, sshPassword: '***' }] : []))

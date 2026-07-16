@@ -32,7 +32,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 	if (!recalboxId) {
 		return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
 	}
-	if (!canControlRecalbox(user, recalboxId)) return forbidden()
+	if (!(await canControlRecalbox(user, recalboxId))) return forbidden()
 
 	// Refuse to launch over a running game — ES would silently queue it and start it
 	// only after the current game quits (surprising the user). The browser already

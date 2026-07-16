@@ -8,7 +8,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 export async function getActiveRecalboxId(): Promise<string | null> {
 	const user = await getUser()
 	if (!user) return null
-	const viewable = getViewableRecalboxIds(user)
+	const viewable = await getViewableRecalboxIds(user)
 	if (viewable.length === 0) return null
 	const jar = await cookies()
 	const fromCookie = jar.get(COOKIE_NAME)?.value

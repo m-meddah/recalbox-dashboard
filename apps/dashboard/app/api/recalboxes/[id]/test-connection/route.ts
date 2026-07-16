@@ -64,7 +64,8 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 	const user = await getUser()
 	if (!user) return unauthorized()
 	const { id } = await params
-	if (!canViewRecalbox(user, id)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+	if (!(await canViewRecalbox(user, id)))
+		return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	const [sshResult, mqttResult] = await Promise.all([

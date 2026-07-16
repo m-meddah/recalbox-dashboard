@@ -13,10 +13,29 @@ import {
 	systemSnapshots,
 } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
+import type { RecalboxInstance } from '@/lib/settings/schemas'
 import { eq } from 'drizzle-orm'
 
 export type RecalboxRow = typeof recalboxes.$inferSelect
 export type RecalboxInsert = typeof recalboxes.$inferInsert
+
+/** Map a DB row to the shape the app consumes (drops timestamps, normalises nulls). */
+export function rowToInstance(row: RecalboxRow): RecalboxInstance {
+	return {
+		id: row.id,
+		name: row.name,
+		host: row.host,
+		sshUser: row.sshUser,
+		sshPassword: row.sshPassword,
+		sshPort: row.sshPort,
+		mqttPort: row.mqttPort,
+		color: row.color,
+		iconEmoji: row.iconEmoji,
+		ownerUserId: row.ownerUserId ?? null,
+		isDefault: row.isDefault ?? false,
+		archived: row.archived ?? false,
+	}
+}
 
 function decryptRow(row: RecalboxRow): RecalboxRow {
 	try {
