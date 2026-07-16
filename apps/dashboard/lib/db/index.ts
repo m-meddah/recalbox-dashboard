@@ -50,6 +50,12 @@ g.__libsqlClient = client
 
 // SQLite foreign keys are off by default; match the previous better-sqlite3 setup.
 client.execute('PRAGMA foreign_keys = ON').catch(() => {})
+// A pure-local file DB is shared by two processes (the Next.js web app + the scrobbler
+// daemon). WAL is what makes that concurrent access safe — without it a writer takes an
+// exclusive lock and the other process hits SQLITE_BUSY ("database is locked"). This was
+// set by the old better-sqlite3 client and dropped in the libSQL migration. Only meaningful
+// for a local file — skip for remote Turso and the single-writer embedded replica.
+if (!remoteUrl) client.execute('PRAGMA journal_mode = WAL').catch(() => {})
 
 /**
  * Pull the latest snapshot from the Turso primary into the local embedded
