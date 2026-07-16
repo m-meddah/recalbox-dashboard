@@ -18,6 +18,23 @@ import type { Scrobbler } from '../lib/scrobbler'
 // Without this, each reload calls startScrobbler() again and accumulates MQTT listeners.
 const g = globalThis as typeof globalThis & { __scrobbler?: Scrobbler }
 
+// Retry a DB-critical startup step with exponential backoff instead of crashing the
+// whole daemon. The scrobbler is useless without the DB, so if it is unreachable at
+// boot (e.g. a Turso quota freeze) we wait and retry rather than process.exit(1) —
+// the daemon self-heals when the DB recovers, no supervisor restart needed.
+async function withDbRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+	let delay = 2000
+	for (;;) {
+		try {
+			return await fn()
+		} catch (err) {
+			logger.error(`${label} failed (DB unreachable?); retrying in ${delay / 1000}s`, err)
+			await new Promise((resolve) => setTimeout(resolve, delay))
+			delay = Math.min(delay * 2, 60_000)
+		}
+	}
+}
+
 async function main() {
 	if (g.__scrobbler) {
 		logger.info('Hot-reload detected: stopping previous scrobbler instance...')
@@ -28,8 +45,10 @@ async function main() {
 	logger.info('Starting Recalbox scrobbler daemon...')
 
 	// Load settings + recalboxes into the configStore cache before anything reads
-	// it synchronously (MQTT pool subscriptions, config.get()).
-	await configStore.hydrate()
+	// it synchronously (MQTT pool subscriptions, config.get()). Retry on DB outage so a
+	// transient/blocked DB doesn't kill the daemon — everything after this runs against a
+	// now-healthy DB.
+	await withDbRetry('configStore.hydrate', () => configStore.hydrate())
 
 	// Ensure VAPID keys exist (auto-generate if absent)
 	try {
