@@ -241,8 +241,12 @@ class Deliverer:
                 if not self._post(session):
                     remaining.append(ln)
             if remaining:
-                with open(BUFFER_PATH, "w", encoding="utf-8") as f:
+                # Atomic rewrite: write a temp file then rename over the buffer, so a
+                # crash/power-loss mid-write can't truncate away the still-pending sessions.
+                tmp = BUFFER_PATH + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(remaining) + "\n")
+                os.replace(tmp, BUFFER_PATH)
             else:
                 os.remove(BUFFER_PATH)
                 log.info("Buffer drained")
@@ -263,8 +267,17 @@ class SessionTracker:
         self.deliverer = deliverer
         self.open = None  # {started_at: float, system, rom_path, game_name}
 
-    def _emit(self, started: float, ended: float, ev: dict, auto_closed: bool, reason):
-        duration = round(ended - started)
+    def _emit(self, ev: dict, ended: float, ended_mono: float, auto_closed: bool, reason):
+        started = ev["started_at"]
+        started_mono = ev.get("started_mono")
+        # Duration from a MONOTONIC clock: RTC-less boards (most Raspberry Pis) boot with a
+        # wrong wall-clock that NTP corrects seconds-to-minutes later. A wall-clock delta
+        # would then inflate a session by years (forward jump) or go negative and be silently
+        # dropped (backward jump). Wall-clock is used only for the human-readable timestamps.
+        if started_mono is not None and ended_mono is not None:
+            duration = round(ended_mono - started_mono)
+        else:
+            duration = round(ended - started)
         if duration < self.cfg.get("min_duration_sec", 10):
             log.info("Dropping short session (%ds) for %s", duration, ev.get("rom_path"))
             return
@@ -287,10 +300,12 @@ class SessionTracker:
         if ev.get("from_screensaver"):
             return  # screensaver clip, never a real session
         now = time.time()
+        now_mono = time.monotonic()
         if self.open:
-            self._emit(self.open["started_at"], now, self.open, True, "new_session_started")
+            self._emit(self.open, now, now_mono, True, "new_session_started")
         self.open = {
             "started_at": now,
+            "started_mono": now_mono,
             "system": ev["system"],
             "rom_path": ev["rom_path"],
             "game_name": ev["game_name"],
@@ -299,8 +314,9 @@ class SessionTracker:
 
     def on_stop(self, ev: dict):
         now = time.time()
+        now_mono = time.monotonic()
         if self.open and self.open["rom_path"] == ev["rom_path"]:
-            self._emit(self.open["started_at"], now, self.open, False, None)
+            self._emit(self.open, now, now_mono, False, None)
             self.open = None
         else:
             log.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
@@ -370,6 +386,9 @@ _STORAGE_SKIP_FSTYPES = {
     "cgroup", "cgroup2", "mqueue", "debugfs", "tracefs", "securityfs",
     "pstore", "bpf", "configfs", "fusectl", "ramfs", "autofs", "hugetlbfs",
     "efivarfs", "binfmt_misc", "nsfs", "selinuxfs", "rpc_pipefs",
+    # Network filesystems: statvfs() can block indefinitely on an unreachable host
+    # (hard-mount semantics), which would freeze the snapshot loop. Skip them.
+    "nfs", "nfs4", "cifs", "smbfs", "smb3", "ncpfs", "fuse.sshfs",
 }
 
 
@@ -595,6 +614,10 @@ def exec_conf(payload):
     value = "" if payload.get("value") is None else str(payload.get("value"))
     if not CONF_KEY_RE.match(key):
         return False, "invalid conf key"
+    if "\n" in value or "\r" in value:
+        # A newline would splice extra key=value lines into recalbox.conf beyond the one
+        # this command is scoped to. Reject rather than silently rewrite unrelated keys.
+        return False, "invalid conf value (newline)"
     try:
         set_conf_value(RECALBOX_CONF, key, value)
         return True, "%s=%s" % (key, value)
@@ -674,10 +697,15 @@ def push_now_playing(cfg, payload):
 def upload_artwork(cfg, box_path):
     """Read one box image file and upload its bytes to the cloud, which stores it
     in object storage. Bounded by artwork_max_bytes (respects the cloud body limit)."""
-    if not box_path.startswith("/recalbox/"):
-        return  # defense-in-depth: only ever read from the share
+    # defense-in-depth: only ever read files that really live under /recalbox/ after
+    # resolving symlinks and ".." — a prefix check alone is bypassable
+    # ("/recalbox/../etc/shadow" literally startswith "/recalbox/").
+    real = os.path.realpath(box_path)
+    if real != "/recalbox" and not real.startswith("/recalbox/"):
+        log.warning("artwork rejected (path escapes share): %s", box_path)
+        return
     try:
-        with open(box_path, "rb") as f:
+        with open(real, "rb") as f:
             raw = f.read()
     except OSError as e:
         log.warning("artwork read failed %s: %s", box_path, e)
