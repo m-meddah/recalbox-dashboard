@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 	}
 	const parsed = createSchema.safeParse(body)
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
-	const rb = configStore.addRecalbox(
+	const rb = await configStore.addRecalbox(
 		{
 			...parsed.data,
 			color: parsed.data.color ?? null,

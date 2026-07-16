@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 	// Strip the masked sentinel so a form save without re-entering the password doesn't overwrite it
 	const patch = { ...parsed.data }
 	if (patch.sshPassword === '***') patch.sshPassword = undefined
-	configStore.updateRecalboxConfig(id, patch)
+	await configStore.updateRecalboxConfig(id, patch)
 	const updated = configStore.getRecalbox(id)
 	if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 	return NextResponse.json({ ...updated, sshPassword: '***' })
@@ -67,6 +67,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 	if (all.length === 1 && all[0]?.id === id) {
 		return NextResponse.json({ error: 'Cannot delete the last Recalbox' }, { status: 409 })
 	}
-	configStore.removeRecalbox(id)
+	await configStore.removeRecalbox(id)
 	return NextResponse.json({ ok: true })
 }

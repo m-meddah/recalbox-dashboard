@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
 	const { host, sshUser, sshPassword, sshPort, mqttPort } = parsed.data
 
-	configStore.addRecalbox({
+	await configStore.addRecalbox({
 		name: 'My Recalbox',
 		host,
 		sshUser,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 		color: null,
 		iconEmoji: '🕹️',
 	})
-	configStore.markSetupComplete()
+	await configStore.markSetupComplete()
 
 	const locale = req.cookies.get('NEXT_LOCALE')?.value ?? 'en'
 	const response = NextResponse.redirect(new URL(`/${locale}`, req.url), { status: 303 })
