@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
 	experimental: {
 		staleTimes: {
 			dynamic: 0,
-			static: 0,
+			// Next 16 enforces a floor of 30s for the static client-router cache; 30 is
+			// the lowest allowed (was 0). Most pages are force-dynamic, so this is moot.
+			static: 30,
 		},
 	},
 	async headers() {
