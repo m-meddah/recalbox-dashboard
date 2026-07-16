@@ -293,22 +293,15 @@ export async function GET(request: Request) {
 				}
 			}, 15000)
 
-			// Reconnect proactively before the platform kills a long stream.
-			const lifespan = setTimeout(
-				() => {
-					// A clean server-side close does not always fire request abort, so stop
-					// the poll loops here too — never keep scheduling DB polls after close.
-					closed = true
-					clearTimeout(nowPlayingTimer)
-					clearTimeout(slowTimer)
-					try {
-						controller.close()
-					} catch {}
-				},
-				(maxDuration - 10) * 1000,
-			)
-
-			request.signal.addEventListener('abort', () => {
+			// Single teardown path. A clean server-side self-close does NOT reliably fire
+			// request 'abort', so BOTH the lifespan timeout and the abort listener funnel
+			// through here — otherwise a self-closed stream would leak pollInterval (a 20s
+			// DB poll), the MQTT listeners in `cleanups`, and the notifService listener on
+			// every ~290s reconnect. Idempotent via `torn`.
+			let torn = false
+			const teardown = () => {
+				if (torn) return
+				torn = true
 				closed = true
 				clearInterval(heartbeat)
 				clearInterval(pollInterval)
@@ -317,6 +310,21 @@ export async function GET(request: Request) {
 				clearTimeout(lifespan)
 				for (const cleanup of cleanups) cleanup()
 				notifService.off('created', onNotificationCreated)
+			}
+
+			// Reconnect proactively before the platform kills a long stream.
+			const lifespan = setTimeout(
+				() => {
+					teardown()
+					try {
+						controller.close()
+					} catch {}
+				},
+				(maxDuration - 10) * 1000,
+			)
+
+			request.signal.addEventListener('abort', () => {
+				teardown()
 				controller.close()
 			})
 		},
