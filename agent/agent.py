@@ -42,9 +42,26 @@ CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
 
 FLUSH_INTERVAL_SEC = 15
+# Ceiling for every loop's retry backoff. Without one, a cloud outage costs the same
+# traffic forever: a frozen DB once had the box push ~3.4k failed requests/day for 10
+# days straight, which is what exhausted the hosting quota — the outage itself was
+# elsewhere. The cost of backing off is latency after an outage clears (up to this long
+# before the first successful poll), which is invisible for historical data and cheap
+# for remote control, since a short blip only degrades the cadence to a few minutes.
+MAX_RETRY_BACKOFF_SEC = 1800
 # Cap the offline buffer so a long outage / bad token / wrong URL can't grow it without
 # bound on a storage-constrained console. Keep the newest sessions, drop the oldest.
 MAX_BUFFER_LINES = 5000
+
+# What a POST attempt tells us to do next.
+POST_OK = "ok"
+POST_PERMANENT = "permanent"  # payload is unacceptable — retrying can never help
+POST_TRANSIENT = "transient"  # network / 5xx / bad token — retry once it's fixed
+
+# Only a rejected *payload* is permanent. Auth (401/403), a wrong URL (404) and rate
+# limits (429) are all user- or time-fixable, and the buffered sessions are real play
+# data: keep them and let the backoff make the retries cheap.
+PERMANENT_POST_STATUSES = frozenset({400, 422})
 
 
 def _int_cfg(cfg, key, default):
@@ -165,10 +182,14 @@ def endpoint_for(cfg, name):
     return (url + "/" + name) if url else ""
 
 
-def http_post_json(url, payload, token, timeout):
-    """POST payload as JSON. Returns True on 2xx, False otherwise. Never raises."""
+def http_post_json_outcome(url, payload, token, timeout):
+    """POST payload as JSON. Returns a POST_* outcome. Never raises.
+
+    Callers that buffer and retry need to tell a dead payload from a temporary failure;
+    collapsing both to "failed" is what let one bad session retry forever.
+    """
     if not url:
-        return False
+        return POST_TRANSIENT
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=body, method="POST")
     req.add_header("Content-Type", "application/json")
@@ -177,10 +198,25 @@ def http_post_json(url, payload, token, timeout):
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-            return 200 <= resp.status < 300
+            return POST_OK if 200 <= resp.status < 300 else POST_TRANSIENT
+    except urllib.error.HTTPError as e:  # subclass of URLError — must come first
+        if e.code in PERMANENT_POST_STATUSES:
+            log.error("POST %s rejected the payload (HTTP %s); not retrying it", url, e.code)
+            return POST_PERMANENT
+        log.warning("POST %s failed: HTTP %s", url, e.code)
+        return POST_TRANSIENT
     except (urllib.error.URLError, OSError, ValueError) as e:
         log.warning("POST %s failed: %s", url, e)
-        return False
+        return POST_TRANSIENT
+
+
+def http_post_json(url, payload, token, timeout):
+    """POST payload as JSON. Returns True on 2xx, False otherwise. Never raises.
+
+    For the fire-and-forget pushes (snapshots, now-playing, collection, command results),
+    which have nothing buffered to reconsider.
+    """
+    return http_post_json_outcome(url, payload, token, timeout) == POST_OK
 
 
 def http_get_json(url, token, timeout):
@@ -202,27 +238,39 @@ def http_get_json(url, token, timeout):
 
 
 # ── Cloud delivery (HTTPS POST + disk buffer) ────────────────────────────────
+def next_retry_delay(current, base, ok):
+    """Cadence for any periodic loop: back to `base` the moment something works, else
+    double up to MAX_RETRY_BACKOFF_SEC.
+
+    The cap never overrides a slower configured interval (`base`), so a deliberately
+    infrequent loop like the 6h collection sync is left exactly as configured.
+    """
+    if ok:
+        return base
+    return min(current * 2, max(MAX_RETRY_BACKOFF_SEC, base))
+
+
 class Deliverer:
     def __init__(self, cfg):
         self.cfg = cfg
         self.lock = threading.Lock()
 
-    def _post(self, session: dict) -> bool:
+    def _post(self, session: dict) -> str:
         url = endpoint_for(self.cfg, "ingest")
         if not url:
             log.error("No cloud_url configured; cannot push")
-            return False
-        ok = http_post_json(url, session, self.cfg.get("token"), self.cfg.get("http_timeout_sec", 10))
-        log.info(
-            "POST %s -> %s for %s",
-            url,
-            "ok" if ok else "FAILED (buffering)",
-            session.get("rom_path"),
+            return POST_TRANSIENT
+        outcome = http_post_json_outcome(
+            url, session, self.cfg.get("token"), self.cfg.get("http_timeout_sec", 10)
         )
-        return ok
+        log.info("POST %s -> %s for %s", url, outcome, session.get("rom_path"))
+        return outcome
 
     def deliver(self, session: dict):
-        if not self._post(session):
+        outcome = self._post(session)
+        if outcome == POST_PERMANENT:
+            log.error("Discarding session for %s: the cloud rejected it as invalid", session.get("rom_path"))
+        elif outcome == POST_TRANSIENT:
             self._buffer_append(session)
         # Draining the backlog is left to flush_loop (its own thread). Doing it here would
         # run on paho's MQTT callback thread and block keepalive/PINGREQ for N×timeout after
@@ -264,22 +312,32 @@ class Deliverer:
             return 0
 
     def flush(self):
+        """Retry the buffered sessions. Returns True if the buffer moved (something was
+        delivered, discarded, or there was nothing to do), False if every line is still
+        stuck — flush_loop backs off on False so a stuck buffer stops hammering."""
         with self.lock:
             try:
                 with open(BUFFER_PATH, "r", encoding="utf-8") as f:
                     lines = [ln for ln in f.read().splitlines() if ln.strip()]
             except FileNotFoundError:
-                return
+                return True
             if not lines:
-                return
+                return True
             remaining = []
             for ln in lines:
                 try:
                     session = json.loads(ln)
                 except json.JSONDecodeError:
                     continue  # drop corrupt line
-                if not self._post(session):
+                outcome = self._post(session)
+                if outcome == POST_TRANSIENT:
                     remaining.append(ln)
+                elif outcome == POST_PERMANENT:
+                    log.error(
+                        "Discarding buffered session for %s: the cloud rejected it as invalid",
+                        session.get("rom_path"),
+                    )
+            progressed = len(remaining) < len(lines)
             if remaining:
                 # Atomic rewrite: write a temp file then rename over the buffer, so a
                 # crash/power-loss mid-write can't truncate away the still-pending sessions.
@@ -292,14 +350,18 @@ class Deliverer:
             else:
                 os.remove(BUFFER_PATH)
                 log.info("Buffer drained")
+            return progressed
 
     def flush_loop(self):
+        delay = FLUSH_INTERVAL_SEC
         while True:
-            time.sleep(FLUSH_INTERVAL_SEC)
+            time.sleep(delay)
             try:
-                self.flush()
+                progressed = self.flush()
             except Exception as e:  # never let the retry thread die
                 log.error("flush_loop error: %s", e)
+                progressed = False
+            delay = next_retry_delay(delay, FLUSH_INTERVAL_SEC, progressed)
 
 
 # ── Session state machine (mirror of session-manager.ts) ─────────────────────
@@ -499,7 +561,9 @@ def snapshot_loop(cfg):
     interval = _int_cfg(cfg, "snapshot_interval_sec", 300)
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
+    delay = interval
     while True:
+        ok = False
         try:
             snap = gather_snapshot()
             ok = http_post_json(url, snap, token, timeout)
@@ -511,7 +575,8 @@ def snapshot_loop(cfg):
             )
         except Exception as e:  # never let the thread die
             log.error("snapshot_loop error: %s", e)
-        time.sleep(interval)
+        delay = next_retry_delay(delay, interval, ok)
+        time.sleep(delay)
 
 
 # ── Collection sync (ship gamelist.xml + userdata to the cloud parser) ────────
@@ -712,14 +777,20 @@ def command_loop(cfg):
     interval = _int_cfg(cfg, "command_poll_interval_sec", 60)
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
+    delay = interval
     while True:
+        ok = False
         try:
             data = http_get_json(url, token, timeout)
+            # The GET is the cloud round-trip; a command that fails to execute locally
+            # says nothing about the cloud, so it must not slow the poll down.
+            ok = data is not None
             for cmd in (data or {}).get("commands") or []:
                 handle_command(cmd, result_url, token, timeout)
         except Exception as e:  # never let the thread die
             log.error("command_loop error: %s", e)
-        time.sleep(interval)
+        delay = next_retry_delay(delay, interval, ok)
+        time.sleep(delay)
 
 
 # ── Now-playing relay (live game state, pushed on start/stop) ─────────────────
@@ -772,14 +843,20 @@ def artwork_loop(cfg):
     url = endpoint_for(cfg, "artwork")
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
+    delay = interval
     while True:
+        ok = False
         try:
             data = http_get_json(url, token, timeout)
+            # As in command_loop: an unreadable local file (a system with no logo in the
+            # theme) is not the cloud failing, so only the GET drives the backoff.
+            ok = data is not None
             for box_path in (data or {}).get("wanted") or []:
                 upload_artwork(cfg, box_path)
         except Exception as e:  # never let the thread die
             log.error("artwork_loop error: %s", e)
-        time.sleep(interval)
+        delay = next_retry_delay(delay, interval, ok)
+        time.sleep(delay)
 
 
 # ── MQTT wiring ──────────────────────────────────────────────────────────────
