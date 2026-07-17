@@ -1,6 +1,6 @@
 'use client'
 
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
 import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react'
  * page loaded (no `game:start` received), it reports false until the next event.
  */
 export function useGameRunning(): { running: boolean; gameName: string | null } {
-	const { subscribe } = useRecalboxEvents()
+	const subscribe = useRecalboxSubscribe()
 	const [game, setGame] = useState<{ romPath: string; name: string } | null>(null)
 
 	const handle = useCallback((event: { type: string } & Record<string, unknown>) => {

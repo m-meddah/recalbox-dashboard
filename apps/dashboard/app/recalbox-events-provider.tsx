@@ -8,6 +8,7 @@ import type {
 	SystemChangeEvent,
 	SystemInfoEvent,
 } from '@/lib/recalbox/events'
+import { reconnectDelay } from '@/lib/sse/reconnect-delay'
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
@@ -39,11 +40,19 @@ const initialActivity: ActivityState = {
 	lastSystemInfo: null,
 }
 
-const RecalboxEventsContext = createContext<RecalboxEventsContextValue>({
+/**
+ * Split in two on purpose. The state value changes on EVERY event, while `subscribe`
+ * never changes — merging them made the four subscribe-only consumers (notification
+ * bell/listener, feedback prompt, use-game-running) re-render on every game tick and
+ * temperature reading for nothing.
+ */
+const RecalboxEventsStateContext = createContext<Omit<RecalboxEventsContextValue, 'subscribe'>>({
 	mqttOnline: null,
 	activity: initialActivity,
-	subscribe: () => () => {},
 })
+const RecalboxSubscribeContext = createContext<RecalboxEventsContextValue['subscribe']>(
+	() => () => {},
+)
 
 /** Live state plus the box it describes, so staleness is derivable rather than reset. */
 type StreamState = { box: string | null; activity: ActivityState; mqttOnline: boolean | null }
@@ -123,12 +132,19 @@ export function RecalboxEventsProvider({
 
 	useEffect(() => {
 		let reconnectTimer: ReturnType<typeof setTimeout>
+		let attempt = 0
 
 		function connect() {
 			const es = new EventSource(
 				recalboxId ? `/api/events?recalboxId=${encodeURIComponent(recalboxId)}` : '/api/events',
 			)
 			esRef.current = es
+
+			// A stream that opened is a healthy one: forget the previous backoff so the
+			// routine ~290s server-side rotation always reconnects promptly.
+			es.onopen = () => {
+				attempt = 0
+			}
 
 			es.onmessage = (e: MessageEvent<string>) => {
 				let event: SSEEvent
@@ -155,9 +171,17 @@ export function RecalboxEventsProvider({
 			}
 
 			es.onerror = () => {
+				// EventSource hides the status code, but not the outcome: on a non-2xx the
+				// browser gives up and leaves readyState CLOSED, whereas a dropped/ended
+				// stream leaves it CONNECTING. So CLOSED means the server refused us — an
+				// expired session (401) or a box we may no longer view (403). Retrying that
+				// every 3s forever is what the old code did: a permanent hammer that spins
+				// up a serverless function per attempt and never recovers on its own.
+				const refused = es.readyState === EventSource.CLOSED
 				es.close()
 				esRef.current = null
-				reconnectTimer = setTimeout(connect, 3000)
+				attempt += 1
+				reconnectTimer = setTimeout(connect, reconnectDelay(attempt, refused))
 			}
 		}
 
@@ -184,16 +208,25 @@ export function RecalboxEventsProvider({
 	const activity = stale ? initialActivity : stream.activity
 	const mqttOnline = stale ? null : stream.mqttOnline
 
-	const contextValue = useMemo(
-		() => ({ mqttOnline, activity, subscribe }),
-		[mqttOnline, activity, subscribe],
-	)
+	const stateValue = useMemo(() => ({ mqttOnline, activity }), [mqttOnline, activity])
 
 	return (
-		<RecalboxEventsContext.Provider value={contextValue}>{children}</RecalboxEventsContext.Provider>
+		<RecalboxSubscribeContext.Provider value={subscribe}>
+			<RecalboxEventsStateContext.Provider value={stateValue}>
+				{children}
+			</RecalboxEventsStateContext.Provider>
+		</RecalboxSubscribeContext.Provider>
 	)
 }
 
-export function useRecalboxEvents() {
-	return use(RecalboxEventsContext)
+/** Live state + subscribe. Re-renders on every event — only use it if you read the state. */
+export function useRecalboxEvents(): RecalboxEventsContextValue {
+	const state = use(RecalboxEventsStateContext)
+	const subscribe = use(RecalboxSubscribeContext)
+	return { ...state, subscribe }
+}
+
+/** Subscribe only, without subscribing the component to state re-renders. */
+export function useRecalboxSubscribe(): RecalboxEventsContextValue['subscribe'] {
+	return use(RecalboxSubscribeContext)
 }

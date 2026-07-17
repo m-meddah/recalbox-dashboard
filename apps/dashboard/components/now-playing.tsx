@@ -6,14 +6,14 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GameMedia } from '@/lib/db/queries'
-import type { GameStartEvent, GameStopEvent, SystemChangeEvent } from '@/lib/recalbox/events'
+import type { GameStartEvent, SystemChangeEvent } from '@/lib/recalbox/events'
 import { systemEmoji } from '@/lib/recalbox/system-meta'
 import { getSystemSpecs } from '@/lib/recalbox/system-specs'
 import { cn } from '@/lib/utils'
 import { Gamepad2, Moon, Star, WifiOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 function useElapsedTime(startedAt: Date | null): string {
 	const [elapsed, setElapsed] = useState('')
@@ -111,30 +111,37 @@ function useRetryingImage(src: string | null, retries = 5, delayMs = 7000) {
 
 function GameCard({ game }: { game: GameStartEvent }) {
 	const elapsed = useElapsedTime(game.startedAt)
-	const [srInfo, setSrInfo] = useState<{ srHasPage: number | null; srUrl: string | null }>({
-		srHasPage: null,
-		srUrl: null,
-	})
-	// Keep media keyed by the rom it loaded for, so it derives back to null the
-	// instant the prop changes — no reset-in-effect (which renders a stale frame
-	// between the two commits).
+	// Both responses are keyed by the rom they were requested for, and both are read
+	// back through that key below. Without it, switching games fast lets the slower
+	// response of the PREVIOUS rom land last and describe the wrong game. Aborting on
+	// change is the other half: it stops the stale request rather than just ignoring it.
+	const [srState, setSrState] = useState<{
+		rom: string
+		data: { srHasPage: number | null; srUrl: string | null }
+	}>({ rom: '', data: { srHasPage: null, srUrl: null } })
 	const [mediaState, setMediaState] = useState<{ rom: string; data: GameMedia | null }>({
 		rom: '',
 		data: null,
 	})
 	useEffect(() => {
 		const rom = game.romPath
-		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(rom)}`)
+		const ac = new AbortController()
+		fetch(`/api/super-retrogamers/game-info?romPath=${encodeURIComponent(rom)}`, {
+			signal: ac.signal,
+		})
 			.then((r) => r.json())
-			.then((data: { srHasPage: number | null; srUrl: string | null }) => setSrInfo(data))
+			.then((data: { srHasPage: number | null; srUrl: string | null }) => setSrState({ rom, data }))
 			.catch(() => {})
-		fetch(`/api/game-media?romPath=${encodeURIComponent(rom)}`)
+		fetch(`/api/game-media?romPath=${encodeURIComponent(rom)}`, { signal: ac.signal })
 			.then((r) => r.json())
 			.then((data: GameMedia) => setMediaState({ rom, data }))
 			.catch(() => {})
+		return () => ac.abort()
 	}, [game.romPath])
 
 	const media = mediaState.rom === game.romPath ? mediaState.data : null
+	const srInfo =
+		srState.rom === game.romPath ? srState.data : { srHasPage: null, srUrl: null as string | null }
 	const screenshotUrl =
 		mediaUrl(media?.screenshotPath) ?? mediaUrl(media?.imagePath) ?? mediaUrl(game.imagePath)
 	const boxUrl = mediaUrl(media?.thumbnailPath)
@@ -388,36 +395,11 @@ function LoadingSkeleton() {
 
 export function NowPlaying() {
 	const t = useTranslations('nowPlaying')
-	const { mqttOnline, subscribe, activity } = useRecalboxEvents()
-	const [currentGame, setCurrentGame] = useState<GameStartEvent | null>(() => activity.game)
-	const [browsing, setBrowsing] = useState<SystemChangeEvent | null>(() => activity.browsing)
-	const [screensaver, setScreensaver] = useState(() => activity.screensaver)
-
-	const handleEvent = useCallback((event: { type: string } & Record<string, unknown>) => {
-		if (event.type === 'game:start') {
-			const e = event as unknown as GameStartEvent
-			setCurrentGame({ ...e, startedAt: new Date(e.startedAt) })
-			setScreensaver(false)
-		} else if (event.type === 'game:stop') {
-			const e = event as unknown as GameStopEvent
-			setCurrentGame((prev) => (prev?.romPath === e.romPath ? null : prev))
-		} else if (event.type === 'system:change') {
-			const e = event as unknown as SystemChangeEvent
-			setBrowsing(e)
-			setScreensaver(false)
-			// Leaving the screensaver into the menus — drop any demo clip still showing.
-			setCurrentGame((prev) => (prev?.fromScreensaver ? null : prev))
-		} else if (event.type === 'screensaver:start') {
-			setScreensaver(true)
-		} else if (event.type === 'screensaver:stop') {
-			setScreensaver(false)
-			setCurrentGame((prev) => (prev?.fromScreensaver ? null : prev))
-		}
-	}, [])
-
-	useEffect(() => {
-		return subscribe(handleEvent)
-	}, [subscribe, handleEvent])
+	// Read the provider's state directly. This used to keep a private copy fed by its
+	// own subscribe(), folding events with logic identical to the provider's — two
+	// state machines that could only ever drift apart.
+	const { mqttOnline, activity } = useRecalboxEvents()
+	const { game: currentGame, browsing, screensaver } = activity
 
 	const content = () => {
 		if (mqttOnline === null) return <LoadingSkeleton />

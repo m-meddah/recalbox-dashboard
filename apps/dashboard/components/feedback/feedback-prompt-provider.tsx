@@ -1,6 +1,6 @@
 'use client'
 
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
 import { useCallback, useEffect, useState } from 'react'
 import { type FeedbackItem, FeedbackToast } from './feedback-toast'
 
@@ -16,7 +16,7 @@ import { type FeedbackItem, FeedbackToast } from './feedback-toast'
 export function FeedbackPromptProvider({ children }: { children: React.ReactNode }) {
 	const [pending, setPending] = useState<FeedbackItem[]>([])
 	const [dismissedIds, setDismissedIds] = useState<Set<number>>(new Set())
-	const { subscribe } = useRecalboxEvents()
+	const subscribe = useRecalboxSubscribe()
 
 	const fetchPending = useCallback(async () => {
 		try {

@@ -1,7 +1,7 @@
 'use client'
 
 import type { NotificationSSEEvent } from '@/app/recalbox-events-provider'
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -36,7 +36,7 @@ function notificationLabel(notif: Notification): { title: string; body: string }
 }
 
 export function NotificationBell() {
-	const { subscribe } = useRecalboxEvents()
+	const subscribe = useRecalboxSubscribe()
 	const [notifications, setNotifications] = useState<Notification[]>([])
 	const [unreadCount, setUnreadCount] = useState(0)
 	const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRecalboxEvents } from '@/app/recalbox-events-provider'
+import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
 import { registerServiceWorker } from '@/lib/notifications/client'
 import type { AchievementUnlockedData } from '@/lib/notifications/types'
 import { useEffect, useRef } from 'react'
@@ -10,7 +10,7 @@ import { AchievementToast } from './achievement-toast'
 const MAX_TOASTS = 3
 
 export function NotificationListener() {
-	const { subscribe } = useRecalboxEvents()
+	const subscribe = useRecalboxSubscribe()
 	const activeToasts = useRef<string[]>([])
 
 	useEffect(() => {
