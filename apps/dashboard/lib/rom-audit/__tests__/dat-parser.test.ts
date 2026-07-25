@@ -48,4 +48,29 @@ describe('parseDat', () => {
 	it('returns an empty game list for an empty input', () => {
 		expect(parseDat('').games).toEqual([])
 	})
+
+	it('does not let a truncated rom line corrupt the game name', () => {
+		const text = [
+			'game (',
+			'\tname "Foo (USA)"',
+			'\trom ( name "Foo (USA).sfc" size 100 crc ABCD1234',
+			')',
+		].join('\n')
+		const dat = parseDat(text)
+		expect(dat.games[0].name).toBe('Foo (USA)')
+	})
+
+	it('does not throw when a game block is never closed', () => {
+		const text = ['game (', '\tname "Foo (USA)"'].join('\n')
+		expect(() => parseDat(text)).not.toThrow()
+	})
+
+	it('does not throw and skips a rom entry without a name field', () => {
+		const text = ['game (', '\tname "Foo (USA)"', '\trom ( size 100 crc ABCD1234 )', ')'].join(
+			'\n',
+		)
+		const dat = parseDat(text)
+		expect(() => parseDat(text)).not.toThrow()
+		expect(dat.games[0].roms).toEqual([])
+	})
 })

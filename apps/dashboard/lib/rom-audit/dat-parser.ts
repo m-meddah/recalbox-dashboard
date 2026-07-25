@@ -84,10 +84,12 @@ export function parseDat(text: string): Dat {
 		}
 
 		if (block === 'game' && current) {
-			const romBody = ROM_LINE.exec(line)?.[1]
-			if (romBody) {
-				const rom = parseRom(romBody)
-				if (rom) current.roms.push(rom)
+			if (line.startsWith('rom')) {
+				const romBody = ROM_LINE.exec(line)?.[1]
+				if (romBody) {
+					const rom = parseRom(romBody)
+					if (rom) current.roms.push(rom)
+				}
 				continue
 			}
 			current.name = quoted(line, 'name') ?? current.name
