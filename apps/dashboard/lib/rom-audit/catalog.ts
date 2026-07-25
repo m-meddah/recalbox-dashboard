@@ -50,6 +50,20 @@ function cacheKey(source: string, file: string): string {
 }
 
 /**
+ * Writes the cache without ever failing the call. The catalogue is already in
+ * hand when this runs, so a write error is a lost speed-up, not a lost result —
+ * serverless deployments run on a read-only filesystem where mkdir raises
+ * EROFS on every single attempt.
+ */
+async function cache(deps: CatalogDeps, key: string, value: CachedDat): Promise<void> {
+	try {
+		await deps.write(key, value)
+	} catch (err) {
+		logger.warn(`rom-audit: dat cache write failed for ${key}: ${String(err)}`)
+	}
+}
+
+/**
  * The reference DAT for a system, from cache when fresh, revalidated with the
  * stored ETag when stale. Returns null when the system has no catalogue, or
  * when the network fails with nothing cached to fall back on.
@@ -70,12 +84,14 @@ export async function loadDatForSystem(
 	try {
 		const res = await deps.fetchDat(url, cached?.etag)
 		if (res.status === 304 && cached) {
-			await deps.write(key, { ...cached, fetchedAt: deps.now() })
-			return parseDat(cached.text)
+			const dat = parseDat(cached.text)
+			await cache(deps, key, { ...cached, fetchedAt: deps.now() })
+			return dat
 		}
 		if (res.status === 200) {
-			await deps.write(key, { text: res.text, etag: res.etag, fetchedAt: deps.now() })
-			return parseDat(res.text)
+			const dat = parseDat(res.text)
+			await cache(deps, key, { text: res.text, etag: res.etag, fetchedAt: deps.now() })
+			return dat
 		}
 		logger.warn(`rom-audit: unexpected status ${res.status} for ${catalog.file}`)
 	} catch (err) {

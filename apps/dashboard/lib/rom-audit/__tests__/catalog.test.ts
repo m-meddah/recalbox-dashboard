@@ -94,4 +94,28 @@ describe('loadDatForSystem', () => {
 		d.fetchDat = vi.fn(async () => ({ status: 500, text: '', etag: undefined }))
 		expect(await loadDatForSystem('snes', d)).toBeNull()
 	})
+
+	// Serverless deployments run on a read-only filesystem: mkdir raises EROFS on
+	// every write. Losing the cache is a slowdown; losing the catalogue we already
+	// hold in memory would report every system as "no catalogue".
+	it('returns the freshly fetched catalogue even when the cache write fails', async () => {
+		const d = deps()
+		d.write = vi.fn(async () => {
+			throw new Error('EROFS: read-only file system')
+		})
+		const dat = await loadDatForSystem('snes', d)
+		expect(dat?.games).toHaveLength(4)
+	})
+
+	it('returns the revalidated cache even when refreshing its timestamp fails', async () => {
+		const d = deps()
+		await loadDatForSystem('snes', d)
+		const readonly = { ...d, now: () => 8 * 24 * 60 * 60 * 1000 }
+		readonly.fetchDat = vi.fn(async () => ({ status: 304, text: '', etag: 'W/"abc"' }))
+		readonly.write = vi.fn(async () => {
+			throw new Error('EROFS: read-only file system')
+		})
+		const dat = await loadDatForSystem('snes', readonly)
+		expect(dat?.games).toHaveLength(4)
+	})
 })
