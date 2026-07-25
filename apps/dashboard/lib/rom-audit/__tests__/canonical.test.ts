@@ -80,6 +80,17 @@ describe('canonicalTitle', () => {
 	it('strips a debug build tag', () => {
 		expect(canonicalTitle('Star Fox 2 (Debug)')).toBe('Star Fox 2')
 	})
+
+	// Mixed region/broadcast-standard forms are otherwise only exercised
+	// through parseNameTags; canonicalTitle shares the same decomposition,
+	// but that sharing was never pinned down at this level directly.
+	it('strips a mixed region/broadcast-standard group given as one comma list', () => {
+		expect(canonicalTitle('Sonic (Europe, PAL)')).toBe('Sonic')
+	})
+
+	it('strips a mixed region/broadcast-standard group given as two separate groups', () => {
+		expect(canonicalTitle('Sonic (Europe) (PAL)')).toBe('Sonic')
+	})
 })
 
 describe('parseNameTags', () => {
@@ -147,5 +158,16 @@ describe('parseNameTags', () => {
 		const tags = parseNameTags('Sonic (Europe) (PAL)')
 		expect(tags.regions).toEqual(['Europe'])
 		expect(tags.broadcastStandards).toEqual(['PAL'])
+	})
+
+	// A region-bearing group assigns instead of accumulating in the current
+	// implementation, unlike categories and broadcastStandards — two separate
+	// region groups would silently lose the first one. Improbable on the
+	// current No-Intro DAT (regions are grouped in a single list), but
+	// regions is exactly what task 4 filters missing games by, so a silent
+	// loss here is the one thing to avoid.
+	it('accumulates regions from multiple separate region groups', () => {
+		const tags = parseNameTags('Sonic (USA) (Europe)')
+		expect(tags.regions).toEqual(['USA', 'Europe'])
 	})
 })

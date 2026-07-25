@@ -190,7 +190,7 @@ export function parseNameTags(name: string): NameTags {
 			const parts = g.split(',').map((part) => part.trim())
 			const regionParts = parts.filter((part) => REGIONS.has(part))
 			const standardParts = parts.filter((part) => BROADCAST_STANDARDS.has(part))
-			if (regionParts.length > 0) tags.regions = regionParts
+			if (regionParts.length > 0) tags.regions = [...tags.regions, ...regionParts]
 			if (standardParts.length > 0) {
 				tags.broadcastStandards = [...tags.broadcastStandards, ...standardParts]
 			}
