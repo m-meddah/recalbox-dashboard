@@ -175,4 +175,18 @@ describe('parseNameTags', () => {
 		const tags = parseNameTags('Sonic (En,Fr) (De)')
 		expect(tags.languages).toEqual(['En', 'Fr', 'De'])
 	})
+
+	// A disc tag with no parsable number is still a known tag: it must be
+	// stripped from the title, or the same game would split in two.
+	it('treats a lettered disc tag as known but numberless', () => {
+		expect(canonicalTitle('Jeu (Disc A)')).toBe('Jeu')
+		expect(parseNameTags('Jeu (Disc A)').disc).toBeUndefined()
+	})
+
+	// A bare object lookup would resolve `[constructor]` up the prototype chain
+	// and push a non-string into the categories.
+	it('does not mistake an inherited object property for a bracket category', () => {
+		expect(canonicalTitle('Jeu [constructor]')).toBe('Jeu [constructor]')
+		expect(parseNameTags('Jeu [constructor]').categories).toEqual([])
+	})
 })

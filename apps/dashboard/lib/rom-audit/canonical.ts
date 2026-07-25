@@ -136,8 +136,11 @@ type GroupTag =
  */
 function classifyGroup(group: string, bracket: boolean): GroupTag | null {
 	if (bracket) {
-		const category = BRACKET_CATEGORY[group.toLowerCase()]
-		return category ? { kind: 'bracket-category', category } : null
+		// hasOwn, not a bare lookup: `[constructor]` would otherwise resolve up the
+		// prototype chain and push a non-string into the categories.
+		const key = group.toLowerCase()
+		if (!Object.hasOwn(BRACKET_CATEGORY, key)) return null
+		return { kind: 'bracket-category', category: BRACKET_CATEGORY[key] as string }
 	}
 
 	const g = group.trim()

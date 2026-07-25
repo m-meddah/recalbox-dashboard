@@ -192,10 +192,13 @@ describe('parseManifest', () => {
 		expect(() => parseManifest([{ ...valid, innerName: '' }])).toThrow()
 	})
 
-	it('rejects a system that is not a simple identifier', () => {
+	// `SNES` used to be rejected here too, back when this field was a whitelist of
+	// catalogued slugs. It is a legitimate directory name and is now accepted —
+	// see 'accepts a directory name that is not a catalogued system slug'. What a
+	// system id must never do is widen into a path, and that still holds.
+	it('rejects a system that could escape its directory', () => {
 		expect(() => parseManifest([{ ...valid, system: '../snes' }])).toThrow()
 		expect(() => parseManifest([{ ...valid, system: 'snes/nes' }])).toThrow()
-		expect(() => parseManifest([{ ...valid, system: 'SNES' }])).toThrow()
 		expect(() => parseManifest([{ ...valid, system: 'snes\x00' }])).toThrow()
 	})
 
@@ -207,5 +210,20 @@ describe('parseManifest', () => {
 		for (const system of ['snes', 'gamecube', 'pcenginecd', 'atari2600', 'msx1', 'neogeocd']) {
 			expect(defined(parseManifest([{ ...valid, system }])[0]).system).toBe(system)
 		}
+	})
+
+	// A whole scan must not abort over a stray directory: real disks carry
+	// @eaDir, .stversions and hand-made folders, and the spec requires listing
+	// every /roms directory — an unmapped one degrades to inventory-only.
+	it('accepts a directory name that is not a catalogued system slug', () => {
+		for (const system of ['@eaDir', '.stversions', 'Mes Jeux', 'NES']) {
+			expect(defined(parseManifest([{ ...valid, system }])[0]).system).toBe(system)
+		}
+	})
+
+	it('still rejects a system id that could widen into a path', () => {
+		expect(() => parseManifest([{ ...valid, system: 'a/b' }])).toThrow()
+		expect(() => parseManifest([{ ...valid, system: 'a\\b' }])).toThrow()
+		expect(() => parseManifest([{ ...valid, system: '..' }])).toThrow()
 	})
 })

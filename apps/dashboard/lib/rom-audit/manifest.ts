@@ -27,14 +27,19 @@ const safeFsPath = z
 	.refine((s) => !hasControlCharacter(s), 'must not contain control characters')
 	.refine((s) => !s.split('/').includes('..'), 'must not contain a ".." segment')
 
-// A Recalbox system id, and nothing that could pass for anything else: it ends
-// up as a path segment and as a database key. Every one of the 78 catalogued
-// systems is a short lowercase slug, so the shape costs nothing to enforce.
-const systemId = z
-	.string()
-	.min(1)
+// A system id is a `/roms` directory name, and it ends up as a path segment and
+// a database key — so it gets the same safety guard as a path, plus a ban on
+// separators so it can never widen into one.
+//
+// Deliberately NOT restricted to the slug shape of the 78 catalogued systems:
+// the spec requires listing every `/roms` directory, including ones with no
+// catalogue and no gamelist. Real disks carry `@eaDir`, `.stversions` and
+// hand-made folders, and `parseManifest` rejects the WHOLE array on one bad
+// entry — a whitelist here would abort an entire scan over a stray directory.
+// An unmapped system degrades to inventory-only, which is a supported state.
+const systemId = safeFsPath
 	.max(64)
-	.regex(/^[a-z0-9_-]+$/, 'must be a lowercase alphanumeric system id')
+	.refine((s) => !s.includes('/') && !s.includes('\\'), 'must not contain a path separator')
 
 export const manifestEntrySchema = z
 	.object({
