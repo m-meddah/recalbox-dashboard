@@ -1,0 +1,18 @@
+clrmamepro (
+	name "Nintendo - GameCube"
+	description "Nintendo - GameCube"
+	version "2026.05.02"
+)
+
+game (
+	name "007 - Agent Under Fire (Europe)"
+	region "Europe"
+	serial "DL-DOL-GW7P-EUR"
+	rom ( name "007 - Agent Under Fire (Europe).iso" size 1459978240 crc E3B90F14 md5 54D17B5C7A4EEE4BFBD648251BFAB15E sha1 1B0EC6BBB9B098906ACC9D86A41E036816B90D74 serial "DL-DOL-GW7P-EUR" )
+)
+game (
+	name "007 - Agent Under Fire (USA)"
+	region "USA"
+	serial "DL-DOL-GW7E-USA"
+	rom ( name "007 - Agent Under Fire (USA).iso" size 1459978240 crc 04486E6C md5 987AF8DCA9DD263C27305B4F139A3547 sha1 E518156CE617A7153D5F4320DECD57070FD35620 serial "DL-DOL-GW7E-USA" )
+)
