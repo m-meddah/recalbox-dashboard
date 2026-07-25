@@ -36,6 +36,7 @@ collection sont des lots ultérieurs qui se grefferont sur ce socle.
 | Couverture | No-Intro + Redump, CHD et RVZ inclus |
 | CHD | Match par nom + lecture d'en-tête ; deep verify à la demande sur un titre |
 | RVZ / ISO GC-Wii | Match par serial lu dans le `dhead` ; deep verify à la demande |
+| Deep verify | Exécuté sur l'**hôte dashboard**, pas sur la box ; self-hosted uniquement |
 | Déclenchement | Manuel, incrémental, via file de commandes en serverless |
 
 ## Sources de données
@@ -376,7 +377,8 @@ Sous-route `/[locale]/collection/audit`, à côté de la page collection existan
   - *Possédés* — au niveau ROM, avec le badge de confiance et le support.
   - *Inconnus* — les fichiers qu'aucune entrée DAT ne reconnaît.
 - **Deep verify** — bouton sur un titre CHD ou RVZ, déclenche une vérification
-  profonde de ce seul titre.
+  profonde de ce seul titre, exécutée sur l'hôte dashboard. Masqué en serverless
+  et quand le binaire requis manque sur l'hôte.
 
 Pas de fusion avec `lib/collection-health.ts`. Celui-ci répond à une autre
 question — « mes jeux sont-ils bien scrapés » — et travaille sur la table `games`.
@@ -396,7 +398,24 @@ l'export ne fait que la sérialiser. Aucune source externe n'est interrogée.
 
 ## Risques et points à trancher à l'implémentation
 
-**Le deep verify est indisponible sur la box de référence.** Relevé effectué le
+**Piste écartée : matcher un CHD par les hashes de son en-tête.** Testée le
+2026-07-25 sur 20 CHD répartis sur 8 systèmes, `sha1` et `rawsha1` comparés aux
+DAT Redump correspondants. Résultat : **0 correspondance sur 20**, contre 19/20
+par le nom de fichier.
+
+```text
+psx          3 CHD | hash: 0/3 | nom: 3/3 | dat: 10262 sha1
+dreamcast    3 CHD | hash: 0/3 | nom: 3/3 | dat:  1487 sha1
+saturn       3 CHD | hash: 0/3 | nom: 3/3 | dat:  2112 sha1
+```
+
+L'hypothèse était qu'un disque mono-piste verrait son flux décompressé égaler
+l'ISO d'origine. Les 12 systèmes en CHD de la collection sont tous des supports
+CD **multi-pistes**, où le flux CHD est la concaténation des pistes et n'égale
+aucun `.bin` listé individuellement. Le niveau `named` reste donc le plafond pour
+les CHD, et il se révèle très fiable en pratique.
+
+**Le deep verify est indisponible sur la box.** Relevé effectué le
 2026-07-25 sur Recalbox 10.1-patron-1 / aarch64 :
 
 | Binaire | État | Conséquence |
@@ -408,14 +427,36 @@ l'export ne fait que la sérialiser. Aucune source externe n'est interrogée.
 | `dolphin-tool` | **absent** | pas de deep verify RVZ |
 
 RecalboxOS est bâti sur Buildroot et n'a pas de gestionnaire de paquets : ces
-binaires ne s'installent pas, il faudrait déposer des exécutables aarch64
-statiques sous `/recalbox/share` et les invoquer par chemin absolu.
+binaires ne s'y installent pas proprement.
 
-**Décision : on ne le fait pas.** Le deep verify n'est qu'un complément à la
-demande ; sans lui l'audit reste complet, les CHD s'identifiant par nom et les
-RVZ par serial. Imposer un binaire tiers à chaque box invitée serait un coût de
-support disproportionné pour une fonction optionnelle. Le bouton est donc masqué
-quand le binaire correspondant est absent, ce qui est le cas par défaut.
+**Décision : le deep verify tourne côté hôte, pas côté box.** Rien n'impose que
+le binaire soit sur la Recalbox. En self-hosted, la machine qui héberge le
+dashboard est un Linux ordinaire où `chdman` s'installe en une commande
+(`mame-tools`, présent dans apt — vérifié sur l'hôte de référence, x86_64,
+candidat 0.285). `dolphin-tool` suit la même logique via le paquet Dolphin.
+
+Déroulé, sur un titre choisi par l'utilisateur :
+
+1. L'hôte lit le fichier depuis la box par SFTP (quelques centaines de Mo à 4 Go).
+2. `chdman extractcd` ou `dolphin-tool verify` s'exécute **sur l'hôte**.
+3. Le résultat est comparé au DAT Redump, puis le temporaire est supprimé.
+
+Le coût est de l'ordre de la dizaine de secondes à la minute sur un LAN gigabit —
+acceptable pour une action explicite, impensable en masse, ce qui correspond
+exactement au périmètre fixé.
+
+**Disponibilité par mode.** Le deep verify est une fonction **self-hosted
+uniquement**, masquée en serverless via `isServerlessMode()` : Vercel n'a ni les
+binaires ni la capacité de rapatrier plusieurs Go. C'est le même traitement que
+le proxy média et l'édition de `recalbox.conf`, déjà en place dans le projet.
+
+En l'absence du binaire sur l'hôte, le bouton est masqué et l'audit reste
+complet : les CHD s'identifient par nom, les RVZ par serial.
+
+**Valeur au-delà du matching Redump.** `chdman verify` recalcule le SHA1 des
+données décompressées et le compare à celui de l'en-tête. Même quand la
+comparaison Redump échoue, cela détecte une **corruption** du fichier — une
+information que rien d'autre dans l'audit ne fournit.
 
 **Disponibilité de `dolphin-tool`.** Le deep verify d'un RVZ passe par
 `dolphin-tool verify`, qui décompresse à la volée pour calculer le CRC32/MD5/SHA1
