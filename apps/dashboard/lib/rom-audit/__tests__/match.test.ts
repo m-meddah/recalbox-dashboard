@@ -13,6 +13,11 @@ const gamecube = parseDat(readFileSync(join(FIXTURES, 'redump-gamecube.dat'), 'u
 // entries, two canonical titles, one hash. 24 % of the real Redump PSX dat is
 // in this situation.
 const sharedHash = parseDat(readFileSync(join(FIXTURES, 'redump-shared-hash.dat'), 'utf-8'))
+// "Star Fox 2" carries both a proto entry and a commercial one; "Bio Force Ape"
+// is proto and nothing else. A category filter has to tell the two apart.
+const protoVariants = parseDat(
+	readFileSync(join(FIXTURES, 'no-intro-proto-variants.dat'), 'utf-8'),
+)
 
 function entry(over: Partial<ManifestEntry>): ManifestEntry {
 	return {
@@ -272,5 +277,21 @@ describe('filterMissingGames', () => {
 		const kept = filterMissingGames(res.missingGames, { excludeCategories: ['proto'] })
 		expect(kept.map((g) => g.title)).not.toContain('Star Fox 2')
 		expect(kept).toHaveLength(res.missingGames.length - 1)
+	})
+
+	// A canonical game's categories are the union of its variants'. Excluding on
+	// that union made a genuinely missing commercial release vanish the moment
+	// the title also had a proto entry — the filters restrict the display, they
+	// must never drop a real missing game.
+	it('keeps a game whose commercial variant is missing even when a sibling variant is a proto', () => {
+		const res = auditSystem('snes', [], protoVariants)
+		const kept = filterMissingGames(res.missingGames, { excludeCategories: ['proto'] })
+		expect(kept.map((g) => g.title)).toContain('Star Fox 2')
+	})
+
+	it('still excludes a game whose every variant carries the excluded category', () => {
+		const res = auditSystem('snes', [], protoVariants)
+		const kept = filterMissingGames(res.missingGames, { excludeCategories: ['proto'] })
+		expect(kept.map((g) => g.title)).not.toContain('Bio Force Ape')
 	})
 })

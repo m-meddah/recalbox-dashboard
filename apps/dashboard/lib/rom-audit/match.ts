@@ -238,16 +238,29 @@ export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat)
 	}
 }
 
+/**
+ * Restricts the displayed missing list without ever changing the metric — so a
+ * game is only dropped when *every* one of its entries carries an excluded
+ * category. A title's categories are the union of its variants': excluding on
+ * that union hid the genuinely missing commercial release of any game that
+ * happened to also have a (Proto) entry.
+ */
 export function filterMissingGames(
 	games: CanonicalGame[],
 	filters: MissingFilters,
 ): CanonicalGame[] {
+	const excluded = filters.excludeCategories ?? []
 	return games.filter((game) => {
 		if (filters.regions?.length) {
 			if (!game.regions.some((r) => filters.regions?.includes(r))) return false
 		}
-		if (filters.excludeCategories?.length) {
-			if (game.categories.some((c) => filters.excludeCategories?.includes(c))) return false
+		// The union decides whether the filter is concerned at all; the per-entry
+		// pass then decides, and only drops the title when no variant escapes.
+		if (excluded.length && game.categories.some((c) => excluded.includes(c))) {
+			const everyVariantExcluded = game.entries.every((entry) =>
+				parseNameTags(entry.game.name).categories.some((c) => excluded.includes(c)),
+			)
+			if (everyVariantExcluded) return false
 		}
 		return true
 	})
