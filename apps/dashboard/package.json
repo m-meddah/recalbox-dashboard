@@ -19,6 +19,7 @@
 		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js",
 		"build:create-user": "esbuild scripts/create-user.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/create-user.js",
 		"icons:generate": "tsx scripts/generate-icons.ts",
+		"rom-audit": "tsx scripts/rom-audit.ts",
 		"doctor": "npx react-doctor@latest"
 	},
 	"dependencies": {
