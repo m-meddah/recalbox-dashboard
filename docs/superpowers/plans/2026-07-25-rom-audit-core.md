@@ -1267,7 +1267,7 @@ describe('loadDatForSystem', () => {
 	it('fetches and parses on a cold cache', async () => {
 		const d = deps()
 		const dat = await loadDatForSystem('snes', d)
-		expect(dat?.games).toHaveLength(3)
+		expect(dat?.games).toHaveLength(4)
 		expect(d.fetchDat).toHaveBeenCalledOnce()
 		expect(d.write).toHaveBeenCalledOnce()
 	})
@@ -1277,7 +1277,7 @@ describe('loadDatForSystem', () => {
 		await loadDatForSystem('snes', d)
 		d.fetchDat.mockClear()
 		const dat = await loadDatForSystem('snes', d)
-		expect(dat?.games).toHaveLength(3)
+		expect(dat?.games).toHaveLength(4)
 		expect(d.fetchDat).not.toHaveBeenCalled()
 	})
 
@@ -1288,7 +1288,7 @@ describe('loadDatForSystem', () => {
 		stale.fetchDat = vi.fn(async () => ({ status: 304, text: '', etag: 'W/"abc"' }))
 		const dat = await loadDatForSystem('snes', stale)
 		expect(stale.fetchDat).toHaveBeenCalledWith(expect.any(String), 'W/"abc"')
-		expect(dat?.games).toHaveLength(3)
+		expect(dat?.games).toHaveLength(4)
 	})
 
 	it('returns null for a system without a catalogue', async () => {
@@ -1303,7 +1303,7 @@ describe('loadDatForSystem', () => {
 			throw new Error('offline')
 		})
 		const dat = await loadDatForSystem('snes', broken)
-		expect(dat?.games).toHaveLength(3)
+		expect(dat?.games).toHaveLength(4)
 	})
 
 	it('returns null when the network fails and nothing is cached', async () => {
