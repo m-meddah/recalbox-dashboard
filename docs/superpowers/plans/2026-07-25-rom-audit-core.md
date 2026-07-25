@@ -250,10 +250,15 @@ export function parseDat(text: string): Dat {
 		}
 
 		if (block === 'game' && current) {
-			const romBody = ROM_LINE.exec(line)?.[1]
-			if (romBody) {
-				const rom = parseRom(romBody)
-				if (rom) current.roms.push(rom)
+			// Toute ligne commençant par `rom` est une entrée ROM, matchée ou non.
+			// Sans ce garde, une ligne rom tronquée retomberait dans le parsing des
+			// champs du jeu et son `name` écraserait silencieusement celui du jeu.
+			if (line.startsWith('rom')) {
+				const romBody = ROM_LINE.exec(line)?.[1]
+				if (romBody) {
+					const rom = parseRom(romBody)
+					if (rom) current.roms.push(rom)
+				}
 				continue
 			}
 			current.name = quoted(line, 'name') ?? current.name
