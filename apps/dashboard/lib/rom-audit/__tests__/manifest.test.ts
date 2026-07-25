@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseManifest } from '../manifest'
+import { defined } from './test-helpers'
 
 const valid = {
 	path: '/recalbox/share/roms/snes/Zelda.zip',
@@ -14,33 +15,43 @@ const valid = {
 
 describe('parseManifest', () => {
 	it('accepts a well-formed entry', () => {
-		const [entry] = parseManifest([valid])
+		const entry = defined(parseManifest([valid])[0])
 		expect(entry.path).toBe(valid.path)
 		expect(entry.crc32).toBe('e95a3dd7')
 	})
 
 	it('lowercases hashes coming from the box', () => {
-		const [entry] = parseManifest([{ ...valid, crc32: 'E95A3DD7' }])
+		const entry = defined(parseManifest([{ ...valid, crc32: 'E95A3DD7' }])[0])
 		expect(entry.crc32).toBe('e95a3dd7')
 	})
 
 	it('accepts an entry with no hash at all', () => {
-		const [entry] = parseManifest([{ ...valid, kind: 'raw', crc32: undefined }])
+		const entry = defined(parseManifest([{ ...valid, kind: 'raw', crc32: undefined }])[0])
 		expect(entry.crc32).toBeUndefined()
 	})
 
 	it('accepts a chd entry carrying sha1 and rawSha1', () => {
-		const [entry] = parseManifest([
-			{ ...valid, kind: 'chd', crc32: undefined, sha1: 'AA'.repeat(20), rawSha1: 'BB'.repeat(20) },
-		])
+		const entry = defined(
+			parseManifest([
+				{
+					...valid,
+					kind: 'chd',
+					crc32: undefined,
+					sha1: 'AA'.repeat(20),
+					rawSha1: 'BB'.repeat(20),
+				},
+			])[0],
+		)
 		expect(entry.sha1).toBe('aa'.repeat(20))
 		expect(entry.rawSha1).toBe('bb'.repeat(20))
 	})
 
 	it('accepts an rvz entry carrying a serial', () => {
-		const [entry] = parseManifest([
-			{ ...valid, kind: 'rvz', crc32: undefined, serial: 'GW7P', discNumber: 0, discVersion: 0 },
-		])
+		const entry = defined(
+			parseManifest([
+				{ ...valid, kind: 'rvz', crc32: undefined, serial: 'GW7P', discNumber: 0, discVersion: 0 },
+			])[0],
+		)
 		expect(entry.serial).toBe('GW7P')
 	})
 
@@ -57,7 +68,7 @@ describe('parseManifest', () => {
 	})
 
 	it('lowercases an uppercase md5', () => {
-		const [entry] = parseManifest([{ ...valid, crc32: undefined, md5: 'AB'.repeat(16) }])
+		const entry = defined(parseManifest([{ ...valid, crc32: undefined, md5: 'AB'.repeat(16) }])[0])
 		expect(entry.md5).toBe('ab'.repeat(16))
 	})
 
@@ -100,15 +111,17 @@ describe('parseManifest', () => {
 	})
 
 	it('accepts crc32/md5/sha1 together on any kind', () => {
-		const [entry] = parseManifest([
-			{
-				...valid,
-				kind: 'sevenzip-entry',
-				crc32: 'e95a3dd7',
-				md5: 'ab'.repeat(16),
-				sha1: 'cd'.repeat(20),
-			},
-		])
+		const entry = defined(
+			parseManifest([
+				{
+					...valid,
+					kind: 'sevenzip-entry',
+					crc32: 'e95a3dd7',
+					md5: 'ab'.repeat(16),
+					sha1: 'cd'.repeat(20),
+				},
+			])[0],
+		)
 		expect(entry.md5).toBe('ab'.repeat(16))
 		expect(entry.sha1).toBe('cd'.repeat(20))
 	})

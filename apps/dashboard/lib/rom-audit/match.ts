@@ -116,10 +116,22 @@ function matchOne(file: ManifestEntry, index: Index): { entry?: DatEntry; level:
 		const bucket = index.bySerial.get(file.serial) ?? []
 		if (bucket.length === 1) return { entry: bucket[0], level: 'serial' }
 		if (bucket.length > 1) {
-			// Several revisions share a game code — disambiguate on the file name.
+			// Several revisions — usually the discs of one multi-disc game — share
+			// a game code. Disambiguate on the file name first.
 			const wanted = normalizeName(file.innerName ?? fileBaseName(file.path))
 			const exact = bucket.find((e) => normalizeName(e.game.name) === wanted)
 			if (exact) return { entry: exact, level: 'serial' }
+
+			// The name alone didn't settle it — fall back to the disc number read
+			// from the RVZ/GC-Wii disc header, when the file carries one. The
+			// header field is 0-based (0 = disc 1); the DAT's "(Disc N)" name tag
+			// is 1-based. This is a tie-breaker, not a replacement for the name:
+			// it only decides when it narrows the bucket to exactly one entry.
+			const discNumber = file.discNumber
+			if (discNumber !== undefined) {
+				const byDisc = bucket.filter((e) => parseNameTags(e.game.name).disc === discNumber + 1)
+				if (byDisc.length === 1) return { entry: byDisc[0], level: 'serial' }
+			}
 		}
 	}
 
@@ -140,7 +152,10 @@ export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat)
 	const matchedRoms = new Set<DatRom>()
 	const files: MatchedFile[] = []
 
-	for (const file of manifest) {
+	// A call audits one system: a file from any other system must never enter
+	// the count or match by coincidence of hash or name, so the filter is
+	// enforced here rather than left to the caller.
+	for (const file of manifest.filter((f) => f.system === system)) {
 		const { entry, level } = matchOne(file, index)
 		if (entry) matchedRoms.add(entry.rom)
 		files.push({

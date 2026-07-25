@@ -176,7 +176,10 @@ export function parseNameTags(name: string): NameTags {
 		const g = group.trim()
 
 		if (bracket) {
-			tags.categories.push(BRACKET_CATEGORY[g.toLowerCase()])
+			// isKnownTag already checked this key exists in BRACKET_CATEGORY for a
+			// bracket group; the guard here is just to satisfy noUncheckedIndexedAccess.
+			const category = BRACKET_CATEGORY[g.toLowerCase()]
+			if (category) tags.categories.push(category)
 		} else if (REV.test(g)) {
 			tags.revision = g
 		} else if (DISC.test(g)) {

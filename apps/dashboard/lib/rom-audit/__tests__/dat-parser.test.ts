@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseDat } from '../dat-parser'
+import { defined } from './test-helpers'
 
 const FIXTURES = join(__dirname, '__fixtures__')
 
@@ -19,13 +20,14 @@ describe('parseDat', () => {
 	it('parses every game block', () => {
 		const dat = parseDat(fixture('no-intro-snes.dat'))
 		expect(dat.games).toHaveLength(4)
-		expect(dat.games[0].name).toBe('Dragon Ball Z - La Legende Saien (France)')
-		expect(dat.games[0].region).toBe('France')
+		const game = defined(dat.games[0])
+		expect(game.name).toBe('Dragon Ball Z - La Legende Saien (France)')
+		expect(game.region).toBe('France')
 	})
 
 	it('parses rom size and lowercases every hash', () => {
 		const dat = parseDat(fixture('no-intro-snes.dat'))
-		const rom = dat.games[0].roms[0]
+		const rom = defined(defined(dat.games[0]).roms[0])
 		expect(rom.name).toBe('Dragon Ball Z - La Legende Saien (France).sfc')
 		expect(rom.size).toBe(2097152)
 		expect(rom.crc).toBe('8f24f886')
@@ -35,14 +37,16 @@ describe('parseDat', () => {
 
 	it('keeps parentheses that belong to the game name', () => {
 		const dat = parseDat(fixture('no-intro-snes.dat'))
-		expect(dat.games[2].name).toBe('Super Mario World (Europe) (Rev 1)')
-		expect(dat.games[2].roms[0].name).toBe('Super Mario World (Europe) (Rev 1).sfc')
+		const game = defined(dat.games[2])
+		expect(game.name).toBe('Super Mario World (Europe) (Rev 1)')
+		expect(defined(game.roms[0]).name).toBe('Super Mario World (Europe) (Rev 1).sfc')
 	})
 
 	it('parses the serial field on both game and rom', () => {
 		const dat = parseDat(fixture('redump-gamecube.dat'))
-		expect(dat.games[0].serial).toBe('DL-DOL-GW7P-EUR')
-		expect(dat.games[0].roms[0].serial).toBe('DL-DOL-GW7P-EUR')
+		const game = defined(dat.games[0])
+		expect(game.serial).toBe('DL-DOL-GW7P-EUR')
+		expect(defined(game.roms[0]).serial).toBe('DL-DOL-GW7P-EUR')
 	})
 
 	it('returns an empty game list for an empty input', () => {
@@ -57,7 +61,7 @@ describe('parseDat', () => {
 			')',
 		].join('\n')
 		const dat = parseDat(text)
-		expect(dat.games[0].name).toBe('Foo (USA)')
+		expect(defined(dat.games[0]).name).toBe('Foo (USA)')
 	})
 
 	it('does not throw when a game block is never closed', () => {
@@ -69,6 +73,6 @@ describe('parseDat', () => {
 		const text = ['game (', '\tname "Foo (USA)"', '\trom ( size 100 crc ABCD1234 )', ')'].join('\n')
 		const dat = parseDat(text)
 		expect(() => parseDat(text)).not.toThrow()
-		expect(dat.games[0].roms).toEqual([])
+		expect(defined(dat.games[0]).roms).toEqual([])
 	})
 })

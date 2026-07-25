@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { parseDat } from '../dat-parser'
 import type { ManifestEntry } from '../manifest'
 import { auditSystem, filterMissingGames } from '../match'
+import { defined } from './test-helpers'
 
 const FIXTURES = join(__dirname, '__fixtures__')
 const snes = parseDat(readFileSync(join(FIXTURES, 'no-intro-snes.dat'), 'utf-8'))
@@ -24,8 +25,9 @@ function entry(over: Partial<ManifestEntry>): ManifestEntry {
 describe('auditSystem', () => {
 	it('matches by crc32 and reports verified', () => {
 		const res = auditSystem('snes', [entry({ crc32: '8f24f886' })], snes)
-		expect(res.files[0].matchLevel).toBe('verified')
-		expect(res.files[0].datEntryName).toBe('Dragon Ball Z - La Legende Saien (France)')
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('verified')
+		expect(file.datEntryName).toBe('Dragon Ball Z - La Legende Saien (France)')
 	})
 
 	it('matches by sha1 when crc32 is absent', () => {
@@ -34,7 +36,7 @@ describe('auditSystem', () => {
 			[entry({ kind: 'raw', sha1: '827c071f8aebe93f80576800266f74f82ff9e41b' })],
 			snes,
 		)
-		expect(res.files[0].matchLevel).toBe('verified')
+		expect(defined(res.files[0]).matchLevel).toBe('verified')
 	})
 
 	it('matches an rvz by serial code', () => {
@@ -43,8 +45,9 @@ describe('auditSystem', () => {
 			[entry({ system: 'gamecube', kind: 'rvz', serial: 'GW7P' })],
 			gamecube,
 		)
-		expect(res.files[0].matchLevel).toBe('serial')
-		expect(res.files[0].datEntryName).toBe('007 - Agent Under Fire (Europe)')
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('serial')
+		expect(file.datEntryName).toBe('007 - Agent Under Fire (Europe)')
 	})
 
 	it('falls back to the file name when no hash matches', () => {
@@ -53,8 +56,9 @@ describe('auditSystem', () => {
 			[entry({ kind: 'chd', path: '/roms/snes/Super Mario World (USA).chd' })],
 			snes,
 		)
-		expect(res.files[0].matchLevel).toBe('named')
-		expect(res.files[0].datEntryName).toBe('Super Mario World (USA)')
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('named')
+		expect(file.datEntryName).toBe('Super Mario World (USA)')
 	})
 
 	it('reports unknown for a file nothing recognises', () => {
@@ -63,8 +67,9 @@ describe('auditSystem', () => {
 			[entry({ crc32: 'deadbeef', path: '/roms/snes/hack.zip' })],
 			snes,
 		)
-		expect(res.files[0].matchLevel).toBe('unknown')
-		expect(res.files[0].datEntryName).toBeUndefined()
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('unknown')
+		expect(file.datEntryName).toBeUndefined()
 	})
 
 	it('counts rom entries raw, not games', () => {
@@ -100,6 +105,128 @@ describe('auditSystem', () => {
 		)
 		expect(res.matchedRomEntries).toBe(1)
 		expect(res.files.filter((f) => f.matchLevel === 'verified')).toHaveLength(2)
+	})
+
+	// "Tales of Symphonia" (Disc 1 / Disc 2) share one serial code (GYTP) in the
+	// gamecube fixture — the ambiguous-bucket branch of matchOne.
+	it('resolves an ambiguous serial code when the file name matches one entry exactly', () => {
+		const res = auditSystem(
+			'gamecube',
+			[
+				entry({
+					system: 'gamecube',
+					kind: 'rvz',
+					serial: 'GYTP',
+					path: '/roms/gamecube/Tales of Symphonia (Europe) (Disc 1).iso',
+				}),
+			],
+			gamecube,
+		)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('serial')
+		expect(file.datEntryName).toBe('Tales of Symphonia (Europe) (Disc 1)')
+	})
+
+	it('falls back cleanly, without guessing, when an ambiguous serial code is not settled by the name', () => {
+		const res = auditSystem(
+			'gamecube',
+			[
+				entry({
+					system: 'gamecube',
+					kind: 'rvz',
+					serial: 'GYTP',
+					path: '/roms/gamecube/ToS Bundle.iso',
+				}),
+			],
+			gamecube,
+		)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('unknown')
+		expect(file.datEntryName).toBeUndefined()
+	})
+
+	// The RVZ/GC-Wii disc header's discNumber field is 0-based (0 = disc 1),
+	// unlike the DAT's 1-based "(Disc N)" name tag.
+	it('resolves an ambiguous serial code via discNumber when the file name does not reproduce the disc tag', () => {
+		const res = auditSystem(
+			'gamecube',
+			[
+				entry({
+					system: 'gamecube',
+					kind: 'rvz',
+					serial: 'GYTP',
+					discNumber: 0,
+					path: '/roms/gamecube/Tales of Symphonia.rvz',
+				}),
+			],
+			gamecube,
+		)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('serial')
+		expect(file.datEntryName).toBe('Tales of Symphonia (Europe) (Disc 1)')
+	})
+
+	it('picks the second disc from discNumber 1', () => {
+		const res = auditSystem(
+			'gamecube',
+			[
+				entry({
+					system: 'gamecube',
+					kind: 'rvz',
+					serial: 'GYTP',
+					discNumber: 1,
+					path: '/roms/gamecube/Tales of Symphonia.rvz',
+				}),
+			],
+			gamecube,
+		)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('serial')
+		expect(file.datEntryName).toBe('Tales of Symphonia (Europe) (Disc 2)')
+	})
+
+	it('does not let discNumber override an exact file-name match', () => {
+		const res = auditSystem(
+			'gamecube',
+			[
+				entry({
+					system: 'gamecube',
+					kind: 'rvz',
+					serial: 'GYTP',
+					// Wrong disc number on purpose — the exact name match must win.
+					discNumber: 1,
+					path: '/roms/gamecube/Tales of Symphonia (Europe) (Disc 1).iso',
+				}),
+			],
+			gamecube,
+		)
+		expect(defined(res.files[0]).datEntryName).toBe('Tales of Symphonia (Europe) (Disc 1)')
+	})
+
+	it('computes ownedDiscs and missingDiscs from the disc tag in the dat name', () => {
+		const res = auditSystem(
+			'gamecube',
+			[entry({ system: 'gamecube', crc32: 'd3f5f96e' })],
+			gamecube,
+		)
+		const tales = res.games.find((g) => g.title === 'Tales of Symphonia')
+		expect(tales?.owned).toBe(true)
+		expect(tales?.ownedDiscs).toEqual([1])
+		expect(tales?.missingDiscs).toEqual([2])
+	})
+
+	it('lists every disc as missing when none of a multi-disc game is owned', () => {
+		const res = auditSystem('gamecube', [], gamecube)
+		const tales = res.games.find((g) => g.title === 'Tales of Symphonia')
+		expect(tales?.owned).toBe(false)
+		expect(tales?.ownedDiscs).toEqual([])
+		expect(tales?.missingDiscs).toEqual([1, 2])
+	})
+
+	it('ignores manifest files from a system other than the one being audited', () => {
+		const res = auditSystem('snes', [entry({ system: 'gamecube', crc32: '8f24f886' })], snes)
+		expect(res.files).toHaveLength(0)
+		expect(res.matchedRomEntries).toBe(0)
 	})
 })
 
