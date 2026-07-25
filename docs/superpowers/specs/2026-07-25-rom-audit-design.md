@@ -18,8 +18,8 @@ la Recalbox.
 - Toute écriture sur la box : suppression de doublons, renommage, déplacement,
   régénération de gamelist.
 - Tout appel à l'API ScreenScraper `jeuInfos` (donc aucun quota consommé).
-- La vérification profonde des CHD en masse. Elle existe uniquement à la demande,
-  sur un titre choisi par l'utilisateur.
+- La vérification profonde des CHD et des RVZ en masse. Elle existe uniquement à
+  la demande, sur un titre choisi par l'utilisateur.
 
 L'import depuis des sources fournies par l'utilisateur et la réparation de
 collection sont des lots ultérieurs qui se grefferont sur ce socle.
@@ -31,9 +31,11 @@ collection sont des lots ultérieurs qui se grefferont sur ce socle.
 | Périmètre | Audit seul, lecture seule |
 | Exécution | Noyau commun, deux transports (SSH self-hosted / agent serverless) |
 | Comptage | ROM par ROM, brut. Filtres région et catégorie en tant que **vue** |
+| Liste des manquants | Au niveau **jeu** (`CanonicalGame`), pas au niveau ROM |
 | Stockage catalogue | DAT en fichier (cache disque ou object storage), jamais en base |
-| Couverture | No-Intro + Redump, CHD inclus |
+| Couverture | No-Intro + Redump, CHD et RVZ inclus |
 | CHD | Match par nom + lecture d'en-tête ; deep verify à la demande sur un titre |
+| RVZ / ISO GC-Wii | Match par serial lu dans le `dhead` ; deep verify à la demande |
 | Déclenchement | Manuel, incrémental, via file de commandes en serverless |
 
 ## Sources de données
@@ -116,7 +118,7 @@ Sortie : un manifeste JSON, une ligne par fichier.
   "innerName": "Zelda - A Link to the Past (Europe).sfc" }
 ```
 
-Trois stratégies de hash, par coût croissant :
+Quatre stratégies d'identification, par coût croissant :
 
 1. **Zip** — CRC32 lu dans l'en-tête central via `zipfile.ZipFile.infolist()`.
    Aucune décompression, aucune lecture du contenu. Cas majoritaire sur Recalbox.
@@ -133,7 +135,22 @@ Trois stratégies de hash, par coût croissant :
    `rawsha1` est le SHA1 du flux décompressé, donc **déterministe** : deux
    conversions du même disque par des versions différentes de chdman produisent
    le même `rawsha1`. Stocké pour la déduplication et la détection de corruption.
-3. **Fichier nu** (`.sfc`, `.md`, `.7z`…) — lecture complète, `zlib.crc32` en
+3. **RVZ / WIA et ISO GameCube-Wii** — lecture du header seul. Le format
+   [WIA/RVZ](https://github.com/dolphin-emu/dolphin/blob/master/docs/WiaAndRvz.md)
+   place la structure `wia_disc_t` à l'offset `0x48`, et celle-ci contient
+   `dhead` : les **128 premiers octets du disque d'origine, en clair**. On y lit :
+
+   | Offset dans `dhead` | Contenu |
+   |---|---|
+   | `0x00`–`0x03` | game code (ex. `GW7P`) |
+   | `0x04`–`0x05` | maker code |
+   | `0x06` | numéro de disque |
+   | `0x07` | version |
+   | `0x20`… | titre du jeu |
+
+   Pour un ISO nu, `dhead` est simplement les 128 premiers octets du fichier.
+   Coût : ~200 octets lus.
+4. **Fichier nu** (`.sfc`, `.md`, `.7z`…) — lecture complète, `zlib.crc32` en
    streaming. Seul cas coûteux. Le 7z n'expose pas de CRC exploitable simplement
    et tombe ici.
 
@@ -179,13 +196,20 @@ ne doit pas être chargé d'un bloc.
 
 ## Matching
 
-Trois niveaux de confiance, explicites dans l'UI :
+Quatre niveaux de confiance, explicites dans l'UI :
 
 | Niveau | Méthode | Badge |
 |---|---|---|
 | `verified` | CRC32 (ou MD5/SHA1) identique à une entrée DAT | ✅ vérifié |
+| `serial` | Game code du `dhead` retrouvé dans le champ `serial` du DAT | ◆ identifié par serial |
 | `named` | Nom normalisé identique au nom canonique DAT | ~ identifié par nom |
 | `unknown` | Aucune correspondance | ? inconnu |
+
+Le niveau `serial` concerne les RVZ et les ISO GameCube/Wii. Le champ `serial`
+Redump a la forme `DL-DOL-GW7P-EUR`, dont le segment central est exactement le
+game code lu dans le `dhead`. Le numéro de disque et l'octet de version affinent
+encore la sélection lorsque plusieurs révisions partagent un même game code ;
+s'il subsiste une ambiguïté, on départage par le nom et on redescend en `named`.
 
 Les cartouches zippées atteignent `verified` pour un coût de scan nul. Les CHD
 atteignent `named` : les DAT Redump hashent les pistes `.bin` individuelles alors
@@ -212,6 +236,48 @@ jeux commerciaux en fait ~1700. Une collection US complète affichera donc un
 pourcentage bas. C'est un choix délibéré de collectionneur ; les filtres servent à
 naviguer dans le détail.
 
+### Regroupement par jeu
+
+Le comptage brut répond à « combien de ROMs me manque-t-il ». Il ne répond pas à
+« quels **jeux** me manquent », qui est la question utile pour compléter une
+collection. Les deux vues coexistent :
+
+- **Métrique brute** — par ROM, telle que définie ci-dessus. C'est le pourcentage
+  affiché sur la carte de chaque système.
+- **Liste des manquants** — par **jeu**. C'est la liste exploitable.
+
+Un `CanonicalGame` regroupe toutes les entrées DAT partageant un même titre
+canonique. Le titre canonique s'obtient en retirant, **par la droite**, les
+groupes `(...)` et `[...]` finaux dont le contenu appartient à un vocabulaire de
+tags connu : régions, `Rev N`, `Beta`, `Proto`, `Demo`, `Sample`, `Alt`, `Unl`,
+`Pirate`, `Aftermarket`, `Disc N`, listes de langues (`En,Fr,De`), marqueurs de
+dump (`[b]`).
+
+Un groupe parenthésé qui **ne** correspond à aucun tag connu est conservé dans le
+titre. Cette règle est délibérément conservatrice : elle risque de scinder en deux
+jeux ce qui n'en est qu'un, ce qui est visible et corrigeable, plutôt que de
+fusionner deux jeux distincts, ce qui produirait un manquant silencieusement
+absent de la liste.
+
+```text
+Super Mario World (Europe) (Rev 1)   ─┐
+Super Mario World (USA)               ├─→  « Super Mario World »
+Super Mario World (Japan)            ─┘
+
+Final Fantasy VII (USA) (Disc 1)     ─┐
+Final Fantasy VII (USA) (Disc 2)      ├─→  « Final Fantasy VII »
+Final Fantasy VII (USA) (Disc 3)     ─┘
+```
+
+**Un jeu est possédé dès qu'au moins une de ses ROMs est matchée**, quel que soit
+le niveau de confiance. Un jeu est manquant si aucune ne l'est. Le multi-disque
+suit la même règle : posséder le disque 1 suffit à marquer le jeu comme possédé,
+et le détail du jeu signale les disques absents.
+
+Les filtres région et catégorie s'appliquent aussi à cette liste : tu peux
+demander les jeux manquants toutes régions confondues, ou restreints à une région
+donnée.
+
 ## Persistance
 
 Deux tables. C'est ce qui tient la promesse de ne pas gonfler Turso.
@@ -219,8 +285,8 @@ Deux tables. C'est ce qui tient la promesse de ne pas gonfler Turso.
 ```text
 rom_files
   id, recalbox_id, mount, system, path, size, mtime,
-  crc32, sha1, kind, inner_name,
-  match_level ('verified' | 'named' | 'unknown'),
+  crc32, sha1, serial, kind, inner_name,
+  match_level ('verified' | 'serial' | 'named' | 'unknown'),
   dat_entry_name, scanned_at
   index (recalbox_id, system)
   index (recalbox_id, crc32)
@@ -230,10 +296,15 @@ rom_scans
   stats_json   -- agrégats par système : total DAT, matchés, inconnus
 ```
 
-**La liste des manquants n'est jamais stockée.** À l'ouverture du détail d'un
-système, on charge ce DAT depuis le cache, on soustrait l'ensemble matché (une
-requête sur `rom_files` filtrée par système), et on rend. Un système à la fois :
-mémoire bornée, zéro écriture.
+**La liste des manquants n'est jamais stockée**, et le regroupement en
+`CanonicalGame` non plus. À l'ouverture du détail d'un système, on charge ce DAT
+depuis le cache, on regroupe ses entrées par titre canonique, on soustrait
+l'ensemble matché (une requête sur `rom_files` filtrée par système), et on rend.
+Un système à la fois : mémoire bornée, zéro écriture.
+
+Le regroupement est déterministe et peu coûteux — un parcours des entrées du DAT
+avec normalisation du titre. Le recalculer à chaque affichage évite d'avoir à
+invalider un cache lorsque le DAT change ou que les règles de tags évoluent.
 
 `rom_files` est dimensionné par la collection de l'utilisateur — quelques dizaines
 de milliers de lignes au pire — jamais par le catalogue.
@@ -262,11 +333,14 @@ identique.
 Sous-route `/[locale]/collection/audit`, à côté de la page collection existante.
 
 - **Vue d'ensemble** — une carte par système : taux brut, répartition
-  vérifié / identifié / inconnu, support physique.
-- **Détail d'un système** — trois listes (possédés, manquants, inconnus) avec les
-  filtres région et catégorie.
-- **Deep verify** — bouton sur un titre CHD, déclenche une vérification profonde
-  de ce seul titre.
+  vérifié / serial / nom / inconnu, support physique.
+- **Détail d'un système** — trois listes avec filtres région et catégorie :
+  - *Jeux manquants* — au niveau `CanonicalGame`, c'est la liste exploitable et
+    l'onglet par défaut. Chaque ligne se déplie sur les ROMs du groupe.
+  - *Possédés* — au niveau ROM, avec le badge de confiance et le support.
+  - *Inconnus* — les fichiers qu'aucune entrée DAT ne reconnaît.
+- **Deep verify** — bouton sur un titre CHD ou RVZ, déclenche une vérification
+  profonde de ce seul titre.
 
 Pas de fusion avec `lib/collection-health.ts`. Celui-ci répond à une autre
 question — « mes jeux sont-ils bien scrapés » — et travaille sur la table `games`.
@@ -281,6 +355,13 @@ binaire `chdman` dans le PATH n'est **pas vérifiée** à ce stade. Première ac
 de l'implémentation : la tester sur une box réelle. En cas d'absence, le bouton
 deep verify est masqué et l'audit CHD s'en tient au niveau `named` — ce qui reste
 un lot livrable, puisque le deep verify n'est qu'un complément à la demande.
+
+**Disponibilité de `dolphin-tool` sur la box.** Le deep verify d'un RVZ passe par
+`dolphin-tool verify`, qui décompresse à la volée pour calculer le CRC32/MD5/SHA1
+de l'image reconstituée — il n'existe pas de hash de l'image complète stocké dans
+l'en-tête RVZ. Même traitement que pour `chdman` : présence à tester, et bouton
+masqué si absent. L'identification par serial, elle, ne dépend d'aucun binaire
+externe et reste acquise dans tous les cas.
 
 **Espace temporaire pour le deep verify.** Une extraction CHD produit un
 temporaire de la taille du disque décompressé (jusqu'à ~700 Mo pour un CD, plus
@@ -300,12 +381,18 @@ manuelle de ~76 entrées ; les entrées non renseignées dégradent proprement v
 ## Tests
 
 `match.ts` étant pur, il porte l'essentiel de la couverture : fixtures DAT
-réduites, nomenclatures tordues, collisions de CRC, multi-disques.
+réduites, collisions de CRC, matching par serial avec plusieurs révisions
+partageant un même game code, et surtout la **canonicalisation des titres** —
+tags empilés, parenthèses légitimes dans un titre (`Sonic & Knuckles (World)` vs
+`Wario Land II (USA) (Beta)`), multi-disques, et la garantie que deux jeux
+distincts ne fusionnent jamais.
 
 `dat-parser.ts` se teste sur des extraits réels des trois formats (No-Intro,
 Redump, MAME).
 
-Le script de scan se teste sur une arborescence temporaire contenant un vrai zip
-et un en-tête CHD forgé, pour chacune des versions v3 / v4 / v5.
+Le script de scan se teste sur une arborescence temporaire contenant un vrai zip,
+un en-tête CHD forgé pour chacune des versions v3 / v4 / v5, et un en-tête
+WIA/RVZ forgé dont on vérifie que le game code, le numéro de disque et la version
+sont correctement extraits du `dhead`.
 
 Aucun de ces tests ne requiert une Recalbox.
