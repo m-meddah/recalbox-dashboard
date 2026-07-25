@@ -92,9 +92,13 @@ export function parseDat(text: string): Dat {
 				}
 				continue
 			}
-			current.name = quoted(line, 'name') ?? current.name
-			current.region = quoted(line, 'region') ?? current.region
-			current.serial = quoted(line, 'serial') ?? current.serial
+			// A field belongs to the game only when it opens the line. clrmamepro
+			// also has disk/sample/archive entries — standard on the MAME side —
+			// whose own `name`/`region`/`serial` would otherwise be read as the
+			// game's and overwrite it.
+			if (line.startsWith('name ')) current.name = quoted(line, 'name') ?? current.name
+			if (line.startsWith('region ')) current.region = quoted(line, 'region') ?? current.region
+			if (line.startsWith('serial ')) current.serial = quoted(line, 'serial') ?? current.serial
 		}
 	}
 
