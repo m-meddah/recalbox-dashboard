@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs'
 import { loadDatForSystem } from '@/lib/rom-audit/catalog'
 import { parseManifest } from '@/lib/rom-audit/manifest'
 import { auditSystem, filterMissingGames } from '@/lib/rom-audit/match'
+import { ZodError } from 'zod'
 
 function arg(name: string): string | undefined {
 	return process.argv
@@ -39,7 +40,30 @@ async function main() {
 		process.exit(1)
 	}
 
-	const manifest = parseManifest(JSON.parse(readFileSync(manifestPath, 'utf-8')))
+	let raw: unknown
+	try {
+		raw = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+	} catch (err) {
+		const reason = err instanceof SyntaxError ? `JSON invalide — ${err.message}` : String(err)
+		console.error(`Manifeste illisible (${manifestPath}) : ${reason}`)
+		process.exit(1)
+	}
+
+	let manifest: ReturnType<typeof parseManifest>
+	try {
+		manifest = parseManifest(raw)
+	} catch (err) {
+		console.error(`Manifeste rejeté par la validation (${manifestPath}) :`)
+		if (err instanceof ZodError) {
+			for (const issue of err.issues) {
+				console.error(`  [${issue.path.join('.') || '<racine>'}] ${issue.message}`)
+			}
+		} else {
+			console.error(`  ${String(err)}`)
+		}
+		process.exit(1)
+	}
+
 	const result = auditSystem(system, manifest, dat)
 
 	const pct = result.totalRomEntries
