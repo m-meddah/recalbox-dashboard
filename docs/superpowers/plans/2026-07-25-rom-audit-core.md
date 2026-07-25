@@ -63,7 +63,15 @@ game (
 	region "Europe"
 	rom ( name "Super Mario World (Europe) (Rev 1).sfc" size 524288 crc CE7BEF3F md5 D2C4E1A5F8B39C6D7E0A1B2C3D4E5F60 sha1 1F2E3D4C5B6A79889A0B1C2D3E4F5061728394A5 )
 )
+game (
+	name "Star Fox 2 (Japan) (Proto)"
+	region "Japan"
+	rom ( name "Star Fox 2 (Japan) (Proto).sfc" size 1048576 crc 4A3B2C1D md5 B7C8D9E0F1A2B3C4D5E6F708192A3B4C sha1 9E8D7C6B5A4938271605F4E3D2C1B0A998877665 )
+)
 ```
+
+La quatrième entrée porte le tag `(Proto)` : sans elle, le test de filtrage par
+catégorie de la tâche 4 n'assertirait rien.
 
 `apps/dashboard/lib/rom-audit/__tests__/__fixtures__/redump-gamecube.dat` :
 
@@ -113,7 +121,7 @@ describe('parseDat', () => {
 
 	it('parses every game block', () => {
 		const dat = parseDat(fixture('no-intro-snes.dat'))
-		expect(dat.games).toHaveLength(3)
+		expect(dat.games).toHaveLength(4)
 		expect(dat.games[0].name).toBe('Dragon Ball Z - La Legende Saien (France)')
 		expect(dat.games[0].region).toBe('France')
 	})
@@ -753,7 +761,7 @@ describe('auditSystem', () => {
 
 	it('counts rom entries raw, not games', () => {
 		const res = auditSystem('snes', [entry({ crc32: '8f24f886' })], snes)
-		expect(res.totalRomEntries).toBe(3)
+		expect(res.totalRomEntries).toBe(4)
 		expect(res.matchedRomEntries).toBe(1)
 	})
 
@@ -796,8 +804,10 @@ describe('filterMissingGames', () => {
 
 	it('excludes categories on request', () => {
 		const res = auditSystem('snes', [], snes)
+		expect(res.missingGames.map((g) => g.title)).toContain('Star Fox 2')
 		const kept = filterMissingGames(res.missingGames, { excludeCategories: ['proto'] })
-		expect(kept).toHaveLength(res.missingGames.length)
+		expect(kept.map((g) => g.title)).not.toContain('Star Fox 2')
+		expect(kept).toHaveLength(res.missingGames.length - 1)
 	})
 })
 ```
@@ -1194,7 +1204,7 @@ export function catalogForSystem(id: string): SystemCatalog | null {
 Run: `pnpm exec vitest run lib/rom-audit/__tests__/system-catalog.test.ts`
 Expected: PASS — 6 tests.
 
-Si le test `snes` échoue sur `ssConsoleId`, corriger la valeur dans `SYSTEM_META` **ou** retirer l'assertion correspondante du test — ne jamais inventer un identifiant ScreenScraper pour faire passer un test.
+Si le test `snes` échoue sur `ssConsoleId`, l'identifiant réel se lit dans la base super-retrogamers, colonne `ssConsoleId` de la table des consoles, ou se vérifie sur `https://www.screenscraper.fr/medias/<id>/gameslist.csv` — un identifiant correct renvoie un CSV, un mauvais renvoie 404. Corriger la valeur dans `SYSTEM_META` d'après cette vérification. Ne jamais inventer un identifiant, et ne jamais supprimer ni affaiblir l'assertion pour faire passer le test.
 
 - [ ] **Step 7: Vérifier que rien d'autre n'a cassé**
 
