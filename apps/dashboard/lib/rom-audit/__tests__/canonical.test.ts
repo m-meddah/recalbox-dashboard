@@ -112,4 +112,40 @@ describe('parseNameTags', () => {
 			parseNameTags('Super Mario World (Virtual Console, Classic Mini, Switch Online)').categories,
 		).toEqual(['virtual-console', 'classic-mini', 'switch-online'])
 	})
+
+	// The 5 tags added to the vocabulary at step 5, each checked at the
+	// parseNameTags level (not just indirectly through canonicalTitle): a
+	// regression in one field's assignment branch would not show up in the
+	// other's tests, since each output field has its own logic.
+	it('extracts a dash-style revision tag', () => {
+		expect(parseNameTags('DuckTales (REV-B) (NES Conversion)').revision).toBe('REV-B')
+	})
+
+	it('extracts an extended language-region code', () => {
+		expect(parseNameTags('River City Girls Zero (Zh-Hant) (Switch)').languages).toEqual([
+			'Zh-Hant',
+		])
+	})
+
+	it('extracts a debug build tag as a category', () => {
+		expect(parseNameTags('Star Fox 2 (Debug)').categories).toEqual(['debug'])
+	})
+
+	it('extracts PAL as a broadcast standard, not a region', () => {
+		const tags = parseNameTags('Teenage Queen (World) (v1.4) (PAL)')
+		expect(tags.broadcastStandards).toEqual(['PAL'])
+		expect(tags.regions).not.toContain('PAL')
+	})
+
+	it('splits a mixed region/broadcast-standard group without misfiling the region', () => {
+		const tags = parseNameTags('Sonic (Europe, PAL)')
+		expect(tags.regions).toEqual(['Europe'])
+		expect(tags.broadcastStandards).toEqual(['PAL'])
+	})
+
+	it('accumulates PAL from a separate group alongside a region group', () => {
+		const tags = parseNameTags('Sonic (Europe) (PAL)')
+		expect(tags.regions).toEqual(['Europe'])
+		expect(tags.broadcastStandards).toEqual(['PAL'])
+	})
 })

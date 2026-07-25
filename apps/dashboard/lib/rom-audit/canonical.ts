@@ -2,6 +2,11 @@ export type NameTags = {
 	regions: string[]
 	languages: string[]
 	categories: string[]
+	// Broadcast standards (PAL/NTSC…) show up in the same trailing groups as
+	// regions, and even mixed into the same comma list, but they are not a
+	// geography — kept in their own field so a region filter (task 4) never
+	// mistakes one for a place.
+	broadcastStandards: string[]
 	revision?: string
 	disc?: number
 }
@@ -32,10 +37,14 @@ const REGIONS = new Set([
 	'USA',
 	'Unknown',
 	'World',
-	// PAL is a broadcast standard, not a geography, but community/homebrew DATs
-	// use it interchangeably with a region tag (e.g. "Teenage Queen (PAL)").
-	'PAL',
 ])
+
+// PAL is a broadcast standard, not a geography, but community/homebrew DATs
+// use it interchangeably with a region tag — standalone (e.g. "Teenage Queen
+// (PAL)") or stacked with real regions in one comma list (e.g. "(Europe,
+// PAL)"). It must still be recognised so canonicalTitle strips it, but it
+// must never land in NameTags.regions.
+const BROADCAST_STANDARDS = new Set(['PAL'])
 
 // (Proto), (Beta 2), (Demo)… → the canonical category slug. May also appear
 // stacked as a comma list inside one group, e.g. "(Virtual Console, Switch Online)".
@@ -115,7 +124,7 @@ function isKnownTag(group: string, bracket: boolean): boolean {
 	if (!g) return false
 	if (REV.test(g) || DISC.test(g) || VERSION.test(g) || LANG_LIST.test(g)) return true
 	const parts = g.split(',').map((part) => part.trim())
-	if (parts.every((part) => REGIONS.has(part))) return true
+	if (parts.every((part) => REGIONS.has(part) || BROADCAST_STANDARDS.has(part))) return true
 	return parts.every((part) => categorySlug(part) !== undefined)
 }
 
@@ -159,7 +168,7 @@ export function canonicalTitle(name: string): string {
 }
 
 export function parseNameTags(name: string): NameTags {
-	const tags: NameTags = { regions: [], languages: [], categories: [] }
+	const tags: NameTags = { regions: [], languages: [], categories: [], broadcastStandards: [] }
 	const { groups } = decompose(name)
 
 	for (const { group, bracket } of groups) {
@@ -175,8 +184,16 @@ export function parseNameTags(name: string): NameTags {
 			if (Number.isFinite(n)) tags.disc = n
 		} else if (LANG_LIST.test(g)) {
 			tags.languages = g.split(',')
-		} else if (g.split(',').every((part) => REGIONS.has(part.trim()))) {
-			tags.regions = g.split(',').map((part) => part.trim())
+		} else if (
+			g.split(',').every((part) => REGIONS.has(part.trim()) || BROADCAST_STANDARDS.has(part.trim()))
+		) {
+			const parts = g.split(',').map((part) => part.trim())
+			const regionParts = parts.filter((part) => REGIONS.has(part))
+			const standardParts = parts.filter((part) => BROADCAST_STANDARDS.has(part))
+			if (regionParts.length > 0) tags.regions = regionParts
+			if (standardParts.length > 0) {
+				tags.broadcastStandards = [...tags.broadcastStandards, ...standardParts]
+			}
 		} else {
 			for (const part of g.split(',')) {
 				const slug = categorySlug(part)
