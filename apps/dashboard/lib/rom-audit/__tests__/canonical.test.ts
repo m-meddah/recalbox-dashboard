@@ -133,9 +133,7 @@ describe('parseNameTags', () => {
 	})
 
 	it('extracts an extended language-region code', () => {
-		expect(parseNameTags('River City Girls Zero (Zh-Hant) (Switch)').languages).toEqual([
-			'Zh-Hant',
-		])
+		expect(parseNameTags('River City Girls Zero (Zh-Hant) (Switch)').languages).toEqual(['Zh-Hant'])
 	})
 
 	it('extracts a debug build tag as a category', () => {

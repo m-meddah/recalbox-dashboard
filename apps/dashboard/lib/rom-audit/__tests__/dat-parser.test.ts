@@ -66,9 +66,7 @@ describe('parseDat', () => {
 	})
 
 	it('does not throw and skips a rom entry without a name field', () => {
-		const text = ['game (', '\tname "Foo (USA)"', '\trom ( size 100 crc ABCD1234 )', ')'].join(
-			'\n',
-		)
+		const text = ['game (', '\tname "Foo (USA)"', '\trom ( size 100 crc ABCD1234 )', ')'].join('\n')
 		const dat = parseDat(text)
 		expect(() => parseDat(text)).not.toThrow()
 		expect(dat.games[0].roms).toEqual([])
