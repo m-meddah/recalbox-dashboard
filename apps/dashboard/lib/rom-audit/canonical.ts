@@ -117,15 +117,60 @@ function categorySlug(word: string): string | undefined {
 	return CATEGORY_WORDS[base]
 }
 
+/** What a recognised trailing group is, and what it carries. */
+type GroupTag =
+	| { kind: 'bracket-category'; category: string }
+	| { kind: 'revision'; revision: string }
+	// A disc group with an unparseable number ("Disc A") is still a known tag —
+	// it just has no number to report.
+	| { kind: 'disc'; disc?: number }
+	| { kind: 'version' }
+	| { kind: 'languages'; languages: string[] }
+	| { kind: 'regions'; regions: string[]; broadcastStandards: string[] }
+	| { kind: 'categories'; categories: string[] }
+
+/**
+ * The single place a trailing group is classified. Everything downstream reads
+ * this: `isKnownTag` is its non-nullity, `parseNameTags` its payload. Written
+ * twice before, the two copies drifted apart and had to be fixed in lockstep.
+ */
+function classifyGroup(group: string, bracket: boolean): GroupTag | null {
+	if (bracket) {
+		const category = BRACKET_CATEGORY[group.toLowerCase()]
+		return category ? { kind: 'bracket-category', category } : null
+	}
+
+	const g = group.trim()
+	if (!g) return null
+	if (REV.test(g)) return { kind: 'revision', revision: g }
+	if (DISC.test(g)) {
+		const n = Number(DISC.exec(g)?.[1])
+		return { kind: 'disc', disc: Number.isFinite(n) ? n : undefined }
+	}
+	if (VERSION.test(g)) return { kind: 'version' }
+	if (LANG_LIST.test(g)) return { kind: 'languages', languages: g.split(',') }
+
+	const parts = g.split(',').map((part) => part.trim())
+	if (parts.every((part) => REGIONS.has(part) || BROADCAST_STANDARDS.has(part))) {
+		return {
+			kind: 'regions',
+			regions: parts.filter((part) => REGIONS.has(part)),
+			broadcastStandards: parts.filter((part) => BROADCAST_STANDARDS.has(part)),
+		}
+	}
+
+	const categories: string[] = []
+	for (const part of parts) {
+		const slug = categorySlug(part)
+		if (!slug) return null
+		categories.push(slug)
+	}
+	return { kind: 'categories', categories }
+}
+
 /** True when the group content is a tag we recognise, and may therefore be stripped. */
 function isKnownTag(group: string, bracket: boolean): boolean {
-	if (bracket) return group.toLowerCase() in BRACKET_CATEGORY
-	const g = group.trim()
-	if (!g) return false
-	if (REV.test(g) || DISC.test(g) || VERSION.test(g) || LANG_LIST.test(g)) return true
-	const parts = g.split(',').map((part) => part.trim())
-	if (parts.every((part) => REGIONS.has(part) || BROADCAST_STANDARDS.has(part))) return true
-	return parts.every((part) => categorySlug(part) !== undefined)
+	return classifyGroup(group, bracket) !== null
 }
 
 /**
@@ -172,36 +217,33 @@ export function parseNameTags(name: string): NameTags {
 	const { groups } = decompose(name)
 
 	for (const { group, bracket } of groups) {
-		if (!isKnownTag(group, bracket)) continue
-		const g = group.trim()
+		const tag = classifyGroup(group, bracket)
+		if (!tag) continue
 
-		if (bracket) {
-			// isKnownTag already checked this key exists in BRACKET_CATEGORY for a
-			// bracket group; the guard here is just to satisfy noUncheckedIndexedAccess.
-			const category = BRACKET_CATEGORY[g.toLowerCase()]
-			if (category) tags.categories.push(category)
-		} else if (REV.test(g)) {
-			tags.revision = g
-		} else if (DISC.test(g)) {
-			const n = Number(DISC.exec(g)?.[1])
-			if (Number.isFinite(n)) tags.disc = n
-		} else if (LANG_LIST.test(g)) {
-			tags.languages = [...tags.languages, ...g.split(',')]
-		} else if (
-			g.split(',').every((part) => REGIONS.has(part.trim()) || BROADCAST_STANDARDS.has(part.trim()))
-		) {
-			const parts = g.split(',').map((part) => part.trim())
-			const regionParts = parts.filter((part) => REGIONS.has(part))
-			const standardParts = parts.filter((part) => BROADCAST_STANDARDS.has(part))
-			if (regionParts.length > 0) tags.regions = [...tags.regions, ...regionParts]
-			if (standardParts.length > 0) {
-				tags.broadcastStandards = [...tags.broadcastStandards, ...standardParts]
-			}
-		} else {
-			for (const part of g.split(',')) {
-				const slug = categorySlug(part)
-				if (slug) tags.categories.push(slug)
-			}
+		switch (tag.kind) {
+			case 'bracket-category':
+				tags.categories.push(tag.category)
+				break
+			case 'revision':
+				tags.revision = tag.revision
+				break
+			case 'disc':
+				if (tag.disc !== undefined) tags.disc = tag.disc
+				break
+			case 'languages':
+				tags.languages.push(...tag.languages)
+				break
+			case 'regions':
+				tags.regions.push(...tag.regions)
+				tags.broadcastStandards.push(...tag.broadcastStandards)
+				break
+			case 'categories':
+				tags.categories.push(...tag.categories)
+				break
+			// A version group is recognised — so canonicalTitle strips it — but
+			// carries nothing NameTags reports.
+			case 'version':
+				break
 		}
 	}
 	return tags
