@@ -186,7 +186,7 @@ export function parseNameTags(name: string): NameTags {
 			const n = Number(DISC.exec(g)?.[1])
 			if (Number.isFinite(n)) tags.disc = n
 		} else if (LANG_LIST.test(g)) {
-			tags.languages = g.split(',')
+			tags.languages = [...tags.languages, ...g.split(',')]
 		} else if (
 			g.split(',').every((part) => REGIONS.has(part.trim()) || BROADCAST_STANDARDS.has(part.trim()))
 		) {

@@ -168,4 +168,11 @@ describe('parseNameTags', () => {
 		const tags = parseNameTags('Sonic (USA) (Europe)')
 		expect(tags.regions).toEqual(['USA', 'Europe'])
 	})
+
+	// languages assigned where regions, categories and broadcastStandards all
+	// accumulate: a second language group silently discarded the first.
+	it('accumulates languages from multiple separate language groups', () => {
+		const tags = parseNameTags('Sonic (En,Fr) (De)')
+		expect(tags.languages).toEqual(['En', 'Fr', 'De'])
+	})
 })
