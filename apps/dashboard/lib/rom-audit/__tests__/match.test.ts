@@ -9,6 +9,10 @@ import { defined } from './test-helpers'
 const FIXTURES = join(__dirname, '__fixtures__')
 const snes = parseDat(readFileSync(join(FIXTURES, 'no-intro-snes.dat'), 'utf-8'))
 const gamecube = parseDat(readFileSync(join(FIXTURES, 'redump-gamecube.dat'), 'utf-8'))
+// A re-release shipping the exact same disc image as the original: two dat
+// entries, two canonical titles, one hash. 24 % of the real Redump PSX dat is
+// in this situation.
+const sharedHash = parseDat(readFileSync(join(FIXTURES, 'redump-shared-hash.dat'), 'utf-8'))
 
 function entry(over: Partial<ManifestEntry>): ManifestEntry {
 	return {
@@ -221,6 +225,31 @@ describe('auditSystem', () => {
 		expect(tales?.owned).toBe(false)
 		expect(tales?.ownedDiscs).toEqual([])
 		expect(tales?.missingDiscs).toEqual([1, 2])
+	})
+
+	// Keeping only the first entry per hash left every later one permanently
+	// unmatchable, so its canonical game stayed missing however many copies of
+	// the file were on the box — a false missing, not a display quirk.
+	it('marks every dat entry sharing a hash, not just the first', () => {
+		const res = auditSystem('psx', [entry({ system: 'psx', crc32: 'aabbccdd' })], sharedHash)
+		expect(res.matchedRomEntries).toBe(2)
+		expect(res.missingGames.map((g) => g.title)).toEqual(['Vagrant Story'])
+	})
+
+	it('reports the first entry of a shared hash as the matched dat name', () => {
+		const res = auditSystem('psx', [entry({ system: 'psx', crc32: 'aabbccdd' })], sharedHash)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('verified')
+		expect(file.datEntryName).toBe('Chrono Cross (USA) (Disc 1)')
+	})
+
+	it('marks every dat entry sharing a sha1, not just the first', () => {
+		const res = auditSystem(
+			'psx',
+			[entry({ system: 'psx', kind: 'raw', sha1: '3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f' })],
+			sharedHash,
+		)
+		expect(res.matchedRomEntries).toBe(2)
 	})
 
 	it('ignores manifest files from a system other than the one being audited', () => {

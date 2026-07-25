@@ -57,12 +57,23 @@ function fileBaseName(path: string): string {
 	return path.split('/').pop() ?? path
 }
 
+// Hashes are indexed to buckets, not to a single entry: a re-release commonly
+// ships the very same image as the original, and on the Redump PSX dat a
+// quarter of the entries share their hash with an earlier one. Keeping only the
+// first made every later entry unmatchable, so its canonical game was reported
+// missing even when the file was on the box.
 type Index = {
-	byCrc: Map<string, DatEntry>
-	bySha1: Map<string, DatEntry>
-	byMd5: Map<string, DatEntry>
+	byCrc: Map<string, DatEntry[]>
+	bySha1: Map<string, DatEntry[]>
+	byMd5: Map<string, DatEntry[]>
 	bySerial: Map<string, DatEntry[]>
 	byName: Map<string, DatEntry>
+}
+
+function pushEntry(map: Map<string, DatEntry[]>, key: string, entry: DatEntry): void {
+	const bucket = map.get(key)
+	if (bucket) bucket.push(entry)
+	else map.set(key, [entry])
 }
 
 function buildIndex(dat: Dat): Index {
@@ -76,17 +87,13 @@ function buildIndex(dat: Dat): Index {
 	for (const game of dat.games) {
 		for (const rom of game.roms) {
 			const entry: DatEntry = { game, rom }
-			if (rom.crc && !index.byCrc.has(rom.crc)) index.byCrc.set(rom.crc, entry)
-			if (rom.sha1 && !index.bySha1.has(rom.sha1)) index.bySha1.set(rom.sha1, entry)
-			if (rom.md5 && !index.byMd5.has(rom.md5)) index.byMd5.set(rom.md5, entry)
+			if (rom.crc) pushEntry(index.byCrc, rom.crc, entry)
+			if (rom.sha1) pushEntry(index.bySha1, rom.sha1, entry)
+			if (rom.md5) pushEntry(index.byMd5, rom.md5, entry)
 
 			const serial = rom.serial ?? game.serial
 			const code = serial ? serialCode(serial) : undefined
-			if (code) {
-				const bucket = index.bySerial.get(code)
-				if (bucket) bucket.push(entry)
-				else index.bySerial.set(code, [entry])
-			}
+			if (code) pushEntry(index.bySerial, code, entry)
 
 			for (const candidate of [rom.name, game.name]) {
 				const key = normalizeName(candidate)
@@ -97,30 +104,40 @@ function buildIndex(dat: Dat): Index {
 	return index
 }
 
-function matchOne(file: ManifestEntry, index: Index): { entry?: DatEntry; level: MatchLevel } {
+/**
+ * A file resolves to every dat entry that shares its hash — one file can be the
+ * legitimate copy of several catalogue entries at once. The first of the bucket
+ * is the one reported by name; all of them count as owned.
+ */
+function matchOne(file: ManifestEntry, index: Index): { entries?: DatEntry[]; level: MatchLevel } {
 	if (file.crc32) {
 		const hit = index.byCrc.get(file.crc32)
-		if (hit) return { entry: hit, level: 'verified' }
+		if (hit) return { entries: hit, level: 'verified' }
 	}
 	for (const [hash, map] of [
 		[file.sha1, index.bySha1],
+		// rawSha1 is the SHA1 of a CHD's decompressed stream. It only ever lines
+		// up with a dat sha1 on a single-track disc, where that stream is the
+		// whole image; a multi-track CD hashes per track in the dat and matches
+		// nothing here. Kept because single-track discs are common — not an
+		// oversight.
 		[file.rawSha1, index.bySha1],
 		[file.md5, index.byMd5],
 	] as const) {
 		if (!hash) continue
 		const hit = map.get(hash)
-		if (hit) return { entry: hit, level: 'verified' }
+		if (hit) return { entries: hit, level: 'verified' }
 	}
 
 	if (file.serial) {
 		const bucket = index.bySerial.get(file.serial) ?? []
-		if (bucket.length === 1) return { entry: bucket[0], level: 'serial' }
+		if (bucket.length === 1) return { entries: bucket, level: 'serial' }
 		if (bucket.length > 1) {
 			// Several revisions — usually the discs of one multi-disc game — share
 			// a game code. Disambiguate on the file name first.
 			const wanted = normalizeName(file.innerName ?? fileBaseName(file.path))
 			const exact = bucket.find((e) => normalizeName(e.game.name) === wanted)
-			if (exact) return { entry: exact, level: 'serial' }
+			if (exact) return { entries: [exact], level: 'serial' }
 
 			// The name alone didn't settle it — fall back to the disc number read
 			// from the RVZ/GC-Wii disc header, when the file carries one. The
@@ -130,14 +147,14 @@ function matchOne(file: ManifestEntry, index: Index): { entry?: DatEntry; level:
 			const discNumber = file.discNumber
 			if (discNumber !== undefined) {
 				const byDisc = bucket.filter((e) => parseNameTags(e.game.name).disc === discNumber + 1)
-				if (byDisc.length === 1) return { entry: byDisc[0], level: 'serial' }
+				if (byDisc.length === 1) return { entries: byDisc, level: 'serial' }
 			}
 		}
 	}
 
 	const nameKey = normalizeName(file.innerName ?? fileBaseName(file.path))
 	const byName = index.byName.get(nameKey)
-	if (byName) return { entry: byName, level: 'named' }
+	if (byName) return { entries: [byName], level: 'named' }
 
 	return { level: 'unknown' }
 }
@@ -156,13 +173,14 @@ export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat)
 	// the count or match by coincidence of hash or name, so the filter is
 	// enforced here rather than left to the caller.
 	for (const file of manifest.filter((f) => f.system === system)) {
-		const { entry, level } = matchOne(file, index)
-		if (entry) matchedRoms.add(entry.rom)
+		const { entries, level } = matchOne(file, index)
+		for (const entry of entries ?? []) matchedRoms.add(entry.rom)
+		const first = entries?.[0]
 		files.push({
 			...file,
 			matchLevel: level,
-			datEntryName: entry?.game.name,
-			canonicalTitle: entry ? canonicalTitle(entry.game.name) : undefined,
+			datEntryName: first?.game.name,
+			canonicalTitle: first ? canonicalTitle(first.game.name) : undefined,
 		})
 	}
 
