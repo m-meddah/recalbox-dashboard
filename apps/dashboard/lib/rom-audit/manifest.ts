@@ -50,10 +50,15 @@ export const manifestEntrySchema = z
 		/** CHD only: SHA1 of the decompressed data stream, deterministic across chdman versions. */
 		rawSha1: lowerHex(40).optional(),
 		/**
-		 * RVZ and bare GameCube/Wii ISO: the 4-character game code read from the
-		 * disc header. Normalised to upper case here, the way hashes are lowered —
-		 * the catalogue indexes it upper case, and a raw lowercase code would fall
-		 * through to a name match without a word.
+		 * The 4-character game code read from the disc header. The disc-header
+		 * strategy covers RVZ *and* bare GameCube/Wii ISO images, and both declare
+		 * `kind: 'rvz'` — the kind names the strategy, not the container. A bare
+		 * ISO sent under any other kind is rejected, and one bad entry rejects the
+		 * whole manifest.
+		 *
+		 * Normalised to upper case here, the way hashes are lowered: the catalogue
+		 * indexes it upper case, and a raw lowercase code would fall through to a
+		 * name match without a word.
 		 */
 		serial: z
 			.string()
