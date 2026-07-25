@@ -150,11 +150,18 @@ Cinq stratégies d'identification, par coût croissant :
 
    Pour un ISO nu, `dhead` est simplement les 128 premiers octets du fichier.
    Coût : ~200 octets lus.
-4. **7z** — le format stocke un CRC32 par entrée dans son en-tête de fin, que
-   `7z l -slt` liste sans rien extraire. L'en-tête peut lui-même être compressé
-   en LZMA, ce qui impose un décodeur : le binaire `p7zip` sur la box, la stdlib
-   Python ne suffit pas. **Si `p7zip` est présent, le 7z rejoint le zip dans les
-   cas gratuits** ; sinon il retombe sur la stratégie 5.
+4. **7z** — `7zr l -slt` liste un CRC32 par entrée sans rien extraire.
+   **Vérifié sur la box de référence** (Recalbox 10.1, aarch64) : `/usr/bin/7zr`
+   est présent, le CRC annoncé est identique au CRC recalculé après extraction,
+   et 40 archives se listent en 1,8 s — soit ~45 ms par archive.
+
+   **Cas imbriqué.** Une minorité d'archives sont des sets complets contenant des
+   `.zip` plutôt que des ROMs nues. Le CRC listé est alors celui du zip
+   intermédiaire, inutilisable contre le DAT. Le cas se détecte à l'extension de
+   l'entrée : si elle vaut `.zip`, on streame cette entrée via `7zr e -so` et on
+   lit le répertoire central du zip obtenu. Sur la collection de référence,
+   24 archives sur 25 échantillonnées contiennent une ROM nue — le chemin
+   imbriqué reste marginal, mais l'ignorer classerait tout un set en `unknown`.
 5. **Fichier nu** (`.sfc`, `.md`…) — lecture complète, `zlib.crc32` en streaming.
    Seul cas réellement coûteux, et seul bénéficiaire du cache d'incrémentalité.
 
@@ -168,6 +175,31 @@ Web Manager, au lieu de coder les chemins en dur.
 Il listera également les dossiers `/roms` **sans** `gamelist.xml`. Un dossier
 rempli mais jamais scrapé doit apparaître dans l'audit : c'est précisément un cas
 intéressant, que `listSystems()` masque aujourd'hui.
+
+### Volumétrie réelle et filtrage
+
+Relevé sur la collection de référence, qui recadre le coût du scan :
+
+| Support | Systèmes | Fichiers | Occupation |
+|---|---|---|---|
+| carte SD (`/recalbox/share`) | squelette | 5 archives | 2,5 Go / 112 Go |
+| `externals/usb0` | 126 | 230 666 | 3,5 To / 3,6 To |
+| `externals/usb1` | 119 | 46 682 | 3,2 To / 3,6 To |
+
+Deux enseignements. D'abord, **la carte SD ne contient pratiquement rien** : la
+collection vit sur les disques USB. Scanner les deux reste juste, mais le volume
+est ailleurs.
+
+Ensuite, **la majorité des fichiers ne sont pas des ROMs** : sur usb0, 114 805
+`.png`, 34 900 `.mp4` et 11 584 `.pdf` — jaquettes, vidéos et manuels — contre
+~49 000 conteneurs de jeu. Le scan filtre donc par extension **avant** toute
+lecture. La liste des extensions ignorées (`png`, `jpg`, `mp4`, `pdf`, `txt`,
+`xml`, `cfg`, `m3u`, `dat`…) est plus courte et plus sûre à maintenir qu'une
+liste d'extensions de ROMs, qui varie par système.
+
+Ordre de grandeur du premier scan : ~22 500 archives 7z à ~45 ms l'unité, soit
+environ 17 minutes, plus la lecture des fichiers nus (~12 Go sur usb0). Les
+scans suivants sont quasi instantanés grâce au cache d'incrémentalité.
 
 ### Incrémentalité
 
@@ -364,24 +396,31 @@ l'export ne fait que la sérialiser. Aucune source externe n'est interrogée.
 
 ## Risques et points à trancher à l'implémentation
 
-**Disponibilité de `chdman` sur la box.** Le deep verify d'un titre CHD suppose
-`chdman extractcd` puis `binmerge`. RecalboxOS embarque MAME, mais la présence du
-binaire `chdman` dans le PATH n'est **pas vérifiée** à ce stade. Première action
-de l'implémentation : la tester sur une box réelle. En cas d'absence, le bouton
-deep verify est masqué et l'audit CHD s'en tient au niveau `named` — ce qui reste
-un lot livrable, puisque le deep verify n'est qu'un complément à la demande.
+**Le deep verify est indisponible sur la box de référence.** Relevé effectué le
+2026-07-25 sur Recalbox 10.1-patron-1 / aarch64 :
 
-**Disponibilité de `p7zip` sur la box.** Détermine si les 7z sont identifiés
-gratuitement (stratégie 4) ou par lecture complète (stratégie 5). Purement une
-question de performance : le résultat de l'audit est identique dans les deux cas,
-seule la durée du premier scan change. À tester en même temps que les deux
-binaires ci-dessous.
+| Binaire | État | Conséquence |
+|---|---|---|
+| `python3` 3.11.8 | présent | scan on-box OK |
+| `/usr/bin/7zr` | présent | stratégie 4 acquise |
+| `unzip` | présent | — |
+| `chdman` | **absent** | pas de deep verify CHD |
+| `dolphin-tool` | **absent** | pas de deep verify RVZ |
 
-**Disponibilité de `dolphin-tool` sur la box.** Le deep verify d'un RVZ passe par
+RecalboxOS est bâti sur Buildroot et n'a pas de gestionnaire de paquets : ces
+binaires ne s'installent pas, il faudrait déposer des exécutables aarch64
+statiques sous `/recalbox/share` et les invoquer par chemin absolu.
+
+**Décision : on ne le fait pas.** Le deep verify n'est qu'un complément à la
+demande ; sans lui l'audit reste complet, les CHD s'identifiant par nom et les
+RVZ par serial. Imposer un binaire tiers à chaque box invitée serait un coût de
+support disproportionné pour une fonction optionnelle. Le bouton est donc masqué
+quand le binaire correspondant est absent, ce qui est le cas par défaut.
+
+**Disponibilité de `dolphin-tool`.** Le deep verify d'un RVZ passe par
 `dolphin-tool verify`, qui décompresse à la volée pour calculer le CRC32/MD5/SHA1
 de l'image reconstituée — il n'existe pas de hash de l'image complète stocké dans
-l'en-tête RVZ. Même traitement que pour `chdman` : présence à tester, et bouton
-masqué si absent. L'identification par serial, elle, ne dépend d'aucun binaire
+l'en-tête RVZ. L'identification par serial, elle, ne dépend d'aucun binaire
 externe et reste acquise dans tous les cas.
 
 **Espace temporaire pour le deep verify.** Une extraction CHD produit un
