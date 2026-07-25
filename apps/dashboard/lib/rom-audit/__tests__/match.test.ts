@@ -59,6 +59,17 @@ describe('auditSystem', () => {
 		expect(file.datEntryName).toBe('007 - Agent Under Fire (Europe)')
 	})
 
+	it('matches an rvz by serial code whatever the case it arrives in', () => {
+		const res = auditSystem(
+			'gamecube',
+			[entry({ system: 'gamecube', kind: 'rvz', serial: 'gw7p' })],
+			gamecube,
+		)
+		const file = defined(res.files[0])
+		expect(file.matchLevel).toBe('serial')
+		expect(file.datEntryName).toBe('007 - Agent Under Fire (Europe)')
+	})
+
 	it('falls back to the file name when no hash matches', () => {
 		const res = auditSystem(
 			'snes',

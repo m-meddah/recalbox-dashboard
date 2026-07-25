@@ -38,9 +38,15 @@ export type MissingFilters = {
 	excludeCategories?: string[]
 }
 
-/** "DL-DOL-GW7P-EUR" → "GW7P". The only 4-char alphanumeric segment. */
+/**
+ * "DL-DOL-GW7P-EUR" → "GW7P". The only 4-char alphanumeric segment, upper-cased
+ * so index and lookup can never disagree on case.
+ */
 export function serialCode(serial: string): string | undefined {
-	return serial.split('-').find((part) => /^[A-Z0-9]{4}$/.test(part))
+	return serial
+		.toUpperCase()
+		.split('-')
+		.find((part) => /^[A-Z0-9]{4}$/.test(part))
 }
 
 /** Comparable form of a file or dat name: no extension, no case, single spaces. */
@@ -130,7 +136,7 @@ function matchOne(file: ManifestEntry, index: Index): { entries?: DatEntry[]; le
 	}
 
 	if (file.serial) {
-		const bucket = index.bySerial.get(file.serial) ?? []
+		const bucket = index.bySerial.get(file.serial.toUpperCase()) ?? []
 		if (bucket.length === 1) return { entries: bucket, level: 'serial' }
 		if (bucket.length > 1) {
 			// Several revisions — usually the discs of one multi-disc game — share

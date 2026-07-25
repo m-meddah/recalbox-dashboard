@@ -126,6 +126,21 @@ describe('parseManifest', () => {
 		expect(entry.sha1).toBe('cd'.repeat(20))
 	})
 
+	// Hashes are normalised at the validation boundary; the serial was left raw,
+	// so a lowercase game code silently fell through to a name match.
+	it('uppercases a serial coming from the box', () => {
+		const entry = defined(
+			parseManifest([{ ...valid, kind: 'rvz', crc32: undefined, serial: 'gw7p' }])[0],
+		)
+		expect(entry.serial).toBe('GW7P')
+	})
+
+	it('rejects a serial that is not alphanumeric', () => {
+		expect(() =>
+			parseManifest([{ ...valid, kind: 'rvz', crc32: undefined, serial: 'GW-P' }]),
+		).toThrow()
+	})
+
 	it('rejects a serial that is not 4 characters', () => {
 		expect(() =>
 			parseManifest([{ ...valid, kind: 'rvz', crc32: undefined, serial: 'ABCDE' }]),

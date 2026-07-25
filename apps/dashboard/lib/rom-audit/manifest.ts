@@ -40,8 +40,17 @@ export const manifestEntrySchema = z
 		sha1: lowerHex(40).optional(),
 		/** CHD only: SHA1 of the decompressed data stream, deterministic across chdman versions. */
 		rawSha1: lowerHex(40).optional(),
-		/** RVZ only: the 4-character game code read from the disc header. */
-		serial: z.string().length(4).optional(),
+		/**
+		 * RVZ and bare GameCube/Wii ISO: the 4-character game code read from the
+		 * disc header. Normalised to upper case here, the way hashes are lowered —
+		 * the catalogue indexes it upper case, and a raw lowercase code would fall
+		 * through to a name match without a word.
+		 */
+		serial: z
+			.string()
+			.regex(/^[A-Za-z0-9]{4}$/)
+			.transform((s) => s.toUpperCase())
+			.optional(),
 		discNumber: z.number().int().nonnegative().optional(),
 		discVersion: z.number().int().nonnegative().optional(),
 		/** Name of the entry inside the archive, when the file is a container. */
