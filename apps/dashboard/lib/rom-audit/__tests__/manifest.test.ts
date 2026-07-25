@@ -172,4 +172,40 @@ describe('parseManifest', () => {
 	it('rejects a mount containing a control character', () => {
 		expect(() => parseManifest([{ ...valid, mount: '/recalbox/share\r' }])).toThrow()
 	})
+
+	// innerName reaches a shell as an extraction argument, and system becomes a
+	// path segment and a database key. The schema is the trust boundary for a
+	// manifest pushed over HTTP by a remote box — it has to cover them too.
+	it('rejects an innerName containing a ".." segment', () => {
+		expect(() => parseManifest([{ ...valid, innerName: '../../etc/passwd' }])).toThrow()
+	})
+
+	it('rejects an innerName containing a null byte', () => {
+		expect(() => parseManifest([{ ...valid, innerName: 'Zelda.sfc\x00' }])).toThrow()
+	})
+
+	it('rejects an innerName containing a newline', () => {
+		expect(() => parseManifest([{ ...valid, innerName: 'Zelda.sfc\nrm -rf /' }])).toThrow()
+	})
+
+	it('rejects an empty innerName', () => {
+		expect(() => parseManifest([{ ...valid, innerName: '' }])).toThrow()
+	})
+
+	it('rejects a system that is not a simple identifier', () => {
+		expect(() => parseManifest([{ ...valid, system: '../snes' }])).toThrow()
+		expect(() => parseManifest([{ ...valid, system: 'snes/nes' }])).toThrow()
+		expect(() => parseManifest([{ ...valid, system: 'SNES' }])).toThrow()
+		expect(() => parseManifest([{ ...valid, system: 'snes\x00' }])).toThrow()
+	})
+
+	it('rejects an unreasonably long system id', () => {
+		expect(() => parseManifest([{ ...valid, system: 'a'.repeat(65) }])).toThrow()
+	})
+
+	it('accepts the system id forms the recalbox catalogue actually uses', () => {
+		for (const system of ['snes', 'gamecube', 'pcenginecd', 'atari2600', 'msx1', 'neogeocd']) {
+			expect(defined(parseManifest([{ ...valid, system }])[0]).system).toBe(system)
+		}
+	})
 })

@@ -27,12 +27,21 @@ const safeFsPath = z
 	.refine((s) => !hasControlCharacter(s), 'must not contain control characters')
 	.refine((s) => !s.split('/').includes('..'), 'must not contain a ".." segment')
 
+// A Recalbox system id, and nothing that could pass for anything else: it ends
+// up as a path segment and as a database key. Every one of the 78 catalogued
+// systems is a short lowercase slug, so the shape costs nothing to enforce.
+const systemId = z
+	.string()
+	.min(1)
+	.max(64)
+	.regex(/^[a-z0-9_-]+$/, 'must be a lowercase alphanumeric system id')
+
 export const manifestEntrySchema = z
 	.object({
 		path: safeFsPath,
 		size: z.number().int().nonnegative(),
 		mtime: z.number().int().nonnegative(),
-		system: z.string().min(1),
+		system: systemId,
 		mount: safeFsPath,
 		kind: z.enum(ROM_KINDS),
 		crc32: lowerHex(8).optional(),
@@ -53,8 +62,12 @@ export const manifestEntrySchema = z
 			.optional(),
 		discNumber: z.number().int().nonnegative().optional(),
 		discVersion: z.number().int().nonnegative().optional(),
-		/** Name of the entry inside the archive, when the file is a container. */
-		innerName: z.string().optional(),
+		/**
+		 * Name of the entry inside the archive, when the file is a container.
+		 * Crosses the same trust boundary as `path` and reaches an extraction
+		 * command as an argument, so it gets the same guard.
+		 */
+		innerName: safeFsPath.optional(),
 	})
 	.superRefine((entry, ctx) => {
 		if (entry.rawSha1 !== undefined && entry.kind !== 'chd') {
@@ -64,27 +77,17 @@ export const manifestEntrySchema = z
 				message: 'rawSha1 only applies to kind "chd"',
 			})
 		}
+		// The three disc-header fields are read by the same strategy and share
+		// one rule: they exist only where a disc header does.
 		if (entry.kind !== 'rvz') {
-			if (entry.serial !== undefined) {
-				ctx.addIssue({
-					code: 'custom',
-					path: ['serial'],
-					message: 'serial only applies to kind "rvz"',
-				})
-			}
-			if (entry.discNumber !== undefined) {
-				ctx.addIssue({
-					code: 'custom',
-					path: ['discNumber'],
-					message: 'discNumber only applies to kind "rvz"',
-				})
-			}
-			if (entry.discVersion !== undefined) {
-				ctx.addIssue({
-					code: 'custom',
-					path: ['discVersion'],
-					message: 'discVersion only applies to kind "rvz"',
-				})
+			for (const field of ['serial', 'discNumber', 'discVersion'] as const) {
+				if (entry[field] !== undefined) {
+					ctx.addIssue({
+						code: 'custom',
+						path: [field],
+						message: `${field} only applies to kind "rvz"`,
+					})
+				}
 			}
 		}
 	})
