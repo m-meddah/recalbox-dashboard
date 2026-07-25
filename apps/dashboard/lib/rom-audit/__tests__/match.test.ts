@@ -15,9 +15,7 @@ const gamecube = parseDat(readFileSync(join(FIXTURES, 'redump-gamecube.dat'), 'u
 const sharedHash = parseDat(readFileSync(join(FIXTURES, 'redump-shared-hash.dat'), 'utf-8'))
 // "Star Fox 2" carries both a proto entry and a commercial one; "Bio Force Ape"
 // is proto and nothing else. A category filter has to tell the two apart.
-const protoVariants = parseDat(
-	readFileSync(join(FIXTURES, 'no-intro-proto-variants.dat'), 'utf-8'),
-)
+const protoVariants = parseDat(readFileSync(join(FIXTURES, 'no-intro-proto-variants.dat'), 'utf-8'))
 
 function entry(over: Partial<ManifestEntry>): ManifestEntry {
 	return {
