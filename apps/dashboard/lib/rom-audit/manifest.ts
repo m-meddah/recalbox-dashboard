@@ -50,7 +50,7 @@ export const manifestEntrySchema = z
 	.superRefine((entry, ctx) => {
 		if (entry.rawSha1 !== undefined && entry.kind !== 'chd') {
 			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
+				code: 'custom',
 				path: ['rawSha1'],
 				message: 'rawSha1 only applies to kind "chd"',
 			})
@@ -58,21 +58,21 @@ export const manifestEntrySchema = z
 		if (entry.kind !== 'rvz') {
 			if (entry.serial !== undefined) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: 'custom',
 					path: ['serial'],
 					message: 'serial only applies to kind "rvz"',
 				})
 			}
 			if (entry.discNumber !== undefined) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: 'custom',
 					path: ['discNumber'],
 					message: 'discNumber only applies to kind "rvz"',
 				})
 			}
 			if (entry.discVersion !== undefined) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: 'custom',
 					path: ['discVersion'],
 					message: 'discVersion only applies to kind "rvz"',
 				})
