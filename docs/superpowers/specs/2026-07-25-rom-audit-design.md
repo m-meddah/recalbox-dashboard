@@ -118,7 +118,7 @@ Sortie : un manifeste JSON, une ligne par fichier.
   "innerName": "Zelda - A Link to the Past (Europe).sfc" }
 ```
 
-Quatre stratégies d'identification, par coût croissant :
+Cinq stratégies d'identification, par coût croissant :
 
 1. **Zip** — CRC32 lu dans l'en-tête central via `zipfile.ZipFile.infolist()`.
    Aucune décompression, aucune lecture du contenu. Cas majoritaire sur Recalbox.
@@ -150,9 +150,13 @@ Quatre stratégies d'identification, par coût croissant :
 
    Pour un ISO nu, `dhead` est simplement les 128 premiers octets du fichier.
    Coût : ~200 octets lus.
-4. **Fichier nu** (`.sfc`, `.md`, `.7z`…) — lecture complète, `zlib.crc32` en
-   streaming. Seul cas coûteux. Le 7z n'expose pas de CRC exploitable simplement
-   et tombe ici.
+4. **7z** — le format stocke un CRC32 par entrée dans son en-tête de fin, que
+   `7z l -slt` liste sans rien extraire. L'en-tête peut lui-même être compressé
+   en LZMA, ce qui impose un décodeur : le binaire `p7zip` sur la box, la stdlib
+   Python ne suffit pas. **Si `p7zip` est présent, le 7z rejoint le zip dans les
+   cas gratuits** ; sinon il retombe sur la stratégie 5.
+5. **Fichier nu** (`.sfc`, `.md`…) — lecture complète, `zlib.crc32` en streaming.
+   Seul cas réellement coûteux, et seul bénéficiaire du cache d'incrémentalité.
 
 ### Découverte des supports — correction d'un défaut existant
 
@@ -168,8 +172,8 @@ intéressant, que `listSystems()` masque aujourd'hui.
 ### Incrémentalité
 
 Le manifeste précédent sert de cache, clé `(path, size, mtime)`. Fichier inchangé
-→ hash réutilisé. Sans effet sur les zip et les CHD, qui sont déjà gratuits ;
-l'économie porte sur les fichiers nus, qui sont justement les coûteux.
+→ identification réutilisée. Sans effet sur les stratégies 1 à 4, déjà gratuites ;
+l'économie porte sur les fichiers nus, et sur les 7z si `p7zip` manque.
 
 ## Mapping système
 
@@ -347,6 +351,17 @@ question — « mes jeux sont-ils bien scrapés » — et travaille sur la table
 Deux préoccupations distinctes, deux modules distincts, présentés comme deux
 onglets de la même page.
 
+## Export
+
+`GET /api/rom-audit/export?system=…&format=csv|json` produit la liste des jeux
+manquants du système, telle qu'affichée, filtres compris.
+
+Colonnes : titre canonique, région, nom d'entrée DAT, taille attendue, CRC32,
+MD5, SHA1, serial le cas échéant.
+
+C'est la sortie naturelle du modèle : la donnée est déjà calculée pour l'écran,
+l'export ne fait que la sérialiser. Aucune source externe n'est interrogée.
+
 ## Risques et points à trancher à l'implémentation
 
 **Disponibilité de `chdman` sur la box.** Le deep verify d'un titre CHD suppose
@@ -355,6 +370,12 @@ binaire `chdman` dans le PATH n'est **pas vérifiée** à ce stade. Première ac
 de l'implémentation : la tester sur une box réelle. En cas d'absence, le bouton
 deep verify est masqué et l'audit CHD s'en tient au niveau `named` — ce qui reste
 un lot livrable, puisque le deep verify n'est qu'un complément à la demande.
+
+**Disponibilité de `p7zip` sur la box.** Détermine si les 7z sont identifiés
+gratuitement (stratégie 4) ou par lecture complète (stratégie 5). Purement une
+question de performance : le résultat de l'audit est identique dans les deux cas,
+seule la durée du premier scan change. À tester en même temps que les deux
+binaires ci-dessous.
 
 **Disponibilité de `dolphin-tool` sur la box.** Le deep verify d'un RVZ passe par
 `dolphin-tool verify`, qui décompresse à la volée pour calculer le CRC32/MD5/SHA1
