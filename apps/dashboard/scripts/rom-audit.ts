@@ -34,11 +34,18 @@ async function main() {
 		process.exit(1)
 	}
 
-	const dat = await loadDatForSystem(system)
-	if (!dat) {
+	const catalog = await loadDatForSystem(system)
+	if (catalog.status === 'no-catalog') {
 		console.error(`Aucun catalogue de référence pour le système "${system}".`)
 		process.exit(1)
 	}
+	if (catalog.status === 'unavailable') {
+		console.error(
+			`Catalogue de référence indisponible pour "${system}" : téléchargement impossible et rien en cache.`,
+		)
+		process.exit(1)
+	}
+	const dat = catalog.dat
 
 	let raw: unknown
 	try {

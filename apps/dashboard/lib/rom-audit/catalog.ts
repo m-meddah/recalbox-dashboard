@@ -9,6 +9,16 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export type CachedDat = { text: string; etag?: string; fetchedAt: number }
 
+/**
+ * Why there is no dat, when there is none. "This system has no reference
+ * catalogue" is a valid, permanent state — 23 of the 78 systems are in it — and
+ * a caller must be able to say so instead of blaming a network it never used.
+ */
+export type CatalogResult =
+	| { status: 'no-catalog' }
+	| { status: 'ok'; dat: Dat }
+	| { status: 'unavailable' }
+
 export type CatalogDeps = {
 	now: () => number
 	read: (key: string) => Promise<CachedDat | null>
@@ -65,33 +75,36 @@ async function cache(deps: CatalogDeps, key: string, value: CachedDat): Promise<
 
 /**
  * The reference DAT for a system, from cache when fresh, revalidated with the
- * stored ETag when stale. Returns null when the system has no catalogue, or
- * when the network fails with nothing cached to fall back on.
+ * stored ETag when stale. The three outcomes are distinguished: the system has
+ * no catalogue at all, the catalogue is here, or the network failed with
+ * nothing cached to fall back on.
  */
 export async function loadDatForSystem(
 	system: string,
 	deps: CatalogDeps = fileDeps,
-): Promise<Dat | null> {
+): Promise<CatalogResult> {
 	const catalog = catalogForSystem(system)
-	if (!catalog) return null
+	if (!catalog) return { status: 'no-catalog' }
 
 	const key = cacheKey(catalog.source, catalog.file)
 	const url = `${BASE_URL}/${catalog.source}/${encodeURIComponent(catalog.file)}`
 	const cached = await deps.read(key)
 
-	if (cached && deps.now() - cached.fetchedAt < TTL_MS) return parseDat(cached.text)
+	if (cached && deps.now() - cached.fetchedAt < TTL_MS) {
+		return { status: 'ok', dat: parseDat(cached.text) }
+	}
 
 	try {
 		const res = await deps.fetchDat(url, cached?.etag)
 		if (res.status === 304 && cached) {
 			const dat = parseDat(cached.text)
 			await cache(deps, key, { ...cached, fetchedAt: deps.now() })
-			return dat
+			return { status: 'ok', dat }
 		}
 		if (res.status === 200) {
 			const dat = parseDat(res.text)
 			await cache(deps, key, { text: res.text, etag: res.etag, fetchedAt: deps.now() })
-			return dat
+			return { status: 'ok', dat }
 		}
 		logger.warn(`rom-audit: unexpected status ${res.status} for ${catalog.file}`)
 	} catch (err) {
@@ -99,5 +112,6 @@ export async function loadDatForSystem(
 	}
 
 	// Stale is better than nothing — the catalogue moves slowly.
-	return cached ? parseDat(cached.text) : null
+	if (cached) return { status: 'ok', dat: parseDat(cached.text) }
+	return { status: 'unavailable' }
 }

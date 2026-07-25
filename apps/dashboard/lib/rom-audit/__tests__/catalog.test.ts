@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import type { CachedDat } from '../catalog'
+import type { CachedDat, CatalogResult } from '../catalog'
 import { loadDatForSystem } from '../catalog'
+import type { Dat } from '../dat-parser'
 
 const DAT_TEXT = readFileSync(join(__dirname, '__fixtures__', 'no-intro-snes.dat'), 'utf-8')
+
+/** The parsed dat of a successful load, refusing anything else loudly. */
+function okDat(result: CatalogResult): Dat {
+	if (result.status !== 'ok') throw new Error(`expected an ok catalogue, got "${result.status}"`)
+	return result.dat
+}
 
 // Seule l'horloge s'injecte ici : les autres dépendances sont des mocks qu'on
 // réassigne après coup, pour garder leur typage `Mock` et donc `mockClear()`.
@@ -31,8 +38,8 @@ function deps(over: { now?: () => number } = {}) {
 describe('loadDatForSystem', () => {
 	it('fetches and parses on a cold cache', async () => {
 		const d = deps()
-		const dat = await loadDatForSystem('snes', d)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', d)
+		expect(okDat(res).games).toHaveLength(4)
 		expect(d.fetchDat).toHaveBeenCalledOnce()
 		expect(d.write).toHaveBeenCalledOnce()
 	})
@@ -41,8 +48,8 @@ describe('loadDatForSystem', () => {
 		const d = deps()
 		await loadDatForSystem('snes', d)
 		d.fetchDat.mockClear()
-		const dat = await loadDatForSystem('snes', d)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', d)
+		expect(okDat(res).games).toHaveLength(4)
 		expect(d.fetchDat).not.toHaveBeenCalled()
 	})
 
@@ -51,13 +58,15 @@ describe('loadDatForSystem', () => {
 		await loadDatForSystem('snes', d)
 		const stale = { ...d, now: () => 8 * 24 * 60 * 60 * 1000 }
 		stale.fetchDat = vi.fn(async () => ({ status: 304, text: '', etag: 'W/"abc"' }))
-		const dat = await loadDatForSystem('snes', stale)
+		const res = await loadDatForSystem('snes', stale)
 		expect(stale.fetchDat).toHaveBeenCalledWith(expect.any(String), 'W/"abc"')
-		expect(dat?.games).toHaveLength(4)
+		expect(okDat(res).games).toHaveLength(4)
 	})
 
-	it('returns null for a system without a catalogue', async () => {
-		expect(await loadDatForSystem('amiga600', deps())).toBeNull()
+	// "this system has no reference catalogue" is a perfectly valid state — 23 of
+	// the 78 systems are in it — and must not read like a failure to the caller.
+	it('reports no-catalog for a system that has none', async () => {
+		expect(await loadDatForSystem('amiga600', deps())).toEqual({ status: 'no-catalog' })
 	})
 
 	it('falls back to the stale cache when the network fails', async () => {
@@ -67,16 +76,16 @@ describe('loadDatForSystem', () => {
 		broken.fetchDat = vi.fn(async () => {
 			throw new Error('offline')
 		})
-		const dat = await loadDatForSystem('snes', broken)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', broken)
+		expect(okDat(res).games).toHaveLength(4)
 	})
 
-	it('returns null when the network fails and nothing is cached', async () => {
+	it('reports unavailable when the network fails and nothing is cached', async () => {
 		const d = deps()
 		d.fetchDat = vi.fn(async () => {
 			throw new Error('offline')
 		})
-		expect(await loadDatForSystem('snes', d)).toBeNull()
+		expect(await loadDatForSystem('snes', d)).toEqual({ status: 'unavailable' })
 	})
 
 	it('serves the stale cache on an unexpected http status', async () => {
@@ -84,15 +93,15 @@ describe('loadDatForSystem', () => {
 		await loadDatForSystem('snes', d)
 		const broken = { ...d, now: () => 8 * 24 * 60 * 60 * 1000 }
 		broken.fetchDat = vi.fn(async () => ({ status: 500, text: '', etag: undefined }))
-		const dat = await loadDatForSystem('snes', broken)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', broken)
+		expect(okDat(res).games).toHaveLength(4)
 		expect(broken.fetchDat).toHaveBeenCalledOnce()
 	})
 
-	it('returns null on an unexpected http status with nothing cached', async () => {
+	it('reports unavailable on an unexpected http status with nothing cached', async () => {
 		const d = deps()
 		d.fetchDat = vi.fn(async () => ({ status: 500, text: '', etag: undefined }))
-		expect(await loadDatForSystem('snes', d)).toBeNull()
+		expect(await loadDatForSystem('snes', d)).toEqual({ status: 'unavailable' })
 	})
 
 	// Serverless deployments run on a read-only filesystem: mkdir raises EROFS on
@@ -103,8 +112,8 @@ describe('loadDatForSystem', () => {
 		d.write = vi.fn(async () => {
 			throw new Error('EROFS: read-only file system')
 		})
-		const dat = await loadDatForSystem('snes', d)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', d)
+		expect(okDat(res).games).toHaveLength(4)
 	})
 
 	it('returns the revalidated cache even when refreshing its timestamp fails', async () => {
@@ -115,7 +124,7 @@ describe('loadDatForSystem', () => {
 		readonly.write = vi.fn(async () => {
 			throw new Error('EROFS: read-only file system')
 		})
-		const dat = await loadDatForSystem('snes', readonly)
-		expect(dat?.games).toHaveLength(4)
+		const res = await loadDatForSystem('snes', readonly)
+		expect(okDat(res).games).toHaveLength(4)
 	})
 })
