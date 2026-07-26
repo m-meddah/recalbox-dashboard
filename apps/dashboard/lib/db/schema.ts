@@ -638,4 +638,95 @@ export const artwork = sqliteTable(
 	}),
 )
 
+/**
+ * One ROM audit run. A run is per Recalbox and covers one or more systems; the
+ * progress columns are what the audit page polls while it is in flight.
+ */
+export const romScans = sqliteTable(
+	'rom_scans',
+	{
+		id: text('id').primaryKey(),
+		recalboxId: text('recalbox_id').notNull(),
+		// 'pending' (queued for the agent) → 'running' → 'done' | 'failed'.
+		status: text('status').notNull().default('pending'),
+		// 'ssh' (self-hosted, server-driven) | 'agent' (serverless, box-driven).
+		transport: text('transport').notNull(),
+		startedAt: int('started_at', { mode: 'timestamp' }).notNull(),
+		// Bumped on every progress write: staleness is judged on this, not startedAt.
+		updatedAt: int('updated_at', { mode: 'timestamp' }).notNull(),
+		completedAt: int('completed_at', { mode: 'timestamp' }),
+		systemsTotal: int('systems_total').notNull().default(0),
+		systemsDone: int('systems_done').notNull().default(0),
+		currentSystem: text('current_system'),
+		error: text('error'),
+		createdBy: text('created_by'),
+	},
+	(t) => [index('idx_rom_scans_recalbox_started').on(t.recalboxId, t.startedAt)],
+)
+
+/**
+ * Per-system audit aggregate — one row per (Recalbox, system). This is the only
+ * table the serverless deploy grows per scan, and it is what the overview and
+ * the missing-games list read: `matchedEntries` holds the DAT entry names the
+ * collection covers, so the missing list is a set difference against the cached
+ * DAT, with no per-file read and nothing extra stored.
+ */
+export const romSystemAudits = sqliteTable(
+	'rom_system_audits',
+	{
+		recalboxId: text('recalbox_id').notNull(),
+		system: text('system').notNull(),
+		datName: text('dat_name'),
+		datVersion: text('dat_version'),
+		totalRomEntries: int('total_rom_entries').notNull().default(0),
+		matchedRomEntries: int('matched_rom_entries').notNull().default(0),
+		verifiedCount: int('verified_count').notNull().default(0),
+		serialCount: int('serial_count').notNull().default(0),
+		namedCount: int('named_count').notNull().default(0),
+		unknownCount: int('unknown_count').notNull().default(0),
+		filesScanned: int('files_scanned').notNull().default(0),
+		totalBytes: int('total_bytes').notNull().default(0),
+		mounts: text('mounts', { mode: 'json' }).$type<string[]>(),
+		matchedEntries: text('matched_entries', { mode: 'json' }).$type<string[]>(),
+		scannedAt: int('scanned_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => [primaryKey({ columns: [t.recalboxId, t.system] })],
+)
+
+/**
+ * Per-file scan detail. Self-hosted stores every entry; serverless stores only
+ * the `unknown` ones (see lib/rom-audit/persist.ts) — the aggregate above
+ * carries everything the UI needs for the rest.
+ *
+ * Keyed on `entryKey`, NOT on `path`: one 7z archive yields one manifest entry
+ * per contained ROM, all sharing the same path.
+ */
+export const romFiles = sqliteTable(
+	'rom_files',
+	{
+		recalboxId: text('recalbox_id').notNull(),
+		// `path`, or `path#innerName` when the entry is inside an archive.
+		entryKey: text('entry_key').notNull(),
+		system: text('system').notNull(),
+		mount: text('mount').notNull(),
+		path: text('path').notNull(),
+		innerName: text('inner_name'),
+		size: int('size').notNull(),
+		mtime: int('mtime').notNull(),
+		kind: text('kind').notNull(),
+		crc32: text('crc32'),
+		sha1: text('sha1'),
+		serial: text('serial'),
+		matchLevel: text('match_level').notNull(),
+		datEntryName: text('dat_entry_name'),
+		canonicalTitle: text('canonical_title'),
+		scannedAt: int('scanned_at', { mode: 'timestamp' }).notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.recalboxId, t.entryKey] }),
+		index('idx_rom_files_recalbox_system').on(t.recalboxId, t.system),
+		index('idx_rom_files_recalbox_crc').on(t.recalboxId, t.crc32),
+	],
+)
+
 export * from '@/lib/auth/auth-schema'

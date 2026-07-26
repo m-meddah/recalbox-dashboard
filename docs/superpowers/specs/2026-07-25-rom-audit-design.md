@@ -346,6 +346,31 @@ invalider un cache lorsque le DAT change ou que les règles de tags évoluent.
 `rom_files` est dimensionné par la collection de l'utilisateur — quelques dizaines
 de milliers de lignes au pire — jamais par le catalogue.
 
+### Amendement 2026-07-26 (lot 2B)
+
+Trois écarts au modèle ci-dessus, décidés à l'implémentation.
+
+**Une troisième table, `rom_system_audits`.** La règle « détail local, agrégats
+dans le cloud » rend la liste des manquants incalculable en serverless : sans les
+fichiers matchés, il n'y a rien à soustraire du catalogue. La table d'agrégat —
+une ligne par `(recalbox_id, system)` — porte donc, en plus des compteurs par
+niveau de confiance, la colonne `matched_entries` : le tableau JSON des noms
+d'entrées DAT que la collection couvre. Quelques dizaines de Ko par système,
+contre des dizaines de milliers de lignes. Bénéfice secondaire en self-hosted :
+afficher un système lit **une** ligne au lieu de plusieurs centaines.
+
+**La progression d'un scan ne passe pas par le SSE.** `app/api/events/route.ts`
+règle explicitement ses intervalles de polling parce que chaque onglet ouvert
+coûte des lectures Turso en permanence ; y brancher une source de plus ferait
+payer ce coût à tous les onglets, en dehors de tout scan. La page d'audit
+interroge `GET /api/rom-audit/scan` toutes les 3 s, uniquement pendant qu'un scan
+tourne.
+
+**La clé de `rom_files` est `(recalbox_id, entry_key)`.** Une archive 7z
+contenant vingt ROMs produit vingt entrées de manifeste partageant le même
+`path` ; une clé sur le chemin seul en garderait une. `entry_key` vaut `path`,
+ou `path#inner_name` pour une entrée d'archive.
+
 ## Transports
 
 Route d'entrée commune : `POST /api/rom-audit/scan`.
