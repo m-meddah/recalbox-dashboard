@@ -262,7 +262,11 @@ git commit -m "feat(rom-audit): cibles de scan et rattachement au support"
 
    Chaque champ fait 20 octets. On émet `sha1`, et `rawSha1` quand la version l'expose.
 
-3. **`.rvz`, `.wia`, `.iso` → `rvz`.** Le format [WIA/RVZ](https://github.com/dolphin-emu/dolphin/blob/master/docs/WiaAndRvz.md) place la structure `wia_disc_t` à l'offset `0x48`, contenant `dhead` : les 128 premiers octets du disque d'origine, en clair. Pour un `.iso` nu, `dhead` est simplement les 128 premiers octets du fichier.
+3. **`.rvz`, `.wia`, `.iso` → `rvz`.** Le format [WIA/RVZ](https://github.com/dolphin-emu/dolphin/blob/master/docs/WiaAndRvz.md) place la structure `wia_disc_t` à l'offset `0x48`. Celle-ci **ne commence pas par `dhead`** : elle débute par quatre `u32` — `disc_type`, `compression`, `compr_level`, `chunk_size` — soit `0x10` octets, avant `dhead[0x80]`.
+
+   **`dhead` est donc à l'offset `0x58` du fichier**, pas `0x48`. Pour un `.iso` nu, `dhead` est simplement les 128 premiers octets du fichier, à l'offset 0.
+
+   Ce point a déjà causé un bug : une première version du plan indiquait `0x48`, la fixture de test encodait la même erreur, et les tests passaient donc sur un code qui n'aurait identifié aucun RVZ réel. **La lecture doit être auto-vérifiante** : contrôler le magic du fichier (`WIA\x01` ou `RVZ\x01`) et recouper `dhead` avec la magie du disque — GameCube `0xC2339F3D` à `dhead+0x1C`, Wii `0x5D1C9EA3` à `dhead+0x18`. Sans ce recoupement, une erreur d'offset reste invisible.
 
    | Offset dans `dhead` | Contenu |
    |---|---|
