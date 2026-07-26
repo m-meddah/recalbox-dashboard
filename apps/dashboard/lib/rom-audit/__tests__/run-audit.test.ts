@@ -189,3 +189,39 @@ describe('runAuditOverScan', () => {
 		})
 	})
 })
+
+describe('runAuditOverScan (incremental cache)', () => {
+	it('asks the caller for the cache of each batch and forwards it', async () => {
+		const d = deps()
+		const seen: string[][] = []
+		const cache = {
+			'/recalbox/share/roms/snes/Game.sfc': {
+				size: 1,
+				mtime: 2,
+				crc32: 'aabbccdd',
+				kind: 'raw' as const,
+			},
+		}
+		const ssh = {
+			exec: vi.fn(async (_cmd: string, o: { stdin: string }) => {
+				seen.push([o.stdin.startsWith('CACHE_B64 = ') ? 'with-cache' : 'bare'])
+				return JSON.stringify({ entries: [], stats: {} })
+			}),
+		}
+		await runAuditOverScan(ssh, targets('snes'), { ...d, cacheFor: () => cache })
+		expect(seen).toEqual([['with-cache']])
+	})
+
+	// A missing cache is the normal first-scan case, not an error.
+	it('runs without a cache when the caller provides none', async () => {
+		const d = deps()
+		const ssh = {
+			exec: vi.fn(async (_cmd: string, o: { stdin: string }) => {
+				expect(o.stdin.startsWith('#!/usr/bin/env python3')).toBe(true)
+				return JSON.stringify({ entries: [], stats: {} })
+			}),
+		}
+		await runAuditOverScan(ssh, targets('snes'), d)
+		expect(ssh.exec).toHaveBeenCalled()
+	})
+})

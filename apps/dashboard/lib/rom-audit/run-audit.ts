@@ -1,6 +1,7 @@
 import type { CatalogResult } from './catalog'
 import type { ManifestEntry } from './manifest'
 import { type AuditResult, auditSystem } from './match'
+import type { ScanCache } from './scan-cache'
 import { type ScanExecutor, runScanBatched } from './scan-runner'
 import type { ScanTarget } from './scan-targets'
 
@@ -14,6 +15,12 @@ export type AuditDeps = {
 	loadDat: (system: string) => Promise<CatalogResult>
 	persist: AuditPersist
 	onProgress: (done: number, total: number, current: string | null) => Promise<void> | void
+	/**
+	 * The previous scan of the systems in a batch, so the box can skip re-reading
+	 * files that have not moved. Optional: without it every file is read again,
+	 * which is correct, just slower.
+	 */
+	cacheFor?: (systems: readonly string[]) => ScanCache | undefined
 }
 
 export type AuditRunSummary = {
@@ -73,38 +80,43 @@ export async function runAuditOverScan(
 	let systemsAudited = 0
 	let done = 0
 
-	const summary = await runScanBatched(ssh, targets, async (event) => {
-		if (event.type === 'batch-failed') {
-			failedSystems.push(...event.systems)
-			done += event.systems.length
-			await deps.onProgress(done, total, null)
-			return
-		}
-
-		for (const system of event.systems) {
-			const entries = event.entries.filter((e) => e.system === system)
-			try {
-				const catalog = await deps.loadDat(system)
-				if (catalog.status === 'unavailable') {
-					failedSystems.push(system)
-				} else {
-					const result =
-						catalog.status === 'ok'
-							? auditSystem(system, entries, catalog.dat)
-							: inventoryOnly(system, entries)
-					if (catalog.status === 'no-catalog') systemsWithoutCatalog.push(system)
-					await deps.persist(system, result, mountsBySystem.get(system) ?? [])
-					systemsAudited++
-				}
-			} catch {
-				// Catalogue read or persistence blew up: this system has no usable
-				// result, and the ones after it still deserve their scan.
-				failedSystems.push(system)
+	const summary = await runScanBatched(
+		ssh,
+		targets,
+		async (event) => {
+			if (event.type === 'batch-failed') {
+				failedSystems.push(...event.systems)
+				done += event.systems.length
+				await deps.onProgress(done, total, null)
+				return
 			}
-			done++
-			await deps.onProgress(done, total, system)
-		}
-	})
+
+			for (const system of event.systems) {
+				const entries = event.entries.filter((e) => e.system === system)
+				try {
+					const catalog = await deps.loadDat(system)
+					if (catalog.status === 'unavailable') {
+						failedSystems.push(system)
+					} else {
+						const result =
+							catalog.status === 'ok'
+								? auditSystem(system, entries, catalog.dat)
+								: inventoryOnly(system, entries)
+						if (catalog.status === 'no-catalog') systemsWithoutCatalog.push(system)
+						await deps.persist(system, result, mountsBySystem.get(system) ?? [])
+						systemsAudited++
+					}
+				} catch {
+					// Catalogue read or persistence blew up: this system has no usable
+					// result, and the ones after it still deserve their scan.
+					failedSystems.push(system)
+				}
+				done++
+				await deps.onProgress(done, total, system)
+			}
+		},
+		deps.cacheFor,
+	)
 
 	return { systemsAudited, systemsWithoutCatalog, failedSystems, oversized: summary.oversized }
 }

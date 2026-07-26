@@ -38,6 +38,7 @@ Usage:
 
 import argparse
 import io
+import base64
 import json
 import os
 import re
@@ -112,6 +113,20 @@ STRATEGIES = ('zip-entry', 'chd', 'rvz', 'sevenzip-entry', 'raw', 'container')
 HASH_MODES = ('content', 'container')
 DEFAULT_HASH_MODE = 'content'
 
+# Strategies the incremental cache may serve. Only the two that read the file in
+# full: a zip's central directory and a CHD or RVZ header cost a couple of
+# hundred bytes, so caching them would buy nothing — and their entries carry
+# fields (rawSha1, discNumber, discVersion) the dashboard does not persist, so a
+# cache rebuilt from its database would silently drop them.
+CACHEABLE_STRATEGIES = ('raw', 'container')
+
+# Injected by the transport, ahead of this script, as a base64 zlib blob. The
+# guard keeps the script runnable standalone, with no cache at all.
+try:
+    CACHE_B64
+except NameError:
+    CACHE_B64 = ''
+
 
 def find_sevenzip_binary():
     """First of 7z/7za/7zr found on PATH. RecalboxOS ships only 7zr; a dev
@@ -137,6 +152,38 @@ def is_safe_relpath(value):
     return True
 
 
+def load_cache(packed):
+    """Decode the injected cache. Any damage means "no cache": re-reading a file
+    is slow, but trusting a corrupt entry would emit a wrong hash."""
+    if not packed:
+        return {}
+    try:
+        data = json.loads(zlib.decompress(base64.b64decode(packed)))
+    except Exception as exc:
+        print(f'scan_roms: unusable cache, ignoring it ({exc})', file=sys.stderr)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def cached_fragment(cache, filepath, st, strategy):
+    """The previous identification of this file, when it is still current.
+
+    Matches on (size, mtime) and on the strategy that produced it — a file whose
+    system switched hash mode must be read again, not reused under the old kind.
+    """
+    entry = cache.get(filepath)
+    if not isinstance(entry, dict):
+        return None
+    crc = entry.get('crc32')
+    if entry.get('kind') != strategy or not isinstance(crc, str):
+        return None
+    if entry.get('size') != st.st_size:
+        return None
+    if entry.get('mtime') != max(0, int(st.st_mtime)):
+        return None
+    return {'kind': strategy, 'crc32': crc}
+
+
 def new_stats():
     """Two per-strategy series, deliberately named apart. One file can yield
     many manifest entries (a multi-ROM archive) or none (a corrupt one), so a
@@ -146,6 +193,7 @@ def new_stats():
         'scanned': 0,
         'skipped': 0,
         'errors': 0,
+        'reused': 0,
         'filesByStrategy': dict.fromkeys(STRATEGIES, 0),
         'entriesByStrategy': dict.fromkeys(STRATEGIES, 0),
     }
@@ -446,6 +494,22 @@ def handle_raw(filepath, stats, kind='raw'):
 # ── Dispatch ───────────────────────────────────────────────────────────────
 
 
+def strategy_for(ext, sevenzip_bin, hash_mode):
+    """Which strategy a file would take — decided before any read, so the cache
+    can be consulted for the expensive ones only."""
+    if hash_mode == 'container':
+        return 'container'
+    if ext == 'zip':
+        return 'zip-entry'
+    if ext == 'chd':
+        return 'chd'
+    if ext in ('rvz', 'wia', 'iso'):
+        return 'rvz'
+    if ext == '7z' and sevenzip_bin is not None:
+        return 'sevenzip-entry'
+    return 'raw'
+
+
 def strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode=DEFAULT_HASH_MODE):
     if hash_mode == 'container':
         # The whole file is the unit: no archive is opened, and no 7z binary is
@@ -470,7 +534,7 @@ def strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode=DEFAULT_HAS
     return fragments
 
 
-def process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode=DEFAULT_HASH_MODE):
+def process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode=DEFAULT_HASH_MODE, cache=None):
     name = os.path.basename(filepath)
     ext = os.path.splitext(name)[1].lower().lstrip('.')
     if ext in IGNORED_EXTENSIONS:
@@ -495,7 +559,20 @@ def process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode=DEFAULT
         return []
 
     stats['scanned'] += 1
-    fragments = strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode)
+
+    strategy = strategy_for(ext, sevenzip_bin, hash_mode)
+    reused = (
+        cached_fragment(cache, filepath, st, strategy)
+        if cache and strategy in CACHEABLE_STRATEGIES
+        else None
+    )
+    if reused is not None:
+        stats['reused'] += 1
+        stats['filesByStrategy'][strategy] += 1
+        stats['entriesByStrategy'][strategy] += 1
+        fragments = [reused]
+    else:
+        fragments = strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode)
 
     base = {
         'path': filepath,
@@ -536,10 +613,12 @@ def parse_target(spec):
     return mount, system, roms_path, hash_mode
 
 
-def scan(targets):
+def scan(targets, cache=None):
     stats = new_stats()
     entries = []
     sevenzip_bin = find_sevenzip_binary()
+    if cache is None:
+        cache = load_cache(CACHE_B64)
 
     for spec in targets:
         try:
@@ -569,7 +648,7 @@ def scan(targets):
             continue
         for filepath in iter_files(roms_path, stats):
             entries.extend(
-                process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode)
+                process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode, cache)
             )
 
     return {'entries': entries, 'stats': stats}

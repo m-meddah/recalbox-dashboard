@@ -1,8 +1,10 @@
 import { configStore } from '@/lib/config-store'
 import { db } from '@/lib/db'
+import type { RomFileRow } from '@/lib/db/rom-audit-queries'
 import {
 	createScan,
 	finishScan,
+	listRomFiles,
 	syncSystemRomFiles,
 	updateScanProgress,
 	upsertSystemAudit,
@@ -14,6 +16,8 @@ import { loadDatForSystem } from './catalog'
 import { discoverScanTargets } from './discover'
 import { auditToFileRows, auditToSystemRow, persistPolicyFor } from './persist'
 import { runAuditOverScan } from './run-audit'
+import { planScanBatches } from './scan-batches'
+import { type ScanCache, buildScanCache } from './scan-cache'
 import type { ScanExecutor } from './scan-runner'
 
 // The scan holds its SSH connection for as long as it walks the disks — a whole
@@ -65,6 +69,28 @@ export async function startSelfHostedScan(
 	const scan = await createScan(db, recalboxId, 'ssh', systemsTotal, userId)
 	const policy = persistPolicyFor(isServerlessMode())
 
+	// The incremental cache is what makes a rescan cheap: without it the box
+	// re-reads every bare ROM and every arcade container in full — 57 GB of
+	// archives for mame, fbneo and neogeo alone on the reference collection.
+	//
+	// It is empty in `aggregates` mode by construction: the cloud stores only the
+	// `unknown` entries, so there is nothing to hand back. A serverless scan
+	// therefore always re-reads. Known limit, recorded in the plan.
+	const cacheFor = async (systems: readonly string[]): Promise<ScanCache> => {
+		const rows: RomFileRow[] = []
+		for (const system of systems) {
+			rows.push(...(await listRomFiles(db, recalboxId, system)))
+		}
+		return buildScanCache(rows)
+	}
+
+	// runScanBatched asks synchronously, batch by batch; pre-load each batch's
+	// cache on the way in rather than blocking the scan loop on a query.
+	const caches = new Map<string, ScanCache>()
+	for (const batch of planScanBatches(targets).batches) {
+		caches.set(batch.systems.join(','), await cacheFor(batch.systems))
+	}
+
 	void runAuditOverScan(executorFor(recalboxId), targets, {
 		loadDat: (system) => loadDatForSystem(system),
 		persist: async (system, result, mounts) => {
@@ -77,6 +103,7 @@ export async function startSelfHostedScan(
 			)
 			await upsertSystemAudit(db, auditToSystemRow(recalboxId, result, mounts, scannedAt))
 		},
+		cacheFor: (systems) => caches.get(systems.join(',')),
 		onProgress: (done, total, current) =>
 			updateScanProgress(db, scan.id, {
 				systemsDone: done,

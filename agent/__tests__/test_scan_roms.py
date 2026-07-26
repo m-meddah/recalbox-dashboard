@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import os
@@ -561,3 +562,128 @@ class ContainerModeTest(unittest.TestCase):
         self.make_zip('game.zip', {'game.sfc': b'cartridge'})
         result = run_scan(f'{self.tmp.name}|mame|{self.roms}')
         self.assertEqual(result['entries'][0]['kind'], 'zip-entry')
+
+
+class IncrementalScanTest(unittest.TestCase):
+    """Le gain : ne pas relire 57 Go d'archives arcade à chaque passage."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.roms = os.path.join(self.tmp.name, 'roms', 'snes')
+        os.makedirs(self.roms)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_raw(self, name, payload=b'cartridge payload'):
+        path = os.path.join(self.roms, name)
+        with open(path, 'wb') as f:
+            f.write(payload)
+        return path
+
+    def cache_for(self, path, crc='deadbeef', size=None, mtime=None, kind='raw'):
+        st = os.stat(path)
+        entry = {
+            'size': st.st_size if size is None else size,
+            'mtime': int(st.st_mtime) if mtime is None else mtime,
+            'crc32': crc,
+            'kind': kind,
+        }
+        return base64.b64encode(zlib.compress(json.dumps({path: entry}).encode())).decode()
+
+    def run_with_cache(self, cache_b64, mode='content'):
+        """Le cache voyage devant le script, comme le fait le transport."""
+        with open(SCRIPT, encoding='utf-8') as f:
+            source = f.read()
+        program = f"CACHE_B64 = '{cache_b64}'\n{source}"
+        target = f'{self.tmp.name}|snes|{self.roms}|{mode}'
+        out = subprocess.run(
+            [sys.executable, '-', '--target', target],
+            input=program, capture_output=True, text=True, timeout=120,
+        )
+        if out.returncode != 0:
+            raise AssertionError(f'scan failed rc={out.returncode}: {out.stderr}')
+        return json.loads(out.stdout)
+
+    def test_reuses_the_cached_identification_when_size_and_mtime_match(self):
+        path = self.make_raw('game.sfc')
+        result = self.run_with_cache(self.cache_for(path, crc='aabbccdd'))
+        entry = result['entries'][0]
+        # La valeur du cache, pas le vrai CRC du fichier : c'est la preuve
+        # qu'aucune lecture n'a eu lieu.
+        self.assertEqual(entry['crc32'], 'aabbccdd')
+        self.assertEqual(entry['kind'], 'raw')
+
+    def test_counts_the_reused_entries_separately(self):
+        path = self.make_raw('game.sfc')
+        result = self.run_with_cache(self.cache_for(path))
+        self.assertEqual(result['stats']['reused'], 1)
+
+    def test_rehashes_when_the_size_changed(self):
+        path = self.make_raw('game.sfc')
+        result = self.run_with_cache(self.cache_for(path, crc='aabbccdd', size=999999))
+        self.assertNotEqual(result['entries'][0]['crc32'], 'aabbccdd')
+        self.assertEqual(result['stats']['reused'], 0)
+
+    def test_rehashes_when_the_mtime_changed(self):
+        path = self.make_raw('game.sfc')
+        result = self.run_with_cache(self.cache_for(path, crc='aabbccdd', mtime=1))
+        self.assertNotEqual(result['entries'][0]['crc32'], 'aabbccdd')
+
+    def test_hashes_a_file_absent_from_the_cache(self):
+        self.make_raw('game.sfc')
+        other = self.make_raw('other.sfc', b'other payload')
+        result = self.run_with_cache(self.cache_for(other, crc='aabbccdd'))
+        by_name = {os.path.basename(e['path']): e for e in result['entries']}
+        self.assertEqual(by_name['other.sfc']['crc32'], 'aabbccdd')
+        self.assertNotEqual(by_name['game.sfc']['crc32'], 'aabbccdd')
+
+    def test_reuses_an_arcade_container(self):
+        path = os.path.join(self.roms, '005.zip')
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr('005.rom', b'arcade')
+        result = self.run_with_cache(
+            self.cache_for(path, crc='11223344', kind='container'), mode='container'
+        )
+        self.assertEqual(result['entries'][0]['crc32'], '11223344')
+        self.assertEqual(result['stats']['reused'], 1)
+
+    # Le cache ne doit jamais servir aux stratégies bon marché : leurs entrées
+    # portent des champs (rawSha1, discNumber) que la base ne conserve pas.
+    def test_never_reuses_the_cache_for_a_zip_entry(self):
+        path = os.path.join(self.roms, 'game.zip')
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr('game.sfc', b'cartridge')
+        result = self.run_with_cache(self.cache_for(path, crc='aabbccdd', kind='raw'))
+        self.assertEqual(result['entries'][0]['kind'], 'zip-entry')
+        self.assertNotEqual(result['entries'][0]['crc32'], 'aabbccdd')
+        self.assertEqual(result['stats']['reused'], 0)
+
+    # Dans le doute, on relit : un cache abîmé ne doit pas produire un faux résultat.
+    def test_a_malformed_cache_entry_falls_back_to_hashing(self):
+        path = self.make_raw('game.sfc')
+        packed = base64.b64encode(
+            zlib.compress(json.dumps({path: {'size': 'huit', 'crc32': 42}}).encode())
+        ).decode()
+        result = self.run_with_cache(packed)
+        self.assertEqual(len(result['entries']), 1)
+        self.assertEqual(result['stats']['reused'], 0)
+
+    def test_a_corrupt_cache_payload_does_not_kill_the_scan(self):
+        self.make_raw('game.sfc')
+        result = self.run_with_cache('not-valid-base64!!')
+        self.assertEqual(len(result['entries']), 1)
+        self.assertEqual(result['stats']['reused'], 0)
+
+    def test_an_empty_cache_behaves_exactly_like_no_cache(self):
+        self.make_raw('game.sfc')
+        packed = base64.b64encode(zlib.compress(b'{}')).decode()
+        with_cache = self.run_with_cache(packed)
+        without = run_scan(f'{self.tmp.name}|snes|{self.roms}')
+        self.assertEqual(with_cache['entries'], without['entries'])
+
+    def test_the_script_still_runs_with_no_cache_injected_at_all(self):
+        self.make_raw('game.sfc')
+        result = run_scan(f'{self.tmp.name}|snes|{self.roms}')
+        self.assertEqual(len(result['entries']), 1)
+        self.assertEqual(result['stats']['reused'], 0)

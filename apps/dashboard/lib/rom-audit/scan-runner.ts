@@ -1,5 +1,7 @@
+import { logger } from '@/lib/logger'
 import { type ManifestEntry, parseManifest } from './manifest'
 import { MAX_COMMAND_BYTES, buildScanCommand, planScanBatches } from './scan-batches'
+import { type ScanCache, encodeScanCache, withScanCache } from './scan-cache'
 import { SCAN_SCRIPT } from './scan-script'
 import type { ScanTarget } from './scan-targets'
 
@@ -37,6 +39,23 @@ function numericStats(raw: unknown): Record<string, number> {
 }
 
 /**
+ * Builds the program pushed on stdin: the scan script, optionally preceded by
+ * the incremental cache.
+ *
+ * A cache is an optimisation, never a requirement — if it is too large to send,
+ * the scan runs without it and re-reads the files rather than failing.
+ */
+function scanProgram(cache?: ScanCache): string {
+	if (!cache || Object.keys(cache).length === 0) return SCAN_SCRIPT
+	const encoded = encodeScanCache(cache)
+	if (encoded.status !== 'ok') {
+		logger.warn(`[rom-audit] scan cache too large (${encoded.bytes} bytes), scanning without it`)
+		return SCAN_SCRIPT
+	}
+	return withScanCache(SCAN_SCRIPT, encoded.payload)
+}
+
+/**
  * Runs the scan and validates what comes back.
  *
  * Never throws. A scan is a long operation on modest hardware, reached over a
@@ -47,6 +66,7 @@ function numericStats(raw: unknown): Record<string, number> {
 export async function runScan(
 	ssh: ScanExecutor,
 	targets: readonly ScanTarget[],
+	cache?: ScanCache,
 ): Promise<ScanOutcome> {
 	const command = buildScanCommand(targets)
 	if (command.length > MAX_COMMAND_BYTES) {
@@ -60,7 +80,7 @@ export async function runScan(
 
 	let output: string
 	try {
-		output = await ssh.exec(command, { stdin: SCAN_SCRIPT, timeoutMs: SCAN_TIMEOUT_MS })
+		output = await ssh.exec(command, { stdin: scanProgram(cache), timeoutMs: SCAN_TIMEOUT_MS })
 	} catch (err) {
 		return { status: 'failed', reason: `scan command failed: ${String(err)}` }
 	}
@@ -112,12 +132,14 @@ export async function runScanBatched(
 	ssh: ScanExecutor,
 	targets: readonly ScanTarget[],
 	onBatch: (event: ScanBatchEvent) => Promise<void> | void,
+	/** Looked up per system: sending the whole box's cache to every batch would waste the trip. */
+	cacheFor?: (systems: readonly string[]) => ScanCache | undefined,
 ): Promise<BatchedScanSummary> {
 	const plan = planScanBatches(targets)
 	const failedSystems: string[] = []
 
 	for (const batch of plan.batches) {
-		const outcome = await runScan(ssh, batch.targets)
+		const outcome = await runScan(ssh, batch.targets, cacheFor?.(batch.systems))
 		const event: ScanBatchEvent =
 			outcome.status === 'ok'
 				? {

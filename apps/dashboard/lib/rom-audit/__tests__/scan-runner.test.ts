@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { ScanCache } from '../scan-cache'
 import { buildScanCommand, runScan, runScanBatched } from '../scan-runner'
 import type { ScanTarget } from '../scan-targets'
 
@@ -220,5 +221,66 @@ describe('runScanBatched', () => {
 				throw new Error('persist failed')
 			}),
 		).resolves.toBeDefined()
+	})
+})
+
+describe('runScan (incremental cache)', () => {
+	const CACHE: ScanCache = {
+		'/recalbox/share/roms/snes/Game.sfc': {
+			size: 1048576,
+			mtime: 1721900000,
+			crc32: 'e95a3dd7',
+			kind: 'raw',
+		},
+	}
+
+	it('sends the cache ahead of the script, on the same stdin', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await runScan(client, TARGETS, CACHE)
+		const stdin = client.exec.mock.calls[0]?.[1]?.stdin ?? ''
+		expect(stdin.startsWith('CACHE_B64 = ')).toBe(true)
+		expect(stdin).toContain('#!/usr/bin/env python3')
+	})
+
+	// The 8000-byte budget is the command line's. The cache rides on stdin,
+	// measured up to 2,3 MB on the reference box.
+	it('leaves the command line untouched', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await runScan(client, TARGETS, CACHE)
+		const [cmd] = client.exec.mock.calls[0] ?? []
+		expect(cmd?.length ?? 0).toBeLessThan(8000)
+		expect(cmd).not.toContain('CACHE_B64')
+	})
+
+	it('sends the bare script when there is no cache', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await runScan(client, TARGETS)
+		const stdin = client.exec.mock.calls[0]?.[1]?.stdin ?? ''
+		expect(stdin.startsWith('#!/usr/bin/env python3')).toBe(true)
+	})
+
+	it('sends the bare script rather than an empty assignment for an empty cache', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await runScan(client, TARGETS, {})
+		const stdin = client.exec.mock.calls[0]?.[1]?.stdin ?? ''
+		expect(stdin.startsWith('#!/usr/bin/env python3')).toBe(true)
+	})
+
+	// A cache is an optimisation: if it cannot be sent, the scan still runs.
+	it('drops an oversized cache instead of failing the scan', async () => {
+		const huge: ScanCache = {}
+		for (let i = 0; i < 400_000; i++) {
+			huge[`/${Math.random().toString(36)}/${i}/${Math.random().toString(36)}.zip`] = {
+				size: i,
+				mtime: i,
+				crc32: 'aabbccdd',
+				kind: 'container',
+			}
+		}
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		const res = await runScan(client, TARGETS, huge)
+		expect(res.status).toBe('ok')
+		const stdin = client.exec.mock.calls[0]?.[1]?.stdin ?? ''
+		expect(stdin.startsWith('#!/usr/bin/env python3')).toBe(true)
 	})
 })
