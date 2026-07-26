@@ -394,8 +394,16 @@ export type ToolAvailability = { tool: VerifyTool; available: boolean; version?:
 export async function detectTools(run?: RunCommand): Promise<ToolAvailability[]>
 
 export type VerifyOutcome =
+	/** CHD : chdman a recalculé et confirmé les sha1 de son propre en-tête. */
 	| { status: 'intact'; sha1: string; rawSha1?: string }
+	/** CHD : chdman a échoué sur son propre contrôle. Le fichier est abîmé. */
 	| { status: 'corrupt'; detail: string }
+	/** RVZ : le hash de l'image reconstituée correspond à une entrée du catalogue. */
+	| { status: 'verified'; crc32: string; sha1: string; datEntryName: string }
+	/** RVZ : aucune entrée ne correspond — dump abîmé OU absent de Redump. */
+	| { status: 'mismatch'; crc32: string; sha1: string }
+	/** RVZ sans catalogue disponible : le hash est calculé mais invérifiable. */
+	| { status: 'no-catalog'; crc32: string; sha1: string }
 	| { status: 'unsupported'; reason: string }
 	| { status: 'tool-missing'; tool: VerifyTool }
 	| { status: 'failed'; reason: string }
@@ -421,10 +429,45 @@ changent la conception :
    `info` ne juge rien et ne doit jamais servir de verdict.
 3. **La comparaison au DAT Redump est abandonnée pour les CHD.** Le spec l'a déjà
    mesurée à 0/20 : un CHD fusionne les pistes, aucun hash Redump ne peut
-   correspondre. Un état `verified`/`mismatch` contre le catalogue serait donc
-   inatteignable en pratique, et promettre un verdict qu'on ne peut pas rendre
-   est pire que ne rien promettre. Le deep verify répond à **une** question, celle
+   correspondre. Pour un CHD, le deep verify répond donc à **une** question, celle
    que rien d'autre dans l'audit ne couvre : *ce fichier est-il intact ?*
+
+### Les deux outils ont des sémantiques inversées (mesuré le 2026-07-27)
+
+C'est le point le plus important de la tâche, et une implémentation qui traiterait
+les deux binaires de la même façon serait fausse.
+
+| `dolphin-tool verify` sur un RVZ | code | sortie |
+|---|---|---|
+| fichier sain | 0 | `CRC32: 97f48212` … `Problems Found: No` |
+| **fichier corrompu** (un octet retourné) | **0** | `CRC32: 49cb28f7` … **`Problems Found: No`** |
+| fichier absent | 1 | — |
+
+Sur un RVZ abîmé, l'outil répond **code 0 et « aucun problème »** : seul le hash
+change. C'est cohérent avec le spec — un RVZ ne stocke aucun hash de l'image
+complète, donc l'outil n'a rien à quoi se comparer. `Problems Found` désigne des
+anomalies de structure, pas l'intégrité des données.
+
+En revanche, le hash qu'il calcule est celui de **l'image reconstituée**, et
+Redump catalogue exactement cette image. Vérifié de bout en bout :
+
+```text
+dolphin-tool : CRC32 97f48212  SHA1 f1ff4fa75bd02ad2809d59b27c22dac38c455a5a
+Redump       : crc  97F48212   sha1 F1FF4FA75BD02AD2809D59B27C22DAC38C455A5A
+               « Tower of Druaga, The (Japan).iso »  serial DL-DOL-PKBJ-JPN
+```
+
+D'où l'asymétrie à implémenter :
+
+| | verdict d'intégrité | comparaison au catalogue |
+|---|---|---|
+| **CHD** | oui — code de sortie de `chdman` | impossible (pistes fusionnées) |
+| **RVZ** | impossible seul | **oui, exacte** — c'est le verdict |
+
+Conséquence sur le vocabulaire des résultats : pour un RVZ, un hash qui ne
+correspond à aucune entrée du catalogue ne prouve **pas** la corruption — ce peut
+être un dump légitimement absent de Redump. L'état s'appelle donc `mismatch` et
+son libellé doit dire les deux possibilités, pas accuser le fichier.
 
 - [ ] **Step 1: Tests de la détection et du verdict**
 
