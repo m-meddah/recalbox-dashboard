@@ -334,7 +334,7 @@ def extract_nested_zip(archive_path, inner_name, sevenzip_bin, stats):
     central directory in memory instead."""
     try:
         proc = subprocess.run(
-            [sevenzip_bin, 'e', '-so', '-y', '-p', archive_path, inner_name],
+            [sevenzip_bin, 'e', '-so', archive_path, inner_name],
             capture_output=True,
             stdin=subprocess.DEVNULL,
             timeout=120,
@@ -389,13 +389,19 @@ def build_sevenzip_entries(archive_path, listing, sevenzip_bin, stats):
     return out
 
 
+# RecalboxOS only ships `7zr`, the REDUCED 7-Zip binary, and it rejects `-y` and
+# `-p` outright ("Command Line Error"). They were added here once as a guard
+# against an encrypted archive prompting for a password, validated against the
+# full `7z` of a dev machine, and silently broke every .7z on the real target.
+# `stdin=DEVNULL` already covers that case: the prompt reads EOF and 7z gives up
+# instead of blocking. Do not add options back without running them on `7zr`.
 def handle_sevenzip(filepath, sevenzip_bin, stats):
     try:
         proc = subprocess.run(
             # -y and -p (empty password) with stdin closed: a header-encrypted
             # archive otherwise prints "Enter password:" and blocks forever on
             # the inherited stdin. One such file among 22 500 stalls the scan.
-            [sevenzip_bin, 'l', '-slt', '-y', '-p', filepath],
+            [sevenzip_bin, 'l', '-slt', filepath],
             capture_output=True,
             stdin=subprocess.DEVNULL,
             timeout=120,

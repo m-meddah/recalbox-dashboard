@@ -1,5 +1,4 @@
 import { shellQuote } from '@/lib/recalbox/shell'
-import type { SshClientLike } from '@/lib/recalbox/ssh-client'
 import { type ManifestEntry, parseManifest } from './manifest'
 import { SCAN_SCRIPT } from './scan-script'
 import type { ScanTarget } from './scan-targets'
@@ -8,26 +7,42 @@ import type { ScanTarget } from './scan-targets'
 // default exec timeout is measured in seconds and would cut it off immediately.
 const SCAN_TIMEOUT_MS = 60 * 60 * 1000
 
+// Measured on the reference box: an SSH exec fails somewhere between 8 and 16 KB
+// of command line, and a 32 KB one drops the connection. Refuse well before that
+// rather than surfacing a bare "Unable to exec".
+const MAX_COMMAND_BYTES = 8000
+
+/**
+ * The scan needs to push the script over the exec's stdin, which the pool's
+ * plain `SshClientLike` cannot do — so it asks for exactly what it needs.
+ * Plan 2B's SSH transport has to provide this, not just `exec(cmd)`.
+ */
+export type ScanExecutor = {
+	exec: (command: string, options: { stdin: string; timeoutMs: number }) => Promise<string>
+}
+
 export type ScanOutcome =
 	| { status: 'ok'; entries: ManifestEntry[]; stats: Record<string, number> }
 	| { status: 'failed'; reason: string }
 
 /**
- * The command that runs the scan on the box.
+ * The command that runs the scan on the box. The script itself does NOT travel
+ * in here — it goes over stdin.
  *
- * The script travels over stdin instead of being written to disk: this lot is
- * read-only and must leave nothing behind on the Recalbox. It is base64-encoded
- * so it crosses the shell intact — a heredoc mangles the newlines and Python
- * receives them literally.
+ * Measured on the reference box: an SSH exec command line fails somewhere
+ * between 8 and 16 KB, and a 32 KB one drops the connection outright. The
+ * script is 21 KB, so inlining it — base64-encoded or otherwise — cannot work.
+ * Keep this command small.
+ *
+ * Nothing is written to the Recalbox either way: this lot is read-only.
  */
 export function buildScanCommand(targets: readonly ScanTarget[]): string {
-	const script = Buffer.from(SCAN_SCRIPT, 'utf-8').toString('base64')
 	// Target paths come from a directory listing on the box: spaces, quotes and
 	// parentheses are all routine.
 	const args = targets
 		.map((t) => `--target ${shellQuote(`${t.mount}|${t.system}|${t.romsPath}`)}`)
 		.join(' ')
-	return `echo ${script} | base64 -d | python3 - ${args}`
+	return `python3 - ${args}`
 }
 
 /** Top-level numeric counters only — the script also nests per-strategy objects. */
@@ -50,12 +65,22 @@ function numericStats(raw: unknown): Record<string, number> {
  * exception and never as a silently empty success.
  */
 export async function runScan(
-	ssh: SshClientLike,
+	ssh: ScanExecutor,
 	targets: readonly ScanTarget[],
 ): Promise<ScanOutcome> {
+	const command = buildScanCommand(targets)
+	if (command.length > MAX_COMMAND_BYTES) {
+		return {
+			status: 'failed',
+			reason:
+				`too many targets for one scan: the command would be ${command.length} bytes, ` +
+				`over the ${MAX_COMMAND_BYTES} the ssh exec can carry. Scan fewer systems per call.`,
+		}
+	}
+
 	let output: string
 	try {
-		output = await ssh.exec(buildScanCommand(targets), SCAN_TIMEOUT_MS)
+		output = await ssh.exec(command, { stdin: SCAN_SCRIPT, timeoutMs: SCAN_TIMEOUT_MS })
 	} catch (err) {
 		return { status: 'failed', reason: `scan command failed: ${String(err)}` }
 	}

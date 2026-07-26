@@ -17,17 +17,38 @@ const VALID_ENTRY = {
 	innerName: 'Game (Europe).sfc',
 }
 
-function ssh(exec: (cmd: string) => Promise<string>) {
+function ssh(
+	exec: (cmd: string, options: { stdin: string; timeoutMs: number }) => Promise<string>,
+) {
 	return { exec: vi.fn(exec) }
 }
 
 describe('buildScanCommand', () => {
-	it('feeds the script over stdin rather than writing it to the box', () => {
+	it('reads the script from stdin rather than writing it to the box', () => {
 		const cmd = buildScanCommand(TARGETS)
-		expect(cmd).toContain('base64 -d')
-		expect(cmd).toContain('python3')
+		expect(cmd).toContain('python3 -')
 		// Rien ne doit subsister sur la Recalbox : ce lot est en lecture seule.
 		expect(cmd).not.toMatch(/>\s*\/recalbox/)
+	})
+
+	// Mesuré sur la box de référence : un exec SSH échoue entre 8 et 16 Ko de
+	// ligne de commande, et une commande de 32 Ko coupe carrément la connexion.
+	// Le script fait 21 Ko : l'embarquer dans la commande ne peut pas marcher.
+	it('stays far below the ssh exec limit for a one-system scan', () => {
+		const perMount = [
+			'/recalbox/share',
+			'/recalbox/share/externals/usb0',
+			'/recalbox/share/externals/usb1',
+		].map((mount) => ({ mount, system: 'snes', romsPath: `${mount}/recalbox/roms/snes` }))
+		expect(buildScanCommand(perMount).length).toBeLessThan(8000)
+	})
+
+	it('carries the script through stdin, not through the command', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await runScan(client, TARGETS)
+		const [cmd, options] = client.exec.mock.calls[0] ?? []
+		expect(cmd?.length ?? 0).toBeLessThan(8000)
+		expect(options?.stdin).toContain('#!/usr/bin/env python3')
 	})
 
 	it('passes each target as an argument', () => {
@@ -97,6 +118,22 @@ describe('runScan', () => {
 		)
 		const res = await runScan(client, TARGETS)
 		expect(res.status).toBe('failed')
+	})
+
+	// Un scan de toute la box — 126 systèmes — dépasserait la limite. Mieux vaut
+	// un refus lisible qu'un « Unable to exec » du transport.
+	it('refuses too many targets instead of letting the transport fail', async () => {
+		const many = Array.from({ length: 200 }, (_, i) => ({
+			mount: '/recalbox/share/externals/usb0',
+			system: `system${i}`,
+			romsPath: `/recalbox/share/externals/usb0/recalbox/roms/system${i}`,
+		}))
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		const res = await runScan(client, many)
+		expect(res.status).toBe('failed')
+		if (res.status !== 'failed') throw new Error('expected failed')
+		expect(res.reason).toContain('too many targets')
+		expect(client.exec).not.toHaveBeenCalled()
 	})
 
 	it('accepts an empty scan', async () => {
