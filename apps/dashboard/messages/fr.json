@@ -1183,5 +1183,47 @@
 			"ratioAuto": "Auto",
 			"ratioCustom": "Personnalisé"
 		}
+	},
+	"romAudit": {
+		"title": "Audit des ROMs",
+		"subtitle": "{systems, plural, =0 {Aucun système audité} one {1 système audité} other {# systèmes audités}}",
+		"backToCollection": "Collection",
+		"empty": {
+			"subtitle": "Jamais scanné",
+			"title": "Aucun scan pour l’instant",
+			"body": "Un scan parcourt tous les dossiers de ROMs de tous les supports et les compare aux catalogues de référence. Rien n’est téléchargé et rien n’est écrit sur la Recalbox. Le premier passage peut prendre un quart d’heure sur une grosse collection ; les suivants sont bien plus rapides.",
+			"noRecalbox": "Sélectionne d’abord une Recalbox."
+		},
+		"scan": {
+			"start": "Scanner",
+			"running": "Scan en cours…",
+			"progress": "{done}/{total} · {system}",
+			"failed": "Le scan a échoué"
+		},
+		"overview": {
+			"inventoryOnly": "inventaire seul",
+			"files": "{count, plural, =0 {aucun fichier} one {1 fichier} other {# fichiers}}",
+			"details": "Détail"
+		},
+		"tabs": {
+			"missing": "Manquants",
+			"owned": "Possédés",
+			"unknown": "Inconnus"
+		},
+		"filters": {
+			"allRegions": "Toutes régions"
+		},
+		"export": {
+			"csv": "Export CSV"
+		},
+		"detail": {
+			"loading": "Chargement…",
+			"empty": "Rien à afficher.",
+			"missingCount": "{count, plural, =0 {Aucun jeu manquant} one {1 jeu manquant} other {# jeux manquants}}",
+			"noCatalog": "Ce système n’a pas de catalogue de référence : inventaire seul, sans taux de complétion.",
+			"aggregatesOnly": "Ce déploiement ne conserve que les agrégats par système — le détail fichier par fichier reste sur la box.",
+			"catalogUnavailable": "Le catalogue de référence n’a pas pu être téléchargé. Réessaie plus tard.",
+			"backToOverview": "Retour à la vue d’ensemble"
+		}
 	}
 }
