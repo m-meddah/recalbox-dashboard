@@ -453,9 +453,9 @@ Le temporaire est supprimé dans un `finally`, y compris sur échec — un CD pa
 
 - [ ] **Step 4: Vérifier avec le vrai binaire, si l'hôte l'accepte**
 
-`chdman` n'est **pas installé** sur la machine de référence ; il est disponible dans apt (`mame-tools`, candidat 0.285). L'installer, puis vérifier un vrai CHD de la collection de bout en bout : rapatriement, extraction, comparaison. Si l'installation n'est pas souhaitée, s'arrêter là et le consigner : le lot doit fonctionner sans le binaire, et le chemin « absent » est déjà couvert par les tests.
+`chdman` **est installé** depuis le 2026-07-27 (`mame-tools`, `/usr/bin/chdman` 0.285). Vérifier un vrai CHD de la collection de bout en bout : rapatriement, extraction, comparaison. Le chemin « binaire absent » reste couvert par les tests, puisque le lot doit fonctionner sans lui.
 
-`dolphin-tool` n'est **pas** dans les dépôts de cette machine (`apt-cache search dolphin` ne remonte que `dolphin-emu`). Le vérifier avant de promettre le deep verify RVZ ; en son absence, la fonction se masque exactement comme pour `chdman`.
+`dolphin-tool` est livré par le paquet `dolphin-emu`, dans **`/usr/games/dolphin-tool`** — vérifié le 2026-07-27 en listant le contenu du `.deb`. La détection ne doit donc pas se contenter d'un `which` : `/usr/games` n'est pas dans le PATH de tous les contextes d'exécution, et c'est exactement ce qui m'avait fait conclure à tort à son absence. Chercher le binaire par chemin explicite en plus du PATH.
 
 - [ ] **Step 5: Commit**
 
@@ -515,5 +515,9 @@ git commit -m "feat(rom-audit): verification profonde d un titre depuis l interf
 ## Dette et limites connues à la sortie du lot
 
 - **Pas de cache d'incrémentalité en serverless** : le cloud ne stocke que les `unknown`, il n'a donc rien à renvoyer au scanner. Un scan par agent relit tout à chaque fois. Piste pour plus tard : un cache local à l'agent, dans son propre dossier.
-- **`dolphin-tool` n'est pas empaqueté** sur la machine de référence : le deep verify RVZ reste théorique tant que le binaire n'est pas disponible, alors que l'identification par serial, elle, ne dépend d'aucun binaire.
+- ~~**`dolphin-tool` n'est pas empaqueté**~~ — **correction du 2026-07-27 : il l'est.** Le
+  paquet `dolphin-emu` (2512+dfsg-3) livre `/usr/games/dolphin-tool`. Mon relevé initial
+  concluait le contraire parce que `which` et `apt-cache search dolphin-tool` ne voient pas
+  `/usr/games/`. Le deep verify RVZ est donc réalisable ; reste à décider d'installer le
+  paquet (21 Mo, plus ses dépendances Qt).
 - L'avertissement de traçage de fichiers sur `lib/storage/index.ts` (via `/api/blob`), relevé au lot 2B, est **antérieur** à ces lots et toujours ouvert.
