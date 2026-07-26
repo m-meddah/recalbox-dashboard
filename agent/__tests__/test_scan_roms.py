@@ -10,14 +10,26 @@ import zipfile
 import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPT = os.path.join(HERE, '..', 'scan_roms.py')
+AGENT_DIR = os.path.join(HERE, '..')
+SCRIPT = os.path.join(AGENT_DIR, 'scan_roms.py')
+
+sys.path.insert(0, AGENT_DIR)
+import scan_roms  # noqa: E402  (le chemin doit être posé d'abord)
 
 
-def run_scan(*targets):
+def run_scan_raw(*targets, **kwargs):
+    """Lance le script et rend le CompletedProcess brut, pour les cas où
+    stderr et le code retour font partie de ce qu'on vérifie."""
     args = [sys.executable, SCRIPT]
     for t in targets:
         args += ['--target', t]
-    out = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    return subprocess.run(
+        args, capture_output=True, text=True, timeout=kwargs.get('timeout', 120)
+    )
+
+
+def run_scan(*targets, **kwargs):
+    out = run_scan_raw(*targets, **kwargs)
     if out.returncode != 0:
         raise AssertionError(f'scan failed rc={out.returncode}: {out.stderr}')
     return json.loads(out.stdout)
@@ -39,15 +51,38 @@ def chd_header(version, sha1=b'\x11' * 20, rawsha1=b'\x22' * 20):
     return bytes(h)
 
 
-def rvz_bytes(game_code=b'GW7P', disc=0, ver=1):
-    """RVZ minimal : wia_disc_t à 0x48, dont dhead porte l'en-tête disque."""
-    buf = bytearray(0x48 + 0x80)
-    buf[0:4] = b'RVZ\x01'
+GAMECUBE_DISC_MAGIC = b'\xc2\x33\x9f\x3d'  # dhead + 0x1C, big-endian
+WII_DISC_MAGIC = b'\x5d\x1c\x9e\xa3'  # dhead + 0x18, big-endian
+
+DHEAD_OFFSET = 0x58  # 0x48 (wia_disc_t) + 0x10 (quatre u32 qui précèdent dhead)
+
+
+def disc_header(game_code=b'GW7P', disc=0, ver=1, magic='gamecube'):
+    """Les 128 octets de `dhead`, tels qu'ils sont sur un vrai disque."""
     dhead = bytearray(0x80)
     dhead[0:4] = game_code
     dhead[6] = disc
     dhead[7] = ver
-    buf[0x48:0x48 + 0x80] = dhead
+    if magic == 'gamecube':
+        dhead[0x1C:0x20] = GAMECUBE_DISC_MAGIC
+    elif magic == 'wii':
+        dhead[0x18:0x1C] = WII_DISC_MAGIC
+    return bytes(dhead)
+
+
+def rvz_bytes(game_code=b'GW7P', disc=0, ver=1, magic='gamecube',
+              file_magic=b'RVZ\x01', dhead_offset=DHEAD_OFFSET):
+    """RVZ minimal. `wia_disc_t` est bien à 0x48, mais elle **ne commence pas
+    par `dhead`** : quatre u32 la précèdent (disc_type, compression,
+    compr_level, chunk_size), donc dhead est à **0x58**.
+
+    `dhead_offset` existe pour fabriquer la version fautive (0x48) et prouver
+    qu'une lecture à cet offset ne produit plus d'identifiant. Le fichier est
+    toujours assez long pour qu'une lecture à 0x58 aboutisse : sinon l'entrée
+    serait omise pour en-tête tronqué, et le test ne prouverait rien."""
+    buf = bytearray(max(dhead_offset, DHEAD_OFFSET) + 0x80)
+    buf[0:4] = file_magic
+    buf[dhead_offset:dhead_offset + 0x80] = disc_header(game_code, disc, ver, magic)
     return bytes(buf)
 
 
@@ -142,6 +177,34 @@ class ScanRomsTest(unittest.TestCase):
         self.assertEqual(e['serial'], 'GALE')
         self.assertEqual(e['discNumber'], 1)
 
+    def test_reads_a_wii_disc_header(self):
+        self.write('Wii.rvz', rvz_bytes(b'RSBE', disc=0, ver=2, magic='wii'))
+        (e,) = self.entries()
+        self.assertEqual(e['serial'], 'RSBE')
+        self.assertEqual(e['discVersion'], 2)
+
+    # LE filet qui manquait : si la lecture repartait à 0x48, ce fichier
+    # rendrait « GW7P ». Le vrai dhead étant à 0x58, il n'y a à cet endroit
+    # que du remplissage — ni code jeu exploitable, ni magie de disque.
+    def test_a_dhead_placed_at_the_old_0x48_offset_yields_no_identifier(self):
+        self.write('Wrong.rvz', rvz_bytes(b'GW7P', dhead_offset=0x48))
+        (e,) = self.entries()
+        self.assertEqual(e['kind'], 'rvz')
+        self.assertNotIn('serial', e)
+        self.assertNotIn('discNumber', e)
+        self.assertNotIn('discVersion', e)
+
+    # Recoupement : un dhead sans magie GameCube ni Wii n'est pas un dhead.
+    def test_ignores_an_rvz_whose_disc_magic_is_absent(self):
+        self.write('NoMagic.rvz', rvz_bytes(b'GW7P', magic=None))
+        (e,) = self.entries()
+        self.assertNotIn('serial', e)
+
+    def test_ignores_a_file_whose_container_magic_is_not_wia_or_rvz(self):
+        self.write('NotRvz.rvz', rvz_bytes(b'GW7P', file_magic=b'JUNK'))
+        (e,) = self.entries()
+        self.assertNotIn('serial', e)
+
     # Un code non alphanumérique ferait rejeter tout le manifeste par le schéma.
     def test_drops_an_unusable_game_code_rather_than_emitting_it(self):
         self.write('Bad.rvz', rvz_bytes(b'\x00\x01\x02\x03'))
@@ -195,6 +258,56 @@ class ScanRomsTest(unittest.TestCase):
         result = run_scan(f'{self.root}|snes|{self.root}/does-not-exist')
         self.assertEqual(result['entries'], [])
 
+    # Le schéma exige un entier positif ou nul ; les disques USB en exFAT
+    # portent des horodatages antérieurs à 1970. Une seule occurrence ferait
+    # rejeter tout le manifeste.
+    def test_clamps_a_pre_1970_mtime_to_zero(self):
+        p = self.write('Old.sfc', b'rom')
+        os.utime(p, (-86400 * 365, -86400 * 365))
+        (e,) = self.entries()
+        self.assertEqual(e['mtime'], 0)
+
+    # Un chemin indirect produisait zéro entrée et un compteur d'erreurs
+    # énorme : chaque fichier trouvé portait un segment "..", que le garde-fou
+    # de sécurité rejette.
+    def test_normalises_a_roms_path_containing_a_parent_segment(self):
+        self.write('Game.sfc', b'rom')
+        indirect = os.path.join(self.roms, '..', 'snes')
+        result = run_scan(f'{self.root}|snes|{indirect}')
+        (e,) = result['entries']
+        self.assertEqual(os.path.basename(e['path']), 'Game.sfc')
+        self.assertEqual(result['stats']['errors'], 0)
+
+    # `systemId` côté Zod : 64 caractères max, aucun séparateur de chemin.
+    # Mieux vaut écarter la cible ici que faire rejeter tout le manifeste.
+    def test_rejects_a_target_whose_system_name_is_too_long(self):
+        self.write('Game.sfc', b'rom')
+        out = run_scan_raw(f'{self.root}|{"x" * 65}|{self.roms}')
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(json.loads(out.stdout)['entries'], [])
+        self.assertIn('system name rejected', out.stderr)
+
+    def test_rejects_a_target_whose_system_name_holds_a_path_separator(self):
+        self.write('Game.sfc', b'rom')
+        out = run_scan_raw(f'{self.root}|snes/sub|{self.roms}')
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(json.loads(out.stdout)['entries'], [])
+        self.assertIn('system name rejected', out.stderr)
+
+    # Un fichier peut rendre plusieurs entrées (archive multi-ROM) ou aucune
+    # (archive corrompue) : les deux unités sont comptées séparément.
+    def test_counts_files_and_entries_per_strategy_separately(self):
+        with zipfile.ZipFile(os.path.join(self.roms, 'Set.zip'), 'w') as z:
+            z.writestr('A.sfc', b'aaa')
+            z.writestr('B.sfc', b'bbb')
+        self.write('Bare.sfc', b'rom')
+        stats = run_scan(self.target())['stats']
+        self.assertEqual(stats['filesByStrategy']['zip-entry'], 1)
+        self.assertEqual(stats['entriesByStrategy']['zip-entry'], 2)
+        self.assertEqual(stats['filesByStrategy']['raw'], 1)
+        self.assertEqual(stats['entriesByStrategy']['raw'], 1)
+        self.assertEqual(sum(stats['filesByStrategy'].values()), stats['scanned'])
+
     # --- stratégie 4 : 7z ---
 
     def sevenzip(self, name, build):
@@ -246,6 +359,73 @@ class ScanRomsTest(unittest.TestCase):
 
         self.sevenzip('Set.7z', build)
         self.assertEqual(sorted(e['innerName'] for e in self.entries()), ['A.sfc', 'B.sfc', 'C.sfc'])
+
+    # Une archive à en-tête chiffré fait afficher « Enter password: » à 7z,
+    # qui bloque alors en lecture sur le stdin hérité. Sur 22 500 archives il
+    # suffit d'une pour figer un scan de plusieurs dizaines de minutes.
+    def test_a_header_encrypted_7z_neither_hangs_nor_aborts_the_scan(self):
+        staging = tempfile.mkdtemp()
+        with open(os.path.join(staging, 'Secret.sfc'), 'wb') as f:
+            f.write(b'ROM' * 100)
+        dest = os.path.join(self.roms, 'Locked.7z')
+        rc = subprocess.run(
+            ['7z', 'a', '-bso0', '-bsp0', '-mhe=on', '-psecret', dest, '.'],
+            cwd=staging, capture_output=True,
+        ).returncode
+        self.assertEqual(rc, 0, '7z failed to build the encrypted fixture')
+        self.write('Good.sfc', b'rom')
+
+        result = run_scan(self.target(), timeout=60)
+        names = [os.path.basename(e['path']) for e in result['entries']]
+        self.assertEqual(names, ['Good.sfc'])
+        self.assertGreaterEqual(result['stats']['errors'], 1)
+
+    # --- stratégie 4 : le listing, en direct ---
+
+    # Le CRC de 7z est la seule valeur recopiée telle quelle depuis un autre
+    # programme. Une entrée exotique (lien symbolique, méthode non supportée)
+    # ferait rejeter tout le manifeste.
+    def test_a_7z_entry_whose_crc_is_not_8_hex_digits_is_omitted(self):
+        stats = scan_roms.new_stats()
+        listing = scan_roms.parse_sevenzip_listing(
+            '----------\n'
+            'Path = Good.sfc\nSize = 10\nCRC = DEADBEEF\n\n'
+            'Path = Weird.sfc\nSize = 10\nCRC = NOTHEX\n'
+        )
+        entries = scan_roms.build_sevenzip_entries('/nowhere.7z', listing, None, stats)
+        self.assertEqual([e['innerName'] for e in entries], ['Good.sfc'])
+        self.assertEqual(entries[0]['crc32'], 'deadbeef')
+        self.assertEqual(stats['errors'], 1)
+
+    # `capture_output` bufferise tout le zip décompressé en mémoire, et
+    # `io.BytesIO` en fait une seconde copie. Un zip de plusieurs Gio dans un
+    # .7z (courant sur les sets PS2/PSP) ferait exploser la RAM d'une console.
+    def test_refuses_to_descend_into_an_oversized_nested_zip(self):
+        stats = scan_roms.new_stats()
+        listing = scan_roms.parse_sevenzip_listing(
+            '----------\nPath = Huge.zip\nSize = %d\nCRC = 0BADF00D\n'
+            % (scan_roms.MAX_NESTED_ZIP_BYTES + 1)
+        )
+        entries = scan_roms.build_sevenzip_entries('/nowhere.7z', listing, None, stats)
+        # Repli sur le CRC de l'entrée intermédiaire plutôt que l'extraction.
+        self.assertEqual([e['innerName'] for e in entries], ['Huge.zip'])
+        self.assertEqual(entries[0]['crc32'], '0badf00d')
+        self.assertEqual(stats['errors'], 1)
+
+    def test_descends_into_a_nested_zip_that_stays_under_the_ceiling(self):
+        self.assertTrue(scan_roms.may_descend(
+            {'path': 'Small.zip', 'crc': 'deadbeef', 'size': 1024}, scan_roms.new_stats()
+        ))
+
+    # Le nom d'entrée sert d'`innerName` ET d'argument passé à 7z pour
+    # l'extraction : un strip() détruirait un espace final significatif.
+    def test_the_listing_parser_preserves_a_trailing_space_in_an_entry_name(self):
+        (item,) = scan_roms.parse_sevenzip_listing(
+            '----------\nPath = Game (USA) .sfc \nSize = 3\nCRC = 0000000A\n'
+        )
+        self.assertEqual(item['path'], 'Game (USA) .sfc ')
+        self.assertEqual(item['crc'], '0000000a')
+        self.assertEqual(item['size'], 3)
 
     # Sur RecalboxOS il n'y a que 7zr, jamais 7z/7za. Si même 7zr est absent
     # (PATH neutralisé), les .7z doivent basculer sur la stratégie 5 sans

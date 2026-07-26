@@ -11,12 +11,15 @@ No-Intro) can match against:
   2. .chd               -> SHA1 / raw SHA1 read straight from the 124-byte
                            header (offsets differ by CHD version).
   3. .rvz / .wia / .iso -> 4-char game code + disc number/version read from
-                           the disc header (`dhead`).
+                           the disc header (`dhead`), cross-checked against
+                           the GameCube/Wii disc magic.
   4. .7z                -> per-entry CRC32 from `7z(r) l -slt`, no extract.
                            A .zip nested inside a .7z is streamed via
                            `7z(r) e -so` and its own central directory read
                            in memory, so the manifest never carries the
-                           useless CRC of the intermediate zip.
+                           useless CRC of the intermediate zip — but only
+                           below a size ceiling, since that stream is
+                           buffered whole in RAM.
   5. anything else       -> whole-file CRC32, streamed in 1 MiB chunks.
 
 Dependency-free (Python 3 stdlib only — RecalboxOS has no package manager).
@@ -65,15 +68,41 @@ CHD_OFFSETS = {
     3: {'sha1': 80, 'rawsha1': None},
 }
 
-# WIA/RVZ places `wia_disc_t` at a fixed offset, and `dhead` (the first 128
-# bytes of the *original* disc image, verbatim) inside it. A bare .iso has
-# no such wrapper — dhead is just the file's first 128 bytes.
+# WIA/RVZ places `wia_disc_t` at file offset 0x48 — but that struct does NOT
+# start with `dhead`. Four u32 come first (disc_type, compression,
+# compr_level, chunk_size), i.e. 0x10 bytes, so `dhead` (the first 128 bytes
+# of the *original* disc image, verbatim) begins at 0x58. Reading it at 0x48
+# identifies exactly nothing; the disc-magic cross-check below exists so that
+# mistake can never pass unnoticed again. A bare .iso has no such wrapper —
+# dhead is just the file's first 128 bytes.
+WIA_FILE_MAGICS = (b'WIA\x01', b'RVZ\x01')
 WIA_DISC_T_OFFSET = 0x48
+WIA_DHEAD_OFFSET = WIA_DISC_T_OFFSET + 0x10  # 0x58
 DHEAD_LEN = 0x80
+# Big-endian sentinels every GameCube/Wii disc header carries.
+WII_DISC_MAGIC = 0x5D1C9EA3  # dhead + 0x18
+GAMECUBE_DISC_MAGIC = 0xC2339F3D  # dhead + 0x1C
 GAME_CODE_RE = re.compile(r'^[A-Za-z0-9]{4}$')
 
 SEVENZIP_CANDIDATES = ('7z', '7za', '7zr')
 CHUNK_SIZE = 1024 * 1024
+
+# A .7z entry's CRC is the one value we copy verbatim from another program's
+# output instead of formatting ourselves. The schema wants exactly 8 lowercase
+# hex digits and rejects the WHOLE manifest over one bad entry, so it is
+# validated here.
+CRC32_RE = re.compile(r'^[0-9a-f]{8}$')
+
+# Descending into a nested .zip means buffering the decompressed stream in
+# memory twice (subprocess pipe + BytesIO). PS2/PSP sets routinely hold
+# multi-gigabyte zips, which would take the console's RAM down with them —
+# above this ceiling we keep the intermediate zip's own CRC instead.
+MAX_NESTED_ZIP_BYTES = 256 * 1024 * 1024
+
+# `systemId` in the Zod schema: safeFsPath, max 64 chars, no path separator.
+MAX_SYSTEM_ID_LEN = 64
+
+STRATEGIES = ('zip-entry', 'chd', 'rvz', 'sevenzip-entry', 'raw')
 
 
 def find_sevenzip_binary():
@@ -101,17 +130,16 @@ def is_safe_relpath(value):
 
 
 def new_stats():
+    """Two per-strategy series, deliberately named apart. One file can yield
+    many manifest entries (a multi-ROM archive) or none (a corrupt one), so a
+    single counter mixing both units was unreadable. Invariant:
+    sum(filesByStrategy) == scanned."""
     return {
         'scanned': 0,
         'skipped': 0,
         'errors': 0,
-        'byStrategy': {
-            'zip-entry': 0,
-            'chd': 0,
-            'rvz': 0,
-            'sevenzip-entry': 0,
-            'raw': 0,
-        },
+        'filesByStrategy': dict.fromkeys(STRATEGIES, 0),
+        'entriesByStrategy': dict.fromkeys(STRATEGIES, 0),
     }
 
 
@@ -153,7 +181,6 @@ def handle_zip(filepath, stats):
         # rather than risk emitting a bogus entry.
         stats['errors'] += 1
         return []
-    stats['byStrategy']['zip-entry'] += len(out)
     return out
 
 
@@ -188,18 +215,28 @@ def handle_chd(filepath, stats):
     # Wrong magic: not actually a CHD, but the header was fully readable —
     # this isn't the "truncated/corrupt" failure the spec means to omit, so
     # the file stays listed (extension-routed) without hash fields.
-    stats['byStrategy']['chd'] += 1
     return [entry]
 
 
 # ── Strategy 3: .rvz / .wia / .iso ────────────────────────────────────────
 
 
+def has_disc_magic(dhead):
+    """True when `dhead` really is a GameCube or Wii disc header. Both
+    sentinels are big-endian and sit at fixed offsets; either one confirms
+    that the bytes we read are the header and not whatever happens to live at
+    a wrong offset."""
+    (wii,) = struct.unpack_from('>I', dhead, 0x18)
+    (gamecube,) = struct.unpack_from('>I', dhead, 0x1C)
+    return wii == WII_DISC_MAGIC or gamecube == GAMECUBE_DISC_MAGIC
+
+
 def handle_disc_header(filepath, ext, stats):
-    offset = WIA_DISC_T_OFFSET if ext in ('rvz', 'wia') else 0
+    wrapped = ext in ('rvz', 'wia')
     try:
         with open(filepath, 'rb') as f:
-            f.seek(offset)
+            file_magic = f.read(4) if wrapped else b''
+            f.seek(WIA_DHEAD_OFFSET if wrapped else 0)
             dhead = f.read(DHEAD_LEN)
     except OSError:
         stats['errors'] += 1
@@ -209,17 +246,28 @@ def handle_disc_header(filepath, ext, stats):
         return []
 
     entry = {'kind': 'rvz'}
+    # Self-verification, and the whole point of it: a wrong `dhead` offset
+    # yields plausible-looking bytes and silently fabricates identifiers. The
+    # container magic says the file is what its extension claims, the disc
+    # magic says we landed on the header. Only bare .iso skips the disc-magic
+    # gate — there is no offset to get wrong when dhead starts at byte 0, and
+    # the game-code regex below already rejects the zero-filled ISO9660
+    # system area that non-Nintendo .iso images begin with.
+    trusted = True
+    if wrapped:
+        trusted = file_magic in WIA_FILE_MAGICS and has_disc_magic(dhead)
+
     try:
         code = dhead[0:4].decode('ascii')
     except UnicodeDecodeError:
         code = None
     # An unusable game code would fail the schema's serial regex and reject
-    # the whole manifest — drop the identifying fields, keep the entry.
-    if code and GAME_CODE_RE.match(code):
+    # the whole manifest — drop the identifying fields, keep the entry. Same
+    # for an unverified header: an unidentified file beats an invented id.
+    if trusted and code and GAME_CODE_RE.match(code):
         entry['serial'] = code
         entry['discNumber'] = dhead[6]
         entry['discVersion'] = dhead[7]
-    stats['byStrategy']['rvz'] += 1
     return [entry]
 
 
@@ -229,24 +277,52 @@ _SEVENZIP_LISTING_SEPARATOR = '----------'
 
 
 def parse_sevenzip_listing(text):
-    """Parses `7z(r) l -slt` output into (path, crc) pairs. Directories are
-    listed with an empty CRC field and are filtered out that way — no need
-    to parse the Attributes column."""
+    """Parses `7z(r) l -slt` output into {path, crc, size} dicts. Directories
+    are listed with an empty CRC field and are filtered out that way — no
+    need to parse the Attributes column."""
+    text = text.replace('\r\n', '\n')
     if _SEVENZIP_LISTING_SEPARATOR in text:
         text = text.split(_SEVENZIP_LISTING_SEPARATOR, 1)[1]
     results = []
     for block in text.split('\n\n'):
         fields = {}
         for line in block.splitlines():
-            if '=' not in line:
+            key, sep, value = line.partition('=')
+            if not sep:
                 continue
-            key, _, value = line.partition('=')
-            fields[key.strip()] = value.strip()
+            # The format is `Key = Value`: drop the single separator space and
+            # nothing more. An entry name may legitimately end in a space, and
+            # stripping it would corrupt both `innerName` and the argument
+            # handed back to 7z for extraction.
+            if value.startswith(' '):
+                value = value[1:]
+            fields[key.strip()] = value
         path = fields.get('Path')
-        crc = fields.get('CRC')
-        if path and crc:
-            results.append((path, crc.lower()))
+        crc = fields.get('CRC', '').strip().lower()
+        if not path or not crc:
+            continue
+        size = fields.get('Size', '').strip()
+        results.append({
+            'path': path,
+            'crc': crc,
+            'size': int(size) if size.isdigit() else None,
+        })
     return results
+
+
+def may_descend(item, stats):
+    """Whether a nested .zip entry is safe to stream out and re-read. The
+    stream is buffered whole in RAM, twice, so an unknown or oversized entry
+    is refused: we keep the intermediate zip's CRC rather than risk killing
+    the scan with a MemoryError halfway through six terabytes."""
+    if item['size'] is None or item['size'] > MAX_NESTED_ZIP_BYTES:
+        stats['errors'] += 1
+        return False
+    if item['path'].startswith('-'):
+        # 7z would read the extraction argument as a switch.
+        stats['errors'] += 1
+        return False
+    return True
 
 
 def extract_nested_zip(archive_path, inner_name, sevenzip_bin, stats):
@@ -256,11 +332,14 @@ def extract_nested_zip(archive_path, inner_name, sevenzip_bin, stats):
     central directory in memory instead."""
     try:
         proc = subprocess.run(
-            [sevenzip_bin, 'e', '-so', archive_path, inner_name],
+            [sevenzip_bin, 'e', '-so', '-y', '-p', archive_path, inner_name],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             timeout=120,
         )
-    except OSError:
+    except (OSError, subprocess.SubprocessError, MemoryError):
+        # TimeoutExpired is a SubprocessError, NOT an OSError: catching only
+        # the latter let a single slow archive abort the entire scan.
         stats['errors'] += 1
         return []
     if proc.returncode != 0:
@@ -286,14 +365,40 @@ def extract_nested_zip(archive_path, inner_name, sevenzip_bin, stats):
     return out
 
 
+def build_sevenzip_entries(archive_path, listing, sevenzip_bin, stats):
+    out = []
+    for item in listing:
+        name = item['path']
+        if not is_safe_relpath(name):
+            stats['errors'] += 1
+            continue
+        if name.lower().endswith('.zip') and may_descend(item, stats):
+            out.extend(extract_nested_zip(archive_path, name, sevenzip_bin, stats))
+            continue
+        # Falls through here for a refused descent too: the intermediate
+        # zip's CRC is a poor fingerprint, but it is a valid entry.
+        if not CRC32_RE.match(item['crc']):
+            # A symlink or an unsupported method can list something that is
+            # not 8 hex digits; emitting it would fail the schema and take
+            # the whole manifest down with it.
+            stats['errors'] += 1
+            continue
+        out.append({'kind': 'sevenzip-entry', 'crc32': item['crc'], 'innerName': name})
+    return out
+
+
 def handle_sevenzip(filepath, sevenzip_bin, stats):
     try:
         proc = subprocess.run(
-            [sevenzip_bin, 'l', '-slt', filepath],
+            # -y and -p (empty password) with stdin closed: a header-encrypted
+            # archive otherwise prints "Enter password:" and blocks forever on
+            # the inherited stdin. One such file among 22 500 stalls the scan.
+            [sevenzip_bin, 'l', '-slt', '-y', '-p', filepath],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             timeout=120,
         )
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
         stats['errors'] += 1
         return []
     if proc.returncode != 0:
@@ -301,17 +406,7 @@ def handle_sevenzip(filepath, sevenzip_bin, stats):
         return []
 
     text = proc.stdout.decode('utf-8', errors='replace')
-    out = []
-    for name, crc in parse_sevenzip_listing(text):
-        if not is_safe_relpath(name):
-            stats['errors'] += 1
-            continue
-        if name.lower().endswith('.zip'):
-            out.extend(extract_nested_zip(filepath, name, sevenzip_bin, stats))
-        else:
-            out.append({'kind': 'sevenzip-entry', 'crc32': crc, 'innerName': name})
-    stats['byStrategy']['sevenzip-entry'] += len(out)
-    return out
+    return build_sevenzip_entries(filepath, parse_sevenzip_listing(text), sevenzip_bin, stats)
 
 
 # ── Strategy 5: raw ────────────────────────────────────────────────────────
@@ -329,7 +424,6 @@ def handle_raw(filepath, stats):
     except OSError:
         stats['errors'] += 1
         return []
-    stats['byStrategy']['raw'] += 1
     return [{'kind': 'raw', 'crc32': '%08x' % (crc & 0xFFFFFFFF)}]
 
 
@@ -338,16 +432,22 @@ def handle_raw(filepath, stats):
 
 def strategy_fragments(filepath, ext, sevenzip_bin, stats):
     if ext == 'zip':
-        return handle_zip(filepath, stats)
-    if ext == 'chd':
-        return handle_chd(filepath, stats)
-    if ext in ('rvz', 'wia', 'iso'):
-        return handle_disc_header(filepath, ext, stats)
-    if ext == '7z':
-        if sevenzip_bin is None:
-            return handle_raw(filepath, stats)
-        return handle_sevenzip(filepath, sevenzip_bin, stats)
-    return handle_raw(filepath, stats)
+        strategy, fragments = 'zip-entry', handle_zip(filepath, stats)
+    elif ext == 'chd':
+        strategy, fragments = 'chd', handle_chd(filepath, stats)
+    elif ext in ('rvz', 'wia', 'iso'):
+        strategy, fragments = 'rvz', handle_disc_header(filepath, ext, stats)
+    elif ext == '7z' and sevenzip_bin is not None:
+        strategy, fragments = 'sevenzip-entry', handle_sevenzip(filepath, sevenzip_bin, stats)
+    else:
+        # Includes .7z with no 7z binary on PATH: an environment choice, not
+        # a failure — it is honestly counted as what it actually ran, `raw`.
+        strategy, fragments = 'raw', handle_raw(filepath, stats)
+    # Counted here, once, at the single dispatch point: every scanned file is
+    # attributed to exactly one strategy whether or not it yielded entries.
+    stats['filesByStrategy'][strategy] += 1
+    stats['entriesByStrategy'][strategy] += len(fragments)
+    return fragments
 
 
 def process_file(filepath, mount, system, sevenzip_bin, stats):
@@ -380,7 +480,10 @@ def process_file(filepath, mount, system, sevenzip_bin, stats):
     base = {
         'path': filepath,
         'size': st.st_size,
-        'mtime': int(st.st_mtime),
+        # exFAT USB disks do carry pre-1970 timestamps. The schema wants a
+        # non-negative integer and rejects the WHOLE manifest over one entry,
+        # so a bogus date costs the epoch, not the scan.
+        'mtime': max(0, int(st.st_mtime)),
         'system': system,
         'mount': mount,
     }
@@ -414,6 +517,20 @@ def scan(targets):
         if not is_safe_relpath(mount) or not is_safe_relpath(system):
             print(f'scan_roms: unsafe mount/system in target, skipping: {spec!r}', file=sys.stderr)
             continue
+        # `systemId` is stricter than `safeFsPath`: bounded length, and no
+        # separator so it can never widen into a path. Rejecting the target
+        # here beats having the server reject the entire manifest.
+        if len(system) > MAX_SYSTEM_ID_LEN or '/' in system or '\\' in system:
+            print(
+                f'scan_roms: system name rejected by the manifest schema '
+                f'(max {MAX_SYSTEM_ID_LEN} chars, no path separator), skipping: {system!r}',
+                file=sys.stderr,
+            )
+            continue
+        # Without this, a path holding a ".." segment walks fine but every
+        # file it yields fails is_safe_relpath — zero entries and a huge error
+        # count, for a target that was merely spelled indirectly.
+        roms_path = os.path.abspath(roms_path)
         if not os.path.isdir(roms_path):
             print(f'scan_roms: roms path not found, skipping: {roms_path}', file=sys.stderr)
             continue
