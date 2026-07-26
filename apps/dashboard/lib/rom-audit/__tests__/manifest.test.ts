@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseManifest } from '../manifest'
+import { parseManifest, parseManifestLenient } from '../manifest'
 import { defined } from './test-helpers'
 
 const valid = {
@@ -225,5 +225,42 @@ describe('parseManifest', () => {
 		expect(() => parseManifest([{ ...valid, system: 'a/b' }])).toThrow()
 		expect(() => parseManifest([{ ...valid, system: 'a\\b' }])).toThrow()
 		expect(() => parseManifest([{ ...valid, system: '..' }])).toThrow()
+	})
+})
+
+// The HTTP boundary needs the opposite contract from a local scan: one odd entry
+// pushed by a remote box must not discard that system's whole scan.
+describe('parseManifestLenient', () => {
+	it('keeps the valid entries and counts the rejected ones', () => {
+		const res = parseManifestLenient([
+			valid,
+			{ ...valid, kind: 'floppy' },
+			{ ...valid, path: '/b' },
+		])
+		expect(res.entries).toHaveLength(2)
+		expect(res.rejected).toBe(1)
+	})
+
+	it('normalises exactly like parseManifest', () => {
+		const res = parseManifestLenient([{ ...valid, crc32: 'E95A3DD7' }])
+		expect(defined(res.entries[0]).crc32).toBe('e95a3dd7')
+	})
+
+	it('returns empty on a non-array input instead of throwing', () => {
+		expect(parseManifestLenient({})).toEqual({ entries: [], rejected: 0 })
+		expect(parseManifestLenient(null)).toEqual({ entries: [], rejected: 0 })
+	})
+
+	it('rejects everything without throwing when nothing is valid', () => {
+		const res = parseManifestLenient([{ nope: 1 }, { nope: 2 }])
+		expect(res.entries).toEqual([])
+		expect(res.rejected).toBe(2)
+	})
+
+	// The path guards are not relaxed just because the parse is lenient.
+	it('still drops an entry whose path escapes', () => {
+		const res = parseManifestLenient([{ ...valid, path: '/roms/../etc/passwd' }])
+		expect(res.entries).toEqual([])
+		expect(res.rejected).toBe(1)
 	})
 })

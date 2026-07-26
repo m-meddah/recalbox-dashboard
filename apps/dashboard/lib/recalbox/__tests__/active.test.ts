@@ -8,7 +8,9 @@ vi.mock('next/headers', () => ({
 	cookies: vi.fn(async () => ({ get: (n: string) => getCookie(n) })),
 }))
 vi.mock('@/lib/auth/require-user', () => ({ getUser: () => getUser() }))
-vi.mock('@/lib/auth/ownership', () => ({ getViewableRecalboxIds: (u: unknown) => getViewableRecalboxIds(u) }))
+vi.mock('@/lib/auth/ownership', () => ({
+	getViewableRecalboxIds: (u: unknown) => getViewableRecalboxIds(u),
+}))
 
 import { getActiveRecalboxId } from '../active'
 

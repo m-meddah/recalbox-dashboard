@@ -23,9 +23,9 @@ describe('commandSchema', () => {
 	})
 
 	it('rejects conf values containing a newline', () => {
-		expect(
-			commandSchema.safeParse({ type: 'conf', key: 'a.b', value: 'x\ny=evil' }).success,
-		).toBe(false)
+		expect(commandSchema.safeParse({ type: 'conf', key: 'a.b', value: 'x\ny=evil' }).success).toBe(
+			false,
+		)
 	})
 
 	it('accepts a launch command', () => {
@@ -51,6 +51,39 @@ describe('toQueuePayload', () => {
 		expect(toQueuePayload({ type: 'conf', key: 'a.b', value: '1' })).toEqual({
 			type: 'conf',
 			payload: { key: 'a.b', value: '1' },
+		})
+	})
+})
+
+describe('scan command', () => {
+	it('accepts a scan for the whole box', () => {
+		const r = commandSchema.safeParse({ type: 'scan', scanId: 's1' })
+		expect(r.success).toBe(true)
+	})
+
+	it('accepts a scan restricted to named systems', () => {
+		const r = commandSchema.safeParse({ type: 'scan', scanId: 's1', systems: ['snes', 'psx'] })
+		expect(r.success).toBe(true)
+	})
+
+	// The command must never be able to name a path: the box discovers its own.
+	it('rejects a system id shaped like a path', () => {
+		for (const system of ['../etc', 'a/b', 'a\\b']) {
+			expect(
+				commandSchema.safeParse({ type: 'scan', scanId: 's1', systems: [system] }).success,
+			).toBe(false)
+		}
+	})
+
+	it('rejects a scan with no scan id', () => {
+		expect(commandSchema.safeParse({ type: 'scan' }).success).toBe(false)
+	})
+
+	it('splits into type and payload like any other command', () => {
+		const parsed = commandSchema.parse({ type: 'scan', scanId: 's1', systems: ['snes'] })
+		expect(toQueuePayload(parsed)).toEqual({
+			type: 'scan',
+			payload: { scanId: 's1', systems: ['snes'] },
 		})
 	})
 })

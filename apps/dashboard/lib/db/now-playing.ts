@@ -42,7 +42,10 @@ export async function upsertNowPlaying(
 		.onConflictDoUpdate({ target: nowPlaying.recalboxId, set: row })
 }
 
-export async function getNowPlaying(db: DB, recalboxId: string): Promise<NowPlayingRow | undefined> {
+export async function getNowPlaying(
+	db: DB,
+	recalboxId: string,
+): Promise<NowPlayingRow | undefined> {
 	return db.select().from(nowPlaying).where(eq(nowPlaying.recalboxId, recalboxId)).get()
 }
 

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { DB } from '@/lib/db'
 import { romFiles, romScans, romSystemAudits } from '@/lib/db/schema'
 import type { MatchLevel } from '@/lib/rom-audit/match'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 
 // $inferSelect, NOT $inferInsert: the select type makes every optional column
 // `T | null`, so a producer that leaves one `undefined` fails to typecheck.
@@ -130,6 +130,85 @@ export async function syncSystemRomFiles(
 	}
 
 	return { inserted: toInsert.length, updated: toUpdate.length, deleted: toDelete.length }
+}
+
+/**
+ * Upsert rows without deleting anything — the chunked counterpart of
+ * `syncSystemRomFiles`.
+ *
+ * A chunk knows only its own entries, so it cannot tell a vanished file from one
+ * that simply belongs to another chunk; pruning on a key set would erase the
+ * chunks that came before. Deletion is deferred to `pruneRomFilesBefore`, once
+ * the last chunk of the system has landed.
+ *
+ * Unlike the sync, this ALWAYS writes `scannedAt` — that timestamp is what the
+ * prune uses as its watermark. It is only ever used on the serverless path,
+ * where the policy stores `unknown` entries alone (a few dozen rows per system),
+ * so the extra writes are negligible.
+ */
+export async function appendSystemRomFiles(
+	db: DB,
+	recalboxId: string,
+	system: string,
+	rows: readonly RomFileRow[],
+): Promise<{ written: number }> {
+	const seen = new Set<string>()
+	const unique = rows.filter((row) => {
+		if (seen.has(row.entryKey) || row.system !== system) return false
+		seen.add(row.entryKey)
+		return true
+	})
+	if (unique.length === 0) return { written: 0 }
+
+	for (const batch of chunk(unique, INSERT_CHUNK)) {
+		await db
+			.insert(romFiles)
+			.values(batch)
+			.onConflictDoUpdate({
+				target: [romFiles.recalboxId, romFiles.entryKey],
+				set: {
+					system: sql`excluded.system`,
+					mount: sql`excluded.mount`,
+					path: sql`excluded.path`,
+					innerName: sql`excluded.inner_name`,
+					size: sql`excluded.size`,
+					mtime: sql`excluded.mtime`,
+					kind: sql`excluded.kind`,
+					crc32: sql`excluded.crc32`,
+					sha1: sql`excluded.sha1`,
+					serial: sql`excluded.serial`,
+					matchLevel: sql`excluded.match_level`,
+					datEntryName: sql`excluded.dat_entry_name`,
+					canonicalTitle: sql`excluded.canonical_title`,
+					scannedAt: sql`excluded.scanned_at`,
+				},
+			})
+	}
+	return { written: unique.length }
+}
+
+/**
+ * Drop the rows of a system that the current scan did not refresh — the sweep
+ * that closes a chunked ingestion. Everything this scan wrote carries a
+ * `scannedAt` at or after the watermark; anything older is a file that is gone.
+ */
+export async function pruneRomFilesBefore(
+	db: DB,
+	recalboxId: string,
+	system: string,
+	watermark: Date,
+): Promise<{ deleted: number }> {
+	const deleted = await db
+		.delete(romFiles)
+		.where(
+			and(
+				eq(romFiles.recalboxId, recalboxId),
+				eq(romFiles.system, system),
+				lt(romFiles.scannedAt, watermark),
+			),
+		)
+		.returning({ entryKey: romFiles.entryKey })
+	return { deleted: deleted.length }
 }
 
 /** Write the per-system aggregate, but only if it actually changed. Returns whether it wrote. */

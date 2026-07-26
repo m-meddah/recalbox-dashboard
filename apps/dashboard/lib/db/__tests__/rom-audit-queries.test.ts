@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { RomFileRow, RomSystemAuditRow } from '../rom-audit-queries'
 import {
 	SCAN_STALE_MS,
+	appendSystemRomFiles,
 	createScan,
 	entryKey,
 	finishScan,
@@ -17,6 +18,7 @@ import {
 	isScanStale,
 	listRomFiles,
 	listSystemAudits,
+	pruneRomFilesBefore,
 	syncSystemRomFiles,
 	updateScanProgress,
 	upsertSystemAudit,
@@ -175,6 +177,66 @@ describe('syncSystemRomFiles', () => {
 		const unknown = await listRomFiles(db, 'rb1', 'snes', { matchLevel: 'unknown' })
 		expect(unknown).toHaveLength(1)
 		expect(unknown[0]?.path).toBe('/u.zip')
+	})
+})
+
+// The agent pushes one system in several HTTP requests, and a chunk cannot tell
+// a vanished file from one belonging to another chunk — hence upsert now, sweep
+// at the end.
+describe('appendSystemRomFiles + pruneRomFilesBefore', () => {
+	let db: DB
+	beforeEach(() => {
+		db = makeDb()
+	})
+
+	const T1 = new Date('2026-07-26T10:00:00Z')
+	const T2 = new Date('2026-07-27T10:00:00Z')
+
+	it('accumulates chunks instead of replacing them', async () => {
+		await appendSystemRomFiles(db, 'rb1', 'snes', [file({ path: '/a.zip' })])
+		await appendSystemRomFiles(db, 'rb1', 'snes', [file({ path: '/b.zip' })])
+		expect(await listRomFiles(db, 'rb1', 'snes')).toHaveLength(2)
+	})
+
+	it('updates a row the next chunk re-sends', async () => {
+		await appendSystemRomFiles(db, 'rb1', 'snes', [file({ matchLevel: 'unknown' })])
+		await appendSystemRomFiles(db, 'rb1', 'snes', [file({ matchLevel: 'verified' })])
+		const rows = await listRomFiles(db, 'rb1', 'snes')
+		expect(rows).toHaveLength(1)
+		expect(rows[0]?.matchLevel).toBe('verified')
+	})
+
+	it('refuses a row that belongs to another system', async () => {
+		const res = await appendSystemRomFiles(db, 'rb1', 'snes', [
+			file({ system: 'nes', path: '/n.zip' }),
+		])
+		expect(res.written).toBe(0)
+		expect(await listRomFiles(db, 'rb1', 'nes')).toHaveLength(0)
+	})
+
+	it('sweeps only what the current scan did not refresh', async () => {
+		await appendSystemRomFiles(db, 'rb1', 'snes', [
+			file({ path: '/stays.zip', scannedAt: T1 }),
+			file({ path: '/goes.zip', scannedAt: T1 }),
+		])
+		await appendSystemRomFiles(db, 'rb1', 'snes', [file({ path: '/stays.zip', scannedAt: T2 })])
+
+		const res = await pruneRomFilesBefore(db, 'rb1', 'snes', T2)
+		expect(res.deleted).toBe(1)
+		const rows = await listRomFiles(db, 'rb1', 'snes')
+		expect(rows.map((r) => r.path)).toEqual(['/stays.zip'])
+	})
+
+	it('never sweeps another system or another Recalbox', async () => {
+		await appendSystemRomFiles(db, 'rb1', 'nes', [
+			file({ system: 'nes', path: '/n.zip', scannedAt: T1 }),
+		])
+		await appendSystemRomFiles(db, 'rb2', 'snes', [
+			file({ recalboxId: 'rb2', path: '/o.zip', scannedAt: T1 }),
+		])
+		await pruneRomFilesBefore(db, 'rb1', 'snes', T2)
+		expect(await listRomFiles(db, 'rb1', 'nes')).toHaveLength(1)
+		expect(await listRomFiles(db, 'rb2', 'snes')).toHaveLength(1)
 	})
 })
 

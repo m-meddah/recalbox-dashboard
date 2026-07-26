@@ -1,6 +1,7 @@
+import type { RomSystemAuditRow } from '@/lib/db/rom-audit-queries'
 import { describe, expect, it } from 'vitest'
 import type { AuditResult, MatchedFile } from '../match'
-import { auditToFileRows, auditToSystemRow, persistPolicyFor } from '../persist'
+import { auditToFileRows, auditToSystemRow, mergeSystemAudit, persistPolicyFor } from '../persist'
 
 const SCANNED_AT = new Date('2026-07-26T10:00:00Z')
 
@@ -121,6 +122,72 @@ describe('auditToSystemRow', () => {
 		expect(row.totalRomEntries).toBe(0)
 		expect(row.unknownCount).toBe(1)
 		expect(row.matchedEntries).toEqual([])
+	})
+})
+
+describe('mergeSystemAudit', () => {
+	const chunk = (over: Partial<RomSystemAuditRow>): RomSystemAuditRow => ({
+		recalboxId: 'rb1',
+		system: 'psx',
+		datName: 'Sony - PlayStation',
+		datVersion: '2026.05.02',
+		totalRomEntries: 10000,
+		matchedRomEntries: 0,
+		verifiedCount: 0,
+		serialCount: 0,
+		namedCount: 0,
+		unknownCount: 0,
+		filesScanned: 0,
+		totalBytes: 0,
+		mounts: ['/recalbox/share'],
+		matchedEntries: [],
+		scannedAt: SCANNED_AT,
+		...over,
+	})
+
+	it('adds the counters of two chunks', () => {
+		const merged = mergeSystemAudit(
+			chunk({ verifiedCount: 10, namedCount: 2, filesScanned: 12, totalBytes: 100 }),
+			chunk({ verifiedCount: 5, unknownCount: 1, filesScanned: 6, totalBytes: 50 }),
+		)
+		expect(merged.verifiedCount).toBe(15)
+		expect(merged.namedCount).toBe(2)
+		expect(merged.unknownCount).toBe(1)
+		expect(merged.filesScanned).toBe(18)
+		expect(merged.totalBytes).toBe(150)
+	})
+
+	it('unions the matched entries without duplicating them', () => {
+		const merged = mergeSystemAudit(
+			chunk({ matchedEntries: ['A', 'B'] }),
+			chunk({ matchedEntries: ['B', 'C'] }),
+		)
+		expect(merged.matchedEntries).toEqual(['A', 'B', 'C'])
+	})
+
+	it('unions the mounts', () => {
+		const merged = mergeSystemAudit(
+			chunk({ mounts: ['/recalbox/share'] }),
+			chunk({ mounts: ['/recalbox/share/externals/usb0'] }),
+		)
+		expect(merged.mounts).toEqual(['/recalbox/share', '/recalbox/share/externals/usb0'])
+	})
+
+	// A game sitting on two mounts can fall into two chunks; the metric must stay
+	// inside the catalogue rather than climb past 100 %.
+	it('never lets the matched count exceed the catalogue', () => {
+		const merged = mergeSystemAudit(
+			chunk({ totalRomEntries: 10, matchedRomEntries: 8 }),
+			chunk({ totalRomEntries: 10, matchedRomEntries: 8 }),
+		)
+		expect(merged.matchedRomEntries).toBe(10)
+	})
+
+	it('keeps the catalogue identity of the incoming chunk', () => {
+		const merged = mergeSystemAudit(chunk({}), chunk({ datVersion: '2026.06.01' }))
+		expect(merged.datName).toBe('Sony - PlayStation')
+		expect(merged.datVersion).toBe('2026.06.01')
+		expect(merged.totalRomEntries).toBe(10000)
 	})
 })
 

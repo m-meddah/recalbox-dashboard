@@ -107,3 +107,27 @@ export type ManifestEntry = z.infer<typeof manifestEntrySchema>
 export function parseManifest(input: unknown): ManifestEntry[] {
 	return z.array(manifestEntrySchema).parse(input)
 }
+
+export type LenientManifest = { entries: ManifestEntry[]; rejected: number }
+
+/**
+ * Per-entry validation, for the HTTP boundary.
+ *
+ * `parseManifest` is all-or-nothing, which is the right contract for a local
+ * scan: one malformed entry means the scanner is broken and should be seen. Over
+ * HTTP it is the wrong one — a single odd entry pushed by a remote box would
+ * discard that system's whole scan. Here the bad entries are dropped and
+ * counted, so the caller can report them without losing the rest.
+ */
+export function parseManifestLenient(input: unknown): LenientManifest {
+	if (!Array.isArray(input)) return { entries: [], rejected: 0 }
+
+	const entries: ManifestEntry[] = []
+	let rejected = 0
+	for (const raw of input) {
+		const parsed = manifestEntrySchema.safeParse(raw)
+		if (parsed.success) entries.push(parsed.data)
+		else rejected++
+	}
+	return { entries, rejected }
+}

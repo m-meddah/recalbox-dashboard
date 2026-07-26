@@ -1,6 +1,6 @@
+import type { StorageMount } from '@/lib/recalbox/storage'
 import { sql } from 'drizzle-orm'
 import { index, int, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
-import type { StorageMount } from '@/lib/recalbox/storage'
 
 export const recalboxes = sqliteTable(
 	'recalboxes',

@@ -1,4 +1,5 @@
-import { type RomFileRow, type RomSystemAuditRow, entryKey } from '@/lib/db/rom-audit-queries'
+import type { RomFileRow, RomSystemAuditRow } from '@/lib/db/rom-audit-queries'
+import { entryKey } from '@/lib/db/rom-audit-queries'
 import type { AuditResult, MatchLevel } from './match'
 
 /**
@@ -50,6 +51,43 @@ export function auditToSystemRow(
 		mounts: [...mounts],
 		matchedEntries,
 		scannedAt,
+	}
+}
+
+/**
+ * Fold a chunk's aggregate into the one already stored for the system.
+ *
+ * The agent ships a large system in several requests; each is audited on its own
+ * and its counts must add up rather than replace. The catalogue identity comes
+ * from the incoming chunk — it is the same DAT for every chunk of a system.
+ *
+ * `matchedRomEntries` is summed and clamped to the catalogue size: a game
+ * present on two mounts can land in two different chunks and be counted twice,
+ * and a completion percentage above 100 % would be worse than a slight
+ * over-count. The distinct-entry list below stays exact, and it is what the
+ * missing-games view actually reads.
+ */
+export function mergeSystemAudit(
+	previous: RomSystemAuditRow,
+	incoming: RomSystemAuditRow,
+): RomSystemAuditRow {
+	const matchedEntries = [
+		...new Set([...(previous.matchedEntries ?? []), ...(incoming.matchedEntries ?? [])]),
+	].sort()
+	const mounts = [...new Set([...(previous.mounts ?? []), ...(incoming.mounts ?? [])])]
+	const summed = previous.matchedRomEntries + incoming.matchedRomEntries
+
+	return {
+		...incoming,
+		matchedRomEntries: Math.min(summed, incoming.totalRomEntries || summed),
+		verifiedCount: previous.verifiedCount + incoming.verifiedCount,
+		serialCount: previous.serialCount + incoming.serialCount,
+		namedCount: previous.namedCount + incoming.namedCount,
+		unknownCount: previous.unknownCount + incoming.unknownCount,
+		filesScanned: previous.filesScanned + incoming.filesScanned,
+		totalBytes: previous.totalBytes + incoming.totalBytes,
+		mounts,
+		matchedEntries,
 	}
 }
 
