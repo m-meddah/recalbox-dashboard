@@ -26,8 +26,20 @@ export type CatalogDeps = {
 	fetchDat: (url: string, etag?: string) => Promise<{ status: number; text: string; etag?: string }>
 }
 
+/**
+ * Where the parsed DAT files are cached on disk.
+ *
+ * The default is written as a statically-scoped `path.join(process.cwd(), …)`,
+ * not as a `path.resolve` over a variable: the bundler's file tracer follows the
+ * latter, decides the whole project might be read at runtime, and drags it all
+ * into the serverless bundle. Keeping the common path literal keeps the trace
+ * bounded — the env override is resolved separately, on the branch a cloud
+ * deploy does not take.
+ */
 function cacheDir(): string {
-	return path.resolve(process.env.ROM_AUDIT_CACHE_DIR ?? path.join(process.cwd(), '.dat-cache'))
+	const override = process.env.ROM_AUDIT_CACHE_DIR
+	if (override) return path.resolve(override)
+	return path.join(process.cwd(), '.dat-cache')
 }
 
 const fileDeps: CatalogDeps = {
