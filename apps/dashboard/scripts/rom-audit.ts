@@ -23,12 +23,12 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { fetchStorageInfo } from '@/lib/recalbox/storage'
 import { loadDatForSystem } from '@/lib/rom-audit/catalog'
+import { discoverScanTargets } from '@/lib/rom-audit/discover'
 import { type ManifestEntry, parseManifest } from '@/lib/rom-audit/manifest'
 import { auditSystem, filterMissingGames } from '@/lib/rom-audit/match'
 import { runScan } from '@/lib/rom-audit/scan-runner'
-import { type ScanTarget, buildScanTargets, romsRootFor } from '@/lib/rom-audit/scan-targets'
+import type { ScanTarget } from '@/lib/rom-audit/scan-targets'
 import { NodeSSH } from 'node-ssh'
 import { ZodError } from 'zod'
 
@@ -110,23 +110,18 @@ async function discoverTargets(
 	host: string,
 	system: string,
 ): Promise<ScanTarget[]> {
-	const mounts = await fetchStorageInfo(host)
-	if (mounts.length === 0) {
-		fail(`Aucun support partagé remonté par le Web Manager de "${host}".`)
-	}
-	progress(`supports : ${mounts.map((m) => m.mount).join(', ')}`)
-
-	const dirsByRoot: Record<string, string[]> = {}
-	for (const { mount } of mounts) {
-		const root = romsRootFor(mount)
+	const listDirs = async (root: string) => {
 		const out = await client.exec(`ls -1 ${JSON.stringify(root)} 2>/dev/null || true`)
-		dirsByRoot[root] = out
+		return out
 			.split('\n')
 			.map((d) => d.trim())
 			.filter(Boolean)
 	}
 
-	const all = buildScanTargets(mounts, dirsByRoot)
+	const all = await discoverScanTargets(host, listDirs)
+	if (all.length === 0) {
+		fail(`Aucun dossier de ROMs trouvé sur les supports de "${host}".`)
+	}
 	const targets = all.filter((t) => t.system === system)
 	if (targets.length === 0) {
 		const available = [...new Set(all.map((t) => t.system))].sort()
