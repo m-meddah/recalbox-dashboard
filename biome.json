@@ -1,7 +1,14 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
 	"files": {
-		"ignore": ["node_modules", ".next", "dist", "build", "*.min.js"]
+		"ignore": [
+			"node_modules",
+			".next",
+			"dist",
+			"build",
+			"*.min.js",
+			"**/*.generated.ts"
+		]
 	},
 	"formatter": {
 		"indentStyle": "tab",
@@ -14,21 +21,33 @@
 			"trailingCommas": "all"
 		}
 	},
-	"linter": { "rules": { "recommended": true } },
+	"linter": {
+		"rules": {
+			"recommended": true
+		}
+	},
 	"overrides": [
 		{
-			"include": ["**/progress-bar.tsx"],
+			"include": [
+				"**/progress-bar.tsx"
+			],
 			"linter": {
 				"rules": {
-					"suspicious": { "noArrayIndexKey": "off" }
+					"suspicious": {
+						"noArrayIndexKey": "off"
+					}
 				}
 			}
 		},
 		{
-			"include": ["**/play-tonight/recommendation-card.tsx"],
+			"include": [
+				"**/play-tonight/recommendation-card.tsx"
+			],
 			"linter": {
 				"rules": {
-					"suspicious": { "noExplicitAny": "off" }
+					"suspicious": {
+						"noExplicitAny": "off"
+					}
 				}
 			}
 		}

@@ -1,19 +1,14 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
+import { SCAN_SCRIPT_BASE64 } from './scan-script.generated'
 
 /**
  * The on-box scan script, as source text.
  *
  * `agent/scan_roms.py` stays the single copy: it is what `agent/__tests__`
- * exercises, and a second transcription here would drift without anything
- * noticing.
+ * exercises. It is embedded here by `scripts/generate-scan-script.ts` rather
+ * than read at runtime — a filesystem read works under tsx and Vitest but not
+ * once the Next.js bundler takes over, and plan 2B calls this from an API route.
  *
- * Loading it with readFileSync works under Vitest and under tsx, which is what
- * this lot needs. It will NOT survive the Next.js bundler — a `.py` is not a
- * known asset and the relative path does not outlive the build. Plan 2B, which
- * calls this from an API route, has to replace it with a generated `.ts`
- * checked by CI, or a typed text import.
+ * `__tests__/scan-script.test.ts` fails if the generated module drifts from the
+ * .py, so a forgotten regeneration surfaces in the test suite.
  */
-const SCRIPT_PATH = path.resolve(__dirname, '../../../../agent/scan_roms.py')
-
-export const SCAN_SCRIPT: string = readFileSync(SCRIPT_PATH, 'utf-8')
+export const SCAN_SCRIPT: string = Buffer.from(SCAN_SCRIPT_BASE64, 'base64').toString('utf-8')
