@@ -394,16 +394,37 @@ export type ToolAvailability = { tool: VerifyTool; available: boolean; version?:
 export async function detectTools(run?: RunCommand): Promise<ToolAvailability[]>
 
 export type VerifyOutcome =
-	| { status: 'verified'; sha1: string; datEntryName: string }
-	| { status: 'mismatch'; sha1: string }
+	| { status: 'intact'; sha1: string; rawSha1?: string }
 	| { status: 'corrupt'; detail: string }
 	| { status: 'unsupported'; reason: string }
 	| { status: 'tool-missing'; tool: VerifyTool }
-	| { status: 'no-space'; requiredBytes: number; freeBytes: number }
 	| { status: 'failed'; reason: string }
 
 export async function verifyTitle(input: VerifyInput, deps: VerifyDeps): Promise<VerifyOutcome>
 ```
+
+**Révision du 2026-07-27, après mesure avec le vrai binaire.** Trois relevés
+changent la conception :
+
+| cas | `chdman verify` |
+|---|---|
+| fichier sain | code 0, « Overall SHA1 verification successful! » |
+| fichier corrompu (un octet retourné au milieu des données) | code **1**, « Decompression error » |
+| fichier absent | code **1** |
+| `chdman info` sur un fichier corrompu | code **0** — l'en-tête reste lisible, `info` ne vérifie rien |
+
+1. **`chdman verify` ne produit aucun temporaire.** Il recalcule les SHA1 en flux
+   et les compare à l'en-tête. Tout le dispositif de contrôle d'espace disque
+   prévu pour `extractcd` disparaît, ainsi que l'état `no-space`.
+2. **Le code de sortie est fiable** pour `verify`, mais « corrompu » et
+   « fichier absent » le partagent : les départager demande de lire la sortie.
+   `info` ne juge rien et ne doit jamais servir de verdict.
+3. **La comparaison au DAT Redump est abandonnée pour les CHD.** Le spec l'a déjà
+   mesurée à 0/20 : un CHD fusionne les pistes, aucun hash Redump ne peut
+   correspondre. Un état `verified`/`mismatch` contre le catalogue serait donc
+   inatteignable en pratique, et promettre un verdict qu'on ne peut pas rendre
+   est pire que ne rien promettre. Le deep verify répond à **une** question, celle
+   que rien d'autre dans l'audit ne couvre : *ce fichier est-il intact ?*
 
 - [ ] **Step 1: Tests de la détection et du verdict**
 
@@ -436,7 +457,6 @@ describe('verifyTitle', () => {
 
 ```ts
 describe('fetchForVerify', () => {
-	it('asks the box for the file size before deciding', () => { /* … */ })
 	it('writes into a temp dir outside the project', () => { /* … */ })
 	// Le chemin vient de la base, donc de la box : il ne doit jamais pouvoir
 	// désigner autre chose qu'un fichier de /recalbox/share.
@@ -447,9 +467,9 @@ describe('fetchForVerify', () => {
 
 - [ ] **Step 3: Implémenter**
 
-`detectTools` exécute `chdman --help` / `dolphin-tool --version` et interprète l'absence comme une indisponibilité, jamais comme une erreur. Le rapatriement passe par `getFile` de `node-ssh` (SFTP, vérifié disponible en 13.2.1). L'espace libre se contrôle avant la copie **et** avant l'extraction, avec une marge : `chdman extractcd` produit un fichier de la taille du disque décompressé, jusqu'à ~700 Mo pour un CD et davantage pour un DVD.
+`detectTools` exécute `chdman --help` / `dolphin-tool --version` et interprète l'absence comme une indisponibilité, jamais comme une erreur. **Chercher aussi par chemin explicite** : `dolphin-tool` vit dans `/usr/games/`, absent du PATH de certains contextes — c'est ce qui m'avait fait conclure à tort qu'il n'existait pas.
 
-Le temporaire est supprimé dans un `finally`, y compris sur échec — un CD par vérification suffit à saturer un disque en quelques essais.
+Le rapatriement passe par `getFile` de `node-ssh` (SFTP, vérifié disponible en 13.2.1). La copie téléchargée est supprimée dans un `finally`, y compris sur échec — quelques Go par vérification suffisent à saturer un disque en peu d'essais. Aucune extraction, donc aucun second temporaire.
 
 - [ ] **Step 4: Vérifier avec le vrai binaire, si l'hôte l'accepte**
 
