@@ -1,5 +1,5 @@
-import { shellQuote } from '@/lib/recalbox/shell'
 import { type ManifestEntry, parseManifest } from './manifest'
+import { MAX_COMMAND_BYTES, buildScanCommand, planScanBatches } from './scan-batches'
 import { SCAN_SCRIPT } from './scan-script'
 import type { ScanTarget } from './scan-targets'
 
@@ -7,10 +7,10 @@ import type { ScanTarget } from './scan-targets'
 // default exec timeout is measured in seconds and would cut it off immediately.
 const SCAN_TIMEOUT_MS = 60 * 60 * 1000
 
-// Measured on the reference box: an SSH exec fails somewhere between 8 and 16 KB
-// of command line, and a 32 KB one drops the connection. Refuse well before that
-// rather than surfacing a bare "Unable to exec".
-const MAX_COMMAND_BYTES = 8000
+// The command budget and the command builder live with the batch planner, which
+// packs against them; re-exported here because this module is the transport's
+// public face.
+export { MAX_COMMAND_BYTES, buildScanCommand }
 
 /**
  * The scan needs to push the script over the exec's stdin, which the pool's
@@ -24,26 +24,6 @@ export type ScanExecutor = {
 export type ScanOutcome =
 	| { status: 'ok'; entries: ManifestEntry[]; stats: Record<string, number> }
 	| { status: 'failed'; reason: string }
-
-/**
- * The command that runs the scan on the box. The script itself does NOT travel
- * in here — it goes over stdin.
- *
- * Measured on the reference box: an SSH exec command line fails somewhere
- * between 8 and 16 KB, and a 32 KB one drops the connection outright. The
- * script is 21 KB, so inlining it — base64-encoded or otherwise — cannot work.
- * Keep this command small.
- *
- * Nothing is written to the Recalbox either way: this lot is read-only.
- */
-export function buildScanCommand(targets: readonly ScanTarget[]): string {
-	// Target paths come from a directory listing on the box: spaces, quotes and
-	// parentheses are all routine.
-	const args = targets
-		.map((t) => `--target ${shellQuote(`${t.mount}|${t.system}|${t.romsPath}`)}`)
-		.join(' ')
-	return `python3 - ${args}`
-}
 
 /** Top-level numeric counters only — the script also nests per-strategy objects. */
 function numericStats(raw: unknown): Record<string, number> {
@@ -106,4 +86,57 @@ export async function runScan(
 	} catch (err) {
 		return { status: 'failed', reason: `manifest rejected by the schema: ${String(err)}` }
 	}
+}
+
+export type ScanBatchEvent =
+	| { type: 'batch-ok'; systems: string[]; entries: ManifestEntry[]; stats: Record<string, number> }
+	| { type: 'batch-failed'; systems: string[]; reason: string }
+
+export type BatchedScanSummary = { batches: number; failedSystems: string[]; oversized: string[] }
+
+/**
+ * Scan any number of systems, in as many commands as the exec limit requires.
+ *
+ * Results are handed over batch by batch rather than accumulated: a whole-box
+ * scan runs for a quarter of an hour, and the caller persists each batch as it
+ * lands so a late failure cannot throw away everything before it.
+ *
+ * A failed batch does NOT abort the run — the other systems are still worth
+ * scanning — but its systems are reported as failed and never as scanned. That
+ * distinction matters: a system persisted from a failed batch would look like a
+ * collection where everything is missing.
+ *
+ * Never throws, not even when the caller's own callback does.
+ */
+export async function runScanBatched(
+	ssh: ScanExecutor,
+	targets: readonly ScanTarget[],
+	onBatch: (event: ScanBatchEvent) => Promise<void> | void,
+): Promise<BatchedScanSummary> {
+	const plan = planScanBatches(targets)
+	const failedSystems: string[] = []
+
+	for (const batch of plan.batches) {
+		const outcome = await runScan(ssh, batch.targets)
+		const event: ScanBatchEvent =
+			outcome.status === 'ok'
+				? {
+						type: 'batch-ok',
+						systems: batch.systems,
+						entries: outcome.entries,
+						stats: outcome.stats,
+					}
+				: { type: 'batch-failed', systems: batch.systems, reason: outcome.reason }
+
+		if (event.type === 'batch-failed') failedSystems.push(...batch.systems)
+
+		try {
+			await onBatch(event)
+		} catch {
+			// The caller's persistence is its own business; a failure there must not
+			// abort a scan that may still have a dozen systems to walk.
+		}
+	}
+
+	return { batches: plan.batches.length, failedSystems, oversized: plan.oversized }
 }

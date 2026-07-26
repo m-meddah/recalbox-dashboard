@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildScanCommand, runScan } from '../scan-runner'
+import { buildScanCommand, runScan, runScanBatched } from '../scan-runner'
 import type { ScanTarget } from '../scan-targets'
 
 const TARGETS: ScanTarget[] = [
@@ -147,5 +147,78 @@ describe('runScan', () => {
 			const client = ssh(async () => output)
 			await expect(runScan(client, TARGETS)).resolves.toBeDefined()
 		}
+	})
+})
+
+describe('runScanBatched', () => {
+	function targetsFor(count: number): ScanTarget[] {
+		return Array.from({ length: count }, (_, i) => ({
+			mount: '/recalbox/share/externals/usb0',
+			system: `system${i}`,
+			romsPath: `/recalbox/share/externals/usb0/recalbox/roms/system${i}`,
+		}))
+	}
+
+	it('runs several commands and reports each batch as it completes', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: { scanned: 3 } }))
+		const events: string[][] = []
+		const summary = await runScanBatched(client, targetsFor(200), (e) => {
+			events.push(e.systems)
+		})
+		expect(summary.batches).toBeGreaterThan(1)
+		expect(client.exec.mock.calls.length).toBe(summary.batches)
+		expect(events.flat()).toHaveLength(200)
+		expect(summary.failedSystems).toEqual([])
+	})
+
+	it('hands the caller the entries of each batch', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [VALID_ENTRY], stats: {} }))
+		const seen: number[] = []
+		await runScanBatched(client, targetsFor(2), (e) => {
+			if (e.type === 'batch-ok') seen.push(e.entries.length)
+		})
+		expect(seen).toEqual([1])
+	})
+
+	// A 17-minute scan must not be thrown away because its last batch failed —
+	// but the systems of the failed batch must NOT be reported as scanned, or
+	// they would persist as "everything missing".
+	it('keeps going after a failed batch and names its systems', async () => {
+		let call = 0
+		const client = ssh(async () => {
+			call++
+			if (call === 2) throw new Error('ECONNRESET')
+			return JSON.stringify({ entries: [], stats: {} })
+		})
+		const ok: string[] = []
+		const failed: string[] = []
+		const summary = await runScanBatched(client, targetsFor(200), (e) => {
+			if (e.type === 'batch-ok') ok.push(...e.systems)
+			else failed.push(...e.systems)
+		})
+		expect(failed.length).toBeGreaterThan(0)
+		expect(summary.failedSystems).toEqual(failed)
+		expect(ok.some((s) => failed.includes(s))).toBe(false)
+	})
+
+	it('surfaces systems too large to batch without running them', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		const huge = {
+			mount: '/recalbox/share',
+			system: 'huge',
+			romsPath: `/recalbox/share/roms/${'x'.repeat(9000)}`,
+		}
+		const summary = await runScanBatched(client, [huge], () => {})
+		expect(summary.oversized).toEqual(['huge'])
+		expect(client.exec).not.toHaveBeenCalled()
+	})
+
+	it('never throws when the callback itself throws', async () => {
+		const client = ssh(async () => JSON.stringify({ entries: [], stats: {} }))
+		await expect(
+			runScanBatched(client, targetsFor(2), () => {
+				throw new Error('persist failed')
+			}),
+		).resolves.toBeDefined()
 	})
 })
