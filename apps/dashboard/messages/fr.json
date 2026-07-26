@@ -1224,6 +1224,18 @@
 			"aggregatesOnly": "Ce déploiement ne conserve que les agrégats par système — le détail fichier par fichier reste sur la box.",
 			"catalogUnavailable": "Le catalogue de référence n’a pas pu être téléchargé. Réessaie plus tard.",
 			"backToOverview": "Retour à la vue d’ensemble"
+		},
+		"verify": {
+			"action": "Vérification profonde",
+			"running": "Vérification…",
+			"intact": "Intact — le fichier correspond à ses propres sommes de contrôle",
+			"verified": "Vérifié contre le catalogue ({entry})",
+			"corrupt": "Fichier corrompu",
+			"mismatch": "Aucune entrée du catalogue ne correspond ({sha1}…) — dump abîmé, ou absent de Redump",
+			"noCatalog": "Empreinte calculée, mais ce système n’a pas de catalogue de référence",
+			"toolMissing": "{tool} n’est pas installé sur cet hôte",
+			"unsupported": "Rien à vérifier en profondeur pour ce type de fichier",
+			"failed": "La vérification a échoué"
 		}
 	}
 }

@@ -13,6 +13,7 @@ import {
 	entryKey,
 	finishScan,
 	getLatestScan,
+	getRomFileByKey,
 	getScan,
 	getSystemAudit,
 	isScanStale,
@@ -356,5 +357,37 @@ describe('isScanStale', () => {
 		const updatedAt = new Date(Date.now() - SCAN_STALE_MS - 1000)
 		expect(isScanStale({ status: 'done', updatedAt })).toBe(false)
 		expect(isScanStale({ status: 'failed', updatedAt })).toBe(false)
+	})
+})
+
+// A deep-verify request carries an entry key and nothing else — the system is
+// not part of it, and hardcoding a list of "verifiable systems" would miss
+// dreamcast, saturn, segacd and the rest.
+describe('getRomFileByKey', () => {
+	let db: DB
+	beforeEach(() => {
+		db = makeDb()
+	})
+
+	it('finds an entry without being told its system', async () => {
+		await syncSystemRomFiles(db, 'rb1', 'psx', [
+			file({ system: 'psx', path: '/recalbox/share/roms/psx/Game.chd', innerName: null, kind: 'chd' }),
+		])
+		const row = await getRomFileByKey(db, 'rb1', '/recalbox/share/roms/psx/Game.chd')
+		expect(row?.system).toBe('psx')
+		expect(row?.kind).toBe('chd')
+	})
+
+	it('returns null for a key that does not exist', async () => {
+		expect(await getRomFileByKey(db, 'rb1', '/nope')).toBeNull()
+	})
+
+	// Another box's entry must never be reachable through this lookup.
+	it('is scoped to one Recalbox', async () => {
+		await syncSystemRomFiles(db, 'rb2', 'psx', [
+			file({ recalboxId: 'rb2', system: 'psx', path: '/p/Game.chd', innerName: null, kind: 'chd' }),
+		])
+		expect(await getRomFileByKey(db, 'rb1', '/p/Game.chd')).toBeNull()
+		expect(await getRomFileByKey(db, 'rb2', '/p/Game.chd')).not.toBeNull()
 	})
 })

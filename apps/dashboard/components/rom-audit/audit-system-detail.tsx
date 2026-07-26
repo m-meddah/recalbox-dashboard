@@ -1,5 +1,6 @@
 'use client'
 
+import { DeepVerifyButton } from '@/components/rom-audit/deep-verify-button'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -21,6 +22,7 @@ type RomFile = {
 	entryKey: string
 	path: string
 	innerName: string | null
+	kind: string
 	matchLevel: string
 	datEntryName: string | null
 	mount: string
@@ -56,6 +58,25 @@ export function AuditSystemDetail({
 	const [data, setData] = useState<Payload | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [expanded, setExpanded] = useState<string | null>(null)
+	// Which deep-verify binaries the host actually has. Empty in serverless mode,
+	// so the button never appears where it could not run.
+	const [tools, setTools] = useState<Record<string, boolean>>({})
+
+	useEffect(() => {
+		let cancelled = false
+		fetch(`/api/rom-audit/verify?recalboxId=${encodeURIComponent(recalboxId)}`)
+			.then((res) => (res.ok ? res.json() : { tools: [] }))
+			.then((body: { tools?: { tool: string; available: boolean }[] }) => {
+				if (cancelled) return
+				const map: Record<string, boolean> = {}
+				for (const t of body.tools ?? []) map[t.tool] = t.available
+				setTools(map)
+			})
+			.catch(() => {})
+		return () => {
+			cancelled = true
+		}
+	}, [recalboxId])
 
 	useEffect(() => {
 		let cancelled = false
@@ -176,6 +197,12 @@ export function AuditSystemDetail({
 						<li key={file.entryKey} className="flex items-center gap-2 px-3 py-2 text-sm">
 							<span>{LEVEL_BADGE[file.matchLevel] ?? '?'}</span>
 							<span className="min-w-0 flex-1 truncate">{file.innerName ?? file.path}</span>
+							<DeepVerifyButton
+								recalboxId={recalboxId}
+								entryKey={file.entryKey}
+								kind={file.kind}
+								toolAvailable={file.kind === 'chd' ? !!tools.chdman : !!tools['dolphin-tool']}
+							/>
 							<span className="truncate text-muted-foreground text-xs">{file.mount}</span>
 						</li>
 					))}

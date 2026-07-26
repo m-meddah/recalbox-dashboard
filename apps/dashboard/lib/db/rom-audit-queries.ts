@@ -284,6 +284,25 @@ export async function listRomFiles(
 }
 
 /**
+ * One scanned entry by its key. The key is unique per Recalbox, so this does not
+ * need to know the system — which matters because the caller usually does not:
+ * a deep-verify request carries an entry key and nothing else.
+ */
+export async function getRomFileByKey(
+	db: DB,
+	recalboxId: string,
+	entryKey: string,
+): Promise<RomFileRow | null> {
+	const rows = await db
+		.select()
+		.from(romFiles)
+		.where(and(eq(romFiles.recalboxId, recalboxId), eq(romFiles.entryKey, entryKey)))
+		.limit(1)
+		.all()
+	return rows[0] ?? null
+}
+
+/**
  * Open a scan run. An SSH scan starts running immediately (the server drives
  * it); an agent scan is only queued — the box has not claimed the command yet.
  */
