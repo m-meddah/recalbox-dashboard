@@ -166,32 +166,22 @@ function matchOne(file: ManifestEntry, index: Index): { entries?: DatEntry[]; le
 }
 
 /**
- * Crosses a scan manifest with a reference DAT. Pure: no network, no database,
- * no filesystem. Counting is raw — one dat rom entry is one unit — while the
- * missing list is grouped by canonical game, which is the actionable view.
+ * Groups a DAT's entries by canonical title — the "which games" view, as opposed
+ * to the raw per-ROM count.
+ *
+ * `isOwned` decides, per DAT rom entry, whether the collection covers it. A game
+ * counts as owned as soon as ONE of its entries is, whatever the confidence
+ * level; the disc lists then say which parts of a multi-disc set are missing.
+ *
+ * Split out of `auditSystem` so the read side can rebuild the same grouping from
+ * a cached DAT and a stored list of matched entry names, with no manifest and no
+ * per-file database read.
  */
-export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat): AuditResult {
-	const index = buildIndex(dat)
-	const matchedRoms = new Set<DatRom>()
-	const files: MatchedFile[] = []
-
-	// A call audits one system: a file from any other system must never enter
-	// the count or match by coincidence of hash or name, so the filter is
-	// enforced here rather than left to the caller.
-	for (const file of manifest.filter((f) => f.system === system)) {
-		const { entries, level } = matchOne(file, index)
-		for (const entry of entries ?? []) matchedRoms.add(entry.rom)
-		const first = entries?.[0]
-		files.push({
-			...file,
-			matchLevel: level,
-			datEntryName: first?.game.name,
-			canonicalTitle: first ? canonicalTitle(first.game.name) : undefined,
-		})
-	}
-
+export function groupCanonicalGames(
+	dat: Dat,
+	isOwned: (rom: DatRom, game: DatGame) => boolean,
+): CanonicalGame[] {
 	const grouped = new Map<string, CanonicalGame>()
-	let totalRomEntries = 0
 
 	for (const game of dat.games) {
 		const title = canonicalTitle(game.name)
@@ -216,9 +206,8 @@ export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat)
 			if (!group.categories.includes(category)) group.categories.push(category)
 		}
 		for (const rom of game.roms) {
-			totalRomEntries++
 			group.entries.push({ game, rom })
-			const owned = matchedRoms.has(rom)
+			const owned = isOwned(rom, game)
 			if (owned) group.owned = true
 			if (tags.disc !== undefined) {
 				const bucket = owned ? group.ownedDiscs : group.missingDiscs
@@ -231,6 +220,36 @@ export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat)
 	for (const game of games) {
 		game.missingDiscs = game.missingDiscs.filter((d) => !game.ownedDiscs.includes(d))
 	}
+	return games
+}
+
+/**
+ * Crosses a scan manifest with a reference DAT. Pure: no network, no database,
+ * no filesystem. Counting is raw — one dat rom entry is one unit — while the
+ * missing list is grouped by canonical game, which is the actionable view.
+ */
+export function auditSystem(system: string, manifest: ManifestEntry[], dat: Dat): AuditResult {
+	const index = buildIndex(dat)
+	const matchedRoms = new Set<DatRom>()
+	const files: MatchedFile[] = []
+
+	// A call audits one system: a file from any other system must never enter
+	// the count or match by coincidence of hash or name, so the filter is
+	// enforced here rather than left to the caller.
+	for (const file of manifest.filter((f) => f.system === system)) {
+		const { entries, level } = matchOne(file, index)
+		for (const entry of entries ?? []) matchedRoms.add(entry.rom)
+		const first = entries?.[0]
+		files.push({
+			...file,
+			matchLevel: level,
+			datEntryName: first?.game.name,
+			canonicalTitle: first ? canonicalTitle(first.game.name) : undefined,
+		})
+	}
+
+	const games = groupCanonicalGames(dat, (rom) => matchedRoms.has(rom))
+	const totalRomEntries = dat.games.reduce((sum, game) => sum + game.roms.length, 0)
 
 	return {
 		system,

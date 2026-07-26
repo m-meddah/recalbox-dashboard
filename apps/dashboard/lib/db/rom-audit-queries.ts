@@ -256,13 +256,22 @@ export async function listRomFiles(
 	db: DB,
 	recalboxId: string,
 	system: string,
-	opts?: { matchLevel?: MatchLevel; limit?: number; offset?: number },
+	opts?: { matchLevel?: MatchLevel | readonly MatchLevel[]; limit?: number; offset?: number },
 ): Promise<RomFileRow[]> {
-	const where = opts?.matchLevel
+	// "Owned" spans three levels (verified, serial, named), so the filter takes a
+	// list as readily as a single level.
+	const levels =
+		opts?.matchLevel === undefined
+			? []
+			: Array.isArray(opts.matchLevel)
+				? [...opts.matchLevel]
+				: [opts.matchLevel as MatchLevel]
+
+	const where = levels.length
 		? and(
 				eq(romFiles.recalboxId, recalboxId),
 				eq(romFiles.system, system),
-				eq(romFiles.matchLevel, opts.matchLevel),
+				inArray(romFiles.matchLevel, levels),
 			)
 		: and(eq(romFiles.recalboxId, recalboxId), eq(romFiles.system, system))
 
