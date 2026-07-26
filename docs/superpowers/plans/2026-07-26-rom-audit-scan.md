@@ -506,11 +506,70 @@ Suis la spécification des cinq stratégies, du filtrage et de la robustesse ci-
 Run: `python3 -m unittest discover -s agent/__tests__ -v`
 Expected: PASS — 16 tests.
 
-- [ ] **Step 5: Vérifier le cas 7z si le binaire est disponible localement**
+- [ ] **Step 5: Couvrir la stratégie 7z**
 
-Run: `command -v 7z 7za 7zr`
+`p7zip` est installé sur la machine de développement (`/usr/bin/7z`, `/usr/bin/7za`, `/usr/bin/7zr`), et le `.7z` est le format le plus répandu de la collection de référence — 22 527 archives sur le seul usb0. Ces tests sont donc **obligatoires**, pas conditionnels.
 
-S'il est présent, ajoute deux tests : une archive `.7z` contenant une ROM nue, dont le `crc32` émis doit égaler `zlib.crc32` du contenu ; et une archive `.7z` contenant un `.zip`, dont l'entrée émise doit porter le CRC de la ROM **à l'intérieur** du zip, pas celui du zip. S'il est absent, note-le dans le rapport et vérifie au moins que ces fichiers basculent proprement sur la stratégie 5 sans faire échouer le scan.
+Ajoute à `agent/__tests__/test_scan_roms.py` :
+
+```python
+    # --- stratégie 4 : 7z ---
+
+    def sevenzip(self, name, build):
+        """Construit une archive .7z dans le dossier scanné. Renvoie son chemin."""
+        staging = tempfile.mkdtemp()
+        build(staging)
+        dest = os.path.join(self.roms, name)
+        rc = subprocess.run(
+            ['7z', 'a', '-bso0', '-bsp0', dest, '.'],
+            cwd=staging, capture_output=True,
+        ).returncode
+        self.assertEqual(rc, 0, '7z failed to build the fixture archive')
+        return dest
+
+    def test_reads_the_entry_crc_of_a_bare_rom_in_a_7z(self):
+        payload = b'ROMDATA' * 321
+
+        def build(d):
+            with open(os.path.join(d, 'Game (USA).sfc'), 'wb') as f:
+                f.write(payload)
+
+        self.sevenzip('Game.7z', build)
+        (e,) = self.entries()
+        self.assertEqual(e['kind'], 'sevenzip-entry')
+        self.assertEqual(e['innerName'], 'Game (USA).sfc')
+        self.assertEqual(e['crc32'], '%08x' % zlib.crc32(payload))
+
+    # Le piège mesuré sur la collection réelle : une minorité d'archives
+    # contiennent des .zip, pas des roms. Le CRC listé par 7z est alors celui du
+    # zip intermédiaire, que le catalogue ne reconnaîtra jamais.
+    def test_descends_into_a_zip_nested_inside_a_7z(self):
+        payload = b'NESTED' * 500
+
+        def build(d):
+            with zipfile.ZipFile(os.path.join(d, 'Game (Japan).zip'), 'w') as z:
+                z.writestr('Game (Japan).sfc', payload)
+
+        self.sevenzip('Set.7z', build)
+        (e,) = self.entries()
+        self.assertEqual(e['crc32'], '%08x' % zlib.crc32(payload))
+        self.assertNotEqual(e['crc32'], '%08x' % zlib.crc32(b''))
+        self.assertEqual(e['innerName'], 'Game (Japan).sfc')
+
+    def test_a_multi_entry_7z_yields_one_entry_per_rom(self):
+        def build(d):
+            for n in ('A.sfc', 'B.sfc', 'C.sfc'):
+                with open(os.path.join(d, n), 'wb') as f:
+                    f.write(n.encode() * 50)
+
+        self.sevenzip('Set.7z', build)
+        self.assertEqual(sorted(e['innerName'] for e in self.entries()), ['A.sfc', 'B.sfc', 'C.sfc'])
+```
+
+Run: `python3 -m unittest discover -s agent/__tests__ -v`
+Expected: PASS — 19 tests.
+
+**Un point à vérifier en écrivant.** Le nom du binaire diffère selon la machine : `7z` sur un poste de développement, `7zr` sur RecalboxOS, qui n'a pas les autres. Le script doit chercher le premier disponible parmi `7z`, `7za`, `7zr`, et basculer sur la stratégie 5 si aucun n'est là. Ajoute un test qui force cette bascule, en neutralisant le `PATH` de l'appel — un fichier `.7z` doit alors ressortir en `kind: 'raw'` avec le CRC du fichier archive lui-même, sans faire échouer le scan.
 
 - [ ] **Step 6: Commit**
 
