@@ -58,6 +58,21 @@ describe('buildScanTargets', () => {
 	it('yields nothing for a mount with no listing', () => {
 		expect(buildScanTargets([mount(SD)], {})).toEqual([])
 	})
+
+	// A trailing slash would build `…//roms`, matching no listing key and no
+	// scanned path: the support would vanish from the audit without an error.
+	it('tolerates a mount declared with a trailing slash', () => {
+		const targets = buildScanTargets([mount(`${SD}/`)], { '/recalbox/share/roms': ['snes'] })
+		expect(targets).toEqual([{ mount: SD, system: 'snes', romsPath: '/recalbox/share/roms/snes' }])
+	})
+
+	// fetchStorageInfo dedupes by filesystem+size+used, not by mount.
+	it('scans a mount once even when it is declared twice', () => {
+		const targets = buildScanTargets([mount(SD), mount(SD)], {
+			'/recalbox/share/roms': ['snes'],
+		})
+		expect(targets).toHaveLength(1)
+	})
 })
 
 describe('mountForPath', () => {

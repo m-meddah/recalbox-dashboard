@@ -8,8 +8,17 @@ export type ScanTarget = { mount: string; system: string; romsPath: string }
  * but not on the sd card, where roms sit directly under the mount.
  */
 export function romsRootFor(mount: string): string {
-	const isExternal = mount.includes('/externals/')
-	return isExternal ? `${mount}/recalbox/roms` : `${mount}/roms`
+	// A trailing slash would produce `…//recalbox/roms`, which then matches no
+	// dirsByRoot key and no scanned path — the whole support would go silently
+	// missing from the audit instead of erroring.
+	const base = normalizeMount(mount)
+	const isExternal = base.includes('/externals/')
+	return isExternal ? `${base}/recalbox/roms` : `${base}/roms`
+}
+
+/** A mount path without its trailing slashes, so prefixes compare reliably. */
+function normalizeMount(mount: string): string {
+	return mount.replace(/\/+$/, '')
 }
 
 /**
@@ -22,7 +31,13 @@ export function buildScanTargets(
 	dirsByRoot: Record<string, string[]>,
 ): ScanTarget[] {
 	const targets: ScanTarget[] = []
-	for (const { mount } of mounts) {
+	// fetchStorageInfo dedupes by filesystem+size+used, not by mount, so the same
+	// mount can still arrive twice — which would scan and count it twice.
+	const seen = new Set<string>()
+	for (const { mount: raw } of mounts) {
+		const mount = normalizeMount(raw)
+		if (seen.has(mount)) continue
+		seen.add(mount)
 		const root = romsRootFor(mount)
 		const dirs = dirsByRoot[root]
 		if (!dirs) continue
