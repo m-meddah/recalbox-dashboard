@@ -85,3 +85,29 @@ describe('planScanBatches', () => {
 		expect(planScanBatches([])).toEqual({ batches: [], oversized: [] })
 	})
 })
+
+// The scanner cannot know a system's hash mode: the catalogue does, and the
+// command is the only channel that reaches the box.
+describe('buildScanCommand (hash mode)', () => {
+	it('passes the hash mode of an arcade target', () => {
+		const cmd = buildScanCommand([
+			{ mount: '/m', system: 'mame', romsPath: '/m/roms/mame', hashMode: 'container' },
+		])
+		expect(cmd).toContain('/m|mame|/m/roms/mame|container')
+	})
+
+	// Omitted for content targets: the script already defaults to it, and the
+	// command budget is 8000 bytes for the whole batch.
+	it('omits it for a content target, keeping the command short', () => {
+		const cmd = buildScanCommand([
+			{ mount: '/m', system: 'snes', romsPath: '/m/roms/snes', hashMode: 'content' },
+		])
+		expect(cmd).toContain('/m|snes|/m/roms/snes')
+		expect(cmd).not.toContain('|content')
+	})
+
+	it('omits it when the target declares no mode at all', () => {
+		const cmd = buildScanCommand([{ mount: '/m', system: 'snes', romsPath: '/m/roms/snes' }])
+		expect(cmd).not.toContain('|content')
+	})
+})

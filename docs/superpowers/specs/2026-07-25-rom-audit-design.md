@@ -96,6 +96,29 @@ stratégie 1 (lire le CRC interne du zip) est donc juste pour No-Intro et
 inopérante ici ; l'arcade exige un mode « hacher le conteneur », traité au lot
 2C.
 
+**Mais le hachage du conteneur ne matche presque rien.** Mesuré le 2026-07-26 sur
+les 140 archives Neo Geo de la collection de référence :
+
+| mode de scan | entrées produites | identifiées |
+|---|---|---|
+| contenu (CRC interne) | 1 576 (une par puce ROM) | **0** — tout `unknown` |
+| conteneur (CRC du zip) | 140 (une par archive) | **138** dont **2 seulement** par hash |
+
+Le CRC d'un zip dépend de sa compression, de l'ordre de ses membres et de leurs
+horodatages : tout ré-empaquetage le change, et les sets arcade circulent
+ré-empaquetés. C'est le même constat que pour les CHD, pour une raison
+différente.
+
+**Le mode conteneur reste néanmoins indispensable** — non pour son hachage, mais
+parce qu'il fait de l'archive l'unité de comparaison et de son **nom** de fichier
+l'identifiant, ce qui donne 98,6 % d'identification là où le mode contenu donne
+zéro. Le plafond réaliste de l'arcade est donc `named`, comme pour les CHD.
+
+Corollaire sur le choix du catalogue : départager MAME et FBNeo par le taux de
+`verified` ne fonctionne pas, les deux étant quasi nuls. Sur la collection de
+référence, FBNeo identifie 138 archives contre 137 pour MAME — un écart trop
+faible pour trancher, et les deux catalogues conviennent.
+
 Le champ `serial` des DAT Redump est affiché mais **n'est pas** utilisé pour le
 matching : lire le serial d'un disque impose de décompresser le début de l'image
 et de parcourir l'ISO9660, ce qui suppose les codecs CHD (LZMA / FLAC / CDZL) —

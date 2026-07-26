@@ -22,7 +22,12 @@ export function buildScanCommand(targets: readonly ScanTarget[]): string {
 	// Target paths come from a directory listing on the box: spaces, quotes and
 	// parentheses are all routine.
 	const args = targets
-		.map((t) => `--target ${shellQuote(`${t.mount}|${t.system}|${t.romsPath}`)}`)
+		.map((t) => {
+			// The mode is only ever appended when it differs from the script's
+			// default: every byte here counts against the 8000-byte budget.
+			const spec = `${t.mount}|${t.system}|${t.romsPath}`
+			return `--target ${shellQuote(t.hashMode === 'container' ? `${spec}|container` : spec)}`
+		})
 		.join(' ')
 	return `python3 - ${args}`
 }

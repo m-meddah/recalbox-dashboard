@@ -1,7 +1,16 @@
 import { z } from 'zod'
 
 /** How the on-box scanner identified the file — mirrors the five strategies in the spec. */
-export const ROM_KINDS = ['zip-entry', 'chd', 'rvz', 'sevenzip-entry', 'raw'] as const
+export const ROM_KINDS = [
+	'zip-entry',
+	'chd',
+	'rvz',
+	'sevenzip-entry',
+	'raw',
+	// The whole archive is the unit, hashed as a file — how the arcade
+	// catalogues describe their entries.
+	'container',
+] as const
 
 const lowerHex = (length: number) =>
 	z

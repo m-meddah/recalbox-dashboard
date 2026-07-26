@@ -102,7 +102,15 @@ MAX_NESTED_ZIP_BYTES = 256 * 1024 * 1024
 # `systemId` in the Zod schema: safeFsPath, max 64 chars, no path separator.
 MAX_SYSTEM_ID_LEN = 64
 
-STRATEGIES = ('zip-entry', 'chd', 'rvz', 'sevenzip-entry', 'raw')
+STRATEGIES = ('zip-entry', 'chd', 'rvz', 'sevenzip-entry', 'raw', 'container')
+
+# How a system's files are identified against its catalogue.
+#   'content'   — hash the ROM inside the archive (No-Intro, Redump).
+#   'container' — hash the archive file itself (MAME, FBNeo).
+# Measured on the real catalogues: 30 038 of MAME.dat's 30 038 rom entries are
+# named `*.zip`, so reading the inner CRC there can never match anything.
+HASH_MODES = ('content', 'container')
+DEFAULT_HASH_MODE = 'content'
 
 
 def find_sevenzip_binary():
@@ -420,7 +428,7 @@ def handle_sevenzip(filepath, sevenzip_bin, stats):
 # ── Strategy 5: raw ────────────────────────────────────────────────────────
 
 
-def handle_raw(filepath, stats):
+def handle_raw(filepath, stats, kind='raw'):
     crc = 0
     try:
         with open(filepath, 'rb') as f:
@@ -432,14 +440,18 @@ def handle_raw(filepath, stats):
     except OSError:
         stats['errors'] += 1
         return []
-    return [{'kind': 'raw', 'crc32': '%08x' % (crc & 0xFFFFFFFF)}]
+    return [{'kind': kind, 'crc32': '%08x' % (crc & 0xFFFFFFFF)}]
 
 
 # ── Dispatch ───────────────────────────────────────────────────────────────
 
 
-def strategy_fragments(filepath, ext, sevenzip_bin, stats):
-    if ext == 'zip':
+def strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode=DEFAULT_HASH_MODE):
+    if hash_mode == 'container':
+        # The whole file is the unit: no archive is opened, and no 7z binary is
+        # needed even for a .7z. One archive yields exactly one entry.
+        strategy, fragments = 'container', handle_raw(filepath, stats, kind='container')
+    elif ext == 'zip':
         strategy, fragments = 'zip-entry', handle_zip(filepath, stats)
     elif ext == 'chd':
         strategy, fragments = 'chd', handle_chd(filepath, stats)
@@ -458,7 +470,7 @@ def strategy_fragments(filepath, ext, sevenzip_bin, stats):
     return fragments
 
 
-def process_file(filepath, mount, system, sevenzip_bin, stats):
+def process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode=DEFAULT_HASH_MODE):
     name = os.path.basename(filepath)
     ext = os.path.splitext(name)[1].lower().lstrip('.')
     if ext in IGNORED_EXTENSIONS:
@@ -483,7 +495,7 @@ def process_file(filepath, mount, system, sevenzip_bin, stats):
         return []
 
     stats['scanned'] += 1
-    fragments = strategy_fragments(filepath, ext, sevenzip_bin, stats)
+    fragments = strategy_fragments(filepath, ext, sevenzip_bin, stats, hash_mode)
 
     base = {
         'path': filepath,
@@ -504,11 +516,24 @@ def process_file(filepath, mount, system, sevenzip_bin, stats):
 
 
 def parse_target(spec):
-    parts = spec.split('|', 2)
-    if len(parts) != 3:
+    """`mount|system|romsPath` or `mount|system|romsPath|hashMode`.
+
+    An unknown mode degrades to 'content' rather than being rejected: it is the
+    cheap strategy, and a typo must never make the scanner read tens of
+    gigabytes of archives in full by surprise.
+    """
+    parts = spec.split('|', 3)
+    if len(parts) < 3:
         raise ValueError(f'invalid --target (expected mount|system|romsPath): {spec!r}')
-    mount, system, roms_path = parts
-    return mount, system, roms_path
+    mount, system, roms_path = parts[0], parts[1], parts[2]
+    hash_mode = parts[3] if len(parts) == 4 else DEFAULT_HASH_MODE
+    if hash_mode not in HASH_MODES:
+        print(
+            f'scan_roms: unknown hash mode {hash_mode!r}, falling back to '
+            f'{DEFAULT_HASH_MODE!r}', file=sys.stderr,
+        )
+        hash_mode = DEFAULT_HASH_MODE
+    return mount, system, roms_path, hash_mode
 
 
 def scan(targets):
@@ -518,7 +543,7 @@ def scan(targets):
 
     for spec in targets:
         try:
-            mount, system, roms_path = parse_target(spec)
+            mount, system, roms_path, hash_mode = parse_target(spec)
         except ValueError as exc:
             print(f'scan_roms: {exc}', file=sys.stderr)
             continue
@@ -543,7 +568,9 @@ def scan(targets):
             print(f'scan_roms: roms path not found, skipping: {roms_path}', file=sys.stderr)
             continue
         for filepath in iter_files(roms_path, stats):
-            entries.extend(process_file(filepath, mount, system, sevenzip_bin, stats))
+            entries.extend(
+                process_file(filepath, mount, system, sevenzip_bin, stats, hash_mode)
+            )
 
     return {'entries': entries, 'stats': stats}
 

@@ -456,3 +456,108 @@ class ScanRomsTest(unittest.TestCase):
         (e,) = result['entries']
         self.assertEqual(e['kind'], 'raw')
         self.assertEqual(e['crc32'], '%08x' % zlib.crc32(payload))
+
+
+class ContainerModeTest(unittest.TestCase):
+    """Les DAT arcade hashent l'archive elle-même : les 30 038 entrées ROM de
+    MAME.dat portent un nom en .zip. Lire le CRC interne ne matcherait jamais."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.roms = os.path.join(self.tmp.name, 'roms', 'mame')
+        os.makedirs(self.roms)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_zip(self, name, members):
+        path = os.path.join(self.roms, name)
+        with zipfile.ZipFile(path, 'w') as z:
+            for member, payload in members.items():
+                z.writestr(member, payload)
+        return path
+
+    def file_crc(self, path):
+        crc = 0
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                crc = zlib.crc32(chunk, crc)
+        return '%08x' % (crc & 0xFFFFFFFF)
+
+    def target(self, mode='container'):
+        return f'{self.tmp.name}|mame|{self.roms}|{mode}'
+
+    def test_hashes_the_zip_file_itself_not_its_entries(self):
+        path = self.make_zip('005.zip', {'005.rom': b'arcade payload'})
+        result = run_scan(self.target())
+        entry = result['entries'][0]
+        self.assertEqual(entry['crc32'], self.file_crc(path))
+
+    def test_the_container_crc_differs_from_the_inner_crc(self):
+        payload = b'arcade payload'
+        self.make_zip('005.zip', {'005.rom': payload})
+        container = run_scan(self.target())['entries'][0]
+        content = run_scan(self.target('content'))['entries'][0]
+        self.assertNotEqual(container['crc32'], content['crc32'])
+        self.assertEqual(content['crc32'], '%08x' % (zlib.crc32(payload) & 0xFFFFFFFF))
+
+    def test_emits_one_entry_per_archive_not_one_per_rom(self):
+        self.make_zip('multi.zip', {'a.rom': b'aaa', 'b.rom': b'bbb', 'c.rom': b'ccc'})
+        result = run_scan(self.target())
+        self.assertEqual(len(result['entries']), 1)
+        self.assertIsNone(result['entries'][0].get('innerName'))
+
+    def test_the_kind_says_container(self):
+        self.make_zip('005.zip', {'005.rom': b'x'})
+        self.assertEqual(run_scan(self.target())['entries'][0]['kind'], 'container')
+
+    def test_the_entry_keeps_the_archive_path(self):
+        path = self.make_zip('005.zip', {'005.rom': b'x'})
+        self.assertEqual(run_scan(self.target())['entries'][0]['path'], path)
+
+    def test_content_mode_still_reads_the_inner_crc(self):
+        self.make_zip('game.zip', {'game.sfc': b'cartridge'})
+        entry = run_scan(self.target('content'))['entries'][0]
+        self.assertEqual(entry['kind'], 'zip-entry')
+        self.assertEqual(entry['innerName'], 'game.sfc')
+
+    def test_hashes_a_7z_as_a_plain_file_in_container_mode(self):
+        # En mode conteneur, aucun binaire 7z n'est nécessaire : c'est le
+        # fichier qu'on lit, pas son contenu.
+        path = os.path.join(self.roms, 'set.7z')
+        with open(path, 'wb') as f:
+            f.write(b'7z\xbc\xaf\x27\x1c' + b'not really an archive')
+        entry = run_scan(self.target())['entries'][0]
+        self.assertEqual(entry['kind'], 'container')
+        self.assertEqual(entry['crc32'], self.file_crc(path))
+
+    def test_an_unreadable_archive_is_counted_not_fatal(self):
+        self.make_zip('ok.zip', {'a.rom': b'a'})
+        bad = os.path.join(self.roms, 'bad.zip')
+        with open(bad, 'wb') as f:
+            f.write(b'x')
+        os.chmod(bad, 0o000)
+        try:
+            result = run_scan(self.target())
+            self.assertEqual(len(result['entries']), 1)
+            self.assertGreaterEqual(result['stats']['errors'], 1)
+        finally:
+            os.chmod(bad, 0o644)
+
+    def test_counts_container_files_under_their_own_strategy(self):
+        self.make_zip('a.zip', {'a.rom': b'a'})
+        self.make_zip('b.zip', {'b.rom': b'b'})
+        stats = run_scan(self.target())['stats']
+        self.assertEqual(stats['filesByStrategy']['container'], 2)
+        self.assertEqual(stats['entriesByStrategy']['container'], 2)
+
+    def test_an_unknown_hash_mode_falls_back_to_content(self):
+        # Un mode inconnu ne doit pas faire hacher 45 Go par surprise.
+        self.make_zip('game.zip', {'game.sfc': b'cartridge'})
+        entry = run_scan(self.target('nonsense'))['entries'][0]
+        self.assertEqual(entry['kind'], 'zip-entry')
+
+    def test_a_target_without_a_hash_mode_still_works(self):
+        self.make_zip('game.zip', {'game.sfc': b'cartridge'})
+        result = run_scan(f'{self.tmp.name}|mame|{self.roms}')
+        self.assertEqual(result['entries'][0]['kind'], 'zip-entry')

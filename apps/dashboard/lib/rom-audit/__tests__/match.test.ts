@@ -304,3 +304,75 @@ describe('filterMissingGames', () => {
 		expect(kept.map((g) => g.title)).not.toContain('Bio Force Ape')
 	})
 })
+
+// An arcade DAT hashes the archive and names it `005.zip`; the scanner in
+// container mode reports the archive's own CRC under the same file name. The
+// matcher therefore needs no arcade-specific code — proven here rather than
+// assumed.
+describe('auditSystem (arcade container entries)', () => {
+	const arcadeDat = parseDat(
+		[
+			'clrmamepro (',
+			'\tname "MAME - Consolidated ROM Sets"',
+			'\tversion 2017-02-14',
+			')',
+			'game (',
+			'\tname "005"',
+			'\trom ( name 005.zip size 29769 crc D123FE67 )',
+			')',
+			'game (',
+			'\tname "10-Yard Fight (World, set 1)"',
+			'\trom ( name 10yard.zip size 62708 crc 8F401426 )',
+			')',
+		].join('\n'),
+	)
+
+	const container = (over: Partial<ManifestEntry> = {}): ManifestEntry =>
+		({
+			path: '/recalbox/share/roms/mame/005.zip',
+			size: 29769,
+			mtime: 1721900000,
+			system: 'mame',
+			mount: '/recalbox/share',
+			kind: 'container',
+			crc32: 'd123fe67',
+			...over,
+		}) as ManifestEntry
+
+	it('matches an arcade container by the hash of the archive itself', () => {
+		const result = auditSystem('mame', [container()], arcadeDat)
+		expect(defined(result.files[0]).matchLevel).toBe('verified')
+		expect(defined(result.files[0]).datEntryName).toBe('005')
+		expect(result.matchedRomEntries).toBe(1)
+	})
+
+	it('leaves an archive the catalogue does not know as unknown', () => {
+		const result = auditSystem(
+			'mame',
+			[container({ crc32: '00000000', path: '/x/nope.zip' })],
+			arcadeDat,
+		)
+		expect(defined(result.files[0]).matchLevel).toBe('unknown')
+	})
+
+	// Falling back on the file name must work too: an arcade set is named after
+	// its dat entry, which is how a re-compressed archive still gets identified.
+	it('falls back to the archive name when the hash differs', () => {
+		const result = auditSystem(
+			'mame',
+			[container({ crc32: '00000000', path: '/recalbox/share/roms/mame/10yard.zip' })],
+			arcadeDat,
+		)
+		expect(defined(result.files[0]).matchLevel).toBe('named')
+	})
+
+	// The canonicalisation keeps `(World, set 1)`: it is not in the known tag
+	// vocabulary, and lot 1's rule is deliberately conservative — never merge two
+	// distinct games, even at the cost of splitting one. On arcade that means the
+	// missing list is per SET, not per title, since MAME qualifies nearly every
+	// name that way.
+	it('counts a missing arcade set as missing, keeping its set qualifier', () => {
+		const result = auditSystem('mame', [container()], arcadeDat)
+		expect(result.missingGames.map((g) => g.title)).toEqual(['10-Yard Fight (World, set 1)'])
+	})
+})

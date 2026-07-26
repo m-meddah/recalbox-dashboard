@@ -1,6 +1,13 @@
 import type { StorageMount } from '@/lib/recalbox/storage'
+import { catalogForSystem } from './system-catalog'
 
-export type ScanTarget = { mount: string; system: string; romsPath: string }
+export type ScanTarget = {
+	mount: string
+	system: string
+	romsPath: string
+	/** Absent means 'content'. Only the arcade systems need 'container'. */
+	hashMode?: 'content' | 'container'
+}
 
 /**
  * Root ROMs directory for a support. Recalbox intercalates its own
@@ -43,7 +50,13 @@ export function buildScanTargets(
 		if (!dirs) continue
 		for (const dir of dirs) {
 			if (dir.startsWith('.') || dir === 'ports') continue
-			targets.push({ mount, system: dir, romsPath: `${root}/${dir}` })
+			const hashMode = catalogForSystem(dir)?.hashMode
+			targets.push({
+				mount,
+				system: dir,
+				romsPath: `${root}/${dir}`,
+				...(hashMode === 'container' ? { hashMode } : {}),
+			})
 		}
 	}
 	return targets

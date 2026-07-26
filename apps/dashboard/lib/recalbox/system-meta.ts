@@ -6,8 +6,17 @@ export type SystemMeta = {
 	name: string
 	emoji: string
 	/** Reference catalogue in libretro-database. Absent = inventory only, no completion figure. */
-	datSource?: 'no-intro' | 'redump' | 'mame'
+	datSource?: 'no-intro' | 'redump' | 'mame' | 'fbneo-split'
 	datFile?: string
+	/**
+	 * How the scanner identifies this system's files.
+	 *
+	 * Absent means 'content': hash the ROM inside the archive, which is what
+	 * No-Intro and Redump catalogue. The arcade catalogues instead hash the
+	 * archive itself — all 30 038 rom entries of MAME.dat are named `*.zip` —
+	 * so their systems need 'container'.
+	 */
+	hashMode?: 'content' | 'container'
 	ssConsoleId?: number
 }
 
@@ -108,7 +117,13 @@ export const SYSTEM_META: Record<string, SystemMeta> = {
 		datSource: 'redump',
 		datFile: 'Sega - Dreamcast.dat',
 	},
-	fbneo: { name: 'FinalBurn Neo', emoji: '👾' },
+	fbneo: {
+		name: 'FinalBurn Neo',
+		emoji: '👾',
+		datSource: 'fbneo-split',
+		datFile: 'FBNeo - Arcade Games.dat',
+		hashMode: 'container',
+	},
 	fds: {
 		name: 'Famicom Disk System',
 		emoji: '💾',
@@ -166,7 +181,13 @@ export const SYSTEM_META: Record<string, SystemMeta> = {
 		datSource: 'no-intro',
 		datFile: 'Atari - Lynx.dat',
 	},
-	mame: { name: 'MAME', emoji: '👾' },
+	mame: {
+		name: 'MAME',
+		emoji: '👾',
+		datSource: 'mame',
+		datFile: 'MAME.dat',
+		hashMode: 'container',
+	},
 	mastersystem: {
 		name: 'Master System',
 		emoji: '⚫',
@@ -209,7 +230,16 @@ export const SYSTEM_META: Record<string, SystemMeta> = {
 		datSource: 'no-intro',
 		datFile: 'Nintendo - Nintendo DS.dat',
 	},
-	neogeo: { name: 'Neo Geo', emoji: '🔴' },
+	neogeo: {
+		name: 'Neo Geo',
+		emoji: '🔴',
+		// Neo Geo MVS/AES sets live in the arcade catalogues, not in a No-Intro
+		// one. Which of MAME or FBNeo covers this collection best is decided by
+		// measurement, not by assumption — see the plan's task 2 step 5.
+		datSource: 'fbneo-split',
+		datFile: 'FBNeo - Arcade Games.dat',
+		hashMode: 'container',
+	},
 	neogeocd: {
 		name: 'Neo Geo CD',
 		emoji: '💿',
