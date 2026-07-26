@@ -246,16 +246,18 @@ def handle_disc_header(filepath, ext, stats):
         return []
 
     entry = {'kind': 'rvz'}
-    # Self-verification, and the whole point of it: a wrong `dhead` offset
-    # yields plausible-looking bytes and silently fabricates identifiers. The
-    # container magic says the file is what its extension claims, the disc
-    # magic says we landed on the header. Only bare .iso skips the disc-magic
-    # gate — there is no offset to get wrong when dhead starts at byte 0, and
-    # the game-code regex below already rejects the zero-filled ISO9660
-    # system area that non-Nintendo .iso images begin with.
-    trusted = True
+    # Self-verification, and it guards two distinct failures. The container
+    # magic says the file is what its extension claims. The disc magic says we
+    # landed on a real disc header — which catches a wrong `dhead` offset, but
+    # more importantly stops us INVENTING a serial: `.iso` also covers PC
+    # Engine CD, Dreamcast and Saturn images, whose first four bytes may well
+    # be alphanumeric by accident. A fabricated serial is worse than no match
+    # at all — it marks a game as owned when it is not, and that missing ROM
+    # then disappears from the audit without anyone noticing. So the disc
+    # magic is required for every file routed here, wrapper or not.
+    trusted = has_disc_magic(dhead)
     if wrapped:
-        trusted = file_magic in WIA_FILE_MAGICS and has_disc_magic(dhead)
+        trusted = trusted and file_magic in WIA_FILE_MAGICS
 
     try:
         code = dhead[0:4].decode('ascii')

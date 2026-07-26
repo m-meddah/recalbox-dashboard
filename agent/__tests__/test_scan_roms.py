@@ -167,15 +167,28 @@ class ScanRomsTest(unittest.TestCase):
         self.assertEqual(e['discNumber'], 0)
         self.assertEqual(e['discVersion'], 1)
 
+    # La fixture porte la magie GameCube 0xC2339F3D à dhead+0x1C : un vrai ISO
+    # GameCube la porte toujours, donc la version qui en était dépourvue
+    # décrivait un fichier ne pouvant pas exister. Les assertions sur le
+    # serial et le discNumber sont inchangées.
     def test_reads_the_game_code_from_a_bare_iso(self):
-        dhead = bytearray(0x80)
-        dhead[0:4] = b'GALE'
-        dhead[6] = 1
-        self.write('Game.iso', bytes(dhead) + b'\x00' * 4096)
+        self.write('Game.iso', disc_header(b'GALE', disc=1) + b'\x00' * 4096)
         (e,) = self.entries()
         self.assertEqual(e['kind'], 'rvz')
         self.assertEqual(e['serial'], 'GALE')
         self.assertEqual(e['discNumber'], 1)
+
+    # Le vrai gain du recoupement : `.iso` couvre aussi PC Engine CD, Dreamcast
+    # et Saturn, dont les quatre premiers octets peuvent être alphanumériques
+    # par hasard. Un serial inventé marquerait un jeu comme possédé alors qu'il
+    # ne l'est pas — le manquant disparaîtrait de l'audit sans que ça se voie.
+    def test_a_bare_iso_without_a_disc_magic_yields_no_identifier(self):
+        self.write('Saturn.iso', b'SEGA' + b'\x00' * 4096)
+        (e,) = self.entries()
+        self.assertEqual(e['kind'], 'rvz')
+        self.assertNotIn('serial', e)
+        self.assertNotIn('discNumber', e)
+        self.assertNotIn('discVersion', e)
 
     def test_reads_a_wii_disc_header(self):
         self.write('Wii.rvz', rvz_bytes(b'RSBE', disc=0, ver=2, magic='wii'))
