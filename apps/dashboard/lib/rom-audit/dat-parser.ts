@@ -20,15 +20,29 @@ export type Dat = {
 	games: DatGame[]
 }
 
-const QUOTED = (field: string) => new RegExp(`\\b${field}\\s+"([^"]*)"`)
+/**
+ * A field value is either quoted or bare — the two dialects of the same format.
+ *
+ * No-Intro and Redump quote everything: `name "Zelda (Europe).sfc"`. The arcade
+ * catalogues quote nothing inside their rom entries: `name 005.zip size 29769`,
+ * and their header reads `version 2017-02-14`. Measured on the real MAME.dat, a
+ * quote-only reader returned 30 038 games and **zero** roms.
+ *
+ * The bare alternative stops at the first blank: `(\S+)` and not `(.+)`, or the
+ * name would swallow `size` and its value.
+ */
+const FIELD = (field: string) => new RegExp(`\\b${field}\\s+(?:"([^"]*)"|(\\S+))`)
 const ROM_LINE = /^rom\s*\((.*)\)$/
 
-function quoted(line: string, field: string): string | undefined {
-	return QUOTED(field).exec(line)?.[1]
+function field(line: string, name: string): string | undefined {
+	const m = FIELD(name).exec(line)
+	if (!m) return undefined
+	// A quoted value may legitimately be empty, so distinguish "" from no match.
+	return m[1] !== undefined ? m[1] : m[2]
 }
 
 function parseRom(body: string): DatRom | null {
-	const name = quoted(body, 'name')
+	const name = field(body, 'name')
 	if (!name) return null
 	const size = /\bsize\s+(\d+)/.exec(body)?.[1]
 	const hash = (field: string) =>
@@ -39,7 +53,7 @@ function parseRom(body: string): DatRom | null {
 		crc: hash('crc'),
 		md5: hash('md5'),
 		sha1: hash('sha1'),
-		serial: quoted(body, 'serial'),
+		serial: field(body, 'serial'),
 	}
 }
 
@@ -78,8 +92,8 @@ export function parseDat(text: string): Dat {
 		}
 
 		if (block === 'header') {
-			dat.name = quoted(line, 'name') ?? dat.name
-			dat.version = quoted(line, 'version') ?? dat.version
+			dat.name = field(line, 'name') ?? dat.name
+			dat.version = field(line, 'version') ?? dat.version
 			continue
 		}
 
@@ -96,9 +110,9 @@ export function parseDat(text: string): Dat {
 			// also has disk/sample/archive entries — standard on the MAME side —
 			// whose own `name`/`region`/`serial` would otherwise be read as the
 			// game's and overwrite it.
-			if (line.startsWith('name ')) current.name = quoted(line, 'name') ?? current.name
-			if (line.startsWith('region ')) current.region = quoted(line, 'region') ?? current.region
-			if (line.startsWith('serial ')) current.serial = quoted(line, 'serial') ?? current.serial
+			if (line.startsWith('name ')) current.name = field(line, 'name') ?? current.name
+			if (line.startsWith('region ')) current.region = field(line, 'region') ?? current.region
+			if (line.startsWith('serial ')) current.serial = field(line, 'serial') ?? current.serial
 		}
 	}
 

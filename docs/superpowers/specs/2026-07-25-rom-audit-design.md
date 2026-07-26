@@ -66,6 +66,36 @@ game (
 
 Gratuit, sans authentification, sans quota. Un fetch par système.
 
+#### Le dialecte arcade (amendement 2026-07-26, lot 2C)
+
+Les catalogues MAME et FBNeo parlent le même format, mais **ne mettent pas de
+guillemets** autour des valeurs de leurs entrées ROM — ni autour de la version
+d'en-tête :
+
+```text
+clrmamepro (
+	name "MAME - Consolidated ROM Sets"
+	version 2017-02-14
+)
+
+game (
+	name "005"
+	rom ( name 005.zip size 29769 crc D123FE67 md5 64ba2c18… sha1 aeebfd4a… )
+)
+```
+
+Un lecteur qui n'accepte que la forme quotée rendait **30 038 jeux et 0 ROM** sur
+le vrai `MAME.dat`. Le parser accepte désormais les deux formes ; une valeur non
+quotée s'arrête au premier blanc, faute de quoi le nom avalerait `size` et sa
+valeur.
+
+Second écart, plus lourd de conséquences : **les DAT arcade hashent l'archive
+elle-même, pas la ROM qu'elle contient.** Vérifié le 2026-07-26 : les 30 038
+entrées ROM de `MAME.dat` portent un nom en `.zip`, et FBNeo fait de même. La
+stratégie 1 (lire le CRC interne du zip) est donc juste pour No-Intro et
+inopérante ici ; l'arcade exige un mode « hacher le conteneur », traité au lot
+2C.
+
 Le champ `serial` des DAT Redump est affiché mais **n'est pas** utilisé pour le
 matching : lire le serial d'un disque impose de décompresser le début de l'image
 et de parcourir l'ISO9660, ce qui suppose les codecs CHD (LZMA / FLAC / CDZL) —
@@ -228,8 +258,21 @@ Les DAT ne vont **pas** en base. Cache disque en self-hosted, object storage via
 `lib/storage` en serverless, derrière une interface unique.
 
 Rafraîchissement hebdomadaire conditionné par l'ETag GitHub — un 304 ne coûte
-rien. Parsing en streaming ligne à ligne : un DAT MAME dépasse largement le Mo et
-ne doit pas être chargé d'un bloc.
+rien.
+
+**Amendement 2026-07-26 (lot 2C) : le parsing en streaming est abandonné.** Ce
+spec l'exigeait au motif qu'« un DAT MAME dépasse largement le Mo et ne doit pas
+être chargé d'un bloc ». La mesure dément la crainte :
+
+| catalogue | taille | temps de parsing | tas |
+|---|---|---|---|
+| `MAME.dat` | 6,4 Mo | 132 ms | +11 Mo |
+| `FBNeo - Arcade Games.dat` | 1,7 Mo | 35 ms | +4 Mo |
+
+À cette échelle, un chargement d'un bloc convient sur l'hôte comme sur une
+fonction serverless. Le chantier est retiré ; ce qui bloquait réellement les
+systèmes arcade était le dialecte non quoté et le hachage du conteneur, décrits
+plus haut.
 
 ## Matching
 
