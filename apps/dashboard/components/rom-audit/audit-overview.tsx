@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
 import type { SystemOverview } from '@/lib/rom-audit/report'
-import { getTranslations } from 'next-intl/server'
+import { getFormatter, getTranslations } from 'next-intl/server'
 
 /** Segment widths of the confidence bar, in percent of the scanned files. */
 function shares(system: SystemOverview) {
@@ -18,6 +18,8 @@ function shares(system: SystemOverview) {
 
 export async function AuditOverview({ systems }: { systems: SystemOverview[] }) {
 	const t = await getTranslations('romAudit')
+	// toFixed() always prints a dot; a French reader expects "88,2 %".
+	const format = await getFormatter()
 
 	return (
 		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -34,7 +36,7 @@ export async function AuditOverview({ systems }: { systems: SystemOverview[] }) 
 									{system.percent === null ? (
 										<Badge variant="outline">{t('overview.inventoryOnly')}</Badge>
 									) : (
-										`${system.percent.toFixed(1)} %`
+										`${format.number(system.percent, { maximumFractionDigits: 1 })} %`
 									)}
 								</span>
 							</div>

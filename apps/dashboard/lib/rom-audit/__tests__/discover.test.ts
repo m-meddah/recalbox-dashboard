@@ -14,18 +14,17 @@ beforeEach(() => {
 describe('discoverScanTargets', () => {
 	it('lists the roms directories of every share', async () => {
 		const listDirs = vi.fn(async () => ['snes', 'psx'])
-		const targets = await discoverScanTargets('recalbox.local', listDirs)
+		const res = await discoverScanTargets('recalbox.local', listDirs)
 		expect(listDirs).toHaveBeenCalledWith('/recalbox/share/roms')
 		expect(listDirs).toHaveBeenCalledWith('/recalbox/share/externals/usb0/recalbox/roms')
-		expect(targets).toHaveLength(4)
+		expect(res.targets).toHaveLength(4)
+		expect(res.unreadable).toEqual([])
 	})
 
 	it('restricts to the requested systems', async () => {
-		const targets = await discoverScanTargets('recalbox.local', async () => ['snes', 'psx'], [
-			'psx',
-		])
-		expect(targets.every((t) => t.system === 'psx')).toBe(true)
-		expect(targets).toHaveLength(2)
+		const res = await discoverScanTargets('recalbox.local', async () => ['snes', 'psx'], ['psx'])
+		expect(res.targets.every((t) => t.system === 'psx')).toBe(true)
+		expect(res.targets).toHaveLength(2)
 	})
 
 	// A share that cannot be listed must not take the whole discovery down.
@@ -34,13 +33,34 @@ describe('discoverScanTargets', () => {
 			if (root.includes('usb0')) throw new Error('permission denied')
 			return ['snes']
 		})
-		const targets = await discoverScanTargets('recalbox.local', listDirs)
-		expect(targets).toHaveLength(1)
-		expect(targets[0]?.mount).toBe('/recalbox/share')
+		const res = await discoverScanTargets('recalbox.local', listDirs)
+		expect(res.targets).toHaveLength(1)
+		expect(res.targets[0]?.mount).toBe('/recalbox/share')
+		// Reported, not swallowed: the caller must be able to say what failed.
+		expect(res.unreadable).toEqual(['/recalbox/share/externals/usb0/recalbox/roms'])
+		expect(res.error).toContain('permission denied')
 	})
 
 	it('returns nothing when no share is reported', async () => {
 		vi.mocked(fetchStorageInfo).mockResolvedValue([] as never)
-		expect(await discoverScanTargets('recalbox.local', async () => ['snes'])).toEqual([])
+		const res = await discoverScanTargets('recalbox.local', async () => ['snes'])
+		expect(res.targets).toEqual([])
+		expect(res.mounts).toBe(0)
+	})
+})
+
+// Found by running the dev server against a box whose stored SSH password was
+// empty: every listing threw, discovery returned nothing, and the route answered
+// "no scannable directory" — sending the reader after a collection problem that
+// did not exist.
+describe('discoverScanTargets (every share unreadable)', () => {
+	it('reports the failure instead of looking like an empty collection', async () => {
+		const res = await discoverScanTargets('recalbox.local', async () => {
+			throw new Error('All configured authentication methods failed')
+		})
+		expect(res.targets).toEqual([])
+		expect(res.mounts).toBeGreaterThan(0)
+		expect(res.unreadable).toHaveLength(2)
+		expect(res.error).toContain('authentication')
 	})
 })

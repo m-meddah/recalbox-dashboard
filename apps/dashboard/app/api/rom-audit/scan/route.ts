@@ -79,6 +79,12 @@ export async function POST(req: NextRequest) {
 		}
 
 		const outcome = await startSelfHostedScan(recalboxId, user.id, systems)
+		if (outcome.status === 'unreachable') {
+			return NextResponse.json(
+				{ error: 'box_unreachable', detail: outcome.reason },
+				{ status: 502 },
+			)
+		}
 		if (outcome.status === 'no-targets') {
 			return NextResponse.json({ error: 'no_scan_target' }, { status: 422 })
 		}

@@ -203,3 +203,24 @@ describe('GET /api/rom-audit/scan', () => {
 		expect(body.scan.error).toBe('interrupted')
 	})
 })
+
+// Found by running the dev server against a box whose stored SSH password was
+// empty: discovery returned nothing and the route answered "no scannable
+// directory", which points the reader at their collection instead of at the
+// connection.
+describe('POST /api/rom-audit/scan (box unreachable)', () => {
+	it('502s with the connection error rather than claiming there is nothing to scan', async () => {
+		getUser.mockResolvedValue({ id: 'm1', role: 'member' })
+		canControl.mockResolvedValue(true)
+		getLatestScan.mockResolvedValue(null)
+		startSelfHostedScan.mockResolvedValue({
+			status: 'unreachable',
+			reason: 'All configured authentication methods failed',
+		})
+		const res = await POST(post({ recalboxId: 'rb-1' }))
+		expect(res.status).toBe(502)
+		const body = await res.json()
+		expect(body.error).toBe('box_unreachable')
+		expect(body.detail).toContain('authentication')
+	})
+})

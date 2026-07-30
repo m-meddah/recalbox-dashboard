@@ -25,9 +25,17 @@ import type { ScanExecutor } from './scan-runner'
 // one of the two shared slots the rest of the app executes on.
 const SSH_VARIANT = 'rom-scan'
 
+// Listing a share's `/roms` is not a quick command: 126 directories on a USB disk
+// that has to spin up took over the pool's 5 s default, which silently dropped
+// the ONE support holding the collection — the audit then looked empty rather
+// than broken. Found by running the dev server against the real box.
+const LIST_TIMEOUT_MS = 60_000
+
 export type StartScanOutcome =
 	| { status: 'started'; scanId: string; systemsTotal: number }
 	| { status: 'no-targets' }
+	/** The box answered, but not one of its shares could be listed. */
+	| { status: 'unreachable'; reason: string }
 
 /** Adapts the SSH pool client to the executor the scan needs (stdin + long timeout). */
 function executorFor(recalboxId: string): ScanExecutor {
@@ -39,7 +47,10 @@ function executorFor(recalboxId: string): ScanExecutor {
 
 async function listDirsOverSsh(recalboxId: string, root: string): Promise<string[]> {
 	const client = getSshClient(recalboxId, SSH_VARIANT)
-	const out = await client.exec(`ls -1 ${JSON.stringify(root)} 2>/dev/null || true`)
+	const out = await client.exec(
+		`ls -1 ${JSON.stringify(root)} 2>/dev/null || true`,
+		LIST_TIMEOUT_MS,
+	)
 	return out
 		.split('\n')
 		.map((d) => d.trim())
@@ -58,12 +69,29 @@ export async function startSelfHostedScan(
 	systems?: readonly string[],
 ): Promise<StartScanOutcome> {
 	const host = configStore.getForRecalbox(recalboxId).recalbox.host
-	const targets = await discoverScanTargets(
+	const discovery = await discoverScanTargets(
 		host,
 		(root) => listDirsOverSsh(recalboxId, root),
 		systems,
 	)
+	const targets = discovery.targets
+	// Every share failing to list is a connection problem, not an empty
+	// collection. Saying "no scannable directory" there sends the reader hunting
+	// for a collection issue they do not have.
+	if (targets.length === 0 && discovery.unreadable.length > 0 && discovery.error) {
+		return { status: 'unreachable', reason: discovery.error }
+	}
 	if (targets.length === 0) return { status: 'no-targets' }
+
+	// A support that could not be listed is missing from the audit entirely. Say so
+	// on the scan row: without it, a dropped disk is indistinguishable from a
+	// collection that shrank.
+	if (discovery.unreadable.length > 0) {
+		logger.warn(
+			`[rom-audit] scanning without ${discovery.unreadable.length} unreadable share(s): ` +
+				`${discovery.unreadable.join(', ')} — ${discovery.error}`,
+		)
+	}
 
 	const systemsTotal = new Set(targets.map((t) => t.system)).size
 	const scan = await createScan(db, recalboxId, 'ssh', systemsTotal, userId)
@@ -115,7 +143,13 @@ export async function startSelfHostedScan(
 			const failed = [...summary.failedSystems, ...summary.oversized]
 			// Some systems failing is a partial success; none succeeding is a failure.
 			const status = summary.systemsAudited === 0 && failed.length > 0 ? 'failed' : 'done'
-			const error = failed.length > 0 ? `systems not audited: ${failed.join(', ')}` : null
+			const notes = [
+				failed.length > 0 ? `systems not audited: ${failed.join(', ')}` : null,
+				discovery.unreadable.length > 0
+					? `shares skipped (unreadable): ${discovery.unreadable.join(', ')}`
+					: null,
+			].filter(Boolean)
+			const error = notes.length > 0 ? notes.join(' | ') : null
 			await finishScan(db, scan.id, status, error)
 		})
 		.catch(async (err) => {

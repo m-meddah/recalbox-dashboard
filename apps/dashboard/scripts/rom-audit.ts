@@ -118,7 +118,11 @@ async function discoverTargets(
 			.filter(Boolean)
 	}
 
-	const all = await discoverScanTargets(host, listDirs)
+	const discovery = await discoverScanTargets(host, listDirs)
+	const all = discovery.targets
+	if (all.length === 0 && discovery.error) {
+		fail(`Supports illisibles sur "${host}" : ${discovery.error}`)
+	}
 	if (all.length === 0) {
 		fail(`Aucun dossier de ROMs trouvé sur les supports de "${host}".`)
 	}
