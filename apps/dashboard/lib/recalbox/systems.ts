@@ -16,24 +16,46 @@ export type GameSystem = {
 let cache: { systems: GameSystem[]; expiresAt: number } | null = null
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-/** List all Recalbox game systems that have a gamelist.xml, across every external support. */
+/** The SD card's own roms directory, and the `diskSource` recorded for it. */
+export const SD_CARD_SOURCE = 'share'
+const SD_CARD_ROMS = '/recalbox/share/roms'
+
+/**
+ * Every support holding ROMs, as `{ diskSource, romsBase }`.
+ *
+ * Two sources, and both matter:
+ *
+ * - **The SD card** (`/recalbox/share/roms`). Long ignored: the listing only
+ *   ever looked at the external disks, so a system living on the card was
+ *   invisible to the whole dashboard — silently, with no error anywhere.
+ * - **Every external support**, not just `usbN`: Recalbox mounts a NAS in the
+ *   same directory as `network0`…`network3`, and the reference box also exposes
+ *   `usb0` through `usb7`. A support with no `recalbox/roms` simply yields no
+ *   system, so accepting every entry costs one listing and nothing else.
+ */
+async function romsRoots(ssh: SshClientLike): Promise<{ diskSource: string; romsBase: string }[]> {
+	const roots = [{ diskSource: SD_CARD_SOURCE, romsBase: SD_CARD_ROMS }]
+
+	const disksOutput = await ssh.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
+	for (const raw of disksOutput.split('\n')) {
+		const disk = raw.trim()
+		if (disk === '' || disk === '..' || disk.startsWith('.')) continue
+		roots.push({
+			diskSource: disk,
+			romsBase: `/recalbox/share/externals/${disk}/recalbox/roms`,
+		})
+	}
+	return roots
+}
+
+/** List all Recalbox game systems that have a gamelist.xml, across every support. */
 export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 	if (cache && Date.now() < cache.expiresAt) return cache.systems
 
 	const systems: GameSystem[] = []
+	const roots = await romsRoots(ssh)
 
-	// Every external support, not just `usbN`: Recalbox mounts a NAS under the
-	// same directory as `network0`…`network3`, and a `usb\d+` filter made those
-	// collections invisible. A support with no `recalbox/roms` simply yields no
-	// system, so accepting every entry costs one listing and nothing else.
-	const disksOutput = await ssh.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
-	const disks = disksOutput
-		.split('\n')
-		.map((d) => d.trim())
-		.filter((d) => d !== '' && !d.startsWith('.') && d !== '..')
-
-	for (const disk of disks) {
-		const romsBase = `/recalbox/share/externals/${disk}/recalbox/roms`
+	for (const { diskSource: disk, romsBase } of roots) {
 		const dirsOutput = await ssh.exec(`ls -1 ${shellQuote(romsBase)} 2>/dev/null`)
 		const dirs = dirsOutput.split('\n').flatMap((d) => {
 			const t = d.trim()
@@ -60,7 +82,7 @@ export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 		}
 	}
 
-	logger.info(`listSystems: found ${systems.length} systems across ${disks.length} disks`)
+	logger.info(`listSystems: found ${systems.length} systems across ${roots.length} supports`)
 	cache = { systems, expiresAt: Date.now() + CACHE_TTL_MS }
 	return systems
 }

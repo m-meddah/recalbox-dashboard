@@ -21,8 +21,31 @@ describe('deriveSystemFromGamelistPath', () => {
 		expect(d?.id).toBe('megadrive')
 	})
 
-	it('returns null for the internal share (listSystems only scans externals)', () => {
-		expect(deriveSystemFromGamelistPath('/recalbox/share/roms/snes/gamelist.xml')).toBeNull()
+	// Contract changed on purpose: this used to return null because listSystems
+	// only scanned the externals, which made a collection on the SD card
+	// invisible to the whole dashboard. On the reference box the card held three
+	// gamelists — 11 games nobody could see.
+	it('derives a system from the SD card', () => {
+		const d = deriveSystemFromGamelistPath('/recalbox/share/roms/snes/gamelist.xml')
+		expect(d).toEqual({
+			id: 'snes',
+			diskSource: 'share',
+			romsBasePath: '/recalbox/share/roms/snes',
+		})
+	})
+
+	// An external path also contains `/recalbox/roms/`; the two patterns must not
+	// overlap, or a USB game would be recorded as living on the card.
+	it('still attributes an external path to its own support', () => {
+		const d = deriveSystemFromGamelistPath(
+			'/recalbox/share/externals/network0/recalbox/roms/snes/gamelist.xml',
+		)
+		expect(d?.diskSource).toBe('network0')
+	})
+
+	it('refuses ports and hidden systems on the SD card too', () => {
+		expect(deriveSystemFromGamelistPath('/recalbox/share/roms/ports/gamelist.xml')).toBeNull()
+		expect(deriveSystemFromGamelistPath('/recalbox/share/roms/.hidden/gamelist.xml')).toBeNull()
 	})
 
 	it('returns null for ports and unrelated paths', () => {

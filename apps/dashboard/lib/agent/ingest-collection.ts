@@ -9,21 +9,31 @@ import { parseUserdataIni } from '@/lib/recalbox/userdata-parser'
 // explicitly below: it reaches the database and a path is rebuilt from it.
 const GAMELIST_PATH_RE = /\/externals\/([^/]+)\/recalbox\/roms\/([^/]+)\/gamelist\.xml$/
 
+// The SD card's own roms directory. Anchored on the full literal prefix, so an
+// external path — which contains `/externals/` before its own `/recalbox/roms/`
+// — can never match this one by accident.
+const SD_CARD_PATH_RE = /^\/recalbox\/share\/roms\/([^/]+)\/gamelist\.xml$/
+const SD_CARD_SOURCE = 'share'
+
 export type DerivedSystem = { id: string; romsBasePath: string; diskSource: string }
 
 /**
  * Derive {system id, romsBasePath, diskSource} from an absolute gamelist path,
- * matching how listSystems() discovers systems (external supports):
+ * matching how listSystems() discovers systems — the SD card and every external
+ * support:
+ *   /recalbox/share/roms/<system>/gamelist.xml
  *   /recalbox/share/externals/<support>/recalbox/roms/<system>/gamelist.xml
- * where <support> is `usb0`…`usb3`, `network0`…`network3`, or anything else
+ * where <support> is `usb0`…`usb7`, `network0`…`network3`, or anything else
  * Recalbox mounts there.
  * Returns null for ports, hidden dirs, or paths that don't fit the convention.
  */
 export function deriveSystemFromGamelistPath(gamelistPath: string): DerivedSystem | null {
-	const m = GAMELIST_PATH_RE.exec(gamelistPath)
-	if (!m) return null
-	const diskSource = m[1] as string
-	const id = m[2] as string
+	const external = GAMELIST_PATH_RE.exec(gamelistPath)
+	const sdCard = external ? null : SD_CARD_PATH_RE.exec(gamelistPath)
+	if (!external && !sdCard) return null
+
+	const diskSource = external ? (external[1] as string) : SD_CARD_SOURCE
+	const id = (external ? external[2] : sdCard?.[1]) as string
 	if (id === 'ports' || id.startsWith('.')) return null
 	// The path crosses a trust boundary (an agent posts it) and the support name
 	// is stored and re-used; `..` would climb out of the share.

@@ -283,3 +283,22 @@ class FindGamelistsTest(unittest.TestCase):
         self.make_gamelist('network0', 'snes')
         systems = sorted(os.path.basename(os.path.dirname(p)) for p in agent.find_gamelists())
         self.assertEqual(systems, ['snes'])
+
+    def test_finds_a_gamelist_on_the_sd_card(self):
+        d = os.path.join(self.root, 'roms', 'zx81')
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, 'gamelist.xml'), 'w') as f:
+            f.write('<gameList/>')
+        self.assertEqual(
+            [os.path.basename(os.path.dirname(p)) for p in agent.find_gamelists()], ['zx81']
+        )
+
+    def test_finds_the_sd_card_and_the_externals_together(self):
+        d = os.path.join(self.root, 'roms', 'zx81')
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, 'gamelist.xml'), 'w') as f:
+            f.write('<gameList/>')
+        self.make_gamelist('network0', 'snes')
+        self.make_gamelist('usb0', 'psx')
+        systems = sorted(os.path.basename(os.path.dirname(p)) for p in agent.find_gamelists())
+        self.assertEqual(systems, ['psx', 'snes', 'zx81'])
