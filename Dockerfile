@@ -11,8 +11,6 @@ WORKDIR /app
 # Install dependencies first (cache layer before source copy)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/dashboard/package.json ./apps/dashboard/
-# Copy scraper-core in full (workspace:* dep, source needed for pnpm linking)
-COPY packages/scraper-core/ ./packages/scraper-core/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \

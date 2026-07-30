@@ -21,7 +21,7 @@ pnpm dev
 
 ```text
 apps/dashboard/        # Next.js app (UI + API routes)
-packages/scraper-core/ # Shared scraping lib (stub)
+agent/                 # sr-agent — on-box Python agent (serverless edition)
 docker/                # Container support (s6 services, migrations)
 ```
 
