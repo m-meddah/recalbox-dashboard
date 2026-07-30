@@ -452,6 +452,7 @@ sudo systemctl enable --now recalbox-scrobbler
 - [x] Mesh-VPN reach — Tailscale/tailnet hosts (IPv6) so the dashboard manages boxes across homes; `docker-compose.saas.yml` + Tailscale Funnel for public HTTPS
 - [x] Credentials encrypted at rest — AES-256-GCM for SSH passwords and IGDB secrets, with an idempotent backfill script
 - [x] Super Retrogamers real API client — replaced the stub, per-ROM-region data with caching
+- [x] ROM collection audit (`/collection/audit`) — scans every support against the No-Intro / Redump / MAME / FBNeo catalogues, lists the **missing games** per system, exports to CSV; incremental rescans (44,9 GB of arcade: 314 s cold, 0,9 s after), on-demand deep verification of a CHD or RVZ. Read-only: nothing downloaded, nothing written to the box
 
 ## RetroAchievements integration
 

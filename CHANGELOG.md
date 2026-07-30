@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ROM collection audit** (`/collection/audit`) — compares what is actually on the box, support by support, against the No-Intro, Redump, MAME and FBNeo reference catalogues, and lists the **games** that are missing. Strictly read-only: nothing is downloaded and nothing on the Recalbox is modified.
+  - **On-box scanning** — a dependency-free Python scanner walks every `/roms` directory of **every support, SD card included** (the previous system listing only ever looked at the USB disks), and identifies files by five strategies: zip central-directory CRC, CHD header, RVZ/ISO disc header, 7z entry listing, and full hashing. Nothing is written to the box: the script travels on the SSH exec's stdin.
+  - **Four confidence levels** — ✅ verified (hash), ◆ identified by serial (RVZ/ISO game code), ~ identified by name, ? unknown. CHDs top out at `named` by construction: they merge the tracks Redump hashes separately.
+  - **Arcade support** — the MAME/FBNeo catalogues speak a quote-less dialect and hash the **archive itself** rather than its contents, so arcade systems are scanned in container mode. Measured on the reference collection: 138 of 140 Neo Geo archives identified this way, against 0 in content mode.
+  - **Incremental rescans** — the previous scan is handed back to the scanner, which skips re-reading files whose size and mtime have not moved. Measured on 7 713 arcade archives (44,9 GB): **314 s cold, 0,9 s on the second pass**, with a byte-identical result.
+  - **Deep verification of one title** — `chdman verify` catches a rotting CHD; `dolphin-tool` recomputes an RVZ's disc image and compares it to Redump, which yields a genuine catalogue match. Self-hosted only, and hidden when the binary is absent.
+  - **Two transports** — SSH from the dashboard when self-hosted, and the on-box agent's command queue in serverless. Detail is kept locally; the cloud stores per-system aggregates and unknown files only, so a rescan that changes nothing writes **zero rows**.
+  - **Export** — the missing list as CSV or JSON, filters included.
+
 ## [2.0.0] - 2026-06-05
 
 A major release that reskins the dashboard to share the visual DNA of the built-in
