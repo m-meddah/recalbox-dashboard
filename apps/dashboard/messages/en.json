@@ -1183,5 +1183,59 @@
 			"ratioAuto": "Auto",
 			"ratioCustom": "Custom"
 		}
+	},
+	"romAudit": {
+		"title": "ROM audit",
+		"subtitle": "{systems, plural, =0 {No system audited} one {1 system audited} other {# systems audited}}",
+		"backToCollection": "Collection",
+		"empty": {
+			"subtitle": "Never scanned",
+			"title": "No scan yet",
+			"body": "A scan walks every ROM directory of every support and compares it to the reference catalogues. Nothing is downloaded and nothing is written to the Recalbox. The first run can take around fifteen minutes on a large collection; later ones are much faster.",
+			"noRecalbox": "Select a Recalbox first."
+		},
+		"scan": {
+			"start": "Scan",
+			"running": "Scanning…",
+			"progress": "{done}/{total} · {system}",
+			"failed": "Scan failed"
+		},
+		"overview": {
+			"inventoryOnly": "inventory only",
+			"files": "{count, plural, =0 {no file} one {1 file} other {# files}}",
+			"details": "Details"
+		},
+		"tabs": {
+			"missing": "Missing",
+			"owned": "Owned",
+			"unknown": "Unknown"
+		},
+		"filters": {
+			"allRegions": "All regions"
+		},
+		"export": {
+			"csv": "Export CSV"
+		},
+		"detail": {
+			"loading": "Loading…",
+			"empty": "Nothing to show.",
+			"missingCount": "{count, plural, =0 {No missing game} one {1 missing game} other {# missing games}}",
+			"noCatalog": "This system has no reference catalogue: inventory only, with no completion rate.",
+			"aggregatesOnly": "This deployment stores per-system aggregates only — the per-file detail lives on the box.",
+			"catalogUnavailable": "The reference catalogue could not be downloaded. Try again later.",
+			"backToOverview": "Back to overview"
+		},
+		"verify": {
+			"action": "Deep verify",
+			"running": "Verifying…",
+			"intact": "Intact — the file matches its own checksums",
+			"verified": "Verified against the catalogue ({entry})",
+			"corrupt": "Corrupted file",
+			"mismatch": "No catalogue entry matches ({sha1}…) — either a damaged dump or one Redump does not list",
+			"noCatalog": "Hash computed, but this system has no reference catalogue",
+			"toolMissing": "{tool} is not installed on this host",
+			"unsupported": "Nothing to deep-verify for this kind of file",
+			"failed": "Verification failed"
+		}
 	}
 }

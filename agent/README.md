@@ -32,6 +32,7 @@ disabled by setting its interval `<= 0`.
 ## Files
 
 - `agent.py` — the agent.
+- `scan_roms.py` — the ROM-audit scanner. **Required next to `agent.py`**: without it the agent refuses `scan` commands with an explicit message (it never crashes, but the audit cannot run).
 - `custom.sh` — boot hook. Deploy to `/recalbox/share/system/custom.sh`; RecalboxOS's `/etc/init.d/S99custom` runs it at boot (`$1`=start) and shutdown (`$1`=stop). The `/recalbox/share` partition survives OS upgrades.
 - `config.example.json` — copy to `config.json` next to `agent.py` and fill in (`cloud_url`, `token`, `recalbox_id`).
 
@@ -56,6 +57,7 @@ derives the sibling endpoints (`/snapshots`, `/collection`, …) from it. Interv
 RB=192.168.1.194   # or recalbox.local
 ssh root@$RB 'mkdir -p /recalbox/share/system/sr-agent'
 scp agent.py root@$RB:/recalbox/share/system/sr-agent/agent.py
+scp scan_roms.py root@$RB:/recalbox/share/system/sr-agent/scan_roms.py
 scp custom.sh root@$RB:/recalbox/share/system/custom.sh
 # create /recalbox/share/system/sr-agent/config.json from config.example.json (token + cloud_url)
 ssh root@$RB 'bash /recalbox/share/system/custom.sh start'   # or reboot

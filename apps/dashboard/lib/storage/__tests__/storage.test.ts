@@ -1,14 +1,8 @@
+import { rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { rm } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-	artworkKey,
-	contentTypeForPath,
-	isLocalStorage,
-	putObject,
-	readLocal,
-} from '../index'
+import { artworkKey, contentTypeForPath, isLocalStorage, putObject, readLocal } from '../index'
 
 let dir: string
 

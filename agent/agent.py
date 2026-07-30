@@ -672,6 +672,187 @@ def collection_loop(cfg):
         time.sleep(interval)
 
 
+# ── ROM audit scan (walk the disks locally, push the manifest out) ────────────
+SHARE_ROOT = "/recalbox/share"
+
+# One system per request, split above this many entries. psx alone is ~7200
+# entries (~1.8 MB of JSON) on the reference collection, and a MAME-sized system
+# in one piece would blow past the cloud's body limit.
+SCAN_CHUNK_ENTRIES = 4000
+
+_scan_lock = threading.Lock()
+_scan_running = False
+_scan_thread = None
+
+
+def roms_root_for(mount):
+    """Recalbox intercalates its own `recalbox` dir on external disks, not on the SD."""
+    base = mount.rstrip("/")
+    return base + "/recalbox/roms" if "/externals/" in base else base + "/roms"
+
+
+def discover_scan_targets(systems=None):
+    """Every `/roms` directory of every support, as `mount|system|path` strings.
+
+    Enumerates the SD card AND the external disks: find_gamelists() above only
+    ever looks at externals/usb*, so a system living on the SD card is invisible
+    to it — precisely the defect this audit exists to reveal. A gamelist.xml is
+    NOT required either: a populated but never-scraped directory is exactly the
+    kind of thing worth reporting.
+
+    Never raises: an unreadable support yields no target and the scan goes on.
+    """
+    mounts = [SHARE_ROOT]
+    try:
+        for entry in sorted(os.listdir(os.path.join(SHARE_ROOT, "externals"))):
+            mounts.append(os.path.join(SHARE_ROOT, "externals", entry))
+    except OSError:
+        pass
+
+    wanted = set(systems) if systems else None
+    targets = []
+    seen = set()
+    for mount in mounts:
+        root = roms_root_for(mount)
+        try:
+            names = sorted(os.listdir(root))
+        except OSError:
+            continue
+        for name in names:
+            if name.startswith(".") or name == "ports":
+                continue
+            path = os.path.join(root, name)
+            if not os.path.isdir(path):
+                continue
+            if wanted is not None and name not in wanted:
+                continue
+            key = (mount, name)
+            if key in seen:
+                continue
+            seen.add(key)
+            targets.append("%s|%s|%s" % (mount, name, path))
+    return targets
+
+
+def load_scan_module():
+    """Import scan_roms from next to this file. None when it was not deployed."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import scan_roms  # noqa: PLC0415  (optional, deployed alongside agent.py)
+
+        return scan_roms
+    except Exception as e:
+        log.error("scan_roms.py not importable: %s", e)
+        return None
+
+
+def _chunks(items, size):
+    if not items:
+        return [[]]
+    return [items[i:i + size] for i in range(0, len(items), size)]
+
+
+def run_scan_job(cfg, scan_id, systems):
+    """Scan each system and push its manifest out, one system per request.
+
+    Runs in its own thread: a full scan takes a quarter of an hour and must not
+    stall the command poll. Never raises — a system that blows up is logged and
+    the next one is still scanned.
+    """
+    scan_roms = load_scan_module()
+    if scan_roms is None:
+        return
+
+    url = endpoint_for(cfg, "rom-scan")
+    token = cfg.get("token")
+    timeout = cfg.get("http_timeout_sec", 10)
+
+    targets = discover_scan_targets(systems)
+    by_system = {}
+    for spec in targets:
+        by_system.setdefault(spec.split("|")[1], []).append(spec)
+
+    names = sorted(by_system)
+    log.info("rom scan %s: %d system(s)", scan_id, len(names))
+
+    for index, system in enumerate(names):
+        specs = by_system[system]
+        mounts = sorted({spec.split("|")[0] for spec in specs})
+        try:
+            result = scan_roms.scan(specs)
+        except Exception as e:  # a broken system must not cost the whole scan
+            log.error("rom scan %s: system %s failed: %s", scan_id, system, e)
+            continue
+
+        entries = result.get("entries") or []
+        batches = _chunks(entries, SCAN_CHUNK_ENTRIES)
+        for chunk_index, batch in enumerate(batches):
+            last_chunk = chunk_index == len(batches) - 1
+            payload = {
+                "scan_id": scan_id,
+                "system": system,
+                "mounts": mounts,
+                "entries": batch,
+                "stats": {k: v for k, v in (result.get("stats") or {}).items()
+                          if isinstance(v, (int, float))},
+                "chunk_index": chunk_index,
+                "last_chunk": last_chunk,
+                "final": last_chunk and index == len(names) - 1,
+                "systems_total": len(names),
+                "systems_done": index + 1,
+            }
+            ok = http_post_json(url, payload, token, timeout)
+            log.info(
+                "rom scan %s: %s [%d/%d] chunk %d/%d -> %s",
+                scan_id, system, index + 1, len(names),
+                chunk_index + 1, len(batches), "ok" if ok else "failed",
+            )
+
+
+def _run_scan_and_release(cfg, scan_id, systems):
+    global _scan_running
+    try:
+        run_scan_job(cfg, scan_id, systems)
+    except Exception as e:  # never let the thread die silently
+        log.error("rom scan %s crashed: %s", scan_id, e)
+    finally:
+        with _scan_lock:
+            _scan_running = False
+
+
+def exec_scan(cfg, payload):
+    """Start a scan in the background and report back at once.
+
+    The command loop runs this inline; a scan lasts minutes, so blocking here
+    would freeze every other command for the duration. The outcome travels
+    through the rom-scan endpoint instead, chunk by chunk.
+    """
+    global _scan_running, _scan_thread
+    scan_id = payload.get("scanId") or payload.get("scan_id")
+    if not scan_id:
+        return False, "scan command carries no scanId"
+    if load_scan_module() is None:
+        return False, "scan_roms.py is missing next to agent.py — redeploy the agent"
+
+    systems = payload.get("systems") or None
+    with _scan_lock:
+        if _scan_running:
+            return False, "a rom scan is already running"
+        _scan_running = True
+
+    _scan_thread = threading.Thread(
+        target=_run_scan_and_release, args=(cfg, scan_id, systems), daemon=True
+    )
+    _scan_thread.start()
+    return True, "scan started"
+
+
+def wait_for_scan(timeout=None):
+    """Join the running scan thread. For tests and shutdown, not for the loop."""
+    if _scan_thread is not None:
+        _scan_thread.join(timeout)
+
+
 # ── Remote-control commands (poll → execute → report) ────────────────────────
 RECALBOX_CONF = "/recalbox/share/system/recalbox.conf"
 CONF_KEY_RE = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -739,7 +920,7 @@ def exec_launch(payload):
     return False, "launch not supported by agent yet"
 
 
-def execute_command(cmd):
+def execute_command(cmd, cfg=None):
     ctype = cmd.get("type")
     payload = cmd.get("payload") or {}
     if ctype == "power":
@@ -748,6 +929,8 @@ def execute_command(cmd):
         return exec_conf(payload)
     if ctype == "launch":
         return exec_launch(payload)
+    if ctype == "scan":
+        return exec_scan(cfg or {}, payload)
     return False, "unknown command type: %s" % ctype
 
 
@@ -755,7 +938,7 @@ def report_result(result_url, token, timeout, cid, ok, output):
     http_post_json(result_url, {"id": cid, "ok": ok, "result": (output or "")[:4096]}, token, timeout)
 
 
-def handle_command(cmd, result_url, token, timeout):
+def handle_command(cmd, result_url, token, timeout, cfg=None):
     cid = cmd.get("id")
     ctype = cmd.get("type")
     log.info("command %s: %s", cid, ctype)
@@ -764,9 +947,9 @@ def handle_command(cmd, result_url, token, timeout):
     if ctype == "power":
         action = (cmd.get("payload") or {}).get("action")
         report_result(result_url, token, timeout, cid, True, "executing power: %s" % action)
-        execute_command(cmd)
+        execute_command(cmd, cfg)
         return
-    ok, output = execute_command(cmd)
+    ok, output = execute_command(cmd, cfg)
     report_result(result_url, token, timeout, cid, ok, output)
 
 
@@ -786,7 +969,7 @@ def command_loop(cfg):
             # says nothing about the cloud, so it must not slow the poll down.
             ok = data is not None
             for cmd in (data or {}).get("commands") or []:
-                handle_command(cmd, result_url, token, timeout)
+                handle_command(cmd, result_url, token, timeout, cfg)
         except Exception as e:  # never let the thread die
             log.error("command_loop error: %s", e)
         delay = next_retry_delay(delay, interval, ok)

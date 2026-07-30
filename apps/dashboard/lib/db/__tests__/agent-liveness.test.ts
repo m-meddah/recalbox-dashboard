@@ -5,8 +5,8 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createAgentToken, resolveAgentToken, revokeAgentToken } from '../agent-queries'
 import { getAgentLastSeen } from '../agent-liveness'
+import { createAgentToken, resolveAgentToken, revokeAgentToken } from '../agent-queries'
 
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle/migrations')
 

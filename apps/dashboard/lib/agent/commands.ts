@@ -13,6 +13,13 @@ const CONF_KEY_RE = /^[A-Za-z0-9._-]+$/
 const CONF_VALUE_RE = /^[^\r\n]*$/
 
 /**
+ * A system id is a `/roms` directory name: no separator, no traversal, no
+ * control character. Real disks carry `@eaDir` and hand-made folders, so this
+ * is a safety guard rather than a slug whitelist.
+ */
+const SYSTEM_ID_RE = /^[^/\\\r\n\t\0]+$/
+
+/**
  * Allowlist of remote-control commands. This is the authoritative (server-side)
  * definition of what may be queued: the enqueue route validates against it, so a
  * user can never queue an arbitrary action and the agent only ever dispatches a
@@ -29,6 +36,14 @@ export const commandSchema = z.discriminatedUnion('type', [
 		type: z.literal('conf'),
 		key: z.string().min(1).max(128).regex(CONF_KEY_RE),
 		value: z.string().max(1024).regex(CONF_VALUE_RE),
+	}),
+	// A ROM audit scan. It carries NO path: the box discovers its own disks, so
+	// nothing the cloud sends here ever reaches an open(). `systems` is a bounded
+	// list of `/roms` directory names, guarded like the manifest's system id.
+	z.object({
+		type: z.literal('scan'),
+		scanId: z.string().min(1).max(64),
+		systems: z.array(z.string().min(1).max(64).regex(SYSTEM_ID_RE)).max(256).optional(),
 	}),
 ])
 

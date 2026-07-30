@@ -1,0 +1,26 @@
+clrmamepro (
+	name "Nintendo - Super Nintendo Entertainment System"
+	description "Nintendo - Super Nintendo Entertainment System"
+	version "2026.05.02"
+)
+
+game (
+	name "Dragon Ball Z - La Legende Saien (France)"
+	region "France"
+	rom ( name "Dragon Ball Z - La Legende Saien (France).sfc" size 2097152 crc 8F24F886 md5 36E1391F0B1F29F16EF5D4EB83C3725B sha1 827C071F8AEBE93F80576800266F74F82FF9E41B )
+)
+game (
+	name "Super Mario World (USA)"
+	region "USA"
+	rom ( name "Super Mario World (USA).sfc" size 524288 crc B19ED489 md5 A31BEAD4B8B29F26B13F2F3B0B2B9C6D sha1 6B47BB75D16514B6A476AA0C73A683A2A4C18765 )
+)
+game (
+	name "Super Mario World (Europe) (Rev 1)"
+	region "Europe"
+	rom ( name "Super Mario World (Europe) (Rev 1).sfc" size 524288 crc CE7BEF3F md5 D2C4E1A5F8B39C6D7E0A1B2C3D4E5F60 sha1 1F2E3D4C5B6A79889A0B1C2D3E4F5061728394A5 )
+)
+game (
+	name "Star Fox 2 (Japan) (Proto)"
+	region "Japan"
+	rom ( name "Star Fox 2 (Japan) (Proto).sfc" size 1048576 crc 4A3B2C1D md5 B7C8D9E0F1A2B3C4D5E6F708192A3B4C sha1 9E8D7C6B5A4938271605F4E3D2C1B0A998877665 )
+)

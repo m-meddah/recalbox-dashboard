@@ -1,0 +1,30 @@
+clrmamepro (
+	name "Nintendo - GameCube"
+	description "Nintendo - GameCube"
+	version "2026.05.02"
+)
+
+game (
+	name "007 - Agent Under Fire (Europe)"
+	region "Europe"
+	serial "DL-DOL-GW7P-EUR"
+	rom ( name "007 - Agent Under Fire (Europe).iso" size 1459978240 crc E3B90F14 md5 54D17B5C7A4EEE4BFBD648251BFAB15E sha1 1B0EC6BBB9B098906ACC9D86A41E036816B90D74 serial "DL-DOL-GW7P-EUR" )
+)
+game (
+	name "007 - Agent Under Fire (USA)"
+	region "USA"
+	serial "DL-DOL-GW7E-USA"
+	rom ( name "007 - Agent Under Fire (USA).iso" size 1459978240 crc 04486E6C md5 987AF8DCA9DD263C27305B4F139A3547 sha1 E518156CE617A7153D5F4320DECD57070FD35620 serial "DL-DOL-GW7E-USA" )
+)
+game (
+	name "Tales of Symphonia (Europe) (Disc 1)"
+	region "Europe"
+	serial "DL-DOL-GYTP-EUR"
+	rom ( name "Tales of Symphonia (Europe) (Disc 1).iso" size 1459978240 crc D3F5F96E md5 D21C69D1FADCD953E3D18FBCE31155A3 sha1 439EBF59C3DC2B15956ED30DB1342C5E10F196C4 serial "DL-DOL-GYTP-EUR" )
+)
+game (
+	name "Tales of Symphonia (Europe) (Disc 2)"
+	region "Europe"
+	serial "DL-DOL-GYTP-EUR"
+	rom ( name "Tales of Symphonia (Europe) (Disc 2).iso" size 1459978240 crc F48C32E9 md5 81D9F22AD75F4FA9B1FD40A3BC4C95CA sha1 C7297A55C26971F72A6A10CB4E502254797A3330 serial "DL-DOL-GYTP-EUR" )
+)

@@ -10,7 +10,7 @@ import { getCollectionStats } from '@/lib/db/queries'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getPatronStatus } from '@/lib/recalbox/patron-status'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
-import { Disc3 } from 'lucide-react'
+import { Disc3, ScanSearch } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const dynamic = 'force-dynamic'
@@ -25,9 +25,10 @@ export default async function CollectionPage({ params }: Props) {
 
 	const recalboxId = await getActiveRecalboxId()
 
-	const [stats, t, health, patron] = await Promise.all([
+	const [stats, t, tAudit, health, patron] = await Promise.all([
 		getCollectionStats(),
 		getTranslations('collection'),
+		getTranslations('romAudit'),
 		getCollectionHealth(recalboxId ?? undefined),
 		recalboxId
 			? getPatronStatus(getSshClient(recalboxId))
@@ -59,6 +60,13 @@ export default async function CollectionPage({ params }: Props) {
 					>
 						<Disc3 className="mr-2 size-4" />
 						Multi-disc / .m3u
+					</Link>
+					<Link
+						href="/collection/audit"
+						className={buttonVariants({ variant: 'outline', size: 'sm' })}
+					>
+						<ScanSearch className="mr-2 size-4" />
+						{tAudit('title')}
 					</Link>
 					<SyncButton />
 				</div>

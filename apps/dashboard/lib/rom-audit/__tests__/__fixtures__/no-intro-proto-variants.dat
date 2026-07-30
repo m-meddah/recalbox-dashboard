@@ -1,0 +1,21 @@
+clrmamepro (
+	name "Nintendo - Super Nintendo Entertainment System"
+	description "Nintendo - Super Nintendo Entertainment System"
+	version "2026.05.02"
+)
+
+game (
+	name "Star Fox 2 (Japan) (Proto)"
+	region "Japan"
+	rom ( name "Star Fox 2 (Japan) (Proto).sfc" size 1048576 crc 4A3B2C1D md5 B7C8D9E0F1A2B3C4D5E6F708192A3B4C sha1 9E8D7C6B5A4938271605F4E3D2C1B0A998877665 )
+)
+game (
+	name "Star Fox 2 (USA)"
+	region "USA"
+	rom ( name "Star Fox 2 (USA).sfc" size 1048576 crc 5B4C3D2E md5 C8D9E0F1A2B3C4D5E6F708192A3B4C5D sha1 8D7C6B5A4938271605F4E3D2C1B0A99887766554 )
+)
+game (
+	name "Bio Force Ape (USA) (Proto)"
+	region "USA"
+	rom ( name "Bio Force Ape (USA) (Proto).nes" size 262144 crc 6C5D4E3F md5 D9E0F1A2B3C4D5E6F708192A3B4C5D6E sha1 7C6B5A4938271605F4E3D2C1B0A9988776655443 )
+)

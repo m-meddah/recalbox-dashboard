@@ -1,0 +1,26 @@
+clrmamepro (
+	name "FBNeo - Arcade Games"
+	description "FBNeo v1.0.0.03 Arcade Games"
+	version 1.0.0.03
+)
+
+game (
+	name "'88 Games"
+	releaseyear "1988"
+	publisher "Konami"
+	rom ( name 88games.zip size 758474 crc C1544E79 md5 512c9d6d85b185be4be1150891301a68 sha1 3d9935c4622637ce80b6c3b18477d74aa4c2fb3d )
+)
+
+game (
+	name "'96 Flag Rally"
+	releaseyear "1996"
+	publisher "Promat?"
+	rom ( name flagrall.zip size 1887701 crc 69F5767F md5 8dbca21fbfd3aebff1909c217e4c9d3e sha1 e84326fe60c947ccfea3027c54a8686e7ed29899 )
+)
+
+game (
+	name "'99: The Last War (Kyugo)"
+	releaseyear "1985"
+	publisher "Crux / Kyugo"
+	rom ( name 99lstwark.zip size 13800 crc 5AB61E0E md5 68c7977b7e899c1d092cd56e659e84ee sha1 fc6d7303075765735b7370072821737d71118f30 )
+)

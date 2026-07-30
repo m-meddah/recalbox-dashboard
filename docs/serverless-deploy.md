@@ -136,8 +136,10 @@ reachable — if Turso is down, the build fails (which is the right time to not 
    and point `cloud_url` at `https://<app>/api/agent/ingest`. Tune intervals as
    needed (`snapshot_interval_sec`, `command_poll_interval_sec`,
    `collection_interval_sec`; set the last to `0` to disable the gamelist sweep).
-3. Copy `agent/agent.py` to the box and autostart it via
-   `/recalbox/share/system/custom.sh` (run with `python3`, see Phase 0 notes).
+3. Copy `agent/agent.py` **and `agent/scan_roms.py`** to the box, side by side,
+   and autostart the agent via `/recalbox/share/system/custom.sh` (run with
+   `python3`, see Phase 0 notes). `scan_roms.py` is what the ROM audit runs; an
+   agent deployed without it refuses `scan` commands with an explicit message.
 4. Verify in the app: a system snapshot appears, the collection imports, and
    now-playing shows the running game.
 

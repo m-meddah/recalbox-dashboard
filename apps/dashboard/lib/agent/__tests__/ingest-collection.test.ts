@@ -27,7 +27,9 @@ describe('deriveSystemFromGamelistPath', () => {
 
 	it('returns null for ports and unrelated paths', () => {
 		expect(
-			deriveSystemFromGamelistPath('/recalbox/share/externals/usb0/recalbox/roms/ports/gamelist.xml'),
+			deriveSystemFromGamelistPath(
+				'/recalbox/share/externals/usb0/recalbox/roms/ports/gamelist.xml',
+			),
 		).toBeNull()
 		expect(deriveSystemFromGamelistPath('/etc/passwd')).toBeNull()
 	})

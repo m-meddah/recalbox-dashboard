@@ -156,6 +156,24 @@ class SshClient {
 		await this.exec(`${backup}cat > ${quoted}`, timeoutMs, content)
 	}
 
+	/**
+	 * Download a remote file to the host over SFTP.
+	 *
+	 * Reserved for large, occasional transfers (a CHD or RVZ pulled for deep
+	 * verification), which is why callers should ask the pool for a dedicated
+	 * variant: a multi-gigabyte copy would otherwise hold one of the two shared
+	 * execution slots for minutes.
+	 */
+	async getFile(localPath: string, remotePath: string): Promise<void> {
+		await this.acquire()
+		try {
+			if (!this.connected || !this.ssh.isConnected()) await this.connect()
+			await this.ssh.getFile(localPath, remotePath)
+		} finally {
+			this.release()
+		}
+	}
+
 	disconnect(): void {
 		this.ssh.dispose()
 		this.connected = false
