@@ -192,3 +192,50 @@ class ScanJobTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class NetworkShareTest(unittest.TestCase):
+    """Recalbox monte un NAS sous externals/network0..network3. L'agent énumère
+    le dossier, donc il les voit ; le chemin SSH doit en faire autant."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+        self._share = agent.SHARE_ROOT
+        agent.SHARE_ROOT = self.root
+
+    def tearDown(self):
+        agent.SHARE_ROOT = self._share
+        self.tmp.cleanup()
+
+    def test_finds_a_nas_mounted_as_network0(self):
+        make_tree(self.root, {'externals/network0/recalbox/roms': ['snes', 'psx']})
+        targets = agent.discover_scan_targets()
+        mounts = {t.split('|')[0] for t in targets}
+        self.assertEqual(mounts, {os.path.join(self.root, 'externals', 'network0')})
+        self.assertEqual(sorted(t.split('|')[1] for t in targets), ['psx', 'snes'])
+
+    def test_builds_the_roms_root_of_a_nas_like_any_other_external(self):
+        make_tree(self.root, {'externals/network3/recalbox/roms': ['snes']})
+        _, _, roms_path = agent.discover_scan_targets()[0].split('|')
+        self.assertEqual(
+            roms_path,
+            os.path.join(self.root, 'externals', 'network3', 'recalbox', 'roms', 'snes'),
+        )
+
+    def test_covers_usb2_and_usb3_as_well(self):
+        make_tree(self.root, {
+            'externals/usb2/recalbox/roms': ['snes'],
+            'externals/usb3/recalbox/roms': ['nes'],
+        })
+        mounts = {t.split('|')[0] for t in agent.discover_scan_targets()}
+        self.assertEqual(len(mounts), 2)
+
+    def test_mixes_a_nas_a_usb_disk_and_the_sd_card(self):
+        make_tree(self.root, {
+            'roms': ['snes'],
+            'externals/usb0/recalbox/roms': ['psx'],
+            'externals/network0/recalbox/roms': ['nes'],
+        })
+        mounts = {t.split('|')[0] for t in agent.discover_scan_targets()}
+        self.assertEqual(len(mounts), 3)
