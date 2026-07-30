@@ -239,3 +239,47 @@ class NetworkShareTest(unittest.TestCase):
         })
         mounts = {t.split('|')[0] for t in agent.discover_scan_targets()}
         self.assertEqual(len(mounts), 3)
+
+
+class FindGamelistsTest(unittest.TestCase):
+    """find_gamelists globait externals/usb* : les gamelists d'un NAS n'étaient
+    jamais poussées, donc la collection restait vide sans le moindre message."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+        self._glob = agent.glob.glob
+        # find_gamelists code le préfixe /recalbox/share en dur ; on redirige le
+        # glob vers l'arborescence temporaire plutôt que de toucher au code.
+        agent.glob.glob = lambda pat: self._glob(
+            pat.replace('/recalbox/share', self.root, 1)
+        )
+
+    def tearDown(self):
+        agent.glob.glob = self._glob
+        self.tmp.cleanup()
+
+    def make_gamelist(self, support, system):
+        d = os.path.join(self.root, 'externals', support, 'recalbox', 'roms', system)
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, 'gamelist.xml'), 'w') as f:
+            f.write('<gameList/>')
+
+    def supports_found(self):
+        return sorted({p.split('/externals/')[1].split('/')[0] for p in agent.find_gamelists()})
+
+    def test_finds_a_gamelist_on_a_network_share(self):
+        self.make_gamelist('network0', 'snes')
+        self.assertEqual(self.supports_found(), ['network0'])
+
+    def test_finds_every_support_side_by_side(self):
+        for s in ('usb0', 'usb3', 'network0', 'network3'):
+            self.make_gamelist(s, 'snes')
+        self.assertEqual(self.supports_found(), ['network0', 'network3', 'usb0', 'usb3'])
+
+    def test_still_skips_ports_and_hidden_systems(self):
+        self.make_gamelist('network0', 'ports')
+        self.make_gamelist('network0', '.hidden')
+        self.make_gamelist('network0', 'snes')
+        systems = sorted(os.path.basename(os.path.dirname(p)) for p in agent.find_gamelists())
+        self.assertEqual(systems, ['snes'])

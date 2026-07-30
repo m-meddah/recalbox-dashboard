@@ -581,9 +581,14 @@ def snapshot_loop(cfg):
 
 # ── Collection sync (ship gamelist.xml + userdata to the cloud parser) ────────
 def find_gamelists():
-    """Gamelist paths under external USB roms dirs (matches listSystems)."""
+    """Gamelist paths under every external support (matches listSystems).
+
+    Not just `usb*`: Recalbox mounts a NAS under the same directory as
+    `network0`…`network3`, and globbing `usb*` meant those gamelists were never
+    pushed at all.
+    """
     paths = []
-    for p in glob.glob("/recalbox/share/externals/usb*/recalbox/roms/*/gamelist.xml"):
+    for p in glob.glob("/recalbox/share/externals/*/recalbox/roms/*/gamelist.xml"):
         system = os.path.basename(os.path.dirname(p))
         if system == "ports" or system.startswith("."):
             continue
