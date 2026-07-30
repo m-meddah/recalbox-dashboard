@@ -1,4 +1,3 @@
-import type { StorageMount } from '@/lib/recalbox/storage'
 import { catalogForSystem } from './system-catalog'
 
 export type ScanTarget = {
@@ -34,7 +33,10 @@ function normalizeMount(mount: string): string {
  * precisely the kind of thing the audit exists to reveal.
  */
 export function buildScanTargets(
-	mounts: StorageMount[],
+	// Only the mount path matters here, and the callers now mix Web-Manager
+	// partitions with externals enumerated directly on the box (a NAS is not a
+	// partition the monitoring API describes).
+	mounts: readonly { mount: string }[],
 	dirsByRoot: Record<string, string[]>,
 ): ScanTarget[] {
 	const targets: ScanTarget[] = []

@@ -16,18 +16,21 @@ export type GameSystem = {
 let cache: { systems: GameSystem[]; expiresAt: number } | null = null
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-/** List all Recalbox game systems that have a gamelist.xml, across all USB disks. */
+/** List all Recalbox game systems that have a gamelist.xml, across every external support. */
 export async function listSystems(ssh: SshClientLike): Promise<GameSystem[]> {
 	if (cache && Date.now() < cache.expiresAt) return cache.systems
 
 	const systems: GameSystem[] = []
 
-	// Discover mounted USB disks under /recalbox/share/externals/
+	// Every external support, not just `usbN`: Recalbox mounts a NAS under the
+	// same directory as `network0`…`network3`, and a `usb\d+` filter made those
+	// collections invisible. A support with no `recalbox/roms` simply yields no
+	// system, so accepting every entry costs one listing and nothing else.
 	const disksOutput = await ssh.exec('ls -1 /recalbox/share/externals/ 2>/dev/null')
 	const disks = disksOutput
 		.split('\n')
 		.map((d) => d.trim())
-		.filter((d) => /^usb\d+$/.test(d))
+		.filter((d) => d !== '' && !d.startsWith('.') && d !== '..')
 
 	for (const disk of disks) {
 		const romsBase = `/recalbox/share/externals/${disk}/recalbox/roms`

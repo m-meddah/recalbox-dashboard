@@ -192,3 +192,94 @@ class ScanJobTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class NetworkShareTest(unittest.TestCase):
+    """Recalbox monte un NAS sous externals/network0..network3. L'agent énumère
+    le dossier, donc il les voit ; le chemin SSH doit en faire autant."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+        self._share = agent.SHARE_ROOT
+        agent.SHARE_ROOT = self.root
+
+    def tearDown(self):
+        agent.SHARE_ROOT = self._share
+        self.tmp.cleanup()
+
+    def test_finds_a_nas_mounted_as_network0(self):
+        make_tree(self.root, {'externals/network0/recalbox/roms': ['snes', 'psx']})
+        targets = agent.discover_scan_targets()
+        mounts = {t.split('|')[0] for t in targets}
+        self.assertEqual(mounts, {os.path.join(self.root, 'externals', 'network0')})
+        self.assertEqual(sorted(t.split('|')[1] for t in targets), ['psx', 'snes'])
+
+    def test_builds_the_roms_root_of_a_nas_like_any_other_external(self):
+        make_tree(self.root, {'externals/network3/recalbox/roms': ['snes']})
+        _, _, roms_path = agent.discover_scan_targets()[0].split('|')
+        self.assertEqual(
+            roms_path,
+            os.path.join(self.root, 'externals', 'network3', 'recalbox', 'roms', 'snes'),
+        )
+
+    def test_covers_usb2_and_usb3_as_well(self):
+        make_tree(self.root, {
+            'externals/usb2/recalbox/roms': ['snes'],
+            'externals/usb3/recalbox/roms': ['nes'],
+        })
+        mounts = {t.split('|')[0] for t in agent.discover_scan_targets()}
+        self.assertEqual(len(mounts), 2)
+
+    def test_mixes_a_nas_a_usb_disk_and_the_sd_card(self):
+        make_tree(self.root, {
+            'roms': ['snes'],
+            'externals/usb0/recalbox/roms': ['psx'],
+            'externals/network0/recalbox/roms': ['nes'],
+        })
+        mounts = {t.split('|')[0] for t in agent.discover_scan_targets()}
+        self.assertEqual(len(mounts), 3)
+
+
+class FindGamelistsTest(unittest.TestCase):
+    """find_gamelists globait externals/usb* : les gamelists d'un NAS n'étaient
+    jamais poussées, donc la collection restait vide sans le moindre message."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+        self._glob = agent.glob.glob
+        # find_gamelists code le préfixe /recalbox/share en dur ; on redirige le
+        # glob vers l'arborescence temporaire plutôt que de toucher au code.
+        agent.glob.glob = lambda pat: self._glob(
+            pat.replace('/recalbox/share', self.root, 1)
+        )
+
+    def tearDown(self):
+        agent.glob.glob = self._glob
+        self.tmp.cleanup()
+
+    def make_gamelist(self, support, system):
+        d = os.path.join(self.root, 'externals', support, 'recalbox', 'roms', system)
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, 'gamelist.xml'), 'w') as f:
+            f.write('<gameList/>')
+
+    def supports_found(self):
+        return sorted({p.split('/externals/')[1].split('/')[0] for p in agent.find_gamelists()})
+
+    def test_finds_a_gamelist_on_a_network_share(self):
+        self.make_gamelist('network0', 'snes')
+        self.assertEqual(self.supports_found(), ['network0'])
+
+    def test_finds_every_support_side_by_side(self):
+        for s in ('usb0', 'usb3', 'network0', 'network3'):
+            self.make_gamelist(s, 'snes')
+        self.assertEqual(self.supports_found(), ['network0', 'network3', 'usb0', 'usb3'])
+
+    def test_still_skips_ports_and_hidden_systems(self):
+        self.make_gamelist('network0', 'ports')
+        self.make_gamelist('network0', '.hidden')
+        self.make_gamelist('network0', 'snes')
+        systems = sorted(os.path.basename(os.path.dirname(p)) for p in agent.find_gamelists())
+        self.assertEqual(systems, ['snes'])
