@@ -43,7 +43,17 @@ export async function readRecalboxConfValue(
 		throw new Error(`Key "${key}" is not in the allowed recalbox.conf whitelist`)
 	}
 	try {
-		const output = await ssh.exec(`grep -E '^\\s*${shellQuote(key)}\\s*=' ${CONF_PATH} || true`)
+		// The key is caller-supplied — GET /api/recalbox/conf?key=… passes it straight
+		// through — so it does not go into the command line at all: read the file and
+		// filter in JS, exactly as readRecalboxConfValues() below already does.
+		//
+		// The previous form was `grep -E '^\s*${shellQuote(key)}\s*='`, which LOOKS
+		// quoted but is not: shellQuote's own quotes close and reopen the surrounding
+		// ones, leaving the key in an UNQUOTED context. A key of `a;id;b` therefore ran
+		// `id` on the box. Only the whitelist above stood between that and command
+		// execution as root over SSH. Not interpolating the key removes the class of
+		// bug rather than relying on escaping it correctly.
+		const output = await ssh.exec(`cat ${shellQuote(CONF_PATH)} 2>/dev/null || true`)
 		return parseConfValue(output, key)
 	} catch (err) {
 		logger.warn(`Failed to read recalbox.conf key "${key}"`, err)
@@ -62,7 +72,7 @@ async function readRecalboxConfValues(
 		}
 	}
 	try {
-		const output = await ssh.exec(`cat ${CONF_PATH}`)
+		const output = await ssh.exec(`cat ${shellQuote(CONF_PATH)}`)
 		for (const key of keys) {
 			result[key] = parseConfValue(output, key)
 		}
