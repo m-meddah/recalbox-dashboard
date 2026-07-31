@@ -24,6 +24,12 @@ RUN mkdir -p apps/dashboard/public
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Build-only placeholder: with NODE_ENV=production, Better Auth throws on its default
+# secret, and prerendering the static /[locale]/offline page renders the locale layout
+# (which calls getUser()). Never leaves this stage — the runner stage sets its own env,
+# and the real secret is supplied at runtime.
+ENV BETTER_AUTH_SECRET=build-time-placeholder-not-used-at-runtime
+
 RUN pnpm --filter @recalbox/dashboard build
 
 # Compile scrobbler TypeScript → JS (no tsx required at runtime)
