@@ -16,7 +16,8 @@ const formSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let fields: Record<string, string>
 	try {
 		const data = await req.formData()
@@ -32,16 +33,22 @@ export async function POST(req: NextRequest) {
 
 	const { host, sshUser, sshPassword, sshPort, mqttPort } = parsed.data
 
-	await configStore.addRecalbox({
-		name: 'My Recalbox',
-		host,
-		sshUser,
-		sshPassword,
-		sshPort,
-		mqttPort,
-		color: null,
-		iconEmoji: '🕹️',
-	})
+	// Attribute the box to whoever completed the wizard, exactly as POST /api/recalboxes
+	// does. Without an owner nobody passes canControlRecalbox, so the box would be
+	// permanently uneditable — and ownership is what gates its stored SSH password.
+	await configStore.addRecalbox(
+		{
+			name: 'My Recalbox',
+			host,
+			sshUser,
+			sshPassword,
+			sshPort,
+			mqttPort,
+			color: null,
+			iconEmoji: '🕹️',
+		},
+		user.id,
+	)
 	await configStore.markSetupComplete()
 
 	const locale = req.cookies.get('NEXT_LOCALE')?.value ?? 'en'

@@ -1,5 +1,7 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { canControlRecalbox, isAdmin } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import {
 	type AppConfig,
 	type DeepPartial,
@@ -81,8 +83,16 @@ const putBodySchema = z.object({
 		.optional(),
 })
 
+const SHARED_SCOPES = [
+	'scrobble',
+	'retroachievements',
+	'superRetrogamers',
+	'mqttPublish',
+] as const satisfies readonly (keyof AppConfig)[]
+
 export async function PUT(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let body: unknown
 	try {
 		body = await req.json()
@@ -96,6 +106,16 @@ export async function PUT(req: NextRequest) {
 	}
 
 	const partial = parsed.data as DeepPartial<AppConfig>
+
+	// Shared infrastructure, not per-user preference: these scopes hold API keys AND the
+	// outbound endpoints those keys are sent to. A member repointing superRetrogamers.apiUrl
+	// (or mqttPublish.brokerUrl) at a host they run would ship the stored key straight to
+	// them — the same exfiltration shape F1 closed on the SSH password. Admin only.
+	// `ui` stays open: it is cosmetic and holds no secret. `recalbox` is owner-gated below.
+	const touchesSharedScope = SHARED_SCOPES.some(
+		(scope) => partial[scope] && Object.keys(partial[scope]).length > 0,
+	)
+	if (touchesSharedScope && !isAdmin(user)) return forbidden()
 
 	// Do not overwrite password if the client sent the mask sentinel
 	if (partial.recalbox?.sshPassword === PASSWORD_MASK) {
@@ -116,11 +136,15 @@ export async function PUT(req: NextRequest) {
 	// Persist recalbox connection fields to the recalboxes table (the settings
 	// table intentionally skips the recalbox scope, so without this the password
 	// would only survive until the next server restart).
+	//
+	// Target the ACTIVE box, never the global default: the default may belong to
+	// somebody else, and this scope rewrites SSH connection details — repointing
+	// `host` at a host the caller runs would harvest the stored password on the next
+	// connection. Owner only, admins included (canControlRecalbox enforces both).
 	if (partial.recalbox && Object.keys(partial.recalbox).length > 0) {
-		const defaultRb = configStore.getDefaultRecalbox()
-		if (defaultRb) {
-			await configStore.updateRecalboxConfig(defaultRb.id, partial.recalbox)
-		}
+		const recalboxId = await getActiveRecalboxId()
+		if (!recalboxId || !(await canControlRecalbox(user, recalboxId))) return forbidden()
+		await configStore.updateRecalboxConfig(recalboxId, partial.recalbox)
 	}
 
 	const updated = await configStore.update(partial)

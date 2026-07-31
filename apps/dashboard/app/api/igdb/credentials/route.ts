@@ -1,4 +1,5 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { isAdmin } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { saveAndTestCredentials } from '@/lib/igdb/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -12,7 +13,10 @@ const Schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
+	// Shared third-party credentials for the whole instance — admin only.
+	if (!isAdmin(user)) return forbidden()
 	let body: unknown
 	try {
 		body = await req.json()

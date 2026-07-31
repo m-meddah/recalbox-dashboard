@@ -1,4 +1,5 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { isAdmin } from '@/lib/auth/ownership'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
 import { type AppConfig, maskedConfig } from '@/lib/settings/schemas'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -12,7 +13,11 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
+	// An omitted `scope` resets EVERY scope, wiping the shared API keys along with it.
+	// Destructive and global either way — admin only.
+	if (!isAdmin(user)) return forbidden()
 	let body: unknown = {}
 	try {
 		body = await req.json()
