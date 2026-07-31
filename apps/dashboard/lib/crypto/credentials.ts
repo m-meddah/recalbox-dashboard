@@ -11,14 +11,32 @@ const HKDF_SALT = 'recalbox-credential-salt-v1'
 
 let warnedNoKey = false
 
+export class MissingCredentialsKeyError extends Error {
+	constructor() {
+		super(
+			'No CREDENTIALS_SECRET/BETTER_AUTH_SECRET set — refusing to store credentials in plaintext',
+		)
+		this.name = 'MissingCredentialsKeyError'
+	}
+}
+
 /**
  * Derives the 32-byte encryption key from CREDENTIALS_SECRET (preferred) or
  * BETTER_AUTH_SECRET. Returns null when neither is set — callers then operate
  * in plaintext mode (dev/test). Read fresh each call so tests can vary the env.
+ *
+ * In PRODUCTION a missing key is fatal instead. Writing an SSH root password to
+ * disk in the clear because an env var was forgotten is precisely the failure that
+ * goes unnoticed until the database leaks, and a single log line is not enough to
+ * catch it. Better Auth happens to refuse to boot without BETTER_AUTH_SECRET in
+ * production, which already covers the web process today — but that is an accident
+ * of another library's validation, not an invariant of this module, and the
+ * scrobbler does not import it at all.
  */
 function resolveKey(): Buffer | null {
 	const secret = process.env.CREDENTIALS_SECRET || process.env.BETTER_AUTH_SECRET
 	if (!secret) {
+		if (process.env.NODE_ENV === 'production') throw new MissingCredentialsKeyError()
 		if (!warnedNoKey) {
 			logger.warn(
 				'No CREDENTIALS_SECRET/BETTER_AUTH_SECRET set — SSH/IGDB credentials are stored in PLAINTEXT',
