@@ -118,16 +118,23 @@ describe('validateInvitation', () => {
 	})
 })
 
+function acceptDeps(over: Partial<AcceptInvitationDeps> = {}): AcceptInvitationDeps {
+	return {
+		validate: vi.fn(async () => row()),
+		claim: vi.fn(async () => true),
+		release: vi.fn(async () => {}),
+		createUser: vi.fn(async () => {}),
+		now: vi.fn(() => 2000),
+		...over,
+	}
+}
+
 describe('acceptInvitation', () => {
 	it('creates the user and stamps accepted_at', async () => {
 		const createUser = vi.fn(async () => {})
-		const markAccepted = vi.fn(async () => {})
-		const deps: AcceptInvitationDeps = {
-			validate: vi.fn(async () => row()),
-			createUser,
-			markAccepted,
-			now: vi.fn(() => 2000),
-		}
+		const claim = vi.fn(async () => true)
+		const deps = acceptDeps({ createUser, claim })
+
 		const result = await acceptInvitation({ token: 'raw', password: 'secret12' }, deps)
 		expect(result).toEqual({ email: 'kid@x.c' })
 		expect(createUser).toHaveBeenCalledWith({
@@ -135,17 +142,64 @@ describe('acceptInvitation', () => {
 			password: 'secret12',
 			role: 'member',
 		})
-		expect(markAccepted).toHaveBeenCalledWith('inv1', 2000)
+		expect(claim).toHaveBeenCalledWith('inv1', 2000)
+	})
+
+	it('claims the invitation before creating the account', async () => {
+		const order: string[] = []
+		const deps = acceptDeps({
+			claim: vi.fn(async () => {
+				order.push('claim')
+				return true
+			}),
+			createUser: vi.fn(async () => {
+				order.push('createUser')
+			}),
+		})
+
+		await acceptInvitation({ token: 'raw', password: 'secret12' }, deps)
+
+		// Stamping afterwards left both racers past validate(), so the loser crashed on
+		// the duplicate email instead of being rejected cleanly.
+		expect(order).toEqual(['claim', 'createUser'])
+	})
+
+	it('rejects the loser of a concurrent accept without creating a user', async () => {
+		const createUser = vi.fn(async () => {})
+		// The winner already stamped accepted_at, so the conditional update matches
+		// nothing for this caller.
+		const deps = acceptDeps({ claim: vi.fn(async () => false), createUser })
+
+		await expect(
+			acceptInvitation({ token: 'raw', password: 'secret12' }, deps),
+		).rejects.toBeInstanceOf(InvalidInvitationError)
+		expect(createUser).not.toHaveBeenCalled()
+	})
+
+	it('releases the claim when account creation fails, so the invite survives', async () => {
+		const release = vi.fn(async () => {})
+		const deps = acceptDeps({
+			createUser: vi.fn(async () => {
+				throw new Error('better-auth refused the password')
+			}),
+			release,
+		})
+
+		await expect(acceptInvitation({ token: 'raw', password: 'secret12' }, deps)).rejects.toThrow(
+			'better-auth refused the password',
+		)
+		expect(release).toHaveBeenCalledWith('inv1')
+	})
+
+	it('does not release the claim on success', async () => {
+		const release = vi.fn(async () => {})
+		await acceptInvitation({ token: 'raw', password: 'secret12' }, acceptDeps({ release }))
+		expect(release).not.toHaveBeenCalled()
 	})
 
 	it('throws InvalidInvitationError for a bad token and never creates a user', async () => {
 		const createUser = vi.fn(async () => {})
-		const deps: AcceptInvitationDeps = {
-			validate: vi.fn(async () => null),
-			createUser,
-			markAccepted: vi.fn(async () => {}),
-			now: vi.fn(() => 2000),
-		}
+		const deps = acceptDeps({ validate: vi.fn(async () => null), createUser })
 		await expect(
 			acceptInvitation({ token: 'bad', password: 'secret12' }, deps),
 		).rejects.toBeInstanceOf(InvalidInvitationError)
