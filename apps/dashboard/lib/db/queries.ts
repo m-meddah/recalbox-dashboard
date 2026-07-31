@@ -305,13 +305,23 @@ export type CollectionStats = {
 	neverPlayed: number
 }
 
-/** Aggregate stats over the full collection (excluding hidden games). */
-export async function getCollectionStats(): Promise<CollectionStats> {
+/**
+ * Aggregate stats over one Recalbox's collection (excluding hidden games).
+ *
+ * `recalboxId` is REQUIRED and nullable rather than optional: every row in `games`
+ * belongs to a box, and an omitted filter used to aggregate across every tenant —
+ * leaking other users' collection totals onto the dashboard. A null box yields empty
+ * stats (fail closed), never the global total.
+ */
+export async function getCollectionStats(recalboxId: string | null): Promise<CollectionStats> {
+	if (!recalboxId) return { totalGames: 0, bySystem: {}, favorites: 0, neverPlayed: 0 }
+
+	const scope = and(eq(games.hidden, false), eq(games.recalboxId, recalboxId))
 	const [bySystemRows, [totals]] = await Promise.all([
 		db
 			.select({ system: games.system, value: count() })
 			.from(games)
-			.where(eq(games.hidden, false))
+			.where(scope)
 			.groupBy(games.system)
 			.orderBy(desc(count())),
 		db
@@ -321,7 +331,7 @@ export async function getCollectionStats(): Promise<CollectionStats> {
 				neverPlayed: sql<number>`sum(case when (${games.playCount} = 0 or ${games.playCount} is null) then 1 else 0 end)`,
 			})
 			.from(games)
-			.where(eq(games.hidden, false)),
+			.where(scope),
 	])
 
 	const bySystem: Record<string, number> = {}

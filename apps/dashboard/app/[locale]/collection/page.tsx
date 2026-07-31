@@ -26,7 +26,7 @@ export default async function CollectionPage({ params }: Props) {
 	const recalboxId = await getActiveRecalboxId()
 
 	const [stats, t, tAudit, health, patron] = await Promise.all([
-		getCollectionStats(),
+		getCollectionStats(recalboxId),
 		getTranslations('collection'),
 		getTranslations('romAudit'),
 		getCollectionHealth(recalboxId ?? undefined),

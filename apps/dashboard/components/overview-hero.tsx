@@ -1,5 +1,6 @@
 import { StatCircle } from '@/components/stat-circle'
 import { getCollectionStats } from '@/lib/db/queries'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { getTranslations } from 'next-intl/server'
 
 /**
@@ -9,7 +10,9 @@ import { getTranslations } from 'next-intl/server'
  */
 export async function OverviewHero() {
 	const t = await getTranslations('dashboard.overview')
-	const stats = await getCollectionStats()
+	// Resolves to a box the signed-in user may view (null when unauthenticated), so the
+	// hero can never total up somebody else's collection.
+	const stats = await getCollectionStats(await getActiveRecalboxId())
 
 	const systems = Object.keys(stats.bySystem).length
 	const games = stats.totalGames
