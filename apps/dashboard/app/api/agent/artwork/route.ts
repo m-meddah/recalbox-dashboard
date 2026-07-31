@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
 import { listWanted, saveArtwork } from '@/lib/db/artwork'
 import { logger } from '@/lib/logger'
-import { artworkKey, contentTypeForPath, putObject } from '@/lib/storage'
+import { artworkContentType, artworkKey, looksLikeImage, putObject } from '@/lib/storage'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
 
 const Payload = z.object({
 	box_path: z.string().min(1),
+	// Accepted for wire compatibility but INTENTIONALLY IGNORED — see POST below.
+	// The shipped agent never sends it (agent/agent.py posts only box_path + data).
 	content_type: z.string().nullish(),
 	// base64-encoded image bytes
 	data: z.string().min(1),
@@ -54,7 +56,24 @@ export async function POST(req: NextRequest) {
 	}
 	if (bytes.byteLength === 0) return NextResponse.json({ error: 'empty_data' }, { status: 400 })
 
-	const contentType = p.content_type || contentTypeForPath(p.box_path)
+	// The agent's `content_type` is NOT trusted. A token holder (a compromised box, or
+	// anyone running their own) could claim text/html and turn the artwork bucket into a
+	// page-hosting service on a domain we own — served from object storage, where our
+	// own security headers do not reach. The type is derived from the file extension
+	// against a fixed image allowlist instead, and an upload we cannot type as an image
+	// is refused, so no .html key is ever created either.
+	const contentType = artworkContentType(p.box_path)
+	if (!contentType) {
+		logger.warn(`[agent/artwork] refused non-image path: ${p.box_path}`)
+		return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+	}
+	// …and the bytes must actually be an image, or a correct Content-Type would just be
+	// a label on arbitrary content.
+	if (!looksLikeImage(bytes)) {
+		logger.warn(`[agent/artwork] refused non-image bytes for: ${p.box_path}`)
+		return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+	}
+
 	try {
 		const key = artworkKey(resolved.recalboxId, p.box_path)
 		const { url } = await putObject(key, bytes, contentType)
