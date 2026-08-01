@@ -15,9 +15,27 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# A newer push to the same ref supersedes the one in flight.
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # One job per architecture, each on a native runner (no QEMU emulation).
+  # Both run in parallel, so wall-clock time is that of the slowest arch.
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -25,9 +43,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up QEMU (for multi-arch builds)
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,24 +55,93 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata (labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      # On push: build one single-arch image and push it by digest only (no tag).
+      # The merge job below assembles the digests into one multi-arch tag.
+      # On pull_request: build only, nothing is pushed.
+      - name: Build Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: ${{ github.event_name != 'pull_request'
+            && format('type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true', env.REGISTRY, env.IMAGE_NAME)
+            || 'type=cacheonly' }}
+          # Per-arch scope: without it the two parallel jobs overwrite each
+          # other's cache and every run starts cold.
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Assembles the per-arch digests into a single multi-arch manifest list and
+  # applies the real tags. Pushes no layers, so it takes seconds.
+  merge:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
