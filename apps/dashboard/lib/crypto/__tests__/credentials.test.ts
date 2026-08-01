@@ -73,4 +73,52 @@ describe('credentials crypto', () => {
 		expect(isEncrypted(out)).toBe(false)
 		expect(decryptSecret('plain')).toBe('plain')
 	})
+
+	describe('production refuses to fall back to plaintext', () => {
+		function clearKeys() {
+			// biome-ignore lint/performance/noDelete: env var must be truly absent, not set to "undefined"
+			delete process.env.BETTER_AUTH_SECRET
+			// biome-ignore lint/performance/noDelete: env var must be truly absent, not set to "undefined"
+			delete process.env.CREDENTIALS_SECRET
+		}
+		function setEnv(value: string) {
+			vi.stubEnv('NODE_ENV', value)
+		}
+		afterEach(() => vi.unstubAllEnvs())
+
+		it('throws rather than storing an SSH password in the clear', async () => {
+			clearKeys()
+			setEnv('production')
+			const { encryptSecret, MissingCredentialsKeyError } = await import('../credentials')
+
+			expect(() => encryptSecret('hunter2')).toThrow(MissingCredentialsKeyError)
+		})
+
+		it('still lets the empty string through, which is not a secret', async () => {
+			clearKeys()
+			setEnv('production')
+			const { encryptSecret } = await import('../credentials')
+
+			expect(encryptSecret('')).toBe('')
+		})
+
+		it('keeps the plaintext fallback outside production, for dev and tests', async () => {
+			clearKeys()
+			setEnv('development')
+			const { encryptSecret } = await import('../credentials')
+
+			expect(encryptSecret('plain')).toBe('plain')
+		})
+
+		it('encrypts normally in production once a key is configured', async () => {
+			clearKeys()
+			process.env.BETTER_AUTH_SECRET = KEY
+			setEnv('production')
+			const { encryptSecret, decryptSecret, isEncrypted } = await import('../credentials')
+
+			const token = encryptSecret('hunter2')
+			expect(isEncrypted(token)).toBe(true)
+			expect(decryptSecret(token)).toBe('hunter2')
+		})
+	})
 })

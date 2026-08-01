@@ -1,5 +1,8 @@
-import { getUser, unauthorized } from '@/lib/auth/require-user'
+import { canControlRecalbox } from '@/lib/auth/ownership'
+import { loadRecalbox } from '@/lib/auth/recalbox-acl'
+import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { formatMqttUrl } from '@/lib/recalbox/mqtt-url'
 import { PASSWORD_MASK } from '@/lib/settings/schemas'
 import { HOST_REGEX } from '@/lib/validation/host'
@@ -74,7 +77,8 @@ async function testMqtt(host: string, port: number) {
 }
 
 export async function POST(req: NextRequest) {
-	if (!(await getUser())) return unauthorized()
+	const user = await getUser()
+	if (!user) return unauthorized()
 	let body: unknown = {}
 	try {
 		body = await req.json()
@@ -85,15 +89,44 @@ export async function POST(req: NextRequest) {
 	const parsed = bodySchema.safeParse(body)
 	const overrides = parsed.success ? parsed.data : {}
 
-	const stored = configStore.get().recalbox
-	const host = overrides.host ?? stored.host
-	const sshUser = overrides.sshUser ?? stored.sshUser
-	const sshPassword =
-		!overrides.sshPassword || overrides.sshPassword === PASSWORD_MASK
-			? stored.sshPassword
-			: overrides.sshPassword
-	const sshPort = overrides.sshPort ?? stored.sshPort
-	const mqttPort = overrides.mqttPort ?? stored.mqttPort
+	// A password typed in THIS request. The mask sentinel means "unchanged", i.e. fall
+	// back to the stored one — it is never a password itself.
+	const typedPassword =
+		overrides.sshPassword && overrides.sshPassword !== PASSWORD_MASK ? overrides.sshPassword : null
+
+	let host: string
+	let sshUser: string
+	let sshPassword: string
+	let sshPort: number
+	let mqttPort: number
+
+	if (typedPassword) {
+		// The caller supplied the credential, so nothing secret leaves the server that
+		// they did not already hold. Any signed-in user may run this — the setup wizard
+		// needs it before any Recalbox exists.
+		const stored = configStore.get().recalbox
+		host = overrides.host ?? stored.host
+		sshUser = overrides.sshUser ?? stored.sshUser
+		sshPassword = typedPassword
+		sshPort = overrides.sshPort ?? stored.sshPort
+		mqttPort = overrides.mqttPort ?? stored.mqttPort
+	} else {
+		// No password in the request, so we would connect with a STORED one — and `host`
+		// is caller-controlled. Spending that secret is only the OWNER's to authorise:
+		// anyone else could aim it at a host they run and read the password out of their
+		// own sshd log. Owner only, admins included (canControlRecalbox enforces both).
+		const recalboxId = await getActiveRecalboxId()
+		if (!recalboxId || !(await canControlRecalbox(user, recalboxId))) return forbidden()
+		// Read through the ACL helper, not configStore: it re-reads the DB per request,
+		// so a reassigned owner cannot be served from a stale in-memory snapshot.
+		const rb = await loadRecalbox(recalboxId)
+		if (!rb) return forbidden()
+		host = overrides.host ?? rb.host
+		sshUser = overrides.sshUser ?? rb.sshUser
+		sshPassword = rb.sshPassword
+		sshPort = overrides.sshPort ?? rb.sshPort
+		mqttPort = overrides.mqttPort ?? rb.mqttPort
+	}
 
 	const [sshResult, mqttResult] = await Promise.all([
 		testSsh(host, sshUser, sshPassword, sshPort),

@@ -27,6 +27,48 @@ export function contentTypeForPath(p: string): string {
 	return EXT_CONTENT_TYPE[ext] ?? 'application/octet-stream'
 }
 
+/**
+ * Content type for an artwork UPLOAD, or null when the path is not an allowed
+ * image. Unlike contentTypeForPath() there is no octet-stream fallback: an upload
+ * we cannot type as an image is refused rather than stored.
+ *
+ * Note SVG is deliberately absent — it is the one "image" format that can carry
+ * script, and artwork is served from a domain we own.
+ */
+export function artworkContentType(boxPath: string): string | null {
+	const ext = boxPath.split('.').pop()?.toLowerCase() ?? ''
+	return EXT_CONTENT_TYPE[ext] ?? null
+}
+
+const MAGIC: ReadonlyArray<(b: Buffer) => boolean> = [
+	// PNG
+	(b) => b.length >= 8 && b.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')),
+	// JPEG (all variants start FF D8 FF)
+	(b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+	// GIF87a / GIF89a
+	(b) => b.length >= 6 && b.subarray(0, 4).toString('latin1') === 'GIF8',
+	// WebP: "RIFF" .... "WEBP"
+	(b) =>
+		b.length >= 12 &&
+		b.subarray(0, 4).toString('latin1') === 'RIFF' &&
+		b.subarray(8, 12).toString('latin1') === 'WEBP',
+	// BMP
+	(b) => b.length >= 2 && b.subarray(0, 2).toString('latin1') === 'BM',
+]
+
+/**
+ * Whether the bytes begin with a known image signature.
+ *
+ * Deliberately NOT checked against the declared extension: scraped Recalbox
+ * artwork is routinely mislabelled (a .png that is really a JPEG), and rejecting
+ * those would break legitimate uploads for no security gain. What matters is that
+ * the payload is an image at all, so the bucket cannot be used to host something
+ * else under a domain we own.
+ */
+export function looksLikeImage(bytes: Buffer): boolean {
+	return MAGIC.some((match) => match(bytes))
+}
+
 /** Stable storage key for a Recalbox file path (keeps the extension for serving). */
 export function artworkKey(recalboxId: string, boxPath: string): string {
 	const ext = boxPath.split('.').pop()?.toLowerCase() ?? 'bin'

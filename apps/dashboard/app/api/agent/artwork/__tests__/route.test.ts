@@ -13,11 +13,16 @@ vi.mock('@/lib/db/artwork', () => ({
 	listWanted: (...a: unknown[]) => listWanted(...a),
 	saveArtwork: (...a: unknown[]) => saveArtwork(...a),
 }))
-vi.mock('@/lib/storage', () => ({
-	putObject: (...a: unknown[]) => putObject(...a),
-	artworkKey: (rb: string, p: string) => `artwork/${rb}/key`,
-	contentTypeForPath: () => 'image/png',
-}))
+// Storage type/sniff helpers are NOT mocked: their behaviour is the security
+// boundary this route relies on, so the real ones run here.
+vi.mock('@/lib/storage', async () => {
+	const actual = await vi.importActual<typeof import('@/lib/storage')>('@/lib/storage')
+	return {
+		...actual,
+		putObject: (...a: unknown[]) => putObject(...a),
+		artworkKey: (rb: string, _p: string) => `artwork/${rb}/key`,
+	}
+})
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }))
 
 import { GET, POST } from '../route'
@@ -53,7 +58,11 @@ describe('GET /api/agent/artwork (wanted list)', () => {
 })
 
 describe('POST /api/agent/artwork (upload)', () => {
-	const okBody = { box_path: '/recalbox/share/a.png', data: Buffer.from([1, 2, 3]).toString('base64') }
+	const PNG_BYTES = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+	const okBody = {
+		box_path: '/recalbox/share/a.png',
+		data: PNG_BYTES.toString('base64'),
+	}
 
 	it('401s on an invalid token', async () => {
 		resolveAgentToken.mockResolvedValue(null)
@@ -81,5 +90,65 @@ describe('POST /api/agent/artwork (upload)', () => {
 			'https://blob/artwork/rb1/key',
 			'image/png',
 		)
+	})
+
+	it('ignores an agent-supplied content_type', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		putObject.mockResolvedValue({ url: 'https://blob/artwork/rb1/key' })
+		saveArtwork.mockResolvedValue(undefined)
+
+		const res = await POST(
+			req('Bearer x', { ...okBody, content_type: 'text/html; charset=utf-8' }) as never,
+		)
+
+		expect(res.status).toBe(201)
+		// Derived from the .png extension, never from the claim in the body.
+		expect(putObject).toHaveBeenCalledWith('artwork/rb1/key', expect.any(Buffer), 'image/png')
+	})
+
+	it('refuses a non-image path, so no .html object is ever created', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+
+		const res = await POST(
+			req('Bearer x', {
+				box_path: '/recalbox/share/evil.html',
+				data: Buffer.from('<script>alert(1)</script>').toString('base64'),
+				content_type: 'text/html',
+			}) as never,
+		)
+
+		expect(res.status).toBe(415)
+		expect(putObject).not.toHaveBeenCalled()
+		expect(saveArtwork).not.toHaveBeenCalled()
+	})
+
+	it('refuses non-image bytes behind an image extension', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+
+		const res = await POST(
+			req('Bearer x', {
+				box_path: '/recalbox/share/a.png',
+				data: Buffer.from('<!doctype html><script>alert(1)</script>').toString('base64'),
+			}) as never,
+		)
+
+		expect(res.status).toBe(415)
+		expect(putObject).not.toHaveBeenCalled()
+	})
+
+	it('still accepts a mislabelled but genuine image', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		putObject.mockResolvedValue({ url: 'https://blob/artwork/rb1/key' })
+		saveArtwork.mockResolvedValue(undefined)
+
+		// JPEG bytes under a .png name — common in scraped artwork, must not break.
+		const res = await POST(
+			req('Bearer x', {
+				box_path: '/recalbox/share/a.png',
+				data: Buffer.from('ffd8ffe000104a464946', 'hex').toString('base64'),
+			}) as never,
+		)
+
+		expect(res.status).toBe(201)
 	})
 })

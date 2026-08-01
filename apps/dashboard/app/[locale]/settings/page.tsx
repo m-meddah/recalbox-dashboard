@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useInstallPrompt } from '@/hooks/use-install-prompt'
+import { authClient } from '@/lib/auth/client'
 import {
 	registerServiceWorker,
 	subscribeToPush,
@@ -1145,11 +1146,25 @@ function SettingsTabs({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+// Tabs that write shared, instance-wide configuration: API keys and the outbound
+// endpoints those keys are sent to. The matching API routes reject non-admins, so
+// showing these to a member would only produce 403s — keep the list in step with
+// SHARED_SCOPES in app/api/settings/route.ts.
+const ADMIN_ONLY_TABS = new Set([
+	'scrobble',
+	'retroachievements',
+	'integrations',
+	'mqttPublish',
+	'igdb',
+])
+
 export default function SettingsPage() {
 	const t = useTranslations('settings')
 	const [config, setConfig] = useState<AppConfig | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [active, setActive] = useState('recalbox')
+	const { data: session, isPending: sessionPending } = authClient.useSession()
+	const isAdmin = session?.user?.role === 'admin'
 
 	useEffect(() => {
 		fetch('/api/settings')
@@ -1161,7 +1176,7 @@ export default function SettingsPage() {
 			.catch(() => setLoading(false))
 	}, [])
 
-	const navItems: NavItem[] = [
+	const allNavItems: NavItem[] = [
 		{ value: 'recalbox', icon: Server, label: t('tabs.recalbox'), mobileLabel: 'Recalbox' },
 		{ value: 'scrobble', icon: Clock, label: t('tabs.scrobble'), mobileLabel: 'Scrobble' },
 		{ value: 'interface', icon: Palette, label: t('tabs.interface'), mobileLabel: 'UI' },
@@ -1179,7 +1194,12 @@ export default function SettingsPage() {
 		{ value: 'app', icon: Smartphone, label: t('tabs.app'), mobileLabel: 'App' },
 	]
 
-	if (loading) {
+	const navItems = allNavItems.filter((item) => isAdmin || !ADMIN_ONLY_TABS.has(item.value))
+	// Selecting through a hidden tab is not possible, but a stale `active` (role change,
+	// restored state) must not render an admin panel — fall back to the first visible tab.
+	const activeTab = navItems.some((item) => item.value === active) ? active : 'recalbox'
+
+	if (loading || sessionPending) {
 		return <div className="p-8 text-muted-foreground text-sm">{t('loading')}</div>
 	}
 
@@ -1194,9 +1214,9 @@ export default function SettingsPage() {
 				<p className="text-muted-foreground text-sm">{t('subtitle')}</p>
 			</div>
 			<div className="space-y-6">
-				<SettingsTabs items={navItems} active={active} onSelect={setActive} />
+				<SettingsTabs items={navItems} active={activeTab} onSelect={setActive} />
 				<div className="min-w-0">
-					{active === 'recalbox' && (
+					{activeTab === 'recalbox' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('recalbox.cardTitle')}</CardTitle>
@@ -1207,7 +1227,7 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'scrobble' && (
+					{activeTab === 'scrobble' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('scrobble.cardTitle')}</CardTitle>
@@ -1218,7 +1238,7 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'interface' && (
+					{activeTab === 'interface' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('interface.cardTitle')}</CardTitle>
@@ -1229,7 +1249,7 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'retroachievements' && (
+					{activeTab === 'retroachievements' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('retroachievements.cardTitle')}</CardTitle>
@@ -1240,7 +1260,7 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'integrations' && (
+					{activeTab === 'integrations' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('integrations.cardTitle')}</CardTitle>
@@ -1251,7 +1271,7 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'mqttPublish' && (
+					{activeTab === 'mqttPublish' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('mqttPublish.cardTitle')}</CardTitle>
@@ -1262,10 +1282,10 @@ export default function SettingsPage() {
 							</CardContent>
 						</Card>
 					)}
-					{active === 'notifications' && <NotificationsTab />}
-					{active === 'igdb' && <IgdbTab />}
-					{active === 'hltb' && <HltbTab />}
-					{active === 'app' && (
+					{activeTab === 'notifications' && <NotificationsTab />}
+					{activeTab === 'igdb' && <IgdbTab />}
+					{activeTab === 'hltb' && <HltbTab />}
+					{activeTab === 'app' && (
 						<Card>
 							<CardHeader>
 								<CardTitle>{t('app.cardTitle')}</CardTitle>

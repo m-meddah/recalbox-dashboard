@@ -90,6 +90,25 @@ export const verification = sqliteTable(
 	(table) => [index('verification_identifier_idx').on(table.identifier)],
 )
 
+/**
+ * Rate-limit counters for Better Auth's `storage: 'database'` backend.
+ *
+ * The default in-memory store counts per PROCESS, which silently stops working on
+ * Vercel: each warm instance keeps its own tally, so the brute-force ceiling on
+ * /sign-in/email is really 5 × (number of live instances). Persisting the counter
+ * makes one shared limit across every instance.
+ *
+ * The EXPORT name must stay `rateLimit` (Better Auth resolves the model by schema
+ * key) and so must the property names below — the SQL column names are free.
+ */
+export const rateLimit = sqliteTable('rate_limit', {
+	id: text('id').primaryKey(),
+	key: text('key').notNull().unique(),
+	count: integer('count').notNull(),
+	// Epoch milliseconds. Declared `bigint` by Better Auth; SQLite INTEGER holds it.
+	lastRequest: integer('last_request').notNull(),
+})
+
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
 	accounts: many(account),

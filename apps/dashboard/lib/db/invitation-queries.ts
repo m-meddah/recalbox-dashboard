@@ -53,8 +53,26 @@ export async function listPendingInvitations(): Promise<PendingInvitation[]> {
 		.all()
 }
 
-export async function markAccepted(id: string, acceptedAt: number): Promise<void> {
-	await db.update(invitations).set({ acceptedAt }).where(eq(invitations.id, id)).run()
+/**
+ * Atomically claim a still-pending invitation. Returns true only for the caller
+ * whose UPDATE actually matched — the `acceptedAt IS NULL` predicate is what makes
+ * two concurrent accepts of the same token resolve to one winner.
+ *
+ * RETURNING rather than a rows-affected count: it is the portable answer across the
+ * libSQL and better-sqlite3 drivers this runs on.
+ */
+export async function claimInvitation(id: string, acceptedAt: number): Promise<boolean> {
+	const claimed = await db
+		.update(invitations)
+		.set({ acceptedAt })
+		.where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)))
+		.returning({ id: invitations.id })
+	return claimed.length > 0
+}
+
+/** Undo a claim whose account creation failed, so the invitation is not burnt by it. */
+export async function releaseInvitation(id: string): Promise<void> {
+	await db.update(invitations).set({ acceptedAt: null }).where(eq(invitations.id, id)).run()
 }
 
 export async function deleteInvitationById(id: string): Promise<void> {

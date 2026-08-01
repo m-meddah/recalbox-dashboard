@@ -14,6 +14,20 @@ export type PatronStatus = {
 const PATRON_KEY = 'patron.privatekey'
 const CONF_PATH = '/recalbox/share/system/recalbox.conf'
 
+/**
+ * The grep pattern, built here so it can be passed as ONE shell-quoted argument.
+ *
+ * Interpolating shellQuote() inside an already-open '…' — as this did — quotes
+ * nothing: its own quotes close and reopen the surrounding ones, leaving the value
+ * in an UNQUOTED context. It happened to work only because the key is a constant
+ * with no shell metacharacters. See the note in conf-reader.ts, where the same
+ * shape was reachable from user input.
+ *
+ * The dot is escaped so it matches a literal '.', not any character; parsePresence
+ * re-checks the key exactly, so this only tightens the pre-filter.
+ */
+const PATRON_KEY_PATTERN = `^\\s*${PATRON_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`
+
 // Patron keys appear to be base64url-encoded strings (≥ 16 chars).
 // This is a format sanity check only — not a server-side validation.
 function looksValid(value: string): boolean {
@@ -38,8 +52,10 @@ function parsePresence(output: string): { present: boolean; looksValid: boolean 
 
 export async function getPatronStatus(ssh: SshClientLike): Promise<PatronStatus> {
 	try {
+		// grep rather than cat: the value is a secret, and this keeps it from crossing
+		// the SSH channel at all beyond the single matching line.
 		const output = await ssh.exec(
-			`grep -E '^\\s*${shellQuote(PATRON_KEY)}\\s*=' ${CONF_PATH} || true`,
+			`grep -E ${shellQuote(PATRON_KEY_PATTERN)} ${shellQuote(CONF_PATH)} || true`,
 		)
 		const { present, looksValid: valid } = parsePresence(output)
 		return { isPatron: present && valid, keyPresent: present, keyLooksValid: valid }

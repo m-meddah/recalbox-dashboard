@@ -3,10 +3,11 @@ import { generateInvitationToken, hashInvitationToken } from '@/lib/auth/invitat
 import { auth } from '@/lib/auth/server'
 import {
 	type InvitationRow,
+	claimInvitation,
 	deletePendingByEmail,
 	getInvitationByTokenHash,
 	insertInvitation,
-	markAccepted,
+	releaseInvitation,
 } from '@/lib/db/invitation-queries'
 import { getUserByEmail } from '@/lib/db/user-queries'
 
@@ -93,7 +94,9 @@ export async function validateInvitation(
 export type AcceptInvitationDeps = {
 	validate: (token: string) => Promise<InvitationRow | null>
 	createUser: (args: { email: string; password: string; role: string }) => Promise<void>
-	markAccepted: (id: string, acceptedAt: number) => Promise<void>
+	/** Atomically take the invitation; false means somebody else already did. */
+	claim: (id: string, acceptedAt: number) => Promise<boolean>
+	release: (id: string) => Promise<void>
 	now: () => number
 }
 
@@ -108,7 +111,8 @@ const defaultAcceptDeps: AcceptInvitationDeps = {
 			body: { email, password, name: email, role: role as 'user' | 'admin' },
 		})
 	},
-	markAccepted,
+	claim: claimInvitation,
+	release: releaseInvitation,
 	now: Date.now,
 }
 
@@ -118,7 +122,21 @@ export async function acceptInvitation(
 ): Promise<{ email: string }> {
 	const invite = await deps.validate(input.token)
 	if (!invite) throw new InvalidInvitationError()
-	await deps.createUser({ email: invite.email, password: input.password, role: invite.role })
-	await deps.markAccepted(invite.id, deps.now())
+
+	// Claim BEFORE creating the account. An unconditional "stamp accepted_at" used to
+	// run AFTER createUser(), so two concurrent requests carrying the same token both got past
+	// validation. The unique email meant no second account was ever created, but the
+	// loser crashed on the duplicate insert and surfaced a 500 instead of a clean
+	// rejection. The conditional update decides a single winner.
+	if (!(await deps.claim(invite.id, deps.now()))) throw new InvalidInvitationError()
+
+	try {
+		await deps.createUser({ email: invite.email, password: input.password, role: invite.role })
+	} catch (err) {
+		// The account was not created (a password Better Auth refuses, a transient DB
+		// error…). Give the invitation back rather than burning it on a failed attempt.
+		await deps.release(invite.id).catch(() => {})
+		throw err
+	}
 	return { email: invite.email }
 }
