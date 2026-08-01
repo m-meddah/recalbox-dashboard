@@ -23,7 +23,12 @@ vi.mock('@/lib/igdb/auth', () => ({
 
 import { POST } from '../route'
 
-const CREDS = { clientId: 'client-id-123', clientSecret: 'client-secret-123' }
+// Placeholder credentials, deliberately self-describing so secret scanners do not
+// mistake them for a leaked IGDB app secret.
+const CREDS = {
+	clientId: 'not-a-real-igdb-client-id',
+	clientSecret: 'not-a-real-igdb-client-secret',
+}
 
 function req(body: unknown): Request {
 	return new Request('http://x/api/igdb/credentials', {

@@ -6,6 +6,17 @@ const activeId = vi.fn()
 const loadRecalbox = vi.fn()
 const sshConnect = vi.fn()
 
+/**
+ * Fixture passwords. Named constants rather than inline literals, and prefixed so
+ * they read as placeholders to a human AND to secret scanners — a short arbitrary
+ * string next to a password-ish key was enough to raise a GitGuardian "generic
+ * password" incident on this file.
+ */
+const PW_STORED = 'not-a-real-password-stored-scope'
+const PW_OWNED = 'not-a-real-password-owned-box'
+const PW_TYPED = 'not-a-real-password-typed-in-wizard'
+const PW_CALLER = 'not-a-real-password-supplied-by-caller'
+
 vi.mock('@/lib/auth/require-user', async () => {
 	const { NextResponse } = await import('next/server')
 	return {
@@ -29,7 +40,7 @@ vi.mock('@/lib/config-store', () => ({
 			recalbox: {
 				host: 'stored-host',
 				sshUser: 'root',
-				sshPassword: 'STORED-SECRET',
+				sshPassword: PW_STORED,
 				sshPort: 22,
 				mqttPort: 1883,
 			},
@@ -64,7 +75,7 @@ const OWNED_BOX = {
 	id: 'rb-1',
 	host: 'my-box.local',
 	sshUser: 'root',
-	sshPassword: 'OWNED-SECRET',
+	sshPassword: PW_OWNED,
 	sshPort: 22,
 	mqttPort: 1883,
 }
@@ -155,7 +166,7 @@ describe('POST /api/settings/test-connection', () => {
 		expect(res.status).toBe(200)
 		expect(await res.json()).toHaveProperty('overall')
 		expect(sshConnect).toHaveBeenCalledWith(
-			expect.objectContaining({ host: 'my-box.local', password: 'OWNED-SECRET' }),
+			expect.objectContaining({ host: 'my-box.local', password: PW_OWNED }),
 		)
 	})
 
@@ -169,7 +180,7 @@ describe('POST /api/settings/test-connection', () => {
 
 		expect(res.status).toBe(200)
 		expect(sshConnect).toHaveBeenCalledWith(
-			expect.objectContaining({ host: 'new-box.local', password: 'OWNED-SECRET' }),
+			expect.objectContaining({ host: 'new-box.local', password: PW_OWNED }),
 		)
 	})
 
@@ -181,14 +192,14 @@ describe('POST /api/settings/test-connection', () => {
 		const res = await runPost({
 			host: 'fresh-box.local',
 			sshUser: 'root',
-			sshPassword: 'typed-by-user',
+			sshPassword: PW_TYPED,
 			sshPort: 22,
 			mqttPort: 1883,
 		})
 
 		expect(res.status).toBe(200)
 		expect(sshConnect).toHaveBeenCalledWith(
-			expect.objectContaining({ host: 'fresh-box.local', password: 'typed-by-user' }),
+			expect.objectContaining({ host: 'fresh-box.local', password: PW_TYPED }),
 		)
 	})
 
@@ -197,11 +208,11 @@ describe('POST /api/settings/test-connection', () => {
 		activeId.mockResolvedValue('rb-1')
 		canControl.mockResolvedValue(false)
 
-		await runPost({ host: 'attacker.tld', sshPassword: 'their-own' })
+		await runPost({ host: 'attacker.tld', sshPassword: PW_CALLER })
 
 		const sent = sshConnect.mock.calls[0]?.[0] as { password: string } | undefined
-		expect(sent?.password).toBe('their-own')
-		expect(sent?.password).not.toBe('STORED-SECRET')
-		expect(sent?.password).not.toBe('OWNED-SECRET')
+		expect(sent?.password).toBe(PW_CALLER)
+		expect(sent?.password).not.toBe(PW_STORED)
+		expect(sent?.password).not.toBe(PW_OWNED)
 	})
 })

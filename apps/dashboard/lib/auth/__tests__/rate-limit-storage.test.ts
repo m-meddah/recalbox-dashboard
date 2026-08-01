@@ -45,7 +45,7 @@ function createAuth() {
 	const auth = betterAuth({
 		database: drizzleAdapter(db, { provider: 'sqlite', schema: authSchema }),
 		baseURL: 'http://localhost:3000',
-		secret: 'test-secret-not-used-anywhere-else',
+		secret: 'not-a-real-better-auth-secret-for-tests',
 		emailAndPassword: { enabled: true, disableSignUp: true },
 		rateLimit: buildRateLimitConfig({ NODE_ENV: 'production' } as NodeJS.ProcessEnv),
 	})
@@ -56,7 +56,7 @@ function signInRequest() {
 	return new Request('http://localhost:3000/api/auth/sign-in/email', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.7' },
-		body: JSON.stringify({ email: 'victim@example.com', password: 'guess' }),
+		body: JSON.stringify({ email: 'victim@example.com', password: 'not-a-real-password-guess' }),
 	})
 }
 

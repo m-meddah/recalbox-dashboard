@@ -119,7 +119,7 @@ describe('PUT /api/settings', () => {
 	})
 
 	it.each([
-		['retroachievements', { retroachievements: { apiKey: 'stolen' } }],
+		['retroachievements', { retroachievements: { apiKey: 'not-a-real-api-key' } }],
 		['superRetrogamers', { superRetrogamers: { apiUrl: 'http://attacker.tld' } }],
 		['mqttPublish', { mqttPublish: { brokerUrl: 'mqtt://attacker.tld' } }],
 		['scrobble', { scrobble: { minDurationSec: 0 } }],
@@ -148,7 +148,7 @@ describe('PUT /api/settings', () => {
 	it('lets an admin write the shared scopes', async () => {
 		getUser.mockResolvedValue({ id: 'admin1', email: 'a@b.c', role: 'admin' })
 
-		const res = await PUT(req({ retroachievements: { apiKey: 'k' } }) as never)
+		const res = await PUT(req({ retroachievements: { apiKey: 'not-a-real-api-key' } }) as never)
 
 		expect(res.status).toBe(200)
 		expect(update).toHaveBeenCalled()
