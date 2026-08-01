@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] - Unreleased
 
 ### Added
 
@@ -17,6 +17,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Deep verification of one title** — `chdman verify` catches a rotting CHD; `dolphin-tool` recomputes an RVZ's disc image and compares it to Redump, which yields a genuine catalogue match. Self-hosted only, and hidden when the binary is absent.
   - **Two transports** — SSH from the dashboard when self-hosted, and the on-box agent's command queue in serverless. Detail is kept locally; the cloud stores per-system aggregates and unknown files only, so a rescan that changes nothing writes **zero rows**.
   - **Export** — the missing list as CSV or JSON, filters included.
+
+### Fixed
+
+- **Network shares are now a first-class support** — `network0..3` mounts (ROMs living on a NAS) were invisible to system discovery, to the collection and to the audit, which reported those systems as empty rather than as unreachable. They are now walked like the USB disks and the SD card, over SSH as well as through the on-box agent.
+- **The SD card is no longer skipped when reading the collection** — only the external USB disks were ever listed, so a collection sitting on the internal card came back empty.
+- **An unreadable support no longer passes for an empty collection** — it is reported as unreadable, which is a different claim.
+- **The Docker image builds again** — the multi-arch build tripped on a leftover `COPY` of a package that had been deleted, then on the static prerender of `/[locale]/offline`: that page renders the locale layout, which resolves the session and therefore initialises Better Auth, and Better Auth refuses its default secret under `NODE_ENV=production`. The builder stage now sets a build-only placeholder secret, which never reaches the runtime image.
+
+### Security
+
+A full audit — 108 API routes, the authorization layer, the SSH/MQTT integration, the on-box agent and the dependency tree — with one fix per finding. The authorization model itself held up; the gaps were concentrated in the `settings` scope, which the earlier ownership work had never covered.
+
+- **The stored SSH password could be sent to a host of the caller's choosing** — `POST /api/settings/test-connection` took `host` from the request body but fell back to the **stored** password whenever the body omitted it, or sent the `***` mask. Any signed-in member could point it at a machine they run and read the box's credentials — root, on Recalbox — out of their own sshd log, defeating the masking the rest of the app maintains carefully. The stored secret is now spent only by the box's **owner**, admins included; supplying a password explicitly still works without ownership, which is what the setup wizard needs, and the owner still never has to retype theirs.
+- **Instance-wide configuration was writable by any member** — the `settings` scope checked that you were signed in and nothing more, then wrote through to the **default** Recalbox, which is not necessarily yours. Repointing its `host` harvested the stored password on the next connection from the scrobbler or the media proxy. It now targets the **active** box and requires ownership, exactly as `PUT /api/recalboxes/[id]` always did. The scopes holding shared API keys — RetroAchievements, Super Retrogamers, MQTT publishing, scrobbler tuning, IGDB credentials — are admin-only, and so is `POST /api/settings/reset`, whose `scope` is optional and whose omission wipes every key. Those keys and the endpoints they are sent to had to be gated together: repointing `superRetrogamers.apiUrl` shipped the stored `X-API-Key` to the new host, the same trick as the SSH one. The matching settings tabs are hidden from members.
+- **The dashboard totalled every user's collection** — `getCollectionStats()` had no tenant filter at all, so the game count, the per-system breakdown, the favourites and the never-played shown on the overview and the collection pages aggregated **every** Recalbox of **every** user. It also disagreed with the games actually listed beside it, which are scoped. It now takes a required box id and returns empty rather than global totals when there is none.
+- **A conf lookup only appeared to be shell-quoted** — `grep -E '^\s*${shellQuote(key)}\s*='` quotes nothing: the helper's own quotes close and reopen the surrounding ones, leaving the value **unquoted**, so a key of `a;id;b` ran `id` on the box. `GET /api/recalbox/conf?key=` passes its query parameter straight there, with only a three-entry whitelist in front of it — the whitelist held, so this was never exploitable end to end, but the escaping everyone would assume was protecting it was inert. The key no longer reaches the command line at all: the file is read and filtered in JS, as the sibling function already did.
+- **Rate limiting counted per process** — Better Auth's default store is in-memory, so each warm serverless instance keeps its own tally and the strict five-per-minute rule on `/sign-in/email` really allowed five times the number of live instances. Counters now live in the database, in a new `rate_limit` table.
+- **32 dependency advisories, 2 critical and 17 high** — Next.js 16.2.6 → 16.2.12 closes an App Router middleware bypass, which matters here because `proxy.ts` is the only authentication gate in front of pages, and two SSRF advisories; Better Auth 1.6.15 → 1.6.25 closes an account-takeover path (not reachable in this app, which enables neither magic links nor email OTP). Transitive fixes for `ws`, `sharp`, `postcss`, `vite` and others go through pnpm overrides. Three advisories remain, none high or critical.
+- **A Content-Security-Policy and HSTS are now sent** — image sources are restricted to what the UI actually loads, and the policy was verified in a browser rather than asserted as a string. `script-src` still needs `'unsafe-inline'` for Next's hydration bootstrap and the anti-FOUC script, so injected inline script is not stopped; third-party script files, cross-origin exfiltration and plugin embedding are. HSTS is deliberately sent without `preload`, which is effectively irreversible and would force HTTPS on LAN and tailnet deployments that legitimately serve plain HTTP.
+- **The artwork endpoint trusted the agent's declared content type** — a token holder could upload arbitrary bytes as `text/html` and turn the artwork bucket into a page host, on a domain you own and where the headers above do not reach. The type is derived from the file extension against an image allowlist (SVG excluded, being the one image format that can carry script), a path that is not an image is refused outright, and the bytes must start with a real image signature. That signature is deliberately **not** matched against the extension: scraped artwork is routinely mislabelled, and rejecting it would break real uploads for no gain.
+- **Accepting an invitation was a race** — two concurrent requests carrying the same token both passed validation. The unique email meant no second account was ever created, but the loser crashed on the duplicate insert instead of being rejected cleanly. The invitation is now claimed atomically before the account is created, and released if creating it fails, so a mistyped password no longer burns the invite.
+- **A missing encryption key no longer degrades to plaintext** — with neither `CREDENTIALS_SECRET` nor `BETTER_AUTH_SECRET` set, SSH and IGDB credentials were written in the clear behind a single log line. Production now refuses outright. Better Auth already declines to boot without a secret, so this was not reachable in practice; the invariant now belongs to the module that owns it rather than to another library's validation.
+
+**Upgrading:** a Recalbox with no `owner_user_id` becomes uneditable, since ownership is what now gates its stored credentials. Boxes created through the setup wizard's no-JavaScript fallback were left unowned; that path assigns an owner now, but existing rows are not adopted automatically — deciding who owns a machine is not something a first click should settle. Check with `select count(*) from recalboxes where owner_user_id is null` and set the column by hand if it returns anything.
 
 ## [2.0.0] - 2026-06-05
 
@@ -185,7 +209,8 @@ than replacing it.
 - English and French UI via next-intl, with locale-prefix routing (`/en/`, `/fr/`)
 - All user-facing strings translated; locale auto-detected from browser preferences
 
-[Unreleased]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.1.0...HEAD
+[2.1.0]: https://github.com/m-meddah/recalbox-dashboard/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/m-meddah/recalbox-dashboard/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/m-meddah/recalbox-dashboard/releases/tag/v1.0.0
