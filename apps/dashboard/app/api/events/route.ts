@@ -119,62 +119,59 @@ export async function GET(request: Request) {
 			const cleanups: Array<() => void> = []
 			const clients = new Map<string, RecalboxMqttClient>()
 
-			// Serverless: the cloud has no MQTT link to the (NAT'd) box, so a cloud MQTT
-			// client would only ever emit connection:down and fight the agent-liveness
-			// signal below. Skip it entirely — pollConnection + pollNowPlaying drive the UI.
-			if (!isServerlessMode())
-				for (const recalboxId of recalboxIds) {
-					let client: RecalboxMqttClient
-					try {
-						client = mqttPool.getClient(recalboxId)
-					} catch {
-						continue
-					}
-
-					clients.set(recalboxId, client)
-
-					sendConnectionStatus(recalboxId, client.isConnected)
-					if (allowed(recalboxId)) {
-						if (client.lastKnownGame) {
-							sendEvent(recalboxId, client.lastKnownGame)
-						} else if (client.lastKnownScreensaverGame) {
-							sendEvent(recalboxId, client.lastKnownScreensaverGame)
-						} else if (client.isScreensaverActive) {
-							sendEvent(recalboxId, { type: 'screensaver:start' })
-						} else if (client.lastKnownBrowsing) {
-							sendEvent(recalboxId, client.lastKnownBrowsing)
-						}
-					}
-
-					const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
-					const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
-					const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
-					const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
-					const onScreensaverStart = (e: ScreensaverStartEvent) => sendEvent(recalboxId, e)
-					const onScreensaverStop = (e: ScreensaverStopEvent) => sendEvent(recalboxId, e)
-					const onUp = () => sendConnectionStatus(recalboxId, true)
-					const onDown = () => sendConnectionStatus(recalboxId, false)
-
-					client.on('game:start', onGameStart)
-					client.on('game:stop', onGameStop)
-					client.on('system:change', onSystemChange)
-					client.on('system:info', onSystemInfo)
-					client.on('screensaver:start', onScreensaverStart)
-					client.on('screensaver:stop', onScreensaverStop)
-					client.on('connection:up', onUp)
-					client.on('connection:down', onDown)
-
-					cleanups.push(() => {
-						client.off('game:start', onGameStart)
-						client.off('game:stop', onGameStop)
-						client.off('system:change', onSystemChange)
-						client.off('system:info', onSystemInfo)
-						client.off('screensaver:start', onScreensaverStart)
-						client.off('screensaver:stop', onScreensaverStop)
-						client.off('connection:up', onUp)
-						client.off('connection:down', onDown)
-					})
+			// Self-hosted MQTT path (the cloud already returned 204 above).
+			for (const recalboxId of recalboxIds) {
+				let client: RecalboxMqttClient
+				try {
+					client = mqttPool.getClient(recalboxId)
+				} catch {
+					continue
 				}
+
+				clients.set(recalboxId, client)
+
+				sendConnectionStatus(recalboxId, client.isConnected)
+				if (allowed(recalboxId)) {
+					if (client.lastKnownGame) {
+						sendEvent(recalboxId, client.lastKnownGame)
+					} else if (client.lastKnownScreensaverGame) {
+						sendEvent(recalboxId, client.lastKnownScreensaverGame)
+					} else if (client.isScreensaverActive) {
+						sendEvent(recalboxId, { type: 'screensaver:start' })
+					} else if (client.lastKnownBrowsing) {
+						sendEvent(recalboxId, client.lastKnownBrowsing)
+					}
+				}
+
+				const onGameStart = (e: GameStartEvent) => sendEvent(recalboxId, e)
+				const onGameStop = (e: GameStopEvent) => sendEvent(recalboxId, e)
+				const onSystemChange = (e: SystemChangeEvent) => sendEvent(recalboxId, e)
+				const onSystemInfo = (e: SystemInfoEvent) => sendEvent(recalboxId, e)
+				const onScreensaverStart = (e: ScreensaverStartEvent) => sendEvent(recalboxId, e)
+				const onScreensaverStop = (e: ScreensaverStopEvent) => sendEvent(recalboxId, e)
+				const onUp = () => sendConnectionStatus(recalboxId, true)
+				const onDown = () => sendConnectionStatus(recalboxId, false)
+
+				client.on('game:start', onGameStart)
+				client.on('game:stop', onGameStop)
+				client.on('system:change', onSystemChange)
+				client.on('system:info', onSystemInfo)
+				client.on('screensaver:start', onScreensaverStart)
+				client.on('screensaver:stop', onScreensaverStop)
+				client.on('connection:up', onUp)
+				client.on('connection:down', onDown)
+
+				cleanups.push(() => {
+					client.off('game:start', onGameStart)
+					client.off('game:stop', onGameStop)
+					client.off('system:change', onSystemChange)
+					client.off('system:info', onSystemInfo)
+					client.off('screensaver:start', onScreensaverStart)
+					client.off('screensaver:stop', onScreensaverStop)
+					client.off('connection:up', onUp)
+					client.off('connection:down', onDown)
+				})
+			}
 
 			// The maySeeNotification() guards must come BEFORE markPushedInApp(), which
 			// atomically CLAIMS the notification: an unauthorized stream would otherwise
