@@ -812,8 +812,8 @@ Dans `app/[locale]/page.tsx`, ajouter les imports :
 
 ```tsx
 import { RefreshLiveState } from '@/components/refresh-live-state'
-import { buildSeedState } from '@/lib/sse/build-seed-state'
 import { db } from '@/lib/db'
+import { getAgentLastSeen } from '@/lib/db/agent-liveness'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 ```
 
@@ -821,8 +821,12 @@ Dans le corps du composant, après `const t = await getTranslations('dashboard')
 
 ```tsx
 	const serverless = isServerlessMode()
+	// Only the last-signal timestamp is needed here — the game state already reaches
+	// the UI through the provider, seeded by the layout. One query, not a second seed.
 	const activeRecalboxId = serverless ? await getActiveRecalboxId() : null
-	const seed = activeRecalboxId ? await buildSeedState(db, activeRecalboxId) : null
+	const lastSeenAt = activeRecalboxId
+		? ((await getAgentLastSeen(db)).get(activeRecalboxId) ?? null)
+		: null
 ```
 
 Remplacer la seconde `<section>` par :
@@ -831,7 +835,7 @@ Remplacer la seconde `<section>` par :
 				<section className="space-y-4">
 					<SectionLabel>{t('system.title')}</SectionLabel>
 					{serverless ? (
-						<RefreshLiveState lastSeenAt={seed?.lastSeenAt ?? null} />
+						<RefreshLiveState lastSeenAt={lastSeenAt} />
 					) : (
 						<>
 							<Suspense
@@ -1134,6 +1138,7 @@ Stdlib unittest only: the agent is deliberately dependency-free. From the repo r
 import sys
 import types
 import unittest
+from unittest import mock
 
 # agent.py imports paho at module level. It ships with RecalboxOS but is not needed
 # to exercise the config logic, so stub it to keep the import cheap.
@@ -1154,14 +1159,18 @@ import agent  # noqa: E402
 
 class SnapshotLoopDisabled(unittest.TestCase):
 	def test_returns_immediately_when_interval_is_zero(self):
-		"""A zero interval must not enter the infinite loop."""
+		"""A zero interval must not enter the infinite loop, and must push nothing."""
 		cfg = {"cloud_url": "https://x/api/agent/ingest", "snapshot_interval_sec": 0}
 		# If the guard is missing this blocks forever inside `while True`.
-		agent.snapshot_loop(cfg)
+		with mock.patch.object(agent, "http_post_json") as post:
+			agent.snapshot_loop(cfg)
+		post.assert_not_called()
 
 	def test_returns_immediately_when_interval_is_negative(self):
 		cfg = {"cloud_url": "https://x/api/agent/ingest", "snapshot_interval_sec": -1}
-		agent.snapshot_loop(cfg)
+		with mock.patch.object(agent, "http_post_json") as post:
+			agent.snapshot_loop(cfg)
+		post.assert_not_called()
 
 	def test_default_config_disables_snapshots(self):
 		"""Serverless no longer reads snapshots, so the shipped default is off."""
