@@ -21,8 +21,9 @@ vi.mock('@/lib/auth/ownership', () => ({
 	getViewableRecalboxIds: (...a: unknown[]) => getViewable(...a),
 }))
 vi.mock('@/lib/auth/recalbox-acl', () => ({ loadRecalboxes: () => loadRecalboxes() }))
-// Serverless: no MQTT clients, so the DB polls drive the stream.
-vi.mock('@/lib/serverless', () => ({ isServerlessMode: () => true }))
+// Self-hosted: MQTT clients exist but are disconnected here, so the DB polls still
+// drive the stream — the same code paths the serverless mode used to exercise.
+vi.mock('@/lib/serverless', () => ({ isServerlessMode: () => false }))
 vi.mock('@/lib/db', () => ({ db: {} }))
 vi.mock('@/lib/db/now-playing', async () => {
 	const actual =
@@ -57,7 +58,21 @@ vi.mock('@/lib/notifications/service', () => ({
 vi.mock('@/lib/feedback/service', () => ({
 	feedbackService: { getUnpushed: async () => [], markPushed: async () => {} },
 }))
-vi.mock('@/lib/recalbox/mqtt-client', () => ({ mqttPool: { getClient: () => null } }))
+vi.mock('@/lib/recalbox/mqtt-client', () => ({
+	mqttPool: {
+		// A disconnected client: the route then falls through to the DB polls, which is
+		// exactly what these tests assert on.
+		getClient: () => ({
+			isConnected: false,
+			lastKnownGame: null,
+			lastKnownScreensaverGame: null,
+			isScreensaverActive: false,
+			lastKnownBrowsing: null,
+			on: () => {},
+			off: () => {},
+		}),
+	},
+}))
 
 import { GET } from '../route'
 

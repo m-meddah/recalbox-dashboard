@@ -29,23 +29,23 @@ export const runtime = 'nodejs'
 // instead of an abrupt platform kill mid-message.
 export const maxDuration = 300
 
-// Each open SSE stream re-runs these DB polls for its whole lifetime, so every
-// tab is a steady Turso read load. On the serverless/Turso backend that is a real
-// quota cost (an idle tab left open all day = tens of thousands of reads), so the
-// intervals are deliberately relaxed — a few seconds of extra lag on a status
-// pill or the temperature gauge is invisible, but it cuts the read rate ~4×.
-// Live game start/stop still arrives promptly (10s) so the now-playing card feels
-// responsive; the slow-moving signals (connection, CPU/temp) poll least often.
+// Each open SSE stream re-runs these DB polls for its whole lifetime, so every tab is
+// steady read load. Self-hosted only — serverless returns 204 above and seeds its state
+// server-side instead. A few seconds of lag on a status pill is invisible; the
+// slow-moving signals (connection, CPU/temp) poll least often.
 const NOW_PLAYING_POLL_MS = 10_000
 const NOTIFICATIONS_POLL_MS = 20_000
 // connection + system-info + feedback are batched into ONE loop (was three timers).
 const SLOW_POLL_MS = 30_000
-// Idle backoff (serverless only): no game playing and no box online, so widen every
-// loop — the on-box agent only pushes every few minutes; faster polling buys nothing.
-const IDLE_NOW_PLAYING_MS = 30_000
-const IDLE_SLOW_POLL_MS = 60_000
 
 export async function GET(request: Request) {
+	// Serverless: no SSE at all. The live state is seeded server-side (see
+	// lib/sse/build-seed-state.ts) and refreshed on demand. Returning before auth and
+	// before any DB read is the point — a stale client bundle that still opens this
+	// must cost nothing. EventSource sees a non-event-stream response, gives up, and
+	// lands on the long `refused` backoff in lib/sse/reconnect-delay.ts.
+	if (isServerlessMode()) return new Response(null, { status: 204 })
+
 	const user = await getUser()
 	if (!user) return unauthorized()
 
@@ -281,31 +281,15 @@ export async function GET(request: Request) {
 					logger.error('Feedback poll failed', err)
 				}
 			}
-			// Batched, adaptive polling. The three slow signals (connection, system stats,
-			// feedback) share ONE loop instead of three timers; now-playing keeps its own.
-			// When serverless AND idle (nothing playing, no box online) both loops back off
-			// — the on-box agent only pushes every few minutes, so tighter polling would
-			// just burn Fluid Active CPU / Turso reads and hold the instance warm for nothing.
+			// Batched polling. The three slow signals (connection, system stats, feedback)
+			// share ONE loop instead of three timers; now-playing keeps its own.
 			let closed = false
-			const anyGameActive = () => {
-				for (const key of nowPlayingState.values()) if (key !== null) return true
-				return false
-			}
-			const anyBoxOnline = () => {
-				for (const c of clients.values()) if (c.isConnected) return true
-				for (const online of connOnline.values()) if (online) return true
-				return false
-			}
-			const idle = () => isServerlessMode() && !anyGameActive() && !anyBoxOnline()
 
 			let nowPlayingTimer: ReturnType<typeof setTimeout>
 			const loopNowPlaying = async () => {
 				await pollNowPlaying()
 				if (closed) return
-				nowPlayingTimer = setTimeout(
-					loopNowPlaying,
-					idle() ? IDLE_NOW_PLAYING_MS : NOW_PLAYING_POLL_MS,
-				)
+				nowPlayingTimer = setTimeout(loopNowPlaying, NOW_PLAYING_POLL_MS)
 			}
 
 			let slowTimer: ReturnType<typeof setTimeout>
@@ -314,7 +298,7 @@ export async function GET(request: Request) {
 				await pollSystemInfo()
 				await pollFeedback()
 				if (closed) return
-				slowTimer = setTimeout(loopSlow, idle() ? IDLE_SLOW_POLL_MS : SLOW_POLL_MS)
+				slowTimer = setTimeout(loopSlow, SLOW_POLL_MS)
 			}
 
 			loopNowPlaying()
