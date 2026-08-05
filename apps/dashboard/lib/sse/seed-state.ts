@@ -8,7 +8,11 @@ export type ActivityState = {
 }
 
 /** Live state plus the box it describes, so staleness is derivable rather than reset. */
-export type StreamState = { box: string | null; activity: ActivityState; mqttOnline: boolean | null }
+export type StreamState = {
+	box: string | null
+	activity: ActivityState
+	mqttOnline: boolean | null
+}
 
 export const initialActivity: ActivityState = {
 	game: null,

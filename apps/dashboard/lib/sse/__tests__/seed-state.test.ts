@@ -12,11 +12,11 @@ const game: GameStartEvent = {
 }
 
 describe('seedToStream', () => {
-	it('retourne l\'état vide quand il n\'y a pas de seed', () => {
+	it("retourne l'état vide quand il n'y a pas de seed", () => {
 		expect(seedToStream(null)).toEqual(initialStream)
 	})
 
-	it('reporte la box, le jeu et l\'état en ligne', () => {
+	it("reporte la box, le jeu et l'état en ligne", () => {
 		const seed: SeedState = {
 			box: 'rb-1',
 			game,
@@ -39,7 +39,7 @@ describe('seedToStream', () => {
 		expect(stream.mqttOnline).toBe(false)
 	})
 
-	it('mqttOnline vaut false — jamais null — dès qu\'un seed existe', () => {
+	it("mqttOnline vaut false — jamais null — dès qu'un seed existe", () => {
 		// null signifie « en cours de chargement » côté UI et laisse les composants
 		// en squelette perpétuel. Un seed est une réponse, pas une attente.
 		const seed: SeedState = { box: 'rb-1', game: null, online: false, lastSeenAt: null }
