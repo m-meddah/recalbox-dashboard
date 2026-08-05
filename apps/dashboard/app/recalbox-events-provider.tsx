@@ -116,7 +116,13 @@ export function RecalboxEventsProvider({
 	// switch: state belonging to another box is simply not read (see `stale` below),
 	// which also means a late event from the closed stream cannot pollute the new
 	// box's view — it lands tagged with the old id and is ignored.
-	const [stream, setStream] = useState<StreamState>(() => seedToStream(initialState))
+	const [streamState, setStreamState] = useState<StreamState>(() => seedToStream(initialState))
+
+	// Not live: there is no event stream to fold into state, so derive straight from
+	// props. router.refresh() re-renders the server layout and hands us a fresh seed;
+	// a useState initializer would have captured only the very first one, since it runs
+	// on mount and router.refresh() reconciles rather than remounts.
+	const stream = live ? streamState : seedToStream(initialState)
 	const handlersRef = useRef<Set<Handler> | null>(null)
 	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
@@ -128,7 +134,7 @@ export function RecalboxEventsProvider({
 		// the fallback run would flip a correctly-seeded state to offline after 10s.
 		if (!live) return
 		const fallback = setTimeout(() => {
-			setStream((prev) => (prev.mqttOnline === null ? { ...prev, mqttOnline: false } : prev))
+			setStreamState((prev) => (prev.mqttOnline === null ? { ...prev, mqttOnline: false } : prev))
 		}, 10_000)
 		return () => clearTimeout(fallback)
 	}, [live])
@@ -167,7 +173,7 @@ export function RecalboxEventsProvider({
 				// are cross-box and go straight to subscribers.
 				const box = (event as { recalboxId?: string }).recalboxId
 				if (box !== undefined) {
-					setStream((prev) =>
+					setStreamState((prev) =>
 						// First event from a different box: start from a clean slate instead of
 						// inheriting the previous box's game/stats.
 						applyEvent(prev.box === box ? prev : { ...initialStream, box }, event),
