@@ -21,8 +21,10 @@ import { routing } from '@/i18n/routing'
 import { canControlRecalbox, getViewableRecalboxIds, isAdmin } from '@/lib/auth/ownership'
 import { loadRecalboxes } from '@/lib/auth/recalbox-acl'
 import { getUser } from '@/lib/auth/require-user'
+import { db } from '@/lib/db'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { isServerlessMode } from '@/lib/serverless'
+import { buildSeedState } from '@/lib/sse/build-seed-state'
 import { cn } from '@/lib/utils'
 import { RecalboxEventsProvider } from '../recalbox-events-provider'
 
@@ -82,6 +84,13 @@ export default async function LocaleLayout({ children, params }: Props) {
 	const showAdmin = user ? isAdmin(user) : false
 	// Serverless: no SSH to the box — hide live-SSH UI (power, recalbox.conf editor).
 	const serverless = isServerlessMode()
+	// Serverless: no SSE stream, so the live state is read once here and handed to the
+	// provider. The viewable check is the security boundary — buildSeedState trusts its
+	// caller, and an unchecked id would leak another user's box state.
+	const seed =
+		serverless && activeRecalboxId && viewable.has(activeRecalboxId)
+			? await buildSeedState(db, activeRecalboxId)
+			: null
 
 	return (
 		<html lang={locale} className={cn('font-sans', roboto.variable)} suppressHydrationWarning>
@@ -89,7 +98,11 @@ export default async function LocaleLayout({ children, params }: Props) {
 				<ThemeProvider>
 					<NextIntlClientProvider>
 						<ServerlessProvider value={serverless}>
-							<RecalboxEventsProvider recalboxId={activeRecalboxId}>
+							<RecalboxEventsProvider
+								recalboxId={activeRecalboxId}
+								live={!serverless}
+								initialState={seed}
+							>
 								<CanControlProvider value={canControl}>
 									<SidebarProvider>
 										<AppSidebar showAdmin={showAdmin} serverless={serverless} />
