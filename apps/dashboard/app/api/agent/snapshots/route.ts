@@ -3,6 +3,7 @@ import { ingestSnapshot } from '@/lib/agent/ingest-snapshot'
 import { db } from '@/lib/db'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
 import { logger } from '@/lib/logger'
+import { isServerlessMode } from '@/lib/serverless'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -34,6 +35,13 @@ export async function POST(req: NextRequest) {
 
 	const resolved = await resolveAgentToken(db, token)
 	if (!resolved) return NextResponse.json({ error: 'invalid_token' }, { status: 401 })
+
+	// Serverless: system snapshots no longer have a reader — the panel they fed
+	// duplicated the Recalbox Web Manager and has been removed. Accept and discard,
+	// so already-enrolled boxes stop costing Turso writes without needing a config
+	// update. The token was resolved above on purpose: it refreshes lastUsedAt, which
+	// is the liveness signal driving connection status.
+	if (isServerlessMode()) return new Response(null, { status: 204 })
 
 	let json: unknown
 	try {
