@@ -9,7 +9,17 @@ import type {
 	SystemInfoEvent,
 } from '@/lib/recalbox/events'
 import { reconnectDelay } from '@/lib/sse/reconnect-delay'
+import {
+	type ActivityState,
+	type SeedState,
+	type StreamState,
+	initialActivity,
+	initialStream,
+	seedToStream,
+} from '@/lib/sse/seed-state'
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+export type { ActivityState, SeedState }
 
 export type ConnectionEvent = { type: 'connection'; online: boolean }
 export type NotificationSSEEvent = { type: 'notification'; notification: Notification }
@@ -18,26 +28,12 @@ export type SSEEvent = RecalboxEvent | ConnectionEvent | NotificationSSEEvent | 
 
 type Handler = (event: SSEEvent) => void
 
-export type ActivityState = {
-	game: GameStartEvent | null
-	screensaver: boolean
-	browsing: SystemChangeEvent | null
-	lastSystemInfo: SystemInfoEvent | null
-}
-
 type RecalboxEventsContextValue = {
 	mqttOnline: boolean | null
 	/** Last known activity state — available immediately on mount for newly-navigated components. */
 	activity: ActivityState
 	/** Subscribe to all SSE events. Returns an unsubscribe function. */
 	subscribe: (handler: Handler) => () => void
-}
-
-const initialActivity: ActivityState = {
-	game: null,
-	screensaver: false,
-	browsing: null,
-	lastSystemInfo: null,
 }
 
 /**
@@ -53,11 +49,6 @@ const RecalboxEventsStateContext = createContext<Omit<RecalboxEventsContextValue
 const RecalboxSubscribeContext = createContext<RecalboxEventsContextValue['subscribe']>(
 	() => () => {},
 )
-
-/** Live state plus the box it describes, so staleness is derivable rather than reset. */
-type StreamState = { box: string | null; activity: ActivityState; mqttOnline: boolean | null }
-
-const initialStream: StreamState = { box: null, activity: initialActivity, mqttOnline: null }
 
 /** Fold one box-scoped event into the state. Pure — no reset logic, no effects. */
 function applyEvent(state: StreamState, event: SSEEvent): StreamState {
@@ -111,12 +102,21 @@ function applyEvent(state: StreamState, event: SSEEvent): StreamState {
 export function RecalboxEventsProvider({
 	children,
 	recalboxId = null,
-}: { children: React.ReactNode; recalboxId?: string | null }) {
+	live = true,
+	initialState = null,
+}: {
+	children: React.ReactNode
+	recalboxId?: string | null
+	/** False in serverless mode: no SSE stream is opened at all. */
+	live?: boolean
+	/** Server-computed state, used when `live` is false. */
+	initialState?: SeedState | null
+}) {
 	// The stream state carries the box it came FROM. Nothing resets it on a box
 	// switch: state belonging to another box is simply not read (see `stale` below),
 	// which also means a late event from the closed stream cannot pollute the new
 	// box's view — it lands tagged with the old id and is ignored.
-	const [stream, setStream] = useState<StreamState>(initialStream)
+	const [stream, setStream] = useState<StreamState>(() => seedToStream(initialState))
 	const handlersRef = useRef<Set<Handler> | null>(null)
 	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
@@ -124,13 +124,22 @@ export function RecalboxEventsProvider({
 	// If no connection event arrives within 10 s (SSE failing or no Recalbox configured),
 	// fall through to offline so components don't stay in perpetual skeleton state.
 	useEffect(() => {
+		// Not live: `initialState` already carries a definitive online value. Letting
+		// the fallback run would flip a correctly-seeded state to offline after 10s.
+		if (!live) return
 		const fallback = setTimeout(() => {
 			setStream((prev) => (prev.mqttOnline === null ? { ...prev, mqttOnline: false } : prev))
 		}, 10_000)
 		return () => clearTimeout(fallback)
-	}, [])
+	}, [live])
 
 	useEffect(() => {
+		// Serverless: no stream at all. Each open SSE connection re-ran DB polls for
+		// its whole lifetime — tens of thousands of Turso reads per idle tab per day,
+		// and a function held warm continuously (Fluid Active CPU). The state is
+		// seeded server-side instead and refreshed by router.refresh().
+		if (!live) return
+
 		let reconnectTimer: ReturnType<typeof setTimeout>
 		let attempt = 0
 
@@ -191,7 +200,7 @@ export function RecalboxEventsProvider({
 			clearTimeout(reconnectTimer)
 			esRef.current?.close()
 		}
-	}, [recalboxId])
+	}, [recalboxId, live])
 
 	const subscribe = useCallback((handler: Handler) => {
 		handlersRef.current?.add(handler)
