@@ -104,6 +104,11 @@
 		"nowPlaying": {
 			"title": "En cours"
 		},
+		"live": {
+			"refresh": "Rafraîchir",
+			"lastSignal": "Dernier signal {time}",
+			"never": "Aucun signal reçu"
+		},
 		"system": {
 			"title": "Système",
 			"loading": "Chargement…",
