@@ -87,7 +87,7 @@ def load_config():
         "mqtt_port": 1883,
         "min_duration_sec": 10,
         "http_timeout_sec": 10,
-        "snapshot_interval_sec": 60,
+        "snapshot_interval_sec": 0,
         "collection_interval_sec": 21600,
         "collection_max_xml_bytes": 3500000,
         "command_poll_interval_sec": 10,
@@ -557,8 +557,11 @@ def gather_snapshot():
 
 def snapshot_loop(cfg):
     """Periodically gather + push a system snapshot. Best-effort (no buffering)."""
+    interval = _int_cfg(cfg, "snapshot_interval_sec", 0)
+    if interval <= 0:
+        log.info("System snapshots disabled (snapshot_interval_sec<=0)")
+        return
     url = endpoint_for(cfg, "snapshots")
-    interval = _int_cfg(cfg, "snapshot_interval_sec", 300)
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
     delay = interval
@@ -1081,8 +1084,11 @@ def main():
     tracker = SessionTracker(cfg, deliverer)
 
     threading.Thread(target=deliverer.flush_loop, daemon=True).start()
-    threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
-    log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec", 300))
+    if int(cfg.get("snapshot_interval_sec", 0)) > 0:
+        threading.Thread(target=snapshot_loop, args=(cfg,), daemon=True).start()
+        log.info("System snapshots every %ss", cfg.get("snapshot_interval_sec"))
+    else:
+        log.info("System snapshots disabled")
     if int(cfg.get("collection_interval_sec", 21600)) > 0:
         threading.Thread(target=collection_loop, args=(cfg,), daemon=True).start()
         log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))

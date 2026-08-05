@@ -43,7 +43,7 @@ derives the sibling endpoints (`/snapshots`, `/collection`, …) from it. Interv
 
 | Key | Default | |
 | --- | --- | --- |
-| `snapshot_interval_sec` | 60 | system snapshots; `0` disables |
+| `snapshot_interval_sec` | 0 | system snapshots; `0` disables (default: the cloud discards them) |
 | `collection_interval_sec` | 21600 | collection sync (6 h); `0` disables |
 | `collection_max_xml_bytes` | 3500000 | chunk gamelists larger than this |
 | `command_poll_interval_sec` | 10 | remote-control poll |

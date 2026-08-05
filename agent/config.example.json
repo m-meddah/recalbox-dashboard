@@ -6,7 +6,7 @@
 	"mqtt_port": 1883,
 	"min_duration_sec": 10,
 	"http_timeout_sec": 10,
-	"snapshot_interval_sec": 300,
+	"snapshot_interval_sec": 0,
 	"collection_interval_sec": 21600,
 	"collection_max_xml_bytes": 3500000,
 	"command_poll_interval_sec": 60,
