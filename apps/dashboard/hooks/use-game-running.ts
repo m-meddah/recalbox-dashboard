@@ -1,36 +1,21 @@
 'use client'
 
-import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
-import type { GameStartEvent, GameStopEvent } from '@/lib/recalbox/events'
-import { useCallback, useEffect, useState } from 'react'
+import { useRecalboxEvents } from '@/app/recalbox-events-provider'
 
 /**
- * Tracks whether a real (non-screensaver) game is currently running on the Recalbox,
- * from the live MQTT event stream. Used to prevent launching a second game while one
- * is in progress — EmulationStation can't switch mid-game and would apply the queued
- * command only when the player returns to the menu.
+ * Tracks whether a real (non-screensaver) game is currently running on the Recalbox.
+ * Used to prevent launching a second game while one is in progress — EmulationStation
+ * can't switch mid-game and would apply the queued command only when the player
+ * returns to the menu.
  *
- * Note: only reflects events seen since mount; if a game was already running when the
- * page loaded (no `game:start` received), it reports false until the next event.
+ * Reads the provider's folded `activity.game` state, which is seeded server-side in
+ * serverless mode and replayed from `lastKnownGame` on SSE connect in self-hosted
+ * mode — so it reflects a game already running when the page loaded, not just events
+ * seen since mount.
  */
 export function useGameRunning(): { running: boolean; gameName: string | null } {
-	const subscribe = useRecalboxSubscribe()
-	const [game, setGame] = useState<{ romPath: string; name: string } | null>(null)
+	const { activity } = useRecalboxEvents()
+	const game = activity.game && !activity.game.fromScreensaver ? activity.game : null
 
-	const handle = useCallback((event: { type: string } & Record<string, unknown>) => {
-		if (event.type === 'game:start') {
-			const e = event as unknown as GameStartEvent
-			if (e.fromScreensaver) return // demo / attract mode doesn't count
-			setGame({ romPath: e.romPath, name: e.gameName })
-		} else if (event.type === 'game:stop') {
-			const e = event as unknown as GameStopEvent
-			setGame((prev) => (prev?.romPath === e.romPath ? null : prev))
-		} else if (event.type === 'screensaver:start') {
-			setGame(null)
-		}
-	}, [])
-
-	useEffect(() => subscribe(handle), [subscribe, handle])
-
-	return { running: game !== null, gameName: game?.name ?? null }
+	return { running: game !== null, gameName: game?.gameName ?? null }
 }
