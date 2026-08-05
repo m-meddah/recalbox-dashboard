@@ -2,6 +2,7 @@
 
 import type { NotificationSSEEvent } from '@/app/recalbox-events-provider'
 import { useRecalboxSubscribe } from '@/app/recalbox-events-provider'
+import { useServerless } from '@/components/serverless-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -37,6 +38,7 @@ function notificationLabel(notif: Notification): { title: string; body: string }
 
 export function NotificationBell() {
 	const subscribe = useRecalboxSubscribe()
+	const serverless = useServerless()
 	const [notifications, setNotifications] = useState<Notification[]>([])
 	const [unreadCount, setUnreadCount] = useState(0)
 	const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -55,11 +57,15 @@ export function NotificationBell() {
 
 	useEffect(() => {
 		fetchNotifications()
+		// Serverless: no background interval. Web Push already delivers notifications
+		// immediately; a 30s poll only refreshes a badge, at ~2880 function invocations
+		// per open tab per day. The popover refetches on open instead.
+		if (serverless) return
 		pollTimer.current = setInterval(fetchNotifications, 30000)
 		return () => {
 			if (pollTimer.current) clearInterval(pollTimer.current)
 		}
-	}, [fetchNotifications])
+	}, [fetchNotifications, serverless])
 
 	useEffect(() => {
 		return subscribe((event) => {
@@ -86,7 +92,11 @@ export function NotificationBell() {
 	}
 
 	return (
-		<Popover>
+		<Popover
+			onOpenChange={(open) => {
+				if (open) fetchNotifications()
+			}}
+		>
 			<PopoverTrigger
 				render={
 					<Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
