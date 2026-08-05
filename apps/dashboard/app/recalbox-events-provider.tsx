@@ -121,8 +121,13 @@ export function RecalboxEventsProvider({
 	// Not live: there is no event stream to fold into state, so derive straight from
 	// props. router.refresh() re-renders the server layout and hands us a fresh seed;
 	// a useState initializer would have captured only the very first one, since it runs
-	// on mount and router.refresh() reconciles rather than remounts.
-	const stream = live ? streamState : seedToStream(initialState)
+	// on mount and router.refresh() reconciles rather than remounts. Memoised on the prop
+	// identity so an incidental re-render (a navigation changing `children`) does not
+	// hand every consumer a new context value.
+	const stream = useMemo(
+		() => (live ? streamState : seedToStream(initialState)),
+		[live, streamState, initialState],
+	)
 	const handlersRef = useRef<Set<Handler> | null>(null)
 	if (handlersRef.current === null) handlersRef.current = new Set()
 	const esRef = useRef<EventSource | null>(null)
