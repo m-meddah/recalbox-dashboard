@@ -86,11 +86,15 @@ export default async function LocaleLayout({ children, params }: Props) {
 	const serverless = isServerlessMode()
 	// Serverless: no SSE stream, so the live state is read once here and handed to the
 	// provider. The viewable check is the security boundary — buildSeedState trusts its
-	// caller, and an unchecked id would leak another user's box state.
-	const seed =
-		serverless && activeRecalboxId && viewable.has(activeRecalboxId)
-			? await buildSeedState(db, activeRecalboxId)
-			: null
+	// caller, and an unchecked id would leak another user's box state. No box (or one
+	// the user can't view) still calls buildSeedState with a null id so it lands on its
+	// `online: false` empty state rather than leaving now-playing on a permanent skeleton.
+	const seed = serverless
+		? await buildSeedState(
+				db,
+				activeRecalboxId && viewable.has(activeRecalboxId) ? activeRecalboxId : null,
+			)
+		: null
 
 	return (
 		<html lang={locale} className={cn('font-sans', roboto.variable)} suppressHydrationWarning>

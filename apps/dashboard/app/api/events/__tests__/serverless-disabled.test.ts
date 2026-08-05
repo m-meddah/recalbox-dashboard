@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/serverless', () => ({ isServerlessMode: () => true }))
+vi.mock('@/lib/db', () => ({ db: {} }))
 
 import { GET } from '../route'
 
