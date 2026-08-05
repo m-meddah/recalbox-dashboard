@@ -507,7 +507,7 @@ Two delivery tiers, zero external dependencies.
 
 | Tier | How | When |
 | ---- | --- | ---- |
-| In-app toasts | SSE (Server-Sent Events) | Dashboard tab is open |
+| In-app toasts | SSE (Server-Sent Events), self-hosted only | Dashboard tab is open |
 | Web Push | Service Worker + VAPID | Dashboard is closed / background |
 
 ### Events

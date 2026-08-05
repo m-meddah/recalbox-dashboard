@@ -123,7 +123,7 @@ Recalbox MQTT broker
   → components/now-playing.tsx        (consumes context, no direct polling)
 ```
 
-In serverless mode there is no cloud→box MQTT, so `app/api/events/route.ts` also polls the `now_playing` table every 5s and emits `game:start`/`game:stop` for boxes whose MQTT is disconnected, and derives connection status from agent-token `lastUsedAt` recency — the now-playing UI works unchanged. The SSE route sets `maxDuration` and self-closes before it so the EventSource reconnects cleanly on Vercel.
+In serverless mode there is no SSE stream at all: `app/api/events/route.ts` returns `204` immediately, before auth and before any DB access. Live state is instead computed once per page render, server-side, in `app/[locale]/layout.tsx` via `lib/sse/build-seed-state.ts`, and handed to `RecalboxEventsProvider` as an `initialState` seed with `live={false}`; the user picks up fresh state via `router.refresh()`. Self-hosted mode is unchanged: the SSE route sets `maxDuration` and self-closes before it so the EventSource reconnects cleanly on Vercel-style platforms.
 
 ### Media proxy
 

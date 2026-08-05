@@ -20,7 +20,7 @@ page or `scripts/create-agent-token.ts`). The cloud resolves the token to a `rec
 | Loop | Endpoint | Notes |
 | ---- | -------- | ----- |
 | Sessions | `POST /api/agent/ingest` | Pairs MQTT game start/stop into sessions; **buffers to disk + retries** when offline |
-| Snapshots | `POST /api/agent/snapshots` | CPU/RAM/temp/uptime from `/proc` + `/sys`, every `snapshot_interval_sec` |
+| Snapshots | `POST /api/agent/snapshots` | CPU/RAM/temp/uptime from `/proc` + `/sys`; disabled by default (`snapshot_interval_sec` = 0) and discarded by the cloud |
 | Collection | `POST /api/agent/collection` | Ships raw `gamelist.xml` (+ userdata) per system; large lists are **chunked** under the cloud body limit; every `collection_interval_sec` |
 | Now playing | `POST /api/agent/now-playing` | Live game state on start/stop |
 | Commands | `GET /api/agent/commands` + `POST .../commands/result` | Polls the remote-control queue (power/conf; launch stubbed), applies on the box, reports back |

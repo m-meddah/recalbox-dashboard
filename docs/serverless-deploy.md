@@ -134,13 +134,14 @@ reachable — if Turso is down, the build fails (which is the right time to not 
    the one-time `config.json` snippet (it embeds the token + ingest URL).
 2. On the box, drop the snippet into `/recalbox/share/system/sr-agent/config.json`
    and point `cloud_url` at `https://<app>/api/agent/ingest`. Tune intervals as
-   needed (`snapshot_interval_sec`, `command_poll_interval_sec`,
-   `collection_interval_sec`; set the last to `0` to disable the gamelist sweep).
+   needed (`command_poll_interval_sec`, `collection_interval_sec`; set the last to
+   `0` to disable the gamelist sweep). `snapshot_interval_sec` defaults to `0` —
+   system snapshots have no reader in serverless mode and are discarded server-side.
 3. Copy `agent/agent.py` **and `agent/scan_roms.py`** to the box, side by side,
    and autostart the agent via `/recalbox/share/system/custom.sh` (run with
    `python3`, see Phase 0 notes). `scan_roms.py` is what the ROM audit runs; an
    agent deployed without it refuses `scan` commands with an explicit message.
-4. Verify in the app: a system snapshot appears, the collection imports, and
+4. Verify in the app: the Recalbox shows **online**, the collection imports, and
    now-playing shows the running game.
 
 ## Retire the old path
@@ -157,9 +158,12 @@ reachable — if Turso is down, the build fails (which is the right time to not 
 
 - **Connection / "LIVE" status** now derives from agent liveness (the token's
   `lastUsedAt`, touched on every agent request) when the cloud→box MQTT is down. *(70a5091)*
-- **SSE on Vercel**: `/api/events` sets `maxDuration` and **self-closes ~10 s before
-  it**, so the EventSource reconnects on a clean EOF instead of an abrupt platform
-  kill; reconnect re-emits initial state. *(d5fabe1)*
+- **No SSE on Vercel**: `/api/events` returns `204` immediately in serverless mode
+  (checked before auth and before any DB access) — there is no long-lived stream to
+  keep alive. Live state is computed once per page render in `app/[locale]/layout.tsx`
+  via `lib/sse/build-seed-state.ts` and refreshed by the user (`router.refresh()`).
+  The self-close-before-`maxDuration` behaviour still applies to the SSE stream used
+  in self-hosted mode. *(feat/serverless-no-realtime)*
 - **SSH-only UI** (`PowerControls`, `/configuration`) is **hidden** when
   `AGENT_ONLY_MEDIA=1` (`isServerlessMode()`); the config pages also 404. *(4ab210e)*
 - **Large gamelists (> ~4.5 MB)** are split into `<gameList>` chunks under

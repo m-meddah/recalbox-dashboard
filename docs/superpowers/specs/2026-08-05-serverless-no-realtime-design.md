@@ -70,10 +70,11 @@ d'événement que l'UI consomme. Le contexte peut donc être amorcé sans touche
 
 ### Pourquoi pas des composants serveur dédiés
 
-`mqttOnline` n'est pas lu que par le panneau système. `launch-game-button.tsx`,
+`activity.game` n'est pas lu que par le panneau système. `launch-game-button.tsx`,
 `collection/emulator-override-button.tsx` et `play-tonight/play-tonight-results.tsx`
-s'en servent pour griser leurs actions. Amorcer le contexte les garde corrects sans
-effort ; des composants statiques dédiés les auraient tous fait basculer en « hors ligne »,
+passent tous par `useGameRunning()`, qui lit `activity.game` dans le contexte,
+pour griser leurs actions. Amorcer le contexte les garde corrects sans effort ;
+des composants statiques dédiés les auraient tous fait basculer en « hors ligne »,
 et auraient dupliqué les ~400 lignes de rendu de cartes de `now-playing.tsx`.
 
 ### Pourquoi pas un SSE « one-shot »
