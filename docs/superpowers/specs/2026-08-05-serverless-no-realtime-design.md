@@ -102,12 +102,16 @@ entrerait en conflit avec la fermeture immédiate.
   `subscribe` devient un no-op silencieux.
 - `components/notification-listener.tsx` — perd ses toasts intra-page en serverless, le
   Web Push prend le relais ; `registerServiceWorker()` continue de s'exécuter.
-- `components/system-stats-chart.tsx`, `components/serverless-system-panel.tsx` — plus
-  montés en serverless, mais conservés tels quels pour le self-hosted.
+- `components/system-stats-chart.tsx` et `components/monitoring-panel.tsx` — plus montés
+  en serverless, mais conservés tels quels pour le self-hosted.
 - Table `system_snapshots` et `insertSystemSnapshot` — alimentés par le collecteur SSH du
   self-hosted, inchangés.
 - Tout le chemin self-hosted : `mqttPool`, les abonnements MQTT de la route SSE, le
   scrobbler.
+
+`components/serverless-system-panel.tsx` fait exception : il n'existait que pour le mode
+serverless, où il était nourri par les snapshots de l'agent. Il devient du code mort et
+son fichier est **supprimé**.
 
 ### Bug préexistant corrigé au passage
 
