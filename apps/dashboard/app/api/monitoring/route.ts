@@ -12,8 +12,8 @@ export const runtime = 'nodejs'
 
 export async function GET(): Promise<NextResponse> {
 	if (!(await getUser())) return unauthorized()
-	// Serverless: no SSH/HTTP link to the NAT'd box — the ServerlessSystemPanel is
-	// fed by the agent via SSE instead. Never attempt SSH here.
+	// Serverless: no SSH/HTTP link to the NAT'd box, and the panel this fed has
+	// been removed — return empty rather than attempting SSH.
 	if (isServerlessMode()) return NextResponse.json({ perCore: [], storage: [] })
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
