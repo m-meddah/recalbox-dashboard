@@ -3,37 +3,44 @@
 import { useCanControl } from '@/components/can-control-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import type { MultiDiscGame } from '@/lib/recalbox/multidisc-detector'
+import type { MalformedM3u, MultiDiscGame } from '@/lib/recalbox/multidisc-detector'
 import { AlertTriangle, CheckCircle2, CircleDotDashed, FileText, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
-type CandidatesData = { candidates: MultiDiscGame[]; systems: string[] }
+type CandidatesData = {
+	candidates: MultiDiscGame[]
+	malformed: MalformedM3u[]
+	systems: string[]
+}
 
-type GenerateEntry = Pick<MultiDiscGame, 'system' | 'baseName' | 'romsDir' | 'discs'>
+type GenerateEntry = Pick<MultiDiscGame, 'system' | 'baseName' | 'romsDir' | 'discs'> & {
+	m3uFileName?: string
+}
 
-type ConfirmState = {
-	game: MultiDiscGame
-	expectedContent: string
-} | null
+type GenerateOptions = { force?: boolean; repair?: boolean }
 
 function gameKey(g: MultiDiscGame) {
 	return `${g.system}|${g.romsDir}|${g.baseName}`
 }
 
-function gameStatus(g: MultiDiscGame): 'ok' | 'missing' | 'gap' | 'differs' {
+function gameStatus(g: MultiDiscGame): 'ok' | 'missing' | 'gap' | 'malformed' {
 	if (!g.m3uAlreadyExists) return g.hasGap ? 'gap' : 'missing'
-	return 'ok'
+	return g.m3uNeedsRepair ? 'malformed' : 'ok'
+}
+
+/** A standalone .m3u has no disc group, so it is addressed by its exact filename. */
+function malformedEntry(m: MalformedM3u): GenerateEntry {
+	return {
+		system: m.system,
+		baseName: m.m3uFileName.replace(/\.m3u$/i, ''),
+		romsDir: m.romsDir,
+		discs: [],
+		m3uFileName: m.m3uFileName,
+	}
 }
 
 function m3uPreview(g: MultiDiscGame): string {
@@ -46,18 +53,17 @@ export function M3uCandidates() {
 	const [data, setData] = useState<CandidatesData | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [generatingKeys, setGeneratingKeys] = useState<Set<string>>(new Set())
-	const [confirm, setConfirm] = useState<ConfirmState>(null)
 	const [banner, setBanner] = useState(false)
 
 	useEffect(() => {
 		fetch('/api/m3u/candidates')
 			.then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
 			.then(setData)
-			.catch(() => setData({ candidates: [], systems: [] }))
+			.catch(() => setData({ candidates: [], malformed: [], systems: [] }))
 			.finally(() => setLoading(false))
 	}, [])
 
-	const generate = async (games: GenerateEntry[], force = false) => {
+	const generate = async (games: GenerateEntry[], { force, repair }: GenerateOptions = {}) => {
 		const keys = games.map((g) => `${g.system}|${g.romsDir}|${g.baseName}`)
 		setGeneratingKeys((prev) => new Set([...prev, ...keys]))
 
@@ -65,13 +71,17 @@ export function M3uCandidates() {
 			const res = await fetch('/api/m3u/generate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ games: games.map((g) => ({ ...g, force })) }),
+				body: JSON.stringify({ games: games.map((g) => ({ ...g, force, repair })) }),
 			}).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
 
 			const freshRes = await fetch('/api/m3u/candidates')
 			const fresh: CandidatesData = freshRes.ok
 				? await freshRes.json()
-				: { candidates: data?.candidates ?? [], systems: data?.systems ?? [] }
+				: {
+						candidates: data?.candidates ?? [],
+						malformed: data?.malformed ?? [],
+						systems: data?.systems ?? [],
+					}
 			setData(fresh)
 
 			if (res.summary?.created > 0) setBanner(true)
@@ -81,14 +91,17 @@ export function M3uCandidates() {
 		}
 	}
 
-	const handleUpdate = (g: MultiDiscGame) => {
-		setConfirm({ game: g, expectedContent: m3uPreview(g) })
-	}
-
 	const batchMissing = () => {
 		if (!data) return
-		const missing = data.candidates.filter((g) => !g.m3uAlreadyExists)
-		generate(missing)
+		generate(data.candidates.filter((g) => !g.m3uAlreadyExists))
+	}
+
+	const batchRepair = () => {
+		if (!data) return
+		generate(
+			[...data.candidates.filter((g) => g.m3uNeedsRepair), ...data.malformed.map(malformedEntry)],
+			{ repair: true },
+		)
 	}
 
 	if (loading) {
@@ -101,11 +114,13 @@ export function M3uCandidates() {
 		)
 	}
 
-	if (!data || data.candidates.length === 0) {
+	if (!data || (data.candidates.length === 0 && data.malformed.length === 0)) {
 		return <p className="text-sm text-muted-foreground">{t('noGames')}</p>
 	}
 
 	const totalMissing = data.candidates.filter((g) => !g.m3uAlreadyExists).length
+	const totalMalformed =
+		data.candidates.filter((g) => g.m3uNeedsRepair).length + data.malformed.length
 	const bySystem = data.candidates.reduce<Record<string, MultiDiscGame[]>>((acc, g) => {
 		;(acc[g.system] ??= []).push(g)
 		return acc
@@ -123,22 +138,35 @@ export function M3uCandidates() {
 							missing: totalMissing,
 						})}
 					</p>
-					{totalMissing > 0 && (
-						<Button onClick={batchMissing} disabled={generatingKeys.size > 0 || !canControl}>
-							{generatingKeys.size > 0 ? t('generating') : t('generateMissing')}
-						</Button>
-					)}
+					<div className="flex flex-wrap gap-2">
+						{totalMalformed > 0 && (
+							<Button
+								variant="outline"
+								onClick={batchRepair}
+								disabled={generatingKeys.size > 0 || !canControl}
+							>
+								{generatingKeys.size > 0 ? t('generating') : t('repairAll')}
+							</Button>
+						)}
+						{totalMissing > 0 && (
+							<Button onClick={batchMissing} disabled={generatingKeys.size > 0 || !canControl}>
+								{generatingKeys.size > 0 ? t('generating') : t('generateMissing')}
+							</Button>
+						)}
+					</div>
 				</div>
 
 				{/* Per-system sections */}
 				{Object.entries(bySystem).map(([system, sysGames]) => {
 					const sysMissing = sysGames.filter((g) => !g.m3uAlreadyExists).length
+					const sysMalformed = sysGames.filter((g) => g.m3uNeedsRepair).length
 					return (
 						<div key={system} className="space-y-2">
 							<div className="flex items-center gap-2">
 								<h2 className="font-semibold capitalize">{system}</h2>
 								<span className="text-sm text-muted-foreground">
 									{sysGames.length} games · {sysMissing} missing
+									{sysMalformed > 0 && ` · ${sysMalformed} malformed`}
 								</span>
 							</div>
 
@@ -163,8 +191,13 @@ export function M3uCandidates() {
 														<TooltipContent>{t('status.gap')}</TooltipContent>
 													</Tooltip>
 												)}
-												{status === 'differs' && (
-													<CircleDotDashed className="size-4 text-blue-500" />
+												{status === 'malformed' && (
+													<Tooltip>
+														<TooltipTrigger>
+															<CircleDotDashed className="size-4 text-red-500" />
+														</TooltipTrigger>
+														<TooltipContent className="max-w-xs">{t('repairNote')}</TooltipContent>
+													</Tooltip>
 												)}
 											</span>
 
@@ -201,15 +234,17 @@ export function M3uCandidates() {
 											{status !== 'ok' && (
 												<Button
 													size="sm"
-													variant={status === 'differs' ? 'outline' : 'default'}
+													variant={status === 'malformed' ? 'outline' : 'default'}
 													className="shrink-0"
 													disabled={isGenerating || !canControl}
-													onClick={() => (status === 'differs' ? handleUpdate(g) : generate([g]))}
+													onClick={() =>
+														status === 'malformed' ? generate([g], { repair: true }) : generate([g])
+													}
 												>
 													{isGenerating
 														? t('generating')
-														: status === 'differs'
-															? t('actions.update')
+														: status === 'malformed'
+															? t('actions.repair')
 															: t('actions.generate')}
 												</Button>
 											)}
@@ -221,46 +256,49 @@ export function M3uCandidates() {
 					)
 				})}
 
+				{/* .m3u files with no disc group — the usual case once EmulationStation
+				    hides the individual discs */}
+				{data.malformed.length > 0 && (
+					<div className="space-y-2">
+						<div className="flex items-center gap-2">
+							<h2 className="font-semibold">{t('orphanTitle')}</h2>
+							<span className="text-sm text-muted-foreground">
+								{data.malformed.length} {t('status.malformed').toLowerCase()}
+							</span>
+						</div>
+						<p className="text-sm text-muted-foreground">{t('repairNote')}</p>
+						<div className="divide-y rounded-md border">
+							{data.malformed.map((m) => {
+								const key = `${m.system}|${m.romsDir}|${m.m3uFileName}`
+								return (
+									<div key={key} className="flex items-center gap-3 px-4 py-2">
+										<CircleDotDashed className="size-4 shrink-0 text-red-500" />
+										<span className="flex-1 truncate text-sm">{m.m3uFileName}</span>
+										<Badge variant="outline" className="shrink-0 text-xs capitalize">
+											{m.system}
+										</Badge>
+										<Button
+											size="sm"
+											variant="outline"
+											className="shrink-0"
+											disabled={generatingKeys.size > 0 || !canControl}
+											onClick={() => generate([malformedEntry(m)], { repair: true })}
+										>
+											{generatingKeys.size > 0 ? t('generating') : t('actions.repair')}
+										</Button>
+									</div>
+								)
+							})}
+						</div>
+					</div>
+				)}
+
 				{/* Re-scan banner */}
 				{banner && (
 					<p className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
 						{t('rescanNote')}
 					</p>
 				)}
-
-				{/* Confirm overwrite dialog */}
-				<Dialog open={confirm !== null} onOpenChange={() => setConfirm(null)}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>{t('actions.confirmUpdate')}</DialogTitle>
-						</DialogHeader>
-						{confirm && (
-							<div className="space-y-3 text-sm">
-								<div>
-									<p className="mb-1 font-medium">{t('diffExpected')}</p>
-									<pre className="rounded bg-muted px-3 py-2 font-mono text-xs whitespace-pre">
-										{confirm.expectedContent}
-									</pre>
-								</div>
-							</div>
-						)}
-						<DialogFooter>
-							<Button variant="outline" onClick={() => setConfirm(null)}>
-								{t('actions.cancel')}
-							</Button>
-							<Button
-								onClick={() => {
-									if (confirm) {
-										generate([confirm.game], true)
-										setConfirm(null)
-									}
-								}}
-							>
-								{t('actions.confirmUpdate')}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
 			</div>
 		</TooltipProvider>
 	)

@@ -3,9 +3,14 @@ import { canControlRecalbox } from '@/lib/auth/ownership'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { logger } from '@/lib/logger'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
-import { generateM3uContent, sanitizeM3uFileName } from '@/lib/recalbox/m3u-generator'
-import type { MultiDiscGame } from '@/lib/recalbox/multidisc-detector'
-import { shellQuote } from '@/lib/recalbox/shell'
+import {
+	generateM3uContent,
+	m3uNeedsRepair,
+	normalizeM3uContent,
+	sanitizeM3uFileName,
+} from '@/lib/recalbox/m3u-generator'
+import { type MultiDiscGame, readM3uFiles } from '@/lib/recalbox/multidisc-detector'
+import { chunkShellCommands, shellQuote } from '@/lib/recalbox/shell'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
 import { type NextRequest, NextResponse } from 'next/server'
 
@@ -15,7 +20,16 @@ export const dynamic = 'force-dynamic'
 type GenerateRequest = {
 	recalboxId?: string
 	games: Array<
-		Pick<MultiDiscGame, 'system' | 'baseName' | 'romsDir' | 'discs'> & { force?: boolean }
+		Pick<MultiDiscGame, 'system' | 'baseName' | 'romsDir' | 'discs'> & {
+			force?: boolean
+			/** Rewrite an existing file in place, preserving its lines. */
+			repair?: boolean
+			/**
+			 * Exact file to act on. Repairs address a file that already exists, whose
+			 * name need not match what sanitizeM3uFileName would derive from baseName.
+			 */
+			m3uFileName?: string
+		}
 	>
 }
 
@@ -23,8 +37,8 @@ type GenerateResult = {
 	system: string
 	baseName: string
 	m3uFileName: string
-	status: 'created' | 'skipped' | 'error'
-	reason?: 'already_exists'
+	status: 'created' | 'repaired' | 'skipped' | 'error'
+	reason?: 'already_exists' | 'already_valid'
 	error?: string
 }
 
@@ -35,6 +49,7 @@ type WriteSpec = {
 	m3uPath: string
 	content: string
 	force: boolean
+	repair: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -59,12 +74,26 @@ export async function POST(req: NextRequest) {
 
 	// Step 1: validate all games and compute write specs
 	for (const gameReq of body.games) {
-		const { system, baseName, romsDir, discs, force = false } = gameReq
-		const m3uFileName = sanitizeM3uFileName(baseName)
+		const { system, baseName, romsDir, discs, force = false, repair = false } = gameReq
+		const m3uFileName = repair
+			? (gameReq.m3uFileName ?? sanitizeM3uFileName(baseName))
+			: sanitizeM3uFileName(baseName)
 		const normalizedDir = pathResolve(romsDir)
 
 		if (!normalizedDir.startsWith('/recalbox/')) {
 			results.push({ system, baseName, m3uFileName, status: 'error', error: 'Invalid romsDir' })
+			continue
+		}
+
+		// m3uFileName can come straight from the request on the repair path, so it
+		// must stay a plain name inside romsDir — no separators, no traversal.
+		if (
+			m3uFileName.includes('/') ||
+			m3uFileName.includes('\\') ||
+			m3uFileName.startsWith('.') ||
+			!m3uFileName.endsWith('.m3u')
+		) {
+			results.push({ system, baseName, m3uFileName, status: 'error', error: 'Invalid m3uFileName' })
 			continue
 		}
 
@@ -75,6 +104,7 @@ export async function POST(req: NextRequest) {
 			romsDir,
 			discs: discs.toSorted((a, b) => a.discNumber - b.discNumber),
 			m3uAlreadyExists: false,
+			m3uNeedsRepair: false,
 			hasGap: false,
 		}
 
@@ -85,11 +115,12 @@ export async function POST(req: NextRequest) {
 			m3uPath: `${normalizedDir}/${m3uFileName}`,
 			content: generateM3uContent(game),
 			force,
+			repair,
 		})
 	}
 
 	if (specs.length === 0) {
-		const summary = { created: 0, skipped: 0, errors: results.length }
+		const summary = { created: 0, repaired: 0, skipped: 0, errors: results.length }
 		return NextResponse.json({ results, summary })
 	}
 
@@ -110,10 +141,15 @@ export async function POST(req: NextRequest) {
 		// fall through — treat all as new files
 	}
 
-	// Step 3: split specs into skip vs write
+	// Step 3: split specs into skip vs write vs repair
 	const toWrite: WriteSpec[] = []
+	const toRepair: WriteSpec[] = []
 	for (const spec of specs) {
-		if (existingFiles.has(spec.m3uPath) && !spec.force) {
+		if (!existingFiles.has(spec.m3uPath) || spec.force) {
+			toWrite.push(spec)
+		} else if (spec.repair) {
+			toRepair.push(spec)
+		} else {
 			results.push({
 				system: spec.system,
 				baseName: spec.baseName,
@@ -121,10 +157,42 @@ export async function POST(req: NextRequest) {
 				status: 'skipped',
 				reason: 'already_exists',
 			})
-		} else {
-			toWrite.push(spec)
 		}
 	}
+
+	// Step 3b: repair rewrites the file's own lines — a regeneration would drop
+	// hand-added entries such as bonus discs, which is not what "reformat" means.
+	if (toRepair.length > 0) {
+		const contents = await readM3uFiles(
+			ssh,
+			toRepair.map((s) => s.m3uPath),
+		)
+		for (const spec of toRepair) {
+			const raw = contents.get(spec.m3uPath)
+			if (raw === undefined) {
+				results.push({
+					system: spec.system,
+					baseName: spec.baseName,
+					m3uFileName: spec.m3uFileName,
+					status: 'error',
+					error: 'Could not read existing .m3u',
+				})
+				continue
+			}
+			if (!m3uNeedsRepair(raw)) {
+				results.push({
+					system: spec.system,
+					baseName: spec.baseName,
+					m3uFileName: spec.m3uFileName,
+					status: 'skipped',
+					reason: 'already_valid',
+				})
+				continue
+			}
+			toWrite.push({ ...spec, content: normalizeM3uContent(raw) })
+		}
+	}
+	const repairedPaths = new Set(toRepair.map((s) => s.m3uPath))
 
 	// Step 4: single SSH call to write all files that need writing
 	if (toWrite.length > 0) {
@@ -133,14 +201,17 @@ export async function POST(req: NextRequest) {
 			return `printf '%s' ${shellQuote(b64)} | base64 -d > ${shellQuote(spec.m3uPath)}`
 		})
 		try {
-			await ssh.exec(writeCommands.join(';'))
+			for (const chunk of chunkShellCommands(writeCommands)) {
+				await ssh.exec(chunk.join(';'))
+			}
 			for (const spec of toWrite) {
-				logger.info(`m3u: created ${spec.m3uPath}`)
+				const repaired = repairedPaths.has(spec.m3uPath)
+				logger.info(`m3u: ${repaired ? 'repaired' : 'created'} ${spec.m3uPath}`)
 				results.push({
 					system: spec.system,
 					baseName: spec.baseName,
 					m3uFileName: spec.m3uFileName,
-					status: 'created',
+					status: repaired ? 'repaired' : 'created',
 				})
 			}
 		} catch (err) {
@@ -160,6 +231,7 @@ export async function POST(req: NextRequest) {
 
 	const summary = {
 		created: results.filter((r) => r.status === 'created').length,
+		repaired: results.filter((r) => r.status === 'repaired').length,
 		skipped: results.filter((r) => r.status === 'skipped').length,
 		errors: results.filter((r) => r.status === 'error').length,
 	}

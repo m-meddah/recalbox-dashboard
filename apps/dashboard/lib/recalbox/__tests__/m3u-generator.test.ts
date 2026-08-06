@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { generateM3uContent, sanitizeM3uFileName } from '../m3u-generator'
+import {
+	generateM3uContent,
+	m3uNeedsRepair,
+	normalizeM3uContent,
+	sanitizeM3uFileName,
+} from '../m3u-generator'
 import type { MultiDiscGame } from '../multidisc-detector'
 
 function makeGame(discs: Array<{ fileName: string; discNumber: number }>): MultiDiscGame {
@@ -10,6 +15,7 @@ function makeGame(discs: Array<{ fileName: string; discNumber: number }>): Multi
 		romsDir: '/recalbox/share/roms/psx',
 		discs,
 		m3uAlreadyExists: false,
+		m3uNeedsRepair: false,
 		hasGap: false,
 	}
 }
@@ -72,5 +78,76 @@ describe('sanitizeM3uFileName', () => {
 		expect(sanitizeM3uFileName("3x3 Eyes - Tenrin'ou Genmu (Japan)")).toBe(
 			"3x3 Eyes - Tenrin'ou Genmu (Japan).m3u",
 		)
+	})
+})
+
+describe('normalizeM3uContent', () => {
+	it('converts CRLF to LF', () => {
+		expect(normalizeM3uContent('a.rvz\r\nb.rvz\r\n')).toBe('a.rvz\nb.rvz\n')
+	})
+
+	it('converts lone CR to LF', () => {
+		expect(normalizeM3uContent('a.rvz\rb.rvz\r')).toBe('a.rvz\nb.rvz\n')
+	})
+
+	it('strips a UTF-8 \uFEFF', () => {
+		expect(normalizeM3uContent('\uFEFFa.rvz\r\nb.rvz\r\n')).toBe('a.rvz\nb.rvz\n')
+	})
+
+	it('drops blank lines and trailing whitespace', () => {
+		expect(normalizeM3uContent('a.rvz  \n\n\nb.rvz\t\n\n')).toBe('a.rvz\nb.rvz\n')
+	})
+
+	it('adds a missing trailing LF', () => {
+		expect(normalizeM3uContent('a.rvz\nb.rvz')).toBe('a.rvz\nb.rvz\n')
+	})
+
+	it('preserves hand-added lines the detector would not produce', () => {
+		const raw = 'Game (Disc 1).rvz\r\nGame (Disc 2).rvz\r\nGame (Bonus Disc).rvz\r\n'
+		expect(normalizeM3uContent(raw)).toBe(
+			'Game (Disc 1).rvz\nGame (Disc 2).rvz\nGame (Bonus Disc).rvz\n',
+		)
+	})
+
+	it('is idempotent on already-clean content', () => {
+		const clean = 'a.rvz\nb.rvz\n'
+		expect(normalizeM3uContent(clean)).toBe(clean)
+	})
+
+	it('returns empty string for an empty file', () => {
+		expect(normalizeM3uContent('')).toBe('')
+		expect(normalizeM3uContent('\r\n\r\n')).toBe('')
+	})
+})
+
+describe('m3uNeedsRepair', () => {
+	it('flags CRLF', () => {
+		expect(m3uNeedsRepair('a.rvz\r\nb.rvz\r\n')).toBe(true)
+	})
+
+	it('flags a \uFEFF even when line endings are already LF', () => {
+		expect(m3uNeedsRepair('\uFEFFa.rvz\nb.rvz\n')).toBe(true)
+	})
+
+	it('flags a missing trailing LF', () => {
+		expect(m3uNeedsRepair('a.rvz\nb.rvz')).toBe(true)
+	})
+
+	it('flags trailing whitespace', () => {
+		expect(m3uNeedsRepair('a.rvz \nb.rvz\n')).toBe(true)
+	})
+
+	it('accepts a clean file', () => {
+		expect(m3uNeedsRepair('a.rvz\nb.rvz\n')).toBe(false)
+	})
+
+	it('accepts what generateM3uContent produces', () => {
+		const content = generateM3uContent(
+			makeGame([
+				{ fileName: 'Game (Disc 1).rvz', discNumber: 1 },
+				{ fileName: 'Game (Disc 2).rvz', discNumber: 2 },
+			]),
+		)
+		expect(m3uNeedsRepair(content)).toBe(false)
 	})
 })

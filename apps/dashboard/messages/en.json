@@ -157,20 +157,19 @@
 			"ok": ".m3u OK",
 			"missing": "Missing",
 			"gap": "Gap in discs",
-			"differs": "Content differs"
+			"malformed": "Bad format"
 		},
 		"actions": {
 			"generate": "Generate",
-			"update": "Update",
-			"confirmUpdate": "Confirm update",
-			"cancel": "Cancel"
+			"repair": "Reformat"
 		},
 		"preview": "Preview .m3u",
 		"rescanNote": "A re-scan in EmulationStation may be needed for .m3u files to appear in Recalbox.",
 		"noGames": "No multi-disc games detected. Sync your collection first.",
 		"breadcrumb": "Collection",
-		"diffCurrent": "Current content",
-		"diffExpected": "New content"
+		"repairAll": "Reformat malformed",
+		"repairNote": "Dolphin (GameCube/Wii) rejects .m3u files with CRLF endings or a UTF-8 BOM. Reformatting rewrites the file in place and keeps every line, including hand-added bonus discs.",
+		"orphanTitle": "Malformed .m3u (discs not in gamelist)"
 	},
 	"collection": {
 		"title": "Collection",
