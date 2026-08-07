@@ -36,6 +36,34 @@ disabled by setting its interval `<= 0`.
 - `custom.sh` — boot hook. Deploy to `/recalbox/share/system/custom.sh`; RecalboxOS's `/etc/init.d/S99custom` runs it at boot (`$1`=start) and shutdown (`$1`=stop). The `/recalbox/share` partition survives OS upgrades.
 - `config.example.json` — copy to `config.json` next to `agent.py` and fill in (`cloud_url`, `token`, `recalbox_id`).
 
+## Tests
+
+Stdlib `unittest` only — the agent is dependency-free, so nothing needs installing.
+From the repo root:
+
+```bash
+python3 -m unittest discover -s agent -v
+```
+
+That runs all 105 tests: the four `test_*.py` files at the top level and inside
+`__tests__/`. The `__tests__/__init__.py` is what lets discovery recurse into that
+subdirectory — without it, `discover` silently skips it and reports only the top-level
+tests, which is easy to mistake for a green run.
+
+⚠️ **`python3 -m unittest agent.test_agent_snapshots` does not work**, and cannot be made
+to. The directory `agent/` and the module `agent.py` inside it share a name, so the dotted
+form binds `agent` to the directory (a namespace package) and the tests' own
+`import agent` then gets that instead of `agent.py` — failing with
+`AttributeError: <module 'agent' (namespace)>`. `discover -s agent` sets the top-level
+directory to `agent/`, where `agent` unambiguously means `agent.py`. Use it.
+
+Two of the snapshot tests detect a missing loop guard by *hanging* (the loop they call is
+a `while True`), so run them under a timeout if you are changing that code:
+
+```bash
+timeout 60 python3 -m unittest discover -s agent
+```
+
 ## Config (`config.json`)
 
 `cloud_url` points at the **ingest** endpoint (e.g. `https://<app>/api/agent/ingest`); the agent
