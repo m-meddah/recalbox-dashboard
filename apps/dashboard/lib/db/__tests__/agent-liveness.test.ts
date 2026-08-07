@@ -29,11 +29,12 @@ describe('getAgentLastSeen', () => {
 		expect((await getAgentLastSeen(db)).has('rb1')).toBe(false)
 	})
 
+	// No sleep here on purpose. Outside a request scope `after()` throws, so
+	// resolveAgentToken writes the touch inline before it returns — awaiting it is
+	// enough. This used to need a 20 ms sleep to paper over a floating promise.
 	it('reports lastUsedAt after the agent authenticates', async () => {
 		const { token } = await createAgentToken(db, 'rb1')
-		await resolveAgentToken(db, token) // touches lastUsedAt (best-effort, awaited internally)
-		// allow the fire-and-forget touch to settle
-		await new Promise((r) => setTimeout(r, 20))
+		await resolveAgentToken(db, token)
 		const seen = await getAgentLastSeen(db)
 		const t = seen.get('rb1')
 		expect(t).toBeInstanceOf(Date)
@@ -43,7 +44,6 @@ describe('getAgentLastSeen', () => {
 	it('excludes revoked tokens', async () => {
 		const { token, row } = await createAgentToken(db, 'rb1')
 		await resolveAgentToken(db, token)
-		await new Promise((r) => setTimeout(r, 20))
 		await revokeAgentToken(db, row.id)
 		expect((await getAgentLastSeen(db)).has('rb1')).toBe(false)
 	})

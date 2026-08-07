@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { generateAgentToken, hashAgentToken } from '@/lib/agent/token'
 import type { DB } from '@/lib/db'
 import { agentTokens } from '@/lib/db/schema'
+import { logger } from '@/lib/logger'
 import { eq } from 'drizzle-orm'
+import { after } from 'next/server'
 
 export type AgentTokenRow = typeof agentTokens.$inferSelect
 
@@ -51,13 +53,30 @@ export async function resolveAgentToken(
 		.get()
 	if (!row || row.revokedAt) return null
 
-	void (async () => {
-		try {
-			await db.update(agentTokens).set({ lastUsedAt: new Date() }).where(eq(agentTokens.id, row.id))
-		} catch {}
-	})()
+	// `lastUsedAt` is the box-liveness signal: buildSeedState derives online/offline
+	// from it, so a lost write makes a live box read as offline in the UI. It used to
+	// be a floating promise, which a serverless platform may drop the moment the
+	// response flushes. `after()` hands the write to the platform, which keeps the
+	// invocation alive until it settles — without delaying the response.
+	try {
+		after(() => touchLastUsed(db, row.id))
+	} catch {
+		// `after()` throws outside a request scope (tests, one-shot scripts, the
+		// scrobbler). There is no platform to defer to there, so write inline rather
+		// than drop the touch. The callback form above means nothing ran yet.
+		await touchLastUsed(db, row.id)
+	}
 
 	return { recalboxId: row.recalboxId, tokenId: row.id }
+}
+
+/** Best-effort liveness touch: never let a failed write break the caller's request. */
+async function touchLastUsed(db: DB, tokenId: string): Promise<void> {
+	try {
+		await db.update(agentTokens).set({ lastUsedAt: new Date() }).where(eq(agentTokens.id, tokenId))
+	} catch (err) {
+		logger.error('[agent] lastUsedAt touch failed', err)
+	}
 }
 
 export async function listAgentTokens(db: DB, recalboxId: string): Promise<AgentTokenRow[]> {
