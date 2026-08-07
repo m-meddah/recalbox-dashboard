@@ -107,7 +107,6 @@ lib/recalbox/manager/
   config.ts     ← lib/recalbox/web-config.ts
   catalog.ts    ← fetchSystemsCatalog, étendu
   bios.ts       ← lib/recalbox/bios.ts
-  storage.ts    ← lib/recalbox/storage.ts
   media.ts      nouveau
   versions.ts   nouveau
   status.ts     nouveau
@@ -118,10 +117,15 @@ lib/recalbox/manager/
 que les routes puissent répondre 503). C'est le contrat déjà appliqué de fait dans
 `web-config.ts` ; il devient explicite et unique.
 
-Pas de fichier `index.ts` de compatibilité : les 5 sites d'import de `bios.ts` et
-`storage.ts` (`api/bios`, `api/monitoring`, `rom-audit/discover`,
-`rom-audit/scan-targets`, tests) sont mis à jour. Une couche d'indirection
-masquerait le déplacement sans rien simplifier.
+**`lib/recalbox/storage.ts` ne bouge pas.** Son type `StorageMount` est importé par
+`lib/db/schema.ts`, `lib/recalbox/events.ts` et `lib/agent/ingest-snapshot.ts` — du
+code qui décrit du stockage poussé par l'agent, sans aucun rapport avec le port 81.
+Le déplacer ferait dépendre le schéma de base d'un client HTTP. Le fichier reste en
+place et bascule simplement sur `managerFetch` pour son transport.
+
+Pas de fichier `index.ts` de compatibilité : les sites d'import de `bios.ts` et
+`web-config.ts` sont mis à jour directement. Une couche d'indirection masquerait le
+déplacement sans rien simplifier.
 
 Pas de cache. Les pages concernées sont toutes `force-dynamic` et lisent la box à
 chaque rendu ; un cache introduirait une invalidation à raisonner pour un gain non
@@ -281,10 +285,11 @@ accumulée.
 - `/all-recalboxes` : colonne version, avec mise en évidence des divergences entre
   boxes. Fetch parallèle, best-effort — une box hors ligne affiche un tiret, pas une
   erreur.
-- Les clés `updates.enabled` et `updates.type` sont ajoutées à la configuration
-  existante via la section `/api/configuration/updates`.
-
 Pas de déclenchement de mise à jour : l'API ne l'expose pas.
+
+Rien à faire côté configuration : la section `updates` est déjà déclarée dans
+`CONFIG_SECTIONS` et le rendu générique expose donc déjà `updates.enabled` et
+`updates.type`.
 
 ## Gestion d'erreur
 
