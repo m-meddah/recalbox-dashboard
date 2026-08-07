@@ -267,6 +267,9 @@ describe('runScan (incremental cache)', () => {
 	})
 
 	// A cache is an optimisation: if it cannot be sent, the scan still runs.
+	// Explicit timeout, same reason as the twin test in scan-cache.test.ts: building
+	// 400k incompressible entries costs ~2.6s idle against vitest's 5s default, and
+	// that margin vanished as soon as the suite competed for CPU.
 	it('drops an oversized cache instead of failing the scan', async () => {
 		const huge: ScanCache = {}
 		for (let i = 0; i < 400_000; i++) {
@@ -282,5 +285,5 @@ describe('runScan (incremental cache)', () => {
 		expect(res.status).toBe('ok')
 		const stdin = client.exec.mock.calls[0]?.[1]?.stdin ?? ''
 		expect(stdin.startsWith('#!/usr/bin/env python3')).toBe(true)
-	})
+	}, 30_000)
 })

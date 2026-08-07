@@ -117,6 +117,12 @@ describe('encodeScanCache', () => {
 
 	// Measured on the box: 2,3 MB of stdin went through intact. The guard is a
 	// safety net against a degenerate payload, not a transport limit.
+	//
+	// Explicit timeout: building 400k incompressible entries and deflating them takes
+	// ~2.6s on an idle machine, under vitest's 5s default. That margin is too thin —
+	// the test flaked whenever the suite competed for CPU. The cost is inherent (the
+	// payload must exceed MAX_CACHE_BYTES *after* deflate, so the entropy is the
+	// point), so widen the budget rather than shrink the fixture.
 	it('refuses a cache beyond the guard rather than sending it', () => {
 		const cache: ScanCache = {}
 		for (let i = 0; i < 400_000; i++) {
@@ -132,7 +138,7 @@ describe('encodeScanCache', () => {
 		expect(encoded.status).toBe('too-large')
 		if (encoded.status !== 'too-large') throw new Error('expected too-large')
 		expect(encoded.bytes).toBeGreaterThan(MAX_CACHE_BYTES)
-	})
+	}, 30_000)
 
 	it('encodes an empty cache without complaining', () => {
 		const encoded = encodeScanCache({})
