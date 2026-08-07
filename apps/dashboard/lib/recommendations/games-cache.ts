@@ -22,8 +22,8 @@ export type RecommenderGameRow = {
 	gameId: number
 	name: string
 	system: string
-	imageUrl: string | null
-	videoUrl: string | null
+	imagePath: string | null
+	videoPath: string | null
 	genres: string | null
 	releaseDate: Date | null
 	developer: string | null
@@ -45,8 +45,8 @@ export async function loadRecommenderGames(
 			gameId: games.id,
 			name: games.name,
 			system: games.system,
-			imageUrl: games.imagePath,
-			videoUrl: games.videoPath,
+			imagePath: games.imagePath,
+			videoPath: games.videoPath,
 			genres: games.genre,
 			releaseDate: games.releaseDate,
 			developer: games.developer,

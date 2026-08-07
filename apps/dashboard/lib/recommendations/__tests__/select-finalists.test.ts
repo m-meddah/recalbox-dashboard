@@ -6,8 +6,8 @@ function makeScored(overrides: Partial<ScoredGame> & { gameId: number }): Scored
 	return {
 		name: `Game ${overrides.gameId}`,
 		system: 'snes',
-		imageUrl: null,
-		videoUrl: null,
+		imagePath: null,
+		videoPath: null,
 		genres: ['Platformer'],
 		releaseYear: 1993,
 		developer: 'Nintendo',

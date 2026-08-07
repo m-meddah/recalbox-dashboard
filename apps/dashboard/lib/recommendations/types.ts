@@ -28,8 +28,15 @@ export type ScoredGame = {
 	gameId: number
 	name: string
 	system: string
-	imageUrl: string | null
-	videoUrl: string | null
+	imagePath: string | null
+	videoPath: string | null
+	/**
+	 * Object-storage URLs for the two paths above, resolved when the agent has
+	 * already mirrored them (null otherwise, and always null self-hosted). Set on
+	 * finalists only — scoring never needs them.
+	 */
+	imageUrl?: string | null
+	videoUrl?: string | null
 	genres: string[]
 	releaseYear: number | null
 	developer: string | null

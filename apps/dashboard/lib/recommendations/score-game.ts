@@ -13,8 +13,8 @@ export type GameForScoring = {
 	gameId: number
 	name: string
 	system: string
-	imageUrl: string | null
-	videoUrl: string | null
+	imagePath: string | null
+	videoPath: string | null
 	genres: string[]
 	releaseYear: number | null
 	decade: string | null
@@ -331,8 +331,8 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 		gameId: game.gameId,
 		name: game.name,
 		system: game.system,
-		imageUrl: game.imageUrl,
-		videoUrl: game.videoUrl,
+		imagePath: game.imagePath,
+		videoPath: game.videoPath,
 		genres: game.genres,
 		releaseYear: game.releaseYear,
 		developer: game.developer,

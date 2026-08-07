@@ -1,50 +1,55 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const markWanted = vi.fn()
+const markWantedMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({ db: {} }))
 vi.mock('@/lib/db/artwork', () => ({
-	markWanted: (...a: unknown[]) => markWanted(...a),
+	markWantedMany: (...a: unknown[]) => markWantedMany(...a),
 }))
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }))
 
 import { prefetchArtwork } from '../artwork-prefetch'
 
 afterEach(() => {
-	markWanted.mockReset()
+	markWantedMany.mockReset()
 })
 
+/** The paths of the single batched call, sorted so assertions ignore Set order. */
+function markedPaths(): string[] {
+	return [...(markWantedMany.mock.calls[0]?.[2] as string[])].sort()
+}
+
 describe('prefetchArtwork', () => {
-	it('marks each image and video path wanted', async () => {
-		markWanted.mockResolvedValue(undefined)
+	it('marks every image and video path wanted in one batch', async () => {
+		markWantedMany.mockResolvedValue(undefined)
 		await prefetchArtwork('rb1', [
-			{ imageUrl: '/a.png', videoUrl: '/a.mp4' },
-			{ imageUrl: '/b.png', videoUrl: null },
+			{ imagePath: '/a.png', videoPath: '/a.mp4' },
+			{ imagePath: '/b.png', videoPath: null },
 		])
-		expect(markWanted).toHaveBeenCalledTimes(3)
-		expect(markWanted).toHaveBeenCalledWith({}, 'rb1', '/a.png')
-		expect(markWanted).toHaveBeenCalledWith({}, 'rb1', '/a.mp4')
-		expect(markWanted).toHaveBeenCalledWith({}, 'rb1', '/b.png')
+		expect(markWantedMany).toHaveBeenCalledTimes(1)
+		expect(markWantedMany.mock.calls[0]?.[1]).toBe('rb1')
+		expect(markedPaths()).toEqual(['/a.mp4', '/a.png', '/b.png'])
 	})
 
 	it('dedupes the same path repeated across games', async () => {
-		markWanted.mockResolvedValue(undefined)
+		markWantedMany.mockResolvedValue(undefined)
 		await prefetchArtwork('rb1', [
-			{ imageUrl: '/shared.png', videoUrl: null },
-			{ imageUrl: '/shared.png', videoUrl: null },
+			{ imagePath: '/shared.png', videoPath: null },
+			{ imagePath: '/shared.png', videoPath: null },
 		])
-		expect(markWanted).toHaveBeenCalledTimes(1)
+		expect(markedPaths()).toEqual(['/shared.png'])
 	})
 
 	it('skips games with no image or video', async () => {
-		await prefetchArtwork('rb1', [{ imageUrl: null, videoUrl: null }])
-		expect(markWanted).not.toHaveBeenCalled()
+		markWantedMany.mockResolvedValue(undefined)
+		await prefetchArtwork('rb1', [{ imagePath: null, videoPath: null }])
+		expect(markedPaths()).toEqual([])
 	})
 
-	it('does not reject when a markWanted call fails', async () => {
-		markWanted.mockRejectedValue(new Error('db down'))
+	it('does not reject when the batch fails', async () => {
+		markWantedMany.mockRejectedValue(new Error('db down'))
 		await expect(
-			prefetchArtwork('rb1', [{ imageUrl: '/a.png', videoUrl: null }]),
+			prefetchArtwork('rb1', [{ imagePath: '/a.png', videoPath: null }]),
 		).resolves.toBeUndefined()
 	})
 })

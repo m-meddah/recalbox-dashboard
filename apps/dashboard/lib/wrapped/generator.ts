@@ -1,4 +1,5 @@
 import { configStore } from '@/lib/config-store'
+import { resolveArtworkUrls } from '@/lib/db/artwork'
 import { db } from '@/lib/db/index'
 import {
 	gameHltbMapping,
@@ -74,6 +75,7 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 			playtimeMinutes: Math.floor((g.playtimeSec % 3600) / 60),
 			sessionCount: g.sessionCount,
 			imagePath: g.imagePath,
+			imageUrl: g.imageUrl,
 		}
 		slides.push(slide)
 	}
@@ -251,6 +253,7 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 				playtimeSec: sql<number>`SUM(${sessions.durationSeconds})`,
 				sessionCount: sql<number>`COUNT(*)`,
 				imagePath: games.imagePath,
+				recalboxId: games.recalboxId,
 			})
 			.from(sessions)
 			.leftJoin(games, sql`${sessions.romPath} = ${games.romPath}`)
@@ -265,6 +268,7 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 				gameName: games.name,
 				system: games.system,
 				imagePath: games.imagePath,
+				recalboxId: games.recalboxId,
 				playCount: gameInheritedStats.playCount,
 				romPath: games.romPath,
 				estimatedPlaytimeSec: sql<number>`
@@ -397,30 +401,34 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 
 	// Merge inherited top games — only add games not already represented by real sessions.
 	const sessionRomPaths = new Set(topGamesRows.map((r) => r.gameName))
-	const mergedTopGames = [
-		...topGamesRows.map((r) => ({
-			gameName: r.gameName,
-			system: r.system,
-			playtimeSec: r.playtimeSec,
-			sessionCount: r.sessionCount,
-			imagePath: r.imagePath ?? null,
-		})),
-		...inheritedTopGamesRows.flatMap((r) =>
-			r.gameName && !sessionRomPaths.has(r.gameName)
-				? [
-						{
-							gameName: r.gameName,
-							system: r.system,
-							playtimeSec: r.estimatedPlaytimeSec,
-							sessionCount: r.playCount,
-							imagePath: r.imagePath ?? null,
-						},
-					]
-				: [],
-		),
-	]
-		.sort((a, b) => b.playtimeSec - a.playtimeSec)
-		.slice(0, 5)
+	const mergedTopGames = await withArtworkUrls(
+		[
+			...topGamesRows.map((r) => ({
+				gameName: r.gameName,
+				system: r.system,
+				playtimeSec: r.playtimeSec,
+				sessionCount: r.sessionCount,
+				imagePath: r.imagePath ?? null,
+				recalboxId: r.recalboxId ?? null,
+			})),
+			...inheritedTopGamesRows.flatMap((r) =>
+				r.gameName && !sessionRomPaths.has(r.gameName)
+					? [
+							{
+								gameName: r.gameName,
+								system: r.system,
+								playtimeSec: r.estimatedPlaytimeSec,
+								sessionCount: r.playCount,
+								imagePath: r.imagePath ?? null,
+								recalboxId: r.recalboxId ?? null,
+							},
+						]
+					: [],
+			),
+		]
+			.sort((a, b) => b.playtimeSec - a.playtimeSec)
+			.slice(0, 5),
+	)
 
 	return {
 		year,
@@ -456,6 +464,41 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 		raAchievements: raRows,
 		userPseudo: cfg.retroachievements.username || undefined,
 	}
+}
+
+type TopGameRow = {
+	gameName: string
+	system: string
+	playtimeSec: number
+	sessionCount: number
+	imagePath: string | null
+	recalboxId: string | null
+}
+
+/**
+ * Resolve the top games' covers so the recap renders straight from object storage.
+ * The result is baked into `wrapped_cache`, so a cover the agent has not mirrored
+ * yet stays null here — it is queued by the lookup and picked up the next time the
+ * recap is regenerated; until then the slide falls back to the media proxy.
+ * Wrapped aggregates across Recalboxes, hence the per-box grouping.
+ */
+async function withArtworkUrls(
+	rows: TopGameRow[],
+): Promise<Array<Omit<TopGameRow, 'recalboxId'> & { imageUrl: string | null }>> {
+	const urls = new Map<string, string>()
+	const boxes = new Set(rows.map((r) => r.recalboxId).filter((id): id is string => !!id))
+	for (const recalboxId of boxes) {
+		const resolved = await resolveArtworkUrls(
+			db,
+			recalboxId,
+			rows.filter((r) => r.recalboxId === recalboxId).map((r) => r.imagePath),
+		).catch(() => new Map<string, string>())
+		for (const [path, url] of resolved) urls.set(`${recalboxId} ${path}`, url)
+	}
+	return rows.map(({ recalboxId, ...row }) => ({
+		...row,
+		imageUrl: (recalboxId && row.imagePath && urls.get(`${recalboxId} ${row.imagePath}`)) || null,
+	}))
 }
 
 export async function generateWrapped(year: number, locale: string): Promise<Wrapped> {

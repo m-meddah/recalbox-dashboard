@@ -4,13 +4,20 @@ import { RecommendationQuality } from '@/components/profile/recommendation-quali
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
+import { mediaSrc } from '@/lib/media'
 import { Loader2, RotateCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 type WeightedItem = { key: string; weight: number; rawScore: number }
-type GameInfo = { id: number; name: string; system: string; imagePath: string | null }
+type GameInfo = {
+	id: number
+	name: string
+	system: string
+	imagePath: string | null
+	imageUrl: string | null
+}
 
 type ProfileData = {
 	systemsWeights: WeightedItem[]
@@ -198,24 +205,27 @@ function GameList({
 			</CardHeader>
 			<CardContent>
 				<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-					{games.map((g) => (
-						<div key={g.id} className={`space-y-1 ${muted ? 'opacity-60' : ''}`}>
-							{g.imagePath ? (
-								<Image
-									src={`/api/media?path=${encodeURIComponent(g.imagePath)}`}
-									alt={g.name}
-									width={200}
-									height={112}
-									unoptimized
-									className="w-full aspect-video object-contain bg-muted rounded"
-								/>
-							) : (
-								<div className="w-full aspect-video bg-muted rounded" />
-							)}
-							<p className="text-xs font-medium truncate">{g.name}</p>
-							<p className="text-xs text-muted-foreground">{g.system}</p>
-						</div>
-					))}
+					{games.map((g) => {
+						const src = mediaSrc(g.imageUrl, g.imagePath)
+						return (
+							<div key={g.id} className={`space-y-1 ${muted ? 'opacity-60' : ''}`}>
+								{src ? (
+									<Image
+										src={src}
+										alt={g.name}
+										width={200}
+										height={112}
+										unoptimized
+										className="w-full aspect-video object-contain bg-muted rounded"
+									/>
+								) : (
+									<div className="w-full aspect-video bg-muted rounded" />
+								)}
+								<p className="text-xs font-medium truncate">{g.name}</p>
+								<p className="text-xs text-muted-foreground">{g.system}</p>
+							</div>
+						)
+					})}
 				</div>
 			</CardContent>
 		</Card>

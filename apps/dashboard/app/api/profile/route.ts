@@ -1,7 +1,9 @@
 import { getUser, unauthorized } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
+import { resolveArtworkUrls } from '@/lib/db/artwork'
 import { games } from '@/lib/db/schema'
 import { getUserProfile } from '@/lib/profile/get-profile'
+import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { inArray } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
@@ -22,13 +24,28 @@ export async function GET() {
 						name: games.name,
 						system: games.system,
 						imagePath: games.imagePath,
+						recalboxId: games.recalboxId,
 					})
 					.from(games)
 					.where(inArray(games.id, allGameIds))
 					.all()
 			: []
 
-	const gameInfoMap = new Map(gamesInfo.map((g) => [g.id, g]))
+	const recalboxId = await getActiveRecalboxId()
+	const urls = recalboxId
+		? await resolveArtworkUrls(
+				db,
+				recalboxId,
+				gamesInfo.filter((g) => g.recalboxId === recalboxId).map((g) => g.imagePath),
+			)
+		: new Map<string, string>()
+
+	const gameInfoMap = new Map(
+		gamesInfo.map(({ recalboxId: _unused, ...g }) => [
+			g.id,
+			{ ...g, imageUrl: (g.imagePath && urls.get(g.imagePath)) || null },
+		]),
+	)
 
 	return NextResponse.json({
 		systemsWeights: profile.systemsWeights,

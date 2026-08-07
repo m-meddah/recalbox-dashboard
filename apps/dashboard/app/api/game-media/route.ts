@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
 	}
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) return NextResponse.json({ error: 'No Recalbox configured' }, { status: 503 })
-	const media = getGameMedia(recalboxId, romPath)
+	const media = await getGameMedia(recalboxId, romPath)
 	return NextResponse.json(media ?? {})
 }

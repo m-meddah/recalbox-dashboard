@@ -79,8 +79,8 @@ describe('loadRecommenderGames', () => {
 			favorite: false,
 		})
 		expect(row).toHaveProperty('gameId')
-		expect(row).toHaveProperty('imageUrl')
-		expect(row).toHaveProperty('videoUrl')
+		expect(row).toHaveProperty('imagePath')
+		expect(row).toHaveProperty('videoPath')
 		expect(row).toHaveProperty('genres')
 	})
 })

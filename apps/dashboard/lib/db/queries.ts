@@ -1,3 +1,4 @@
+import { resolveArtworkUrls } from '@/lib/db/artwork'
 import { db } from '@/lib/db/index'
 import {
 	REAL_PLAY_SOURCES,
@@ -226,10 +227,17 @@ export type CollectionFilters = {
 
 export type Game = typeof games.$inferSelect
 
+/**
+ * A game plus its resolved cover URL. `imageUrl` is the object-storage URL when
+ * the agent has already mirrored `imagePath`, null otherwise (and always null
+ * self-hosted) — consumers pass both to `mediaSrc`, which picks the right one.
+ */
+export type GameWithArtwork = Game & { imageUrl: string | null }
+
 /** List games with optional filters, sorting and pagination. */
 export async function listGames(
 	filters: CollectionFilters = {},
-): Promise<{ games: Game[]; total: number }> {
+): Promise<{ games: GameWithArtwork[]; total: number }> {
 	const {
 		recalboxId,
 		system,
@@ -295,7 +303,40 @@ export async function listGames(
 		db.select({ value: count() }).from(games).where(whereClause),
 	])
 
-	return { games: rows, total: countRows[0]?.value ?? 0 }
+	return { games: await withArtwork(rows), total: countRows[0]?.value ?? 0 }
+}
+
+/**
+ * Attach the resolved cover URL to a page of games. Artwork is keyed per
+ * Recalbox and `listGames` may span several (no `recalboxId` filter), so rows are
+ * grouped first — in practice that is a single group and a single round-trip.
+ */
+async function withArtwork(rows: Game[]): Promise<GameWithArtwork[]> {
+	const byRecalbox = new Map<string, Game[]>()
+	for (const row of rows) {
+		if (!row.recalboxId) continue
+		const group = byRecalbox.get(row.recalboxId)
+		if (group) group.push(row)
+		else byRecalbox.set(row.recalboxId, [row])
+	}
+
+	const urls = new Map<string, string>()
+	for (const [recalboxId, group] of byRecalbox) {
+		const resolved = await resolveArtworkUrls(
+			db,
+			recalboxId,
+			group.map((g) => g.imagePath),
+		)
+		for (const [path, url] of resolved) urls.set(`${recalboxId} ${path}`, url)
+	}
+
+	return rows.map((row) => ({
+		...row,
+		imageUrl:
+			row.recalboxId && row.imagePath
+				? (urls.get(`${row.recalboxId} ${row.imagePath}`) ?? null)
+				: null,
+	}))
 }
 
 export type CollectionStats = {
@@ -643,6 +684,10 @@ export type GameMedia = {
 	screenshotPath: string | null
 	imagePath: string | null
 	thumbnailPath: string | null
+	/** Resolved object-storage URLs, null when unmirrored or self-hosted. */
+	screenshotUrl: string | null
+	imageUrl: string | null
+	thumbnailUrl: string | null
 	videoPath: string | null
 	genre: string | null
 	players: string | null
@@ -671,10 +716,18 @@ export async function getGameMedia(recalboxId: string, romPath: string): Promise
 		.where(and(eq(games.recalboxId, recalboxId), eq(games.romPath, romPath)))
 		.get()
 	if (!row) return null
+	const urls = await resolveArtworkUrls(db, recalboxId, [
+		row.screenshotPath,
+		row.imagePath,
+		row.thumbnailPath,
+	])
 	return {
 		screenshotPath: row.screenshotPath,
 		imagePath: row.imagePath,
 		thumbnailPath: row.thumbnailPath,
+		screenshotUrl: (row.screenshotPath && urls.get(row.screenshotPath)) || null,
+		imageUrl: (row.imagePath && urls.get(row.imagePath)) || null,
+		thumbnailUrl: (row.thumbnailPath && urls.get(row.thumbnailPath)) || null,
 		videoPath: row.videoPath,
 		genre: row.genre,
 		players: row.players,

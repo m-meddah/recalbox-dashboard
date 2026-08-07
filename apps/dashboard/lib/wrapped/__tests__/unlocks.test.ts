@@ -16,6 +16,7 @@ function baseData(overrides: Partial<WrappedRawData> = {}): WrappedRawData {
 				playtimeSec: 40 * 3600,
 				sessionCount: 20,
 				imagePath: null,
+				imageUrl: null,
 			},
 			{
 				gameName: 'Mario',
@@ -23,6 +24,7 @@ function baseData(overrides: Partial<WrappedRawData> = {}): WrappedRawData {
 				playtimeSec: 30 * 3600,
 				sessionCount: 15,
 				imagePath: null,
+				imageUrl: null,
 			},
 			{
 				gameName: 'Sonic',
@@ -30,6 +32,7 @@ function baseData(overrides: Partial<WrappedRawData> = {}): WrappedRawData {
 				playtimeSec: 30 * 3600,
 				sessionCount: 15,
 				imagePath: null,
+				imageUrl: null,
 			},
 		],
 		bySystem: [
@@ -110,6 +113,7 @@ describe('computeUnlocks', () => {
 					playtimeSec: 51 * 3600,
 					sessionCount: 30,
 					imagePath: null,
+					imageUrl: null,
 				},
 			],
 		})

@@ -38,6 +38,7 @@ function richData(): WrappedRawData {
 				playtimeSec: 40 * 3600,
 				sessionCount: 30,
 				imagePath: '/games/mario.png',
+				imageUrl: null,
 			},
 			{
 				gameName: 'Zelda',
@@ -45,6 +46,7 @@ function richData(): WrappedRawData {
 				playtimeSec: 30 * 3600,
 				sessionCount: 20,
 				imagePath: null,
+				imageUrl: null,
 			},
 			{
 				gameName: 'Sonic',
@@ -52,6 +54,7 @@ function richData(): WrappedRawData {
 				playtimeSec: 20 * 3600,
 				sessionCount: 15,
 				imagePath: null,
+				imageUrl: null,
 			},
 		],
 		bySystem: [
@@ -216,7 +219,14 @@ describe('buildSlides', () => {
 	it('top-games-list omitted when < 2 games played', () => {
 		const data = richData()
 		data.topGames = [
-			{ gameName: 'Mario', system: 'nes', playtimeSec: 100, sessionCount: 1, imagePath: null },
+			{
+				gameName: 'Mario',
+				system: 'nes',
+				playtimeSec: 100,
+				sessionCount: 1,
+				imagePath: null,
+				imageUrl: null,
+			},
 		]
 		const slides = buildSlides(data, [])
 		expect(slides.find((s) => s.type === 'top-games-list')).toBeUndefined()

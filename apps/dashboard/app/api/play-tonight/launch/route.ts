@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
 			.select({
 				romPath: games.romPath,
 				system: games.system,
-				imageUrl: games.imagePath,
-				videoUrl: games.videoPath,
+				imagePath: games.imagePath,
+				videoPath: games.videoPath,
 			})
 			.from(games)
 			.where(eq(games.id, gameId))

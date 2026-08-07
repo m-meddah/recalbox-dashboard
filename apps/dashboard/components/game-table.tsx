@@ -4,7 +4,8 @@ import { EmulatorOverrideButton } from '@/components/collection/emulator-overrid
 import { LaunchGameButton } from '@/components/launch-game-button'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type { Game } from '@/lib/db/queries'
+import type { GameWithArtwork } from '@/lib/db/queries'
+import { mediaProxyUrl, mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { ArrowDown, ArrowUp, Star } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -13,16 +14,23 @@ import { useEffect, useMemo, useState } from 'react'
 
 type Props = { system: string; regions: string[] }
 
-type ApiResponse = { games: Game[]; total: number; page: number; pageSize: number }
+type ApiResponse = { games: GameWithArtwork[]; total: number; page: number; pageSize: number }
 type SortBy = 'name' | 'rating'
 
 const PAGE_SIZE = 50
 
 /** Box-3D / cover thumbnail, falling back to a controller glyph. */
-function Cover({ game }: { game: Game }) {
-	const [error, setError] = useState(false)
+function Cover({ game }: { game: GameWithArtwork }) {
+	// A stored URL can go stale (blob purged while the row survives), so the first
+	// failure retries through /api/media, which re-requests the upload and heals
+	// the row. Only a second failure falls back to the glyph.
+	const [failures, setFailures] = useState(0)
 	const src =
-		game.imagePath && !error ? `/api/media?path=${encodeURIComponent(game.imagePath)}` : null
+		failures === 0
+			? mediaSrc(game.imageUrl, game.imagePath)
+			: failures === 1 && game.imageUrl && game.imagePath
+				? mediaProxyUrl(game.imagePath)
+				: null
 	return (
 		<div className="relative h-28 w-24 shrink-0 overflow-hidden rounded bg-muted">
 			{src ? (
@@ -33,7 +41,7 @@ function Cover({ game }: { game: Game }) {
 					sizes="96px"
 					className="object-contain"
 					unoptimized
-					onError={() => setError(true)}
+					onError={() => setFailures((n) => n + 1)}
 				/>
 			) : (
 				<div className="flex h-full items-center justify-center text-2xl text-muted-foreground">

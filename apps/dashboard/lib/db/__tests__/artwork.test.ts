@@ -4,8 +4,16 @@ import * as schema from '@/lib/db/schema'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { getArtwork, listWanted, markWanted, saveArtwork } from '../artwork'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+	getArtwork,
+	listWanted,
+	lookupArtworkUrls,
+	markWanted,
+	markWantedMany,
+	resolveArtworkUrls,
+	saveArtwork,
+} from '../artwork'
 
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle/migrations')
 
@@ -55,5 +63,76 @@ describe('artwork queries', () => {
 		const w = await listWanted(db, 'rb1')
 		expect(w).toHaveLength(1)
 		expect(w[0]?.boxPath).toBe('/x/a.png')
+	})
+
+	it('markWantedMany queues a batch without clobbering uploaded urls', async () => {
+		await saveArtwork(db, 'rb1', '/x/kept.png', 'https://blob/kept.png', 'image/png')
+		await markWantedMany(db, 'rb1', ['/x/a.png', '/x/b.png', '/x/kept.png'])
+		expect((await listWanted(db, 'rb1')).map((r) => r.boxPath).sort()).toEqual([
+			'/x/a.png',
+			'/x/b.png',
+		])
+		expect((await getArtwork(db, 'rb1', '/x/kept.png'))?.url).toBe('https://blob/kept.png')
+	})
+
+	it('markWantedMany is a no-op on an empty batch', async () => {
+		await expect(markWantedMany(db, 'rb1', [])).resolves.toBeUndefined()
+		expect(await listWanted(db, 'rb1')).toHaveLength(0)
+	})
+
+	it('lookupArtworkUrls returns uploaded urls only, scoped to the Recalbox', async () => {
+		await saveArtwork(db, 'rb1', '/x/a.png', 'https://blob/a.png', 'image/png')
+		await markWanted(db, 'rb1', '/x/pending.png')
+		await saveArtwork(db, 'rb2', '/x/other.png', 'https://blob/other.png', 'image/png')
+
+		const found = await lookupArtworkUrls(db, 'rb1', ['/x/a.png', '/x/pending.png', '/x/other.png'])
+		expect([...found]).toEqual([['/x/a.png', 'https://blob/a.png']])
+	})
+
+	it('lookupArtworkUrls handles an empty batch without querying', async () => {
+		expect([...(await lookupArtworkUrls(db, 'rb1', []))]).toEqual([])
+	})
+})
+
+describe('resolveArtworkUrls', () => {
+	let db: DB
+	beforeEach(() => {
+		db = makeDb()
+		process.env.AGENT_ONLY_MEDIA = '1'
+	})
+	afterEach(() => {
+		process.env.AGENT_ONLY_MEDIA = undefined
+	})
+
+	it('returns the hits and queues the misses for the agent', async () => {
+		await saveArtwork(db, 'rb1', '/x/have.png', 'https://blob/have.png', 'image/png')
+
+		const found = await resolveArtworkUrls(db, 'rb1', [
+			'/x/have.png',
+			'/x/missing.png',
+			null,
+			undefined,
+		])
+
+		expect(found.get('/x/have.png')).toBe('https://blob/have.png')
+		expect(found.has('/x/missing.png')).toBe(false)
+		expect((await listWanted(db, 'rb1')).map((r) => r.boxPath)).toEqual(['/x/missing.png'])
+	})
+
+	it('queues a repeated missing path once', async () => {
+		await resolveArtworkUrls(db, 'rb1', ['/x/dup.png', '/x/dup.png'])
+		expect(await listWanted(db, 'rb1')).toHaveLength(1)
+	})
+
+	// Self-hosted serves artwork over SSH and has no agent to upload anything, so
+	// resolution must stay inert: no urls, and no rows written on every render.
+	it('is a no-op outside serverless mode', async () => {
+		process.env.AGENT_ONLY_MEDIA = undefined
+		await saveArtwork(db, 'rb1', '/x/have.png', 'https://blob/have.png', 'image/png')
+
+		const found = await resolveArtworkUrls(db, 'rb1', ['/x/have.png', '/x/missing.png'])
+
+		expect([...found]).toEqual([])
+		expect(await listWanted(db, 'rb1')).toHaveLength(0)
 	})
 })

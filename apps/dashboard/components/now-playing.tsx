@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GameMedia } from '@/lib/db/queries'
+import { mediaSrc } from '@/lib/media'
 import type { GameStartEvent, SystemChangeEvent } from '@/lib/recalbox/events'
 import { systemEmoji } from '@/lib/recalbox/system-meta'
 import { getSystemSpecs } from '@/lib/recalbox/system-specs'
@@ -70,15 +71,14 @@ function BrowsingBadge() {
 	)
 }
 
-function mediaUrl(path: string | null | undefined): string | null {
-	return path ? `/api/media?path=${encodeURIComponent(path)}` : null
-}
-
 /**
  * In serverless mode, /api/media and /api/system-logo return 404 until the on-box
  * agent uploads the file (≤~30s, request-driven). A plain onError would fall back
  * permanently, so we retry the src a few times (cache-busted) before giving up —
  * the image then appears on its own once uploaded, with no manual reload.
+ *
+ * An already-resolved object-storage URL needs none of this: it exists by
+ * definition, so it loads on the first attempt and the retries never fire.
  */
 function useRetryingImage(src: string | null, retries = 5, delayMs = 7000) {
 	const [attempt, setAttempt] = useState(0)
@@ -142,9 +142,13 @@ function GameCard({ game }: { game: GameStartEvent }) {
 	const media = mediaState.rom === game.romPath ? mediaState.data : null
 	const srInfo =
 		srState.rom === game.romPath ? srState.data : { srHasPage: null, srUrl: null as string | null }
+	// The event's own imagePath is the last resort: it carries no resolved URL, so
+	// it only serves the moment before /api/game-media answers.
 	const screenshotUrl =
-		mediaUrl(media?.screenshotPath) ?? mediaUrl(media?.imagePath) ?? mediaUrl(game.imagePath)
-	const boxUrl = mediaUrl(media?.thumbnailPath)
+		mediaSrc(media?.screenshotUrl, media?.screenshotPath) ??
+		mediaSrc(media?.imageUrl, media?.imagePath) ??
+		mediaSrc(null, game.imagePath)
+	const boxUrl = mediaSrc(media?.thumbnailUrl, media?.thumbnailPath)
 	const shot = useRetryingImage(screenshotUrl)
 	const box = useRetryingImage(boxUrl)
 	const showShot = !!shot.src
@@ -305,9 +309,7 @@ function SystemSpecsPanel({
 
 function BrowsingCard({ browsing }: { browsing: SystemChangeEvent }) {
 	const t = useTranslations('nowPlaying')
-	const imageUrl = browsing.imagePath
-		? `/api/media?path=${encodeURIComponent(browsing.imagePath)}`
-		: null
+	const imageUrl = mediaSrc(null, browsing.imagePath)
 
 	return (
 		<Card className="overflow-hidden border-blue-500/20">

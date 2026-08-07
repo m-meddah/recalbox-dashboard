@@ -23,6 +23,7 @@ export type MostPlayedGameSlide = {
 	playtimeMinutes: number
 	sessionCount: number
 	imagePath: string | null
+	imageUrl: string | null
 }
 
 export type TopSystemSlide = {
@@ -126,6 +127,7 @@ export type WrappedRawData = {
 		playtimeSec: number
 		sessionCount: number
 		imagePath: string | null
+		imageUrl: string | null
 	}>
 	bySystem: Array<{ system: string; playtimeSec: number }>
 	longestSession: { gameName: string; durationSec: number; startedAt: Date } | null

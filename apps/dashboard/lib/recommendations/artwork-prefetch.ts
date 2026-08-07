@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
-import { markWanted } from '@/lib/db/artwork'
+import { markWantedMany } from '@/lib/db/artwork'
 import { logger } from '@/lib/logger'
 
-type MediaPaths = { imageUrl: string | null; videoUrl: string | null }
+type MediaPaths = { imagePath: string | null; videoPath: string | null }
 
 /**
  * Marks each game's image/video box path "wanted" so the on-box agent uploads it
@@ -12,15 +12,12 @@ type MediaPaths = { imageUrl: string | null; videoUrl: string | null }
 export async function prefetchArtwork(recalboxId: string, games: MediaPaths[]): Promise<void> {
 	const paths = new Set<string>()
 	for (const g of games) {
-		if (g.imageUrl) paths.add(g.imageUrl)
-		if (g.videoUrl) paths.add(g.videoUrl)
+		if (g.imagePath) paths.add(g.imagePath)
+		if (g.videoPath) paths.add(g.videoPath)
 	}
 
-	await Promise.all(
-		Array.from(paths).map((path) =>
-			markWanted(db, recalboxId, path).catch((err) => {
-				logger.error('[artwork-prefetch] markWanted failed', err)
-			}),
-		),
-	)
+	// One statement for the whole batch rather than a markWanted round-trip per path.
+	await markWantedMany(db, recalboxId, Array.from(paths)).catch((err) => {
+		logger.error('[artwork-prefetch] markWanted failed', err)
+	})
 }

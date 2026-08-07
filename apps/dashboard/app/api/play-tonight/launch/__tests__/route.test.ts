@@ -101,8 +101,8 @@ describe('POST /api/play-tonight/launch', () => {
 		expect(res.status).toBe(200)
 		expect(prefetchArtwork).toHaveBeenCalledWith('rb1', [
 			expect.objectContaining({
-				imageUrl: '/recalbox/share/roms/megadrive/images/sonic.png',
-				videoUrl: '/recalbox/share/roms/megadrive/videos/sonic.mp4',
+				imagePath: '/recalbox/share/roms/megadrive/images/sonic.png',
+				videoPath: '/recalbox/share/roms/megadrive/videos/sonic.mp4',
 			}),
 		])
 	})
@@ -121,7 +121,7 @@ describe('POST /api/play-tonight/launch', () => {
 		expect(body.busy).toBe(true)
 		expect(launchGame).not.toHaveBeenCalled()
 		expect(prefetchArtwork).toHaveBeenCalledWith('rb1', [
-			expect.objectContaining({ imageUrl: '/recalbox/share/img.png', videoUrl: null }),
+			expect.objectContaining({ imagePath: '/recalbox/share/img.png', videoPath: null }),
 		])
 	})
 

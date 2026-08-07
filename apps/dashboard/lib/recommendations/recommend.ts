@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { resolveArtworkUrls } from '@/lib/db/artwork'
 import {
 	gameHltbMapping,
 	gameIgdbMapping,
@@ -13,7 +14,6 @@ import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
 import { and, count, eq, gt, inArray, isNotNull } from 'drizzle-orm'
-import { prefetchArtwork } from './artwork-prefetch'
 import { loadRecommenderGames } from './games-cache'
 import { loadRecommenderPlayStats } from './play-stats-cache'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
@@ -97,8 +97,8 @@ export async function computeRecommendations(
 			gameId: game.gameId,
 			name: game.name,
 			system: game.system,
-			imageUrl: game.imageUrl,
-			videoUrl: game.videoUrl,
+			imagePath: game.imagePath,
+			videoPath: game.videoPath,
 			genres: parseGenres(game.genres),
 			releaseYear,
 			decade: releaseYear ? `${Math.floor(releaseYear / 10) * 10}s` : null,
@@ -114,7 +114,24 @@ export async function computeRecommendations(
 		if (result) scored.push(result)
 	}
 
-	const finalists = selectFinalists(scored)
+	let finalists = selectFinalists(scored)
+
+	// Resolve the finalists' artwork here rather than letting each card 404 its way
+	// through /api/media: one lookup covers the whole set, hits render straight from
+	// object storage, and the misses this queues are what prefetchArtwork used to do.
+	if (opts.recalboxId) {
+		const recalboxId = opts.recalboxId
+		const urls = await resolveArtworkUrls(
+			db,
+			recalboxId,
+			finalists.flatMap((f) => [f.imagePath, f.videoPath]),
+		).catch(() => new Map<string, string>())
+		finalists = finalists.map((f) => ({
+			...f,
+			imageUrl: (f.imagePath && urls.get(f.imagePath)) || null,
+			videoUrl: (f.videoPath && urls.get(f.videoPath)) || null,
+		}))
+	}
 
 	// Single batched INSERT — writes go to the Turso primary, so one round-trip
 	// instead of one per finalist.
@@ -136,9 +153,6 @@ export async function computeRecommendations(
 			triggerLazyMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
 		}
 		triggerLazyHltbMatching(scored.slice(0, LAZY_MATCH_TOP_N).map((c) => c.gameId))
-		// Give the agent's artwork poll a head start: mark the finalists' media
-		// wanted now, before the browser even renders a card and 404s on it.
-		if (opts.recalboxId) prefetchArtwork(opts.recalboxId, finalists)
 	}
 
 	return finalists

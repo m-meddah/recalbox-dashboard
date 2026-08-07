@@ -1,3 +1,4 @@
+import { mediaSrc } from '@/lib/media'
 import type { MostPlayedGameSlide } from '@/lib/wrapped/types'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -8,12 +9,13 @@ type Props = { slide: MostPlayedGameSlide }
 
 export function MostPlayedGameSlideView({ slide }: Props) {
 	const t = useTranslations('wrapped')
+	const cover = mediaSrc(slide.imageUrl, slide.imagePath)
 	return (
 		<SlideShell accent={SLIDE_ACCENTS['most-played-game']}>
-			{slide.imagePath && (
+			{cover && (
 				<div className="relative size-40 overflow-hidden rounded-2xl border border-white/10">
 					<Image
-						src={`/api/media?path=${encodeURIComponent(slide.imagePath)}`}
+						src={cover}
 						alt={slide.gameName}
 						width={160}
 						height={160}
