@@ -10,8 +10,12 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 // A verification pulls the file over and streams it through the tool; a DVD is
-// minutes, not seconds.
-export const maxDuration = 800
+// minutes, not seconds. Capped at 300 because Vercel's Hobby plan rejects any
+// higher value at deploy time — harmless, since this export only means something
+// on Vercel, where the POST below bails out with a 409 before doing any work
+// (serverless has neither the binaries nor the bandwidth). A self-hosted host
+// ignores the export entirely and still gets its full run time.
+export const maxDuration = 300
 
 const Body = z.object({
 	recalboxId: z.string().min(1),
