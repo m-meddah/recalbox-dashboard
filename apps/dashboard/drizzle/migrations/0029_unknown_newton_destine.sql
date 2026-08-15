@@ -1,0 +1,1 @@
+CREATE INDEX `idx_artwork_wanted` ON `artwork` (`recalbox_id`) WHERE "artwork"."url" is null;

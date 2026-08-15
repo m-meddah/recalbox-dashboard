@@ -634,7 +634,16 @@ export const artwork = sqliteTable(
 	},
 	(t) => ({
 		pk: primaryKey({ columns: [t.recalboxId, t.boxPath] }),
-		wantedIdx: index('idx_artwork_recalbox_uploaded').on(t.recalboxId, t.uploadedAt),
+		uploadedIdx: index('idx_artwork_recalbox_uploaded').on(t.recalboxId, t.uploadedAt),
+		// Every enrolled box asks "what is still wanted?" once a minute, forever. That
+		// query filters on `url IS NULL`, which no plain index covers: the planner seeks
+		// by recalbox_id and then tests the column on every row it lands on, so an IDLE
+		// poll costs one row read per mirrored artwork — the price grows with the whole
+		// collection instead of with the handful actually pending. A PARTIAL index holds
+		// only the wanted rows, so the usual empty-queue poll reads ~nothing. This is the
+		// difference between a few thousand row reads a day and hundreds of millions once
+		// a box is on 24/7 with its collection mirrored.
+		wantedIdx: index('idx_artwork_wanted').on(t.recalboxId).where(sql`${t.url} is null`),
 	}),
 )
 
