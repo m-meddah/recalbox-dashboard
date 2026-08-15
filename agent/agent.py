@@ -49,6 +49,14 @@ FLUSH_INTERVAL_SEC = 15
 # before the first successful poll), which is invisible for historical data and cheap
 # for remote control, since a short blip only degrades the cadence to a few minutes.
 MAX_RETRY_BACKOFF_SEC = 1800
+# Ceiling for the *idle* backoff, which is a different problem from the retry backoff
+# above: the cloud is answering fine, there is simply nothing to upload. A box that stays
+# on all day asks "any artwork wanted?" 1440 times, and the queue is empty for nearly all
+# of them — each one still costs a serverless invocation. Backing off while idle trades a
+# little latency for that: an image nobody has requested in a while can take up to this
+# long to appear. It only ever delays the FIRST image after a quiet spell, because the
+# loop snaps back to its configured interval the moment one is actually wanted.
+ARTWORK_IDLE_MAX_SEC = 300
 # Cap the offline buffer so a long outage / bad token / wrong URL can't grow it without
 # bound on a storage-constrained console. Keep the newest sessions, drop the oldest.
 MAX_BUFFER_LINES = 5000
@@ -248,6 +256,22 @@ def next_retry_delay(current, base, ok):
     if ok:
         return base
     return min(current * 2, max(MAX_RETRY_BACKOFF_SEC, base))
+
+
+def next_idle_delay(current, base, did_work, idle_max):
+    """Cadence for a loop whose queue is usually empty: back to `base` as soon as there is
+    something to do, else double up to `idle_max`.
+
+    Same shape as next_retry_delay, but it answers a different question. That one asks
+    "is the cloud reachable?" and protects the quota during an outage. This one asks "was
+    there anything to do?" and protects it during normal, healthy idleness — the case that
+    actually dominates for an always-on box.
+
+    As above, the cap never overrides a slower configured interval (`base`).
+    """
+    if did_work:
+        return base
+    return min(current * 2, max(idle_max, base))
 
 
 class Deliverer:
@@ -1040,19 +1064,29 @@ def artwork_loop(cfg):
     url = endpoint_for(cfg, "artwork")
     token = cfg.get("token")
     timeout = cfg.get("http_timeout_sec", 10)
+    idle_max = _int_cfg(cfg, "artwork_idle_max_sec", ARTWORK_IDLE_MAX_SEC)
     delay = interval
     while True:
         ok = False
+        wanted = []
         try:
             data = http_get_json(url, token, timeout)
             # As in command_loop: an unreadable local file (a system with no logo in the
             # theme) is not the cloud failing, so only the GET drives the backoff.
             ok = data is not None
-            for box_path in (data or {}).get("wanted") or []:
+            wanted = (data or {}).get("wanted") or []
+            for box_path in wanted:
                 upload_artwork(cfg, box_path)
         except Exception as e:  # never let the thread die
             log.error("artwork_loop error: %s", e)
-        delay = next_retry_delay(delay, interval, ok)
+        # "Cloud unreachable" and "queue empty" both mean nothing happened, but they earn
+        # different ceilings: 30min for an outage, idle_max for healthy idleness. Folding
+        # them together would either keep polling a dead endpoint too often, or make a
+        # working box take half an hour to notice a newly requested image.
+        if not ok:
+            delay = next_retry_delay(delay, interval, False)
+        else:
+            delay = next_idle_delay(delay, interval, bool(wanted), idle_max)
         time.sleep(delay)
 
 

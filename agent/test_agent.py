@@ -202,6 +202,97 @@ class RetryDelayTest(unittest.TestCase):
 		self.assertEqual(agent.next_retry_delay(base, base, False), base)
 
 
+class IdleDelayTest(unittest.TestCase):
+	"""Distinct from the retry backoff above: here the cloud answers fine, there is simply
+	nothing to do. An always-on box asking "any artwork wanted?" every 60s spends most of
+	its life on an empty queue, and each of those polls is a billed serverless invocation."""
+
+	def test_delay_doubles_while_the_queue_stays_empty(self):
+		self.assertEqual(agent.next_idle_delay(60, 60, False, 300), 120)
+		self.assertEqual(agent.next_idle_delay(120, 60, False, 300), 240)
+
+	def test_delay_is_capped_at_idle_max(self):
+		self.assertEqual(agent.next_idle_delay(240, 60, False, 300), 300)
+		self.assertEqual(agent.next_idle_delay(300, 60, False, 300), 300)
+
+	def test_delay_resets_to_base_as_soon_as_there_is_work(self):
+		"""Browsing a collection queues many images: the first one seen must drop the loop
+		back to its normal cadence so the rest follow within a minute, not five."""
+		self.assertEqual(agent.next_idle_delay(300, 60, True, 300), 60)
+
+	def test_a_slower_configured_interval_is_never_sped_up(self):
+		"""Mirrors next_retry_delay: a cap must not make a deliberately lazy loop faster."""
+		base = 900
+		self.assertEqual(agent.next_idle_delay(base, base, False, 300), base)
+
+
+class _JsonResp:
+	"""200 response carrying a real body, which http_get_json needs (_Resp has no read)."""
+
+	def __init__(self, body):
+		self.status = 200
+		self._body = body
+
+	def read(self):
+		return self._body
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *_):
+		return False
+
+
+class _JsonUrlopen:
+	"""Fake urlopen that always answers 200 with the same JSON payload."""
+
+	def __init__(self, payload):
+		self.body = json.dumps(payload).encode("utf-8")
+		self.calls = 0
+
+	def __call__(self, req, timeout=None, context=None):
+		self.calls += 1
+		return _JsonResp(self.body)
+
+
+class ArtworkIdleBackoffTest(unittest.TestCase):
+	"""A box left on all day asks "any artwork wanted?" 1440 times and the queue is empty
+	for nearly all of them, each one a billed invocation. The loop must slow down while
+	there is nothing to fetch — and snap back the moment there is, or browsing a collection
+	would show placeholders for minutes."""
+
+	def setUp(self):
+		self.cfg = {
+			"cloud_url": "https://example.test/api/agent/ingest",
+			"token": "tok",
+			"http_timeout_sec": 1,
+			"artwork_poll_interval_sec": 60,
+			"artwork_idle_max_sec": 300,
+		}
+
+	def _run(self, payload, stop_after=4):
+		rec = _SleepRecorder(stop_after)
+		with mock.patch.object(agent.time, "sleep", rec), mock.patch.object(
+			agent.urllib.request, "urlopen", _JsonUrlopen(payload)
+		), mock.patch.object(agent, "upload_artwork", lambda *a, **k: None):
+			try:
+				agent.artwork_loop(self.cfg)
+			except _StopLoop:
+				pass
+		return rec.delays
+
+	def test_empty_queue_backs_off_up_to_the_idle_cap(self):
+		self.assertEqual(self._run({"wanted": []}), [120, 240, 300, 300])
+
+	def test_a_wanted_image_holds_the_configured_cadence(self):
+		self.assertEqual(self._run({"wanted": ["/recalbox/share/x.png"]}), [60, 60, 60, 60])
+
+	def test_idle_backoff_stays_well_under_the_outage_ceiling(self):
+		"""Regression guard on the two backoffs being distinct: an idle box must not drift
+		toward the 30min outage ceiling, which would make artwork feel broken."""
+		self.assertLess(max(self._run({"wanted": []}, stop_after=8)), agent.MAX_RETRY_BACKOFF_SEC)
+
+
 class PollLoopBackoffTest(unittest.TestCase):
 	"""The poll loops (not just the ingest buffer) are what ran 3.4k/day against a dead
 	endpoint for 10 days — they must back off too."""

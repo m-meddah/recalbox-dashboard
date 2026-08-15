@@ -11,5 +11,6 @@
 	"collection_max_xml_bytes": 3500000,
 	"command_poll_interval_sec": 60,
 	"artwork_poll_interval_sec": 60,
+	"artwork_idle_max_sec": 300,
 	"artwork_max_bytes": 4000000
 }

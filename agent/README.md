@@ -74,10 +74,20 @@ derives the sibling endpoints (`/snapshots`, `/collection`, …) from it. Interv
 | `snapshot_interval_sec` | 0 | system snapshots; `0` disables (default: the cloud discards them) |
 | `collection_interval_sec` | 21600 | collection sync (6 h); `0` disables |
 | `collection_max_xml_bytes` | 3500000 | chunk gamelists larger than this |
-| `command_poll_interval_sec` | 10 | remote-control poll |
-| `artwork_poll_interval_sec` | 30 | wanted-artwork poll; `0` disables |
+| `command_poll_interval_sec` | 60 | remote-control poll |
+| `artwork_poll_interval_sec` | 60 | wanted-artwork poll; `0` disables |
+| `artwork_idle_max_sec` | 300 | ceiling the artwork poll drifts up to while the queue is empty |
 | `artwork_max_bytes` | 4000000 | skip uploads larger than this |
 | `min_duration_sec` | 10 | drop sessions shorter than this |
+
+Two backoffs act on these loops and they are deliberately separate. The **retry** backoff
+answers "is the cloud reachable?" and doubles up to 30 min during an outage — that is what
+stops a dead endpoint costing 3.4k requests a day. The **idle** backoff answers "was there
+anything to do?" and applies to the artwork poll only, doubling up to `artwork_idle_max_sec`
+while nothing is wanted; a box left on all day is idle for nearly all of its 1440 daily
+polls, and each one is a billed serverless invocation. It costs latency only on the *first*
+image after a quiet spell, because any wanted image drops the loop straight back to
+`artwork_poll_interval_sec` for the ones that follow.
 
 ## Deploy
 
