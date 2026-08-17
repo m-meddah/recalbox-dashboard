@@ -27,7 +27,14 @@ export async function getWrappedPreview(year: number): Promise<WrappedPreview | 
 		db
 			.select({ gameName: sql<string>`COALESCE(${games.name}, ${sessions.romPath})` })
 			.from(sessions)
-			.leftJoin(games, sql`${sessions.romPath} = ${games.romPath}`)
+			// Match the game row on the SAME box. Rom paths repeat across Recalboxes —
+			// retro collections overlap heavily — so joining on rom_path alone matches one
+			// row per box and the LEFT JOIN emits the session once per match. That inflates
+			// SUM(duration) and can crown a game nobody played the most.
+			.leftJoin(
+				games,
+				sql`${sessions.romPath} = ${games.romPath} AND ${sessions.recalboxId} = ${games.recalboxId}`,
+			)
 			.where(baseWhere)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))

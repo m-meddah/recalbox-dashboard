@@ -9,7 +9,7 @@ import {
 	raGameMapping,
 	sessions,
 } from '@/lib/db/schema'
-import { desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { toDateKey } from './formatters'
 
 export type Period = 'week' | 'month' | 'year' | 'all'
@@ -258,7 +258,12 @@ async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
 			durationSeconds: sessions.durationSeconds,
 		})
 		.from(sessions)
-		.leftJoin(games, eq(sessions.romPath, games.romPath))
+		// Same-box match: rom paths repeat across Recalboxes, so joining on rom_path alone
+		// matches one row per box and would list the same session several times.
+		.leftJoin(
+			games,
+			and(eq(sessions.romPath, games.romPath), eq(sessions.recalboxId, games.recalboxId)),
+		)
 		.where(sql`${sessions.endedAt} IS NOT NULL`)
 		.orderBy(desc(sessions.startedAt))
 		.limit(20)

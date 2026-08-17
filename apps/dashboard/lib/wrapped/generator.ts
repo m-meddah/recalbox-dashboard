@@ -256,7 +256,12 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 				recalboxId: games.recalboxId,
 			})
 			.from(sessions)
-			.leftJoin(games, sql`${sessions.romPath} = ${games.romPath}`)
+			// Same-box match: rom paths repeat across Recalboxes, and matching one row per
+			// box would emit each session once per match, inflating the sums below.
+			.leftJoin(
+				games,
+				sql`${sessions.romPath} = ${games.romPath} AND ${sessions.recalboxId} = ${games.recalboxId}`,
+			)
 			.where(baseWhere)
 			.groupBy(sessions.romPath)
 			.orderBy(desc(sql`SUM(${sessions.durationSeconds})`))
@@ -313,7 +318,12 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 				startedAt: sessions.startedAt,
 			})
 			.from(sessions)
-			.leftJoin(games, sql`${sessions.romPath} = ${games.romPath}`)
+			// Same-box match: rom paths repeat across Recalboxes, and matching one row per
+			// box would emit each session once per match, inflating the sums below.
+			.leftJoin(
+				games,
+				sql`${sessions.romPath} = ${games.romPath} AND ${sessions.recalboxId} = ${games.recalboxId}`,
+			)
 			.where(baseWhere)
 			.orderBy(desc(sessions.durationSeconds))
 			.limit(1)
@@ -374,7 +384,12 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 		db
 			.select({ sec: sql<number>`COALESCE(SUM(${sessions.durationSeconds}), 0)` })
 			.from(sessions)
-			.leftJoin(games, sql`${sessions.romPath} = ${games.romPath}`)
+			// Same-box match: rom paths repeat across Recalboxes, and matching one row per
+			// box would emit each session once per match, inflating the sums below.
+			.leftJoin(
+				games,
+				sql`${sessions.romPath} = ${games.romPath} AND ${sessions.recalboxId} = ${games.recalboxId}`,
+			)
 			.where(
 				sql`${baseWhere} AND ${games.releaseDate} IS NOT NULL AND ${games.releaseDate} < ${twentyYearsAgo}`,
 			)

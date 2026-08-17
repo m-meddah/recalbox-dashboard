@@ -783,7 +783,12 @@ export async function getLastClosedSession(): Promise<{
 			durationSec: sessions.durationSeconds,
 		})
 		.from(sessions)
-		.leftJoin(games, eq(sessions.romPath, games.romPath))
+		// Same-box match, as in getSessionStats above: rom paths repeat across Recalboxes,
+		// so rom_path alone can name this session after another box's copy of the game.
+		.leftJoin(
+			games,
+			and(eq(sessions.romPath, games.romPath), eq(sessions.recalboxId, games.recalboxId)),
+		)
 		.where(isNotNull(sessions.endedAt))
 		.orderBy(desc(sessions.startedAt))
 		.limit(1)
