@@ -1,6 +1,8 @@
 import { StoryViewer } from '@/components/wrapped/story-viewer'
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { getCachedWrapped } from '@/lib/wrapped/cache'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
@@ -18,9 +20,12 @@ export default async function WrappedYearPage({ params }: Props) {
 		notFound()
 	}
 
+	const user = await getUser()
+	const recalboxIds = user ? await getViewableRecalboxIds(user) : []
+
 	const [t, wrapped] = await Promise.all([
 		getTranslations('wrapped'),
-		getCachedWrapped(year, locale),
+		getCachedWrapped(year, locale, recalboxIds),
 	])
 
 	if (!wrapped || wrapped.slides.length === 0) {

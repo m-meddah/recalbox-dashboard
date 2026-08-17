@@ -34,12 +34,15 @@ const { db } = vi.hoisted(() => {
 	// box1 played the shared rom for 200s and its own exclusive rom for 300s.
 	session.run('box1', start, start + 200, 200, 'snes', '/rom/shared.zip')
 	session.run('box1', start, start + 300, 300, 'snes', '/rom/exclusive.zip')
+	// box2 belongs to someone else and played far more — it must never show up.
+	session.run('box2', start, start + 9000, 9000, 'psx', '/rom/theirs.chd')
 
 	const game = sqlite.prepare('INSERT INTO games (recalbox_id, rom_path, name) VALUES (?, ?, ?)')
 	// box2's row is inserted FIRST so an unscoped join is not accidentally right.
 	game.run('box2', '/rom/shared.zip', 'Shared Game (box2 copy)')
 	game.run('box1', '/rom/shared.zip', 'Shared Game')
 	game.run('box1', '/rom/exclusive.zip', 'Exclusive Game')
+	game.run('box2', '/rom/theirs.chd', 'Their Game')
 
 	return { db: drizzle(sqlite) }
 })
@@ -53,18 +56,27 @@ describe('getWrappedPreview cross-Recalbox scoping', () => {
 		// Joining on rom_path alone matches BOTH game rows for the shared rom, so the
 		// LEFT JOIN emits that session twice and SUM(duration) reads 400s instead of 200s
 		// — enough to outrank the genuinely most-played game at 300s.
-		const preview = await getWrappedPreview(2026)
+		const preview = await getWrappedPreview(2026, ['box1'])
 		expect(preview?.topGame).toBe('Exclusive Game')
 	})
 
 	it('reports the playing box name, not another box copy of the same rom', async () => {
-		const preview = await getWrappedPreview(2026)
+		const preview = await getWrappedPreview(2026, ['box1'])
 		expect(preview?.topGame).not.toContain('box2')
 	})
 
-	it('keeps the playtime total intact', async () => {
-		const preview = await getWrappedPreview(2026)
+	it('counts only the scoped boxes playtime', async () => {
+		const preview = await getWrappedPreview(2026, ['box1'])
 		expect(preview?.hours).toBe(0)
-		expect(preview?.minutes).toBe(8) // 500s
+		expect(preview?.minutes).toBe(8) // 500s, NOT the 9500s that includes box2
+	})
+
+	it('never surfaces another user year', async () => {
+		const preview = await getWrappedPreview(2026, ['box1'])
+		expect(preview?.topGame).not.toBe('Their Game')
+	})
+
+	it('returns nothing to a user who owns no box', async () => {
+		expect(await getWrappedPreview(2026, [])).toBeNull()
 	})
 })

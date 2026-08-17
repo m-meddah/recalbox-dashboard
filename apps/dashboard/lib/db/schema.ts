@@ -208,11 +208,16 @@ export const wrappedCache = sqliteTable(
 	{
 		year: int('year').notNull(),
 		locale: text('locale').notNull(),
+		// Which Recalboxes the recap covers: their ids, sorted and comma-joined. It belongs
+		// in the KEY because the cached JSON is only valid for the box set it was computed
+		// from — without it, the first user to open their recap would have it served to
+		// everyone else.
+		scope: text('scope').notNull(),
 		data: text('data').notNull(),
 		generatedAt: int('generated_at', { mode: 'timestamp' }).notNull(),
 	},
 	(t) => ({
-		pk: primaryKey({ columns: [t.year, t.locale] }),
+		pk: primaryKey({ columns: [t.year, t.locale, t.scope] }),
 	}),
 )
 

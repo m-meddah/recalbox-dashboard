@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/index'
 import { games, sessions } from '@/lib/db/schema'
-import { desc, sql } from 'drizzle-orm'
+import { desc, inArray, sql } from 'drizzle-orm'
 
 export type WrappedPreview = {
 	hours: number
@@ -8,7 +8,16 @@ export type WrappedPreview = {
 	topGame: string | null
 }
 
-export async function getWrappedPreview(year: number): Promise<WrappedPreview | null> {
+/**
+ * @param recalboxIds the boxes the viewer may see (`getViewableRecalboxIds`). Empty means
+ * "no box", hence no preview — never "every box", which would show another user's year.
+ */
+export async function getWrappedPreview(
+	year: number,
+	recalboxIds: string[],
+): Promise<WrappedPreview | null> {
+	if (recalboxIds.length === 0) return null
+
 	const yearStart = Math.floor(new Date(`${year}-01-01T00:00:00Z`).getTime() / 1000)
 	const yearEnd = Math.floor(new Date(`${year + 1}-01-01T00:00:00Z`).getTime() / 1000)
 
@@ -16,6 +25,7 @@ export async function getWrappedPreview(year: number): Promise<WrappedPreview | 
 		${sessions.startedAt} >= ${yearStart}
 		AND ${sessions.startedAt} < ${yearEnd}
 		AND ${sessions.endedAt} IS NOT NULL
+		AND ${inArray(sessions.recalboxId, recalboxIds)}
 	`
 
 	const [totalsRow, topGameRow] = await Promise.all([

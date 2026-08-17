@@ -10,7 +10,7 @@ import {
 	raGameMapping,
 	sessions,
 } from '@/lib/db/schema'
-import { asc, desc, eq, sql } from 'drizzle-orm'
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import type {
 	AchievementsSummarySlide,
 	BusiestDaySlide,
@@ -196,15 +196,21 @@ export function buildSlides(data: WrappedRawData, unlocks: WrappedUnlock[]): Wra
 	return slides
 }
 
-async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
+async function fetchWrappedRawData(year: number, recalboxIds: string[]): Promise<WrappedRawData> {
 	const yearStart = Math.floor(new Date(`${year}-01-01T00:00:00Z`).getTime() / 1000)
 	const yearEnd = Math.floor(new Date(`${year + 1}-01-01T00:00:00Z`).getTime() / 1000)
 	const twentyYearsAgo = Math.floor(new Date(`${year - 20}-01-01T00:00:00Z`).getTime() / 1000)
+
+	// Every session query below derives from baseWhere, so scoping it here covers them all.
+	// An empty list means the viewer owns no box: that must yield nothing, not everything.
+	const inScope = (col: typeof sessions.recalboxId | typeof games.recalboxId) =>
+		recalboxIds.length > 0 ? inArray(col, recalboxIds) : sql`1 = 0`
 
 	const baseWhere = sql`
 		${sessions.startedAt} >= ${yearStart}
 		AND ${sessions.startedAt} < ${yearEnd}
 		AND ${sessions.endedAt} IS NOT NULL
+		AND ${inScope(sessions.recalboxId)}
 	`
 
 	// RA achievement span subquery — used to estimate inherited game session durations.
@@ -296,7 +302,7 @@ async function fetchWrappedRawData(year: number): Promise<WrappedRawData> {
 			)
 			.leftJoin(raSpansSubquery, eq(raSpansSubquery.gameId, raGameMapping.raGameId))
 			.where(
-				sql`${gameInheritedStats.lastPlayedAt} >= ${yearStart} AND ${gameInheritedStats.lastPlayedAt} < ${yearEnd}`,
+				sql`${gameInheritedStats.lastPlayedAt} >= ${yearStart} AND ${gameInheritedStats.lastPlayedAt} < ${yearEnd} AND ${inScope(games.recalboxId)}`,
 			)
 			.orderBy(desc(sql`${gameInheritedStats.playCount}`))
 			.limit(10),
@@ -516,8 +522,16 @@ async function withArtworkUrls(
 	}))
 }
 
-export async function generateWrapped(year: number, locale: string): Promise<Wrapped> {
-	const rawData = await fetchWrappedRawData(year)
+/**
+ * @param recalboxIds the boxes the viewer may see (`getViewableRecalboxIds`). The recap is
+ * only valid for that set, which is why the cache is keyed on it too.
+ */
+export async function generateWrapped(
+	year: number,
+	locale: string,
+	recalboxIds: string[],
+): Promise<Wrapped> {
+	const rawData = await fetchWrappedRawData(year, recalboxIds)
 	const unlocks = computeUnlocks(rawData)
 	const slides = buildSlides(rawData, unlocks)
 

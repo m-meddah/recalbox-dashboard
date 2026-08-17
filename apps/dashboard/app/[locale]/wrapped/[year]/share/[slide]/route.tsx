@@ -1,4 +1,6 @@
 import { SlideImage } from '@/components/wrapped/slide-image'
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { getCachedWrapped } from '@/lib/wrapped/cache'
 import { getInterBoldFont } from '@/lib/wrapped/fonts'
 import { ImageResponse } from 'next/og'
@@ -26,7 +28,12 @@ export async function GET(req: NextRequest, { params }: Params) {
 	const formatParam = (req.nextUrl.searchParams.get('format') ?? 'story') as keyof typeof FORMATS
 	const [width, height] = FORMATS[formatParam] ?? FORMATS.story
 
-	const wrapped = await getCachedWrapped(year, locale)
+	// Behind auth like every page (proxy.ts only exempts /login and /accept-invite), so the
+	// image is rendered from the caller's own boxes rather than from everybody's.
+	const user = await getUser()
+	const recalboxIds = user ? await getViewableRecalboxIds(user) : []
+
+	const wrapped = await getCachedWrapped(year, locale, recalboxIds)
 	if (!wrapped) {
 		return NextResponse.json({ error: 'Wrapped not found' }, { status: 404 })
 	}

@@ -9,8 +9,19 @@ import {
 	raGameMapping,
 	sessions,
 } from '@/lib/db/schema'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { toDateKey } from './formatters'
+
+/**
+ * Restrict a query to the Recalboxes the viewer is allowed to see.
+ *
+ * An empty list means "this user owns no box", which must yield NOTHING. Leaving the
+ * filter off entirely instead — which is what these queries used to do — aggregates every
+ * box in the table, so a second account would see the first one's playtime as its own.
+ */
+function scopeTo(recalboxIds: string[], table: typeof sessions | typeof games) {
+	return recalboxIds.length > 0 ? inArray(table.recalboxId, recalboxIds) : sql`1 = 0`
+}
 
 export type Period = 'week' | 'month' | 'year' | 'all'
 
@@ -198,9 +209,9 @@ export function calculateStreaks(byDay: Array<{ date: string; playtimeSec: numbe
  * Returns one heatmap entry per day that appears in gameInheritedStats.lastPlayedAt.
  * Playtime estimate priority: HLTB mainStory / playCount → RA achievement span / playCount → 120s.
  */
-async function getInheritedHeatmapDays(): Promise<
-	Array<{ date: string; playtimeSec: number; sessionCount: number }>
-> {
+async function getInheritedHeatmapDays(
+	recalboxIds: string[],
+): Promise<Array<{ date: string; playtimeSec: number; sessionCount: number }>> {
 	// Pre-compute RA achievement span (last unlock − first unlock) per RA game ID.
 	const raSpansSubquery = db
 		.select({
@@ -237,7 +248,7 @@ async function getInheritedHeatmapDays(): Promise<
 			sql`${raGameMapping.recalboxId} IS ${games.recalboxId} AND ${raGameMapping.romPath} = ${games.romPath}`,
 		)
 		.leftJoin(raSpansSubquery, eq(raSpansSubquery.gameId, raGameMapping.raGameId))
-		.where(sql`${gameInheritedStats.lastPlayedAt} IS NOT NULL`)
+		.where(and(sql`${gameInheritedStats.lastPlayedAt} IS NOT NULL`, scopeTo(recalboxIds, games)))
 		.groupBy(sql`DATE(${gameInheritedStats.lastPlayedAt}, 'unixepoch')`)
 
 	return rows.map((r) => ({
@@ -247,7 +258,7 @@ async function getInheritedHeatmapDays(): Promise<
 	}))
 }
 
-async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
+async function getRecentSessionsWithNames(recalboxIds: string[]): Promise<RecentSession[]> {
 	const rows = await db
 		.select({
 			id: sessions.id,
@@ -264,7 +275,7 @@ async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
 			games,
 			and(eq(sessions.romPath, games.romPath), eq(sessions.recalboxId, games.recalboxId)),
 		)
-		.where(sql`${sessions.endedAt} IS NOT NULL`)
+		.where(and(sql`${sessions.endedAt} IS NOT NULL`, scopeTo(recalboxIds, sessions)))
 		.orderBy(desc(sessions.startedAt))
 		.limit(20)
 
@@ -278,19 +289,35 @@ async function getRecentSessionsWithNames(): Promise<RecentSession[]> {
 	}))
 }
 
-export async function getDashboardStats(period: Period): Promise<DashboardStats> {
+/**
+ * @param recalboxIds the boxes the viewer may see (`getViewableRecalboxIds`). Required,
+ * and empty means "no box, so no data" — see `scopeTo`.
+ */
+export async function getDashboardStats(
+	period: Period,
+	recalboxIds: string[],
+): Promise<DashboardStats> {
 	const range = getPeriodRange(period)
 	const prevRange = getPreviousPeriodRange(period)
 
 	const [periodStats, prevStats, allTimeStats, recentSessions, inheritedHeatmapDays] =
 		await Promise.all([
-			getSessionStats({ fromDate: range?.fromDate, toDate: range?.toDate, topGamesLimit: 50 }),
+			getSessionStats({
+				recalboxIds,
+				fromDate: range?.fromDate,
+				toDate: range?.toDate,
+				topGamesLimit: 50,
+			}),
 			prevRange
-				? getSessionStats({ fromDate: prevRange.fromDate, toDate: prevRange.toDate })
+				? getSessionStats({
+						recalboxIds,
+						fromDate: prevRange.fromDate,
+						toDate: prevRange.toDate,
+					})
 				: Promise.resolve(null),
-			period !== 'all' ? getSessionStats({}) : Promise.resolve(null),
-			getRecentSessionsWithNames(),
-			getInheritedHeatmapDays(),
+			period !== 'all' ? getSessionStats({ recalboxIds }) : Promise.resolve(null),
+			getRecentSessionsWithNames(recalboxIds),
+			getInheritedHeatmapDays(recalboxIds),
 		])
 
 	const streakByDay = allTimeStats?.byDay ?? periodStats.byDay

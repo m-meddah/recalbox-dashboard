@@ -6,17 +6,40 @@ import type { Wrapped } from './types'
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
+/**
+ * Cache key for a set of Recalboxes: their ids, sorted so the same set always yields the
+ * same key regardless of the order they came back in.
+ *
+ * Keying on the box set rather than on the user is deliberate — the box set is what the
+ * recap is actually computed from, so two accounts covering the same machines share an
+ * entry correctly, and one covering different machines can never be served another's.
+ */
+export function wrappedScopeKey(recalboxIds: string[]): string {
+	return [...recalboxIds].sort().join(',')
+}
+
 function isCacheStale(generatedAt: Date, year: number): boolean {
 	const currentYear = new Date().getFullYear()
 	if (year < currentYear) return false
 	return Date.now() - generatedAt.getTime() > CACHE_TTL_MS
 }
 
-export async function getCachedWrapped(year: number, locale: string): Promise<Wrapped | null> {
+export async function getCachedWrapped(
+	year: number,
+	locale: string,
+	recalboxIds: string[],
+): Promise<Wrapped | null> {
+	const scope = wrappedScopeKey(recalboxIds)
 	const row = await db
 		.select()
 		.from(wrappedCache)
-		.where(and(eq(wrappedCache.year, year), eq(wrappedCache.locale, locale)))
+		.where(
+			and(
+				eq(wrappedCache.year, year),
+				eq(wrappedCache.locale, locale),
+				eq(wrappedCache.scope, scope),
+			),
+		)
 		.get()
 
 	if (row && !isCacheStale(row.generatedAt, year)) {
@@ -30,22 +53,28 @@ export async function getCachedWrapped(year: number, locale: string): Promise<Wr
 		// stale shape — regenerate below
 	}
 
-	const wrapped = await generateWrapped(year, locale)
-	await writeCachedWrapped(wrapped, locale)
+	const wrapped = await generateWrapped(year, locale, recalboxIds)
+	await writeCachedWrapped(wrapped, locale, recalboxIds)
 	return wrapped
 }
 
-export async function writeCachedWrapped(wrapped: Wrapped, locale: string): Promise<void> {
+export async function writeCachedWrapped(
+	wrapped: Wrapped,
+	locale: string,
+	recalboxIds: string[],
+): Promise<void> {
+	const scope = wrappedScopeKey(recalboxIds)
 	await db
 		.insert(wrappedCache)
 		.values({
 			year: wrapped.year,
 			locale,
+			scope,
 			data: JSON.stringify(wrapped),
 			generatedAt: wrapped.generatedAt,
 		})
 		.onConflictDoUpdate({
-			target: [wrappedCache.year, wrappedCache.locale],
+			target: [wrappedCache.year, wrappedCache.locale, wrappedCache.scope],
 			set: {
 				data: JSON.stringify(wrapped),
 				generatedAt: wrapped.generatedAt,
@@ -54,9 +83,19 @@ export async function writeCachedWrapped(wrapped: Wrapped, locale: string): Prom
 		.run()
 }
 
-export async function invalidateWrappedCache(year: number, locale: string): Promise<void> {
+export async function invalidateWrappedCache(
+	year: number,
+	locale: string,
+	recalboxIds: string[],
+): Promise<void> {
 	await db
 		.delete(wrappedCache)
-		.where(and(eq(wrappedCache.year, year), eq(wrappedCache.locale, locale)))
+		.where(
+			and(
+				eq(wrappedCache.year, year),
+				eq(wrappedCache.locale, locale),
+				eq(wrappedCache.scope, wrappedScopeKey(recalboxIds)),
+			),
+		)
 		.run()
 }

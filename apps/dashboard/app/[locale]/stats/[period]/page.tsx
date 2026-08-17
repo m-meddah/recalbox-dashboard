@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator'
 import { WrappedPreviewBanner } from '@/components/wrapped/wrapped-preview-banner'
 import { Link } from '@/i18n/navigation'
 import type { routing } from '@/i18n/routing'
+import { getViewableRecalboxIds } from '@/lib/auth/ownership'
+import { getUser } from '@/lib/auth/require-user'
 import { getDashboardStats } from '@/lib/stats/calculators'
 import type { Period } from '@/lib/stats/calculators'
 import { formatDuration } from '@/lib/stats/formatters'
@@ -31,10 +33,13 @@ export default async function StatsPage({ params }: Props) {
 	const period = rawPeriod as Period
 
 	const currentYear = new Date().getFullYear()
+	const user = await getUser()
+	const recalboxIds = user ? await getViewableRecalboxIds(user) : []
+
 	const [stats, t, wrappedPreview] = await Promise.all([
-		getDashboardStats(period),
+		getDashboardStats(period, recalboxIds),
 		getTranslations('stats'),
-		getWrappedPreview(currentYear),
+		getWrappedPreview(currentYear, recalboxIds),
 	])
 
 	return (
