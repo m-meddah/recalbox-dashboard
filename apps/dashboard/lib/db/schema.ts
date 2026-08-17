@@ -162,6 +162,14 @@ export const games = sqliteTable(
 	(t) => ({
 		recalboxRomUnique: unique('uq_games_recalbox_rom').on(t.recalboxId, t.romPath),
 		recalboxIdIdx: index('idx_games_recalbox_id').on(t.recalboxId),
+		// Several queries join sessions onto games by rom_path ALONE, with no recalbox_id
+		// predicate — so the unique index above cannot serve them: rom_path is not its
+		// leading column. SQLite then falls back to building a throwaway "AUTOMATIC
+		// COVERING INDEX", which means scanning every game row on each execution. That is
+		// 71k rows and ~1.4s for the Wrapped preview banner alone, which renders on every
+		// stats page (and all four period tabs get prefetched, so one visit pays it four
+		// times over).
+		romPathIdx: index('idx_games_rom_path').on(t.romPath),
 	}),
 )
 

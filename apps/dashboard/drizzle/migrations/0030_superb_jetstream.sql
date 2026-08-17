@@ -1,0 +1,1 @@
+CREATE INDEX `idx_games_rom_path` ON `games` (`rom_path`);
