@@ -16,6 +16,7 @@
 		"seed:clear": "tsx scripts/seed-fake-sessions.ts --clear",
 		"gamelist:import": "tsx scripts/import-gamelist-sessions.ts",
 		"gamelist:clear": "tsx scripts/import-gamelist-sessions.ts --clear",
+		"sessions:backfill": "tsx scripts/backfill-session-game-ids.ts",
 		"build:scrobbler": "esbuild scripts/start-scrobbler.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/scrobbler.js",
 		"build:create-user": "esbuild scripts/create-user.ts --bundle --platform=node --target=node22 --packages=external --tsconfig=tsconfig.json --outfile=.next/standalone/create-user.js",
 		"icons:generate": "tsx scripts/generate-icons.ts",

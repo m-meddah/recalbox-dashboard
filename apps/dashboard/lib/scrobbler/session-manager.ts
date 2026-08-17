@@ -30,10 +30,22 @@ export class SessionManager {
 		system: string
 		romPath: string
 	}): Promise<number> {
+		// Link to the collection game, exactly like the agent path does
+		// (lib/agent/ingest.ts). Without this the row keeps `gameId = null`, and
+		// `getGamePlayStatsBatch` — which groups by `sessions.gameId` and drops the
+		// null key — never sees a single scrobbled session, leaving the recommender
+		// blind to everything played on this machine.
+		const game = await this.db
+			.select({ id: games.id })
+			.from(games)
+			.where(and(eq(games.romPath, opts.romPath), eq(games.recalboxId, opts.recalboxId)))
+			.get()
+
 		const rows = await this.db
 			.insert(sessions)
 			.values({
 				recalboxId: opts.recalboxId,
+				gameId: game?.id ?? null,
 				startedAt: opts.startedAt,
 				system: opts.system,
 				romPath: opts.romPath,
