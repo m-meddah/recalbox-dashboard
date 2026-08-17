@@ -1,3 +1,4 @@
+import { lookupArtworkUrls } from '@/lib/db/artwork'
 import { db } from '@/lib/db/index'
 import { wrappedCache } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
@@ -5,6 +6,43 @@ import { generateWrapped } from './generator'
 import type { Wrapped } from './types'
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Fill in cover images that were not mirrored yet when the recap was generated.
+ *
+ * Artwork is mirrored lazily: the very first view of a game asks the agent to upload its
+ * cover, so it necessarily resolves to null right then, and the file lands a minute or two
+ * later. Baking that null into a recap cached for 24h left a broken image for a whole day
+ * on a file that was already available — resolving on read lets the recap heal itself.
+ *
+ * Read-only on purpose (`lookupArtworkUrls`, not `resolveArtworkUrls`): generation already
+ * queued what was missing, and re-queuing on every page view would write a row each time
+ * for a cover that may never exist — some systems simply have no image in the theme.
+ */
+async function withFreshArtwork(wrapped: Wrapped, recalboxIds: string[]): Promise<Wrapped> {
+	const pending = wrapped.slides.flatMap((s) =>
+		s.type === 'most-played-game' && s.imagePath && !s.imageUrl ? [s.imagePath] : [],
+	)
+	if (pending.length === 0 || recalboxIds.length === 0) return wrapped
+
+	const urls = new Map<string, string>()
+	for (const recalboxId of recalboxIds) {
+		const found = await lookupArtworkUrls(db, recalboxId, pending).catch(
+			() => new Map<string, string>(),
+		)
+		for (const [path, url] of found) if (!urls.has(path)) urls.set(path, url)
+	}
+	if (urls.size === 0) return wrapped
+
+	return {
+		...wrapped,
+		slides: wrapped.slides.map((s) =>
+			s.type === 'most-played-game' && s.imagePath && !s.imageUrl
+				? { ...s, imageUrl: urls.get(s.imagePath) ?? null }
+				: s,
+		),
+	}
+}
 
 /**
  * Cache key for a set of Recalboxes: their ids, sorted so the same set always yields the
@@ -49,13 +87,17 @@ export async function getCachedWrapped(
 			return value
 		}) as Wrapped
 		const totalTimeSlide = parsed.slides.find((s) => s.type === 'total-time')
-		if (!totalTimeSlide || 'totalMinutes' in totalTimeSlide) return parsed
+		if (!totalTimeSlide || 'totalMinutes' in totalTimeSlide) {
+			return await withFreshArtwork(parsed, recalboxIds)
+		}
 		// stale shape — regenerate below
 	}
 
 	const wrapped = await generateWrapped(year, locale, recalboxIds)
 	await writeCachedWrapped(wrapped, locale, recalboxIds)
-	return wrapped
+	// A freshly generated recap has just queued its missing covers, so nothing to heal yet —
+	// but go through the same path so both branches behave identically.
+	return await withFreshArtwork(wrapped, recalboxIds)
 }
 
 export async function writeCachedWrapped(
