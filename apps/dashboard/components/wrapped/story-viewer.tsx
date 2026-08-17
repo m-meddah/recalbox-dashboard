@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from '@/i18n/navigation'
 import type { Wrapped } from '@/lib/wrapped/types'
 import { useCallback, useRef, useState } from 'react'
 import { ProgressBar } from './progress-bar'
@@ -19,6 +20,7 @@ export function StoryViewer({ wrapped, year, locale }: Props) {
 	const [isPaused, setIsPaused] = useState(false)
 	const [shareOpen, setShareOpen] = useState(false)
 	const pointerStartX = useRef<number | null>(null)
+	const router = useRouter()
 	const { slides } = wrapped
 
 	const goTo = useCallback(
@@ -33,7 +35,24 @@ export function StoryViewer({ wrapped, year, locale }: Props) {
 		[slides.length],
 	)
 
+	/**
+	 * Explicit advance — a tap on the right half, or a left swipe. Past the last slide it
+	 * leaves the recap for the stats page, so the story has a way out that does not require
+	 * hunting for the close button.
+	 */
 	const handleNext = useCallback(() => {
+		if (currentIndex < slides.length - 1) {
+			goTo(currentIndex + 1)
+			return
+		}
+		router.push('/stats')
+	}, [currentIndex, slides.length, goTo, router])
+
+	/**
+	 * The auto-advance timer stops at the last slide instead. Leaving the tab open should
+	 * never navigate on its own — exiting stays something the reader decides to do.
+	 */
+	const handleAutoAdvance = useCallback(() => {
 		if (currentIndex < slides.length - 1) goTo(currentIndex + 1)
 	}, [currentIndex, slides.length, goTo])
 
@@ -81,7 +100,7 @@ export function StoryViewer({ wrapped, year, locale }: Props) {
 				current={currentIndex}
 				isPaused={isPaused || shareOpen}
 				autoAdvanceDuration={AUTO_ADVANCE_MS}
-				onComplete={handleNext}
+				onComplete={handleAutoAdvance}
 			/>
 
 			<div className="h-full w-full" style={{ viewTransitionName: 'wrapped-slide' }}>
