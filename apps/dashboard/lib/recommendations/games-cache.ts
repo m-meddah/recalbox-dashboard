@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { games } from '@/lib/db/schema'
+import { gameIgdbMapping, games } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
@@ -29,6 +29,12 @@ export type RecommenderGameRow = {
 	developer: string | null
 	scrapedRating: number | null
 	favorite: boolean
+	/**
+	 * IGDB id when the row is matched. Joined here rather than read separately so
+	 * the identity key (see game-identity.ts) costs no extra round-trip: it rides
+	 * along on the scan this snapshot already pays for.
+	 */
+	igdbId: number | null
 }
 
 let cache: { rows: RecommenderGameRow[]; expiresAt: number } | null = null
@@ -52,8 +58,10 @@ export async function loadRecommenderGames(
 			developer: games.developer,
 			scrapedRating: games.rating,
 			favorite: games.favorite,
+			igdbId: gameIgdbMapping.igdbId,
 		})
 		.from(games)
+		.leftJoin(gameIgdbMapping, eq(gameIgdbMapping.gameId, games.id))
 		.where(eq(games.hidden, false))
 		.all()
 

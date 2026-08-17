@@ -7,10 +7,17 @@ import {
 } from '@/lib/games/heuristics'
 import type { GamePlayStats } from '@/lib/games/play-stats'
 import { getWeightFor } from '@/lib/profile/get-profile'
+import { assessFinishCandidate } from './finish-progress'
 import type { Confidence, ReasonKey, RecommendationContext, ScoredGame } from './types'
 
 export type GameForScoring = {
 	gameId: number
+	/**
+	 * Collapses the several `games` rows that represent one real game (regional
+	 * dumps, same arcade board on two emulators). Every "the user already knows
+	 * this game" check keys off this, not the row id — see game-identity.ts.
+	 */
+	identityKey: string
 	name: string
 	system: string
 	imagePath: string | null
@@ -37,11 +44,22 @@ export type ScoringContext = {
 	similarToComfortGames: Set<number>
 	recommendationCtx: RecommendationContext
 	/**
-	 * gameId → number of times it was presented in the recent rotation window.
-	 * Drives the anti-repetition penalty so the same finalists don't resurface on
-	 * every reshuffle. Empty when rotation is disabled (e.g. unit tests).
+	 * identityKey → number of times the game was presented in the recent rotation
+	 * window. Drives the anti-repetition penalty so the same finalists don't
+	 * resurface on every reshuffle. Keyed by identity so showing Metal Slug on
+	 * neogeo also penalises its fbneo twin. Empty when rotation is disabled
+	 * (e.g. unit tests).
 	 */
-	recentlyShown: Map<number, number>
+	recentlyShown: Map<string, number>
+	/**
+	 * Identities the user demonstrably knows: played (any row), hearted in
+	 * EmulationStation, rated love/like, or a comfort game. The discovery mood
+	 * excludes all of them — a per-row check let the never-launched twin of a
+	 * favorite slip straight through.
+	 */
+	knownIdentities: Set<string>
+	/** Identities under an active skip, so skipping one row hides its twins too. */
+	skippedIdentities: Set<string>
 }
 
 const CHILL_GENRES = ['Puzzle', 'Platform', 'Platformer', 'Casual', 'Sports']
@@ -50,6 +68,10 @@ const CHALLENGE_GENRES = ["Shoot'em up", 'Shmup', 'Fighting', "Beat'em up", 'Act
 const ARCADE_SYSTEMS = ['arcade', 'neogeo', 'mame', 'fbneo']
 const RPG_GENRES = ['RPG', 'JRPG', 'Role-Playing', 'Role-playing']
 const LONG_GENRES = ['RPG', 'JRPG', 'Adventure', 'Strategy', 'Simulation']
+
+/** Points lost per presentation in the rotation window. Sized above the typical
+ *  gap between consecutive finalists so one showing actually reorders the trio. */
+const RECENTLY_SHOWN_PENALTY = 25
 
 export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame | null {
 	const breakdown: Record<string, number> = {}
@@ -60,16 +82,25 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 	// ── HARD EXCLUSIONS ──
 	if (excludedGameIds.includes(game.gameId)) return null
+	if (ctx.skippedIdentities.has(game.identityKey)) return null
 	if (game.rating === 'dislike') return null
 	if (ctx.profile.bouncerGames.includes(game.gameId) && game.rating !== 'love') return null
 	if (game.stats && hasBouncedWithoutCommitting(game.stats) && game.rating !== 'love') return null
 
-	// ── DISCOVERY: keep only games never played AND never favorited ──
-	// The discovery mood surfaces fresh territory: anything the user has already
-	// launched (measured session or inherited gamelist playtime) or marked as a
-	// favorite (comfort game / love / like / EmulationStation heart) is excluded
-	// outright, so the ranking can only contain genuinely new candidates.
+	// ── DISCOVERY: keep only games the user has never met ──
+	// The discovery mood surfaces fresh territory, so anything already played,
+	// hearted in EmulationStation, rated love/like, or held as a comfort game is
+	// excluded. Two layers, on purpose:
+	//
+	// - by IDENTITY, because the collection holds several rows per game and
+	//   EmulationStation only hearts one of them — a row-level check alone let the
+	//   untouched twin of a favorite through, which is what surfaced favorites in
+	//   discovery results;
+	// - by ROW, because `knownIdentities` is folded upstream from the caller's
+	//   snapshot. It costs nothing here and keeps the invariant local: scoreGame
+	//   never proposes a game this row itself says the user already knows.
 	if (mood === 'discovery') {
+		if (ctx.knownIdentities.has(game.identityKey)) return null
 		const everPlayed =
 			!!game.stats &&
 			(game.stats.measuredSessions > 0 || (game.stats.inherited?.playCount ?? 0) > 0)
@@ -83,50 +114,12 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 	// ── MOOD finish ──
 	if (mood === 'finish') {
-		const scrobblerEngaged = game.stats
-			? game.stats.significantSessions + game.stats.tasteCount >= 1
-			: false
-		const inheritedEngaged = (game.stats?.inherited?.playCount ?? 0) >= 2
-		const hasEngagement = scrobblerEngaged || inheritedEngaged
+		const assessment = assessFinishCandidate(game.stats, game.hltbDurations, availableMinutes)
+		if (!assessment.eligible) return null
 
-		const lastPlay =
-			game.stats?.lastMeaningfulPlayAt ??
-			game.stats?.lastPlayedAt ??
-			game.stats?.inherited?.lastPlayedAt ??
-			null
-		const monthsSince = lastPlay
-			? (Date.now() - lastPlay.getTime()) / (1000 * 60 * 60 * 24 * 30)
-			: Number.POSITIVE_INFINITY
-
-		if (!hasEngagement || monthsSince >= 6) return null
-		if (!game.hltbDurations) return null
-
-		score += 60
-		breakdown.finishMode = 60
-		reasons.push({ key: 'inProgress' })
-
-		const refSec =
-			game.hltbDurations.mainStory ??
-			game.hltbDurations.mainExtras ??
-			game.hltbDurations.completionist
-		if (refSec !== null) {
-			const ratio = refSec / 60 / availableMinutes
-			const formatted = formatHltbDuration(refSec)
-			let timeFitPts: number
-			if (ratio <= 1) {
-				timeFitPts = 40
-				reasons.push({ key: 'finishableTonight', params: { duration: formatted } })
-			} else if (ratio <= 2) {
-				timeFitPts = 25
-				reasons.push({ key: 'oneTwoSessions', params: { duration: formatted } })
-			} else if (ratio <= 4) {
-				timeFitPts = 10
-			} else {
-				return null
-			}
-			score += timeFitPts
-			breakdown.hltbTimeFit = timeFitPts
-		}
+		score += assessment.points
+		Object.assign(breakdown, assessment.breakdown)
+		reasons.push(...assessment.reasons)
 	}
 
 	// ── CONTENT-BASED (profil) ──
@@ -308,13 +301,13 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 	}
 
 	// ── ROTATION (anti-repetition) ──
-	// Each time a game was presented in the recent window it loses points, capped so
-	// a strong match isn't buried forever. As it stops being shown the penalty rolls
-	// off the window, letting it return — this is what breaks the "always the same
-	// three" loop across reshuffles.
-	const shows = ctx.recentlyShown.get(game.gameId) ?? 0
+	// Each presentation in the recent window costs the game points, with no cap:
+	// the previous -40 ceiling was smaller than the gap between the top finalists
+	// (~35 points in finish mode), so the leaders survived every reshuffle. The
+	// penalty rolls off as the window slides, letting a game come back later.
+	const shows = ctx.recentlyShown.get(game.identityKey) ?? 0
 	if (shows > 0) {
-		const penalty = -Math.min(shows * 10, 40)
+		const penalty = -shows * RECENTLY_SHOWN_PENALTY
 		score += penalty
 		breakdown.recentlyShownPenalty = penalty
 	}
@@ -329,6 +322,7 @@ export function scoreGame(game: GameForScoring, ctx: ScoringContext): ScoredGame
 
 	return {
 		gameId: game.gameId,
+		identityKey: game.identityKey,
 		name: game.name,
 		system: game.system,
 		imagePath: game.imagePath,
@@ -401,10 +395,4 @@ function computeConfidence(
 	const gw = Math.max(0, ...game.genres.map((g) => getWeightFor(ctx.profile.genresWeights, g)))
 	if (sw >= 0.5 && gw >= 0.4) return 'medium'
 	return 'exploration'
-}
-
-function formatHltbDuration(seconds: number): string {
-	const hours = seconds / 3600
-	if (hours < 1) return `${Math.round(seconds / 60)}min`
-	return `~${Math.round(hours)}h`
 }

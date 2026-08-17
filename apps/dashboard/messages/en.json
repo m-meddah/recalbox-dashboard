@@ -854,7 +854,7 @@
 				"challenge": "Challenge",
 				"nostalgia": "Nostalgia",
 				"discovery": "Discovery",
-				"finish": "Finish something"
+				"finish": "Finish a game"
 			}
 		},
 		"results": {
@@ -876,6 +876,8 @@
 			},
 			"reasons": {
 				"inProgress": "In progress",
+				"resumeWhereYouLeftOff": "Pick up where you left off",
+				"almostDone": "Almost done ({pct}%)",
 				"finishableTonight": "Finishable tonight ({duration})",
 				"oneTwoSessions": "1-2 more sessions ({duration})",
 				"favoriteConsole": "Your favorite console",

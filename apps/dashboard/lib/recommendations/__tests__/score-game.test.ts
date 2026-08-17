@@ -47,12 +47,15 @@ function makeCtx(
 	profile: UserProfile = makeProfile(),
 	similarToComfortGames: Set<number> = new Set(),
 	ctxOverrides: Partial<RecommendationContext> = {},
-	recentlyShown: Map<number, number> = new Map(),
+	recentlyShown: Map<string, number> = new Map(),
+	identityOverrides: Partial<Pick<ScoringContext, 'knownIdentities' | 'skippedIdentities'>> = {},
 ): ScoringContext {
 	return {
 		profile,
 		similarToComfortGames,
 		recentlyShown,
+		knownIdentities: identityOverrides.knownIdentities ?? new Set(),
+		skippedIdentities: identityOverrides.skippedIdentities ?? new Set(),
 		recommendationCtx: {
 			availableMinutes: 60,
 			mood: 'surprise',
@@ -65,6 +68,7 @@ function makeCtx(
 function makeGame(overrides: Partial<GameForScoring> = {}): GameForScoring {
 	return {
 		gameId: 1,
+		identityKey: 'igdb:1',
 		name: 'Test Game',
 		system: 'snes',
 		imagePath: null,
@@ -121,30 +125,71 @@ describe('scoreGame', () => {
 	})
 
 	describe('mood finish', () => {
-		it('returns null when no ongoing session', () => {
-			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
-			expect(scoreGame(makeGame(), ctx)).toBeNull()
+		const finishCtx = () => makeCtx(makeProfile(), new Set(), { mood: 'finish' })
+
+		it('returns null when the game was never played', () => {
+			expect(scoreGame(makeGame(), finishCtx())).toBeNull()
 		})
 
-		it('returns null for ongoing session without HLTB data', () => {
-			const recentDate = new Date(Date.now() - 30 * 24 * 3600 * 1000)
-			const stats = makeStats({ significantSessions: 2, lastMeaningfulPlayAt: recentDate })
-			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
-			expect(scoreGame(makeGame({ stats, hltbDurations: null }), ctx)).toBeNull()
+		it('rejects a game merely launched twice for a few minutes', () => {
+			// The old rule (inherited playCount >= 2, no time floor) let 3-minute
+			// launches in and labelled them "in progress".
+			const stats = makeStats({
+				inherited: {
+					playCount: 2,
+					playTimeSeconds: 200,
+					lastPlayedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000),
+				},
+			})
+			expect(scoreGame(makeGame({ stats }), finishCtx())).toBeNull()
 		})
 
-		it('keeps game with ongoing session and HLTB data', () => {
-			const recentDate = new Date(Date.now() - 30 * 24 * 3600 * 1000)
-			const stats = makeStats({ significantSessions: 2, lastMeaningfulPlayAt: recentDate })
-			const ctx = makeCtx(makeProfile(), new Set(), { mood: 'finish' })
+		it('keeps a game with real inherited playtime', () => {
+			const stats = makeStats({
+				inherited: {
+					playCount: 2,
+					playTimeSeconds: 3600,
+					lastPlayedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000),
+				},
+			})
+			expect(scoreGame(makeGame({ stats }), finishCtx())).not.toBeNull()
+		})
+
+		it('keeps a game with no HLTB data at all', () => {
+			const stats = makeStats({ significantSessions: 2, totalPlaytimeSeconds: 5400 })
+			const result = scoreGame(makeGame({ stats, hltbDurations: null }), finishCtx())
+			expect(result).not.toBeNull()
+			expect(result?.scoreBreakdown?.finishMode).toBe(30)
+			expect(result?.scoreBreakdown?.hltbTimeFit).toBeUndefined()
+		})
+
+		it('keeps a game abandoned years ago — that is the point of the mood', () => {
+			const threeYearsAgo = new Date(Date.now() - 3 * 365 * 24 * 3600 * 1000)
+			const stats = makeStats({
+				significantSessions: 2,
+				totalPlaytimeSeconds: 7200,
+				lastMeaningfulPlayAt: threeYearsAgo,
+			})
 			const result = scoreGame(
 				makeGame({
 					stats,
-					hltbDurations: { mainStory: 3600, mainExtras: null, completionist: null },
+					hltbDurations: { mainStory: 4 * 3600, mainExtras: null, completionist: null },
 				}),
-				ctx,
+				finishCtx(),
 			)
 			expect(result).not.toBeNull()
+			expect(result?.scoreBreakdown?.finishStale).toBe(-10)
+		})
+
+		it('swaps the generic reason for "resume" when played recently', () => {
+			const stats = makeStats({
+				significantSessions: 2,
+				totalPlaytimeSeconds: 7200,
+				lastMeaningfulPlayAt: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+			})
+			const result = scoreGame(makeGame({ stats }), finishCtx())
+			expect(result?.reasons).toContainEqual({ key: 'resumeWhereYouLeftOff' })
+			expect(result?.reasons).not.toContainEqual({ key: 'inProgress' })
 		})
 	})
 
@@ -208,10 +253,17 @@ describe('scoreGame', () => {
 		it('is excluded entirely in discovery mood, but kept in neutral', () => {
 			const profile = makeProfile({ comfortGames: [1] })
 			const stats = makeStats({ significantSessions: 3, measuredSessions: 3, meaningfulCount: 3 })
-			const discoverCtx = makeCtx(profile, new Set(), { mood: 'discovery' })
+			// recommend.ts folds comfort games and play traces into knownIdentities.
+			const discoverCtx = makeCtx(profile, new Set(), { mood: 'discovery' }, new Map(), {
+				knownIdentities: new Set(['igdb:1']),
+			})
 			const neutralCtx = makeCtx(profile, new Set(), { mood: 'surprise' })
-			expect(scoreGame(makeGame({ gameId: 1, stats }), discoverCtx)).toBeNull()
-			expect(scoreGame(makeGame({ gameId: 1, stats }), neutralCtx)).not.toBeNull()
+			expect(
+				scoreGame(makeGame({ gameId: 1, identityKey: 'igdb:1', stats }), discoverCtx),
+			).toBeNull()
+			expect(
+				scoreGame(makeGame({ gameId: 1, identityKey: 'igdb:1', stats }), neutralCtx),
+			).not.toBeNull()
 		})
 	})
 
@@ -231,6 +283,21 @@ describe('scoreGame', () => {
 			expect(discovery?.reasons.some((r) => r.key === 'favoriteConsole')).toBe(false)
 		})
 
+		it('excludes an untouched row whose twin the user already knows', () => {
+			// The regression: EmulationStation hearts one ROM row, discovery proposed
+			// the other copy of the same game because the check was per row.
+			const discoveryCtx = makeCtx(makeProfile(), new Set(), { mood: 'discovery' }, new Map(), {
+				knownIdentities: new Set(['igdb:1234']),
+			})
+			const untouchedTwin = makeGame({
+				gameId: 999,
+				identityKey: 'igdb:1234',
+				favorite: false,
+				stats: null,
+			})
+			expect(scoreGame(untouchedTwin, discoveryCtx)).toBeNull()
+		})
+
 		it('halves the IGDB similarity boost in discovery', () => {
 			const game = makeGame({ gameId: 42 })
 			const surprise = scoreGame(game, makeCtx(makeProfile(), new Set([42]), { mood: 'surprise' }))
@@ -244,17 +311,28 @@ describe('scoreGame', () => {
 	})
 
 	describe('rotation — anti-repetition penalty', () => {
-		it('penalizes a recently shown game, capped at -40', () => {
-			const shownTwice = scoreGame(
-				makeGame({ gameId: 7 }),
-				makeCtx(makeProfile(), new Set(), {}, new Map([[7, 2]])),
+		it('penalizes -25 per showing, with no cap', () => {
+			const once = scoreGame(
+				makeGame({ identityKey: 'igdb:7' }),
+				makeCtx(makeProfile(), new Set(), {}, new Map([['igdb:7', 1]])),
 			)
-			const shownManyTimes = scoreGame(
-				makeGame({ gameId: 7 }),
-				makeCtx(makeProfile(), new Set(), {}, new Map([[7, 99]])),
+			const fourTimes = scoreGame(
+				makeGame({ identityKey: 'igdb:7' }),
+				makeCtx(makeProfile(), new Set(), {}, new Map([['igdb:7', 4]])),
 			)
-			expect(shownTwice?.scoreBreakdown?.recentlyShownPenalty).toBe(-20)
-			expect(shownManyTimes?.scoreBreakdown?.recentlyShownPenalty).toBe(-40)
+			expect(once?.scoreBreakdown?.recentlyShownPenalty).toBe(-25)
+			// Uncapped: the old -40 ceiling was smaller than the gap between finalists,
+			// so the leaders survived every reshuffle.
+			expect(fourTimes?.scoreBreakdown?.recentlyShownPenalty).toBe(-100)
+		})
+
+		it('penalizes a twin row that was never shown itself', () => {
+			// Same game, other emulator: showing one has to demote the other.
+			const twin = scoreGame(
+				makeGame({ gameId: 99, identityKey: 'igdb:7' }),
+				makeCtx(makeProfile(), new Set(), {}, new Map([['igdb:7', 2]])),
+			)
+			expect(twin?.scoreBreakdown?.recentlyShownPenalty).toBe(-50)
 		})
 
 		it('leaves never-shown games untouched', () => {
@@ -382,7 +460,7 @@ describe('scoreGame', () => {
 		const ongoingStats = makeStats({ significantSessions: 1, lastMeaningfulPlayAt: recentDate })
 		const finishCtx = makeCtx(makeProfile(), new Set(), { mood: 'finish', availableMinutes: 60 })
 
-		it('adds +40 and reason when mainStory ≤ availableMinutes', () => {
+		it('adds +40 and reason when the time LEFT ≤ availableMinutes', () => {
 			const game = makeGame({
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 3000, mainExtras: null, completionist: null }, // 50min
@@ -413,12 +491,35 @@ describe('scoreGame', () => {
 			expect(scoreGame(game, finishCtx)?.scoreBreakdown?.hltbTimeFit).toBe(10)
 		})
 
-		it('returns null when mainStory is >4× availableMinutes', () => {
+		it('demotes rather than drops a game >4× availableMinutes', () => {
+			// Dropping these emptied the pool of every game actually worth finishing.
 			const game = makeGame({
 				stats: ongoingStats,
 				hltbDurations: { mainStory: 18000, mainExtras: null, completionist: null }, // 300min = 5×
 			})
-			expect(scoreGame(game, finishCtx)).toBeNull()
+			expect(scoreGame(game, finishCtx)?.scoreBreakdown?.hltbTimeFit).toBe(-15)
+		})
+
+		it('measures the time remaining, not the game total', () => {
+			// 5h game, 4h35 already played → 25 min left, finishable tonight, even
+			// though the total length is five times the evening.
+			const nearlyDone = makeStats({
+				significantSessions: 1,
+				totalPlaytimeSeconds: 16500,
+				lastMeaningfulPlayAt: recentDate,
+			})
+			const game = makeGame({
+				stats: nearlyDone,
+				hltbDurations: { mainStory: 18000, mainExtras: null, completionist: null },
+			})
+			// biome-ignore lint/style/noNonNullAssertion: eligible game always scores
+			const result = scoreGame(game, finishCtx)!
+			expect(result.scoreBreakdown?.hltbTimeFit).toBe(40)
+			expect(result.reasons).toContainEqual({
+				key: 'finishableTonight',
+				params: { duration: '25min' },
+			})
+			expect(result.reasons).toContainEqual({ key: 'almostDone', params: { pct: 92 } })
 		})
 
 		it('falls back to mainExtras when mainStory is null', () => {

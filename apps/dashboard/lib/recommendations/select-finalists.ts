@@ -4,7 +4,7 @@ const TARGET = 3
 
 export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 	if (scored.length === 0) return []
-	const sorted = dedupeByNameAndSystem(scored.toSorted((a, b) => b.score - a.score))
+	const sorted = dedupeByIdentity(scored.toSorted((a, b) => b.score - a.score))
 	if (sorted.length <= TARGET) return sorted
 
 	const first = sorted[0]
@@ -32,19 +32,19 @@ export function selectFinalists(scored: ScoredGame[]): ScoredGame[] {
 }
 
 /**
- * Collapse duplicate ROM rows: the collection can hold several entries with the same
- * name on the same system (regional variants, redumps), which would otherwise let the
- * same game fill two finalist slots. Keep the first of each (name, system) — the input
- * is already sorted by score, so that's the highest-scored copy. Same-name games on
- * different systems are kept (they're genuinely different choices).
+ * Collapse duplicate ROM rows: the collection can hold several entries for one game
+ * (regional variants, redumps, the same arcade board under two emulators), which
+ * would otherwise let it fill two finalist slots. Keeping only (name, system) missed
+ * the cross-emulator case — Top Hunter on `neogeo` and on `fbneo` are one game, not
+ * two choices — so this dedupes on the identity key instead. The input is already
+ * sorted by score, so the survivor is the highest-scored copy.
  */
-function dedupeByNameAndSystem(sorted: ScoredGame[]): ScoredGame[] {
+function dedupeByIdentity(sorted: ScoredGame[]): ScoredGame[] {
 	const seen = new Set<string>()
 	const deduped: ScoredGame[] = []
 	for (const g of sorted) {
-		const key = `${g.name}\t${g.system}`
-		if (seen.has(key)) continue
-		seen.add(key)
+		if (seen.has(g.identityKey)) continue
+		seen.add(g.identityKey)
 		deduped.push(g)
 	}
 	return deduped

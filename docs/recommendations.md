@@ -17,8 +17,8 @@ When you open `/play-tonight`, you pick a **mood** and **available time**. The e
 | `chill` | Favours short, casual games (platformers, puzzle, handheld systems). Penalises long RPGs. Boosts comfort games. |
 | `challenge` | Favours action genres (shmup, fighting, beat'em up) and arcade systems. |
 | `nostalgia` | Boosts games you haven't touched in more than 6 months and your comfort games. |
-| `discovery` | Boosts never-played games with a good rating. Penalises comfort games (you already know those). |
-| `finish` | Restricts candidates to games with at least 1 meaningful session in the last 6 months — i.e. games you started but didn't finish. |
+| `discovery` | Only games you have never met: anything played, hearted in EmulationStation, rated love/like, or held as a comfort game is excluded outright — see [Game identity](#game-identity) for why this is tested per *game*, not per ROM row. |
+| `finish` | Games you have genuinely started and could plausibly see the end of. Requires ≥ 15 min of real play time (or ≥ 1 meaningful session), and ranks on the time **remaining** — HowLongToBeat reference minus time already played — not on the game's total length. |
 | `surprise` | Like the others but with a higher random jitter to surface unexpected picks. |
 
 ### Available Time
@@ -52,12 +52,36 @@ Each game receives a numeric score built from these components:
 | Staleness bonus | 12–30 | Not played in > 6 months (mood-dependent) |
 | Too recent penalty | −12 | Played in the last month |
 | Mood genre / system bias | ±20 | Genre or system aligned / misaligned with mood |
+| Finish mode base | 35 (30 without HLTB) | Genuine in-progress game |
+| Finish time fit | +40 / +25 / +10 / −15 | Time **remaining** vs. the evening: ≤ 1× / ≤ 2× / ≤ 4× / beyond |
+| Finish progress | up to 20 | Peaks across the 20–80 % completion band |
+| Finish recency | +10 / −10 | Touched in the last 3 months / untouched for over 2 years |
+| Rotation penalty | −25 per showing, uncapped | Times the game was presented in the last 12 h |
 | Random jitter | ±4 (±10 in surprise) | Prevents deterministic results |
 
 **Hard exclusions** — games are removed from the candidate list entirely if:
 - The user explicitly marked them "dislike"
-- They are in the skip list (skipped from Play Tonight in the last 24 h)
+- They are in the skip list (skipped from Play Tonight in the last 24 h) — applied per game identity, so skipping one ROM row also hides its duplicates
 - They appear in the "bouncer games" list and are not rated "love" (the user tried them multiple times and always left quickly)
+
+### Game identity
+
+A row in the `games` table is a **ROM, not a game**. One title routinely occupies several rows: regional dumps, redumps, and the same arcade board exposed by two emulators (Metal Slug under both `neogeo` and `fbneo`). EmulationStation hearts only one of those rows, sessions attach only to the one actually launched, and ratings cover only the one reviewed.
+
+Any per-row signal therefore leaks — which is how the discovery mood kept proposing games already sitting in the user's favorites. `lib/recommendations/game-identity.ts` collapses the rows onto the game they represent:
+
+- the **IGDB id** when the row is matched — it groups regional variants and cross-emulator duplicates alike, and keeps genuine homonyms apart (Aladdin on SNES vs. on Mega Drive are different games);
+- otherwise the **normalised canonical title**, which drops the region/revision tags `lib/rom-audit/canonical.ts` already recognises.
+
+The two namespaces stay distinct on purpose: a matched row and an unmatched row of the same game do *not* collapse together, because merging them would need a title lookup per IGDB id and getting it wrong silently hides a game.
+
+Identity drives four things: the discovery exclusion, the skip list, the rotation counter, and finalist deduplication (`selectFinalists`) — so one game can never fill two of the three slots.
+
+### Rotation
+
+Every presented recommendation is written to `recommendation_log`. Within a 12-hour window, each showing costs the game **25 points, with no cap**, counted per identity so proposing Metal Slug on `neogeo` also demotes its `fbneo` twin.
+
+The penalty is deliberately uncapped: the previous −40 ceiling was smaller than the score gap between the leading finalists (≈ 35 points in finish mode), so the same trio survived every reshuffle. The penalty rolls off as the window slides, letting a game come back later.
 
 ### Confidence Level
 

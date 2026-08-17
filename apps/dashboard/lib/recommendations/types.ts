@@ -11,8 +11,12 @@ export type Confidence = 'high' | 'medium' | 'exploration'
 
 export type ReasonKey =
 	| { key: 'inProgress' }
+	// `duration` is the time LEFT (HLTB reference minus time already played), not
+	// the game's total length — the finish mood ranks on what's remaining.
 	| { key: 'finishableTonight'; params: { duration: string } }
 	| { key: 'oneTwoSessions'; params: { duration: string } }
+	| { key: 'almostDone'; params: { pct: number } }
+	| { key: 'resumeWhereYouLeftOff' }
 	| { key: 'favoriteConsole' }
 	| { key: 'favoriteGenre'; params: { genre: string } }
 	| { key: 'favoriteStudio'; params: { studio: string } }
@@ -26,6 +30,8 @@ export type ReasonKey =
 
 export type ScoredGame = {
 	gameId: number
+	/** Groups the ROM rows that are the same real game — see game-identity.ts. */
+	identityKey: string
 	name: string
 	system: string
 	imagePath: string | null

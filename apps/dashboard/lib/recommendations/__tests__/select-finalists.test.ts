@@ -4,6 +4,7 @@ import type { ScoredGame } from '../types'
 
 function makeScored(overrides: Partial<ScoredGame> & { gameId: number }): ScoredGame {
 	return {
+		identityKey: `igdb:${overrides.gameId}`,
 		name: `Game ${overrides.gameId}`,
 		system: 'snes',
 		imagePath: null,
@@ -71,21 +72,49 @@ describe('selectFinalists', () => {
 		expect(selectFinalists(input)).toHaveLength(3)
 	})
 
-	it('deduplicates duplicate ROM rows (same name + system), keeping the higher score', () => {
+	it('deduplicates duplicate ROM rows, keeping the higher score', () => {
 		const input = [
-			makeScored({ gameId: 1, score: 100, name: 'Metal Slug', system: 'fbneo' }),
-			makeScored({ gameId: 2, score: 95, name: 'Metal Slug', system: 'fbneo' }), // dup ROM
+			makeScored({ gameId: 1, score: 100, name: 'Metal Slug', identityKey: 'igdb:500' }),
+			makeScored({ gameId: 2, score: 95, name: 'Metal Slug', identityKey: 'igdb:500' }), // dup ROM
 			makeScored({ gameId: 3, score: 90, name: 'Contra', system: 'nes' }),
 			makeScored({ gameId: 4, score: 85, name: 'Zelda', system: 'snes' }),
 		]
 		const result = selectFinalists(input)
-		const keys = result.map((g) => `${g.name}|${g.system}`)
-		expect(new Set(keys).size).toBe(keys.length) // no duplicate (name, system)
+		const keys = result.map((g) => g.identityKey)
+		expect(new Set(keys).size).toBe(keys.length)
 		expect(result.some((g) => g.gameId === 2)).toBe(false) // lower-scored dup dropped
 		expect(result.some((g) => g.gameId === 1)).toBe(true)
 	})
 
-	it('keeps same-name games on different systems', () => {
+	it('collapses the same game exposed by two emulators', () => {
+		// Top Hunter on neogeo and on fbneo is one game, not two choices — the old
+		// (name, system) key kept both and let them fill two of the three slots.
+		const input = [
+			makeScored({
+				gameId: 1,
+				score: 100,
+				name: 'Top Hunter',
+				system: 'neogeo',
+				identityKey: 'igdb:77',
+			}),
+			makeScored({
+				gameId: 2,
+				score: 95,
+				name: 'Top Hunter',
+				system: 'fbneo',
+				identityKey: 'igdb:77',
+			}),
+			makeScored({ gameId: 3, score: 90, name: 'Contra', system: 'nes' }),
+			makeScored({ gameId: 4, score: 85, name: 'Zelda', system: 'snes' }),
+		]
+		const result = selectFinalists(input)
+		expect(result.filter((g) => g.identityKey === 'igdb:77')).toHaveLength(1)
+		expect(result).toHaveLength(3)
+	})
+
+	it('keeps same-name games that are genuinely different games', () => {
+		// Aladdin on SNES (Capcom) and on Mega Drive (Virgin) are distinct games,
+		// and get distinct identities.
 		const input = [
 			makeScored({ gameId: 1, score: 100, name: 'Aladdin', system: 'snes' }),
 			makeScored({ gameId: 2, score: 95, name: 'Aladdin', system: 'megadrive' }),

@@ -14,7 +14,8 @@ import { isIgdbEnabled } from '@/lib/igdb/auth'
 import { matchGameAsync } from '@/lib/igdb/match-single'
 import { getUserProfile } from '@/lib/profile/get-profile'
 import { and, count, eq, gt, inArray, isNotNull } from 'drizzle-orm'
-import { loadRecommenderGames } from './games-cache'
+import { gameIdentityKey } from './game-identity'
+import { type RecommenderGameRow, loadRecommenderGames } from './games-cache'
 import { loadRecommenderPlayStats } from './play-stats-cache'
 import { type GameForScoring, type ScoringContext, scoreGame } from './score-game'
 import { selectFinalists } from './select-finalists'
@@ -70,7 +71,25 @@ export async function computeRecommendations(
 	const excludedGameIds = activeSkips.map((s) => s.gameId)
 	const recommendationCtx: RecommendationContext = { ...ctxInput, excludedGameIds }
 	const ratingsMap = new Map(ratings.map((r) => [r.gameId, r.rating]))
-	const recentlyShown = await loadRecentlyShown()
+
+	// One game is several `games` rows. Every "already known" signal is recorded on
+	// whichever row the user touched, so all of them are folded onto the identity
+	// before scoring — otherwise the untouched twins escape the filters.
+	const identityByGameId = new Map(gamesList.map((g) => [g.gameId, gameIdentityKey(g)]))
+	const knownIdentities = buildKnownIdentities(
+		gamesList,
+		identityByGameId,
+		statsMap,
+		ratingsMap,
+		profile.comfortGames,
+	)
+	const skippedIdentities = new Set(
+		excludedGameIds.flatMap((id) => {
+			const key = identityByGameId.get(id)
+			return key ? [key] : []
+		}),
+	)
+	const recentlyShown = await loadRecentlyShown(identityByGameId)
 
 	const provider = await getSimilarityProvider()
 	// In discovery mood we broaden the IGDB anchor set beyond the comfort games so
@@ -88,6 +107,8 @@ export async function computeRecommendations(
 		similarToComfortGames,
 		recommendationCtx,
 		recentlyShown,
+		knownIdentities,
+		skippedIdentities,
 	}
 
 	const scored: ScoredGame[] = []
@@ -95,6 +116,7 @@ export async function computeRecommendations(
 		const releaseYear = game.releaseDate ? new Date(game.releaseDate).getFullYear() : null
 		const g: GameForScoring = {
 			gameId: game.gameId,
+			identityKey: identityByGameId.get(game.gameId) ?? gameIdentityKey(game),
 			name: game.name,
 			system: game.system,
 			imagePath: game.imagePath,
@@ -191,8 +213,13 @@ const ROTATION_WINDOW_HOURS = 12
  * How many times each game was presented in the recent rotation window. Feeds the
  * anti-repetition penalty so reshuffles surface fresh games instead of the same
  * high-scoring finalists every time. Indexed on presented_at, so this stays cheap.
+ *
+ * Counted per identity, not per row: proposing Metal Slug on `neogeo` has to
+ * penalise the `fbneo` copy too, or the reshuffle just swaps one twin for the other.
  */
-async function loadRecentlyShown(): Promise<Map<number, number>> {
+async function loadRecentlyShown(
+	identityByGameId: Map<number, string>,
+): Promise<Map<string, number>> {
 	const cutoff = new Date(Date.now() - ROTATION_WINDOW_HOURS * 60 * 60 * 1000)
 	const rows = await db
 		.select({ gameId: recommendationLog.gameId, shows: count() })
@@ -200,7 +227,56 @@ async function loadRecentlyShown(): Promise<Map<number, number>> {
 		.where(gt(recommendationLog.presentedAt, cutoff))
 		.groupBy(recommendationLog.gameId)
 		.all()
-	return new Map(rows.map((r) => [r.gameId, r.shows]))
+
+	const byIdentity = new Map<string, number>()
+	for (const row of rows) {
+		const key = identityByGameId.get(row.gameId)
+		if (!key) continue
+		byIdentity.set(key, (byIdentity.get(key) ?? 0) + row.shows)
+	}
+	return byIdentity
+}
+
+/**
+ * Every identity the user demonstrably already knows — played on any of its rows,
+ * hearted in EmulationStation, rated love/like, or held as a comfort game.
+ *
+ * The signals live on whichever ROM row the user actually touched, so they are
+ * unioned across rows here. Without that fold, discovery kept proposing the
+ * never-launched regional twin of a game sitting in the user's favorites.
+ */
+function buildKnownIdentities(
+	gamesList: RecommenderGameRow[],
+	identityByGameId: Map<number, string>,
+	statsMap: Awaited<ReturnType<typeof loadRecommenderPlayStats>>,
+	ratingsMap: Map<number, 'love' | 'like' | 'dislike' | 'unknown'>,
+	comfortGames: number[],
+): Set<string> {
+	const known = new Set<string>()
+
+	const mark = (gameId: number) => {
+		const key = identityByGameId.get(gameId)
+		if (key) known.add(key)
+	}
+
+	for (const game of gamesList) {
+		if (!game.favorite) continue
+		const key = identityByGameId.get(game.gameId)
+		if (key) known.add(key)
+	}
+
+	for (const [gameId, stats] of statsMap) {
+		const played = stats.measuredSessions > 0 || (stats.inherited?.playCount ?? 0) > 0
+		if (played) mark(gameId)
+	}
+
+	for (const [gameId, rating] of ratingsMap) {
+		if (rating === 'love' || rating === 'like') mark(gameId)
+	}
+
+	for (const gameId of comfortGames) mark(gameId)
+
+	return known
 }
 
 async function loadIgdbRatings(): Promise<Map<number, number>> {
