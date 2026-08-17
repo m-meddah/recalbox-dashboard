@@ -15,6 +15,10 @@ export function WrappedPreviewBanner({ year, hours, minutes, topGame }: Props) {
 	return (
 		<Link
 			href={`/wrapped/${year}`}
+			// This banner sits on top of every stats page, so leaving prefetch on had each
+			// stats view speculatively generate the whole yearly recap. Same reasoning as the
+			// sidebar links — see the note in app-sidebar.tsx.
+			prefetch={false}
 			className="flex items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-700 transition-colors hover:bg-purple-500/20 dark:text-purple-200"
 		>
 			<Sparkles className="size-4 shrink-0 text-purple-600 dark:text-purple-400" />
