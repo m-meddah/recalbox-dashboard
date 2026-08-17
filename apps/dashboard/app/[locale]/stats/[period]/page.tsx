@@ -63,6 +63,11 @@ export default async function StatsPage({ params }: Props) {
 							<Link
 								key={p}
 								href={`/stats/${p}`}
+								// The four tabs are always in the viewport, so landing on one prefetched
+								// the other three — each a full server render of an uncached aggregate.
+								// See the note in app-sidebar.tsx: `staleTimes.dynamic: 0` throws the
+								// result away, so it was paid again on click.
+								prefetch={false}
 								aria-current={p === period ? 'page' : undefined}
 								className={`relative whitespace-nowrap px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors ${
 									p === period

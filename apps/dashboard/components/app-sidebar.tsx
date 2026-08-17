@@ -97,6 +97,14 @@ export function AppSidebar({
 											render={
 												<Link
 													href={href}
+													// Every nav link visible in the viewport was being prefetched on each
+													// page view, and with no Suspense boundary a prefetch rendered the
+													// WHOLE destination server-side: one visit cost ~10 speculative
+													// renders. Worse, `staleTimes.dynamic: 0` (next.config.ts) discards
+													// the result immediately, so the render was repeated on click — the
+													// prefetch bought nothing at all. A browsing session measured 191
+													// page renders this way.
+													prefetch={false}
 													onClick={isMobile ? () => setOpenMobile(false) : undefined}
 												/>
 											}
