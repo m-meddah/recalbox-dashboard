@@ -24,13 +24,16 @@ const LAUNCHER = 'userscripts/sr-agent[systembrowsing].sh'
  * Toute modification de ces chemins doit préserver cette propriété.
  */
 export function buildInstallerZip(input: InstallerInput): Uint8Array {
+	// Normalize CRLF to LF in launcher script: bash on the box fails silently with CR characters.
+	const normalizedLauncherSh = input.launcherSh.replace(/\r\n/g, '\n')
+
 	return zipSync(
 		{
 			[`${AGENT_DIR}/agent.py`]: strToU8(input.agentPy),
 			[`${AGENT_DIR}/scan_roms.py`]: strToU8(input.scanRomsPy),
 			[`${AGENT_DIR}/launch.py`]: strToU8(input.launchPy),
 			[`${AGENT_DIR}/config.json`]: strToU8(`${JSON.stringify(input.config, null, 2)}\n`),
-			[LAUNCHER]: strToU8(input.launcherSh),
+			[LAUNCHER]: strToU8(normalizedLauncherSh),
 			'LISEZMOI.txt': strToU8(input.readme),
 		},
 		{ level: 6 },

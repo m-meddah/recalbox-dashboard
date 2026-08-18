@@ -39,8 +39,20 @@ describe('buildInstallerZip', () => {
 		expect(Object.keys(files).some((p) => p.includes('custom.sh'))).toBe(false)
 	})
 
-	it('recopie le contenu des fichiers Python sans le modifier', () => {
+	it('recopie le contenu de tous les fichiers sans le modifier', () => {
 		const files = unzipSync(buildInstallerZip(input))
 		expect(strFromU8(files['system/sr-agent/agent.py'])).toBe('# agent')
+		expect(strFromU8(files['system/sr-agent/scan_roms.py'])).toBe('# scan')
+		expect(strFromU8(files['system/sr-agent/launch.py'])).toBe('# launch')
+		expect(strFromU8(files['userscripts/sr-agent[systembrowsing].sh'])).toBe('#!/bin/bash\n')
+		expect(strFromU8(files['LISEZMOI.txt'])).toBe('Bonjour')
+	})
+
+	it('normalise les terminaisons CRLF du lanceur en LF', () => {
+		const inputWithCRLF = { ...input, launcherSh: '#!/bin/bash\r\necho hello\r\n' }
+		const files = unzipSync(buildInstallerZip(inputWithCRLF))
+		const content = strFromU8(files['userscripts/sr-agent[systembrowsing].sh'])
+		expect(content).not.toContain('\r')
+		expect(content).toBe('#!/bin/bash\necho hello\n')
 	})
 })
