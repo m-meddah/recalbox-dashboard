@@ -13,5 +13,11 @@
 # Le partage est monté en exfat (fmask=0133) : aucun bit d'exécution n'est possible,
 # ES lance donc via bash. Ne pas tenter de chmod +x, cela ne peut pas marcher.
 AGENT_DIR="/recalbox/share/system/sr-agent"
-pgrep -f "$AGENT_DIR/agent.py" >/dev/null 2>&1 && exit 0
+# Pre-filter: avoid spawning Python if an agent process is already running.
+# This checks for BOTH launch.py (initial) and agent.py (after exec), because there
+# is a window between when we spawn launch.py and when it execs agent.py where both
+# guards could pass if EmulationStation fires this script twice rapidly (measured:
+# twice in one second at boot). This pre-filter is cheap but does NOT close the race.
+# The authoritative lock is in launch.py.
+pgrep -f "$AGENT_DIR/(launch|agent)\.py" >/dev/null 2>&1 && exit 0
 nohup python3 "$AGENT_DIR/launch.py" >>"$AGENT_DIR/agent.log" 2>&1 </dev/null &
