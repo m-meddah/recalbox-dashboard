@@ -4,6 +4,8 @@ import path from 'node:path'
 export type AgentPayload = {
 	agentPy: string
 	scanRomsPy: string
+	launchPy: string
+	launcherSh: string
 	version: string
 }
 
@@ -19,7 +21,8 @@ export type AgentPayload = {
  * `prebuild`, copie donc `agent/{agent.py,scan_roms.py,VERSION}` ici avant que
  * `next build` ne s'exécute. Toucher l'un de ces trois éléments (script,
  * `outputFileTracingIncludes`, ce chemin) sans les autres casse la production
- * sans casser le local.
+ * sans casser le local. Les trois listes de fichiers (ici, le script, et
+ * `next.config.ts`) doivent rester synchronisées.
  *
  * Le nom du dossier ne doit PAS commencer par un point : le traceur de
  * Turbopack ignore silencieusement les dossiers cachés (`.agent-payload`, testé,
@@ -61,10 +64,12 @@ async function readAgentFile(filename: string): Promise<string> {
 }
 
 export async function readAgentPayload(): Promise<AgentPayload> {
-	const [agentPy, scanRomsPy, version] = await Promise.all([
+	const [agentPy, scanRomsPy, launchPy, launcherSh, version] = await Promise.all([
 		readAgentFile('agent.py'),
 		readAgentFile('scan_roms.py'),
+		readAgentFile('launch.py'),
+		readAgentFile('sr-agent[systembrowsing].sh'),
 		readAgentFile('VERSION'),
 	])
-	return { agentPy, scanRomsPy, version: version.trim() }
+	return { agentPy, scanRomsPy, launchPy, launcherSh, version: version.trim() }
 }

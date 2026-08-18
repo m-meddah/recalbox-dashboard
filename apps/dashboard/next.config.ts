@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
 		'/api/recalboxes/[id]/installer': [
 			'agent-payload/agent.py',
 			'agent-payload/scan_roms.py',
+			'agent-payload/launch.py',
+			'agent-payload/sr-agent[systembrowsing].sh',
 			'agent-payload/VERSION',
 		],
 	},
