@@ -38,26 +38,27 @@ def acquire_lock():
     Retourne (True, fd) si le verrou a ete acquis (fd doit rester ouvert pour que
     le verrou persiste a travers execv). Retourne (False, None) si un autre processus
     tient deja le verrou.
+
+    Erreurs lors de os.open, os.set_inheritable, os.lseek, os.ftruncate, ou os.write
+    propagent et sont loggees comme tracebacks ; seule l'erreur OSError de flock()
+    signifie qu'un autre processus tient le verrou.
     """
     lockfile = lock_path()
+    fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
+    # MUST survive execv — Python sets close-on-exec by default (PEP 446)
+    os.set_inheritable(fd, True)
     try:
-        fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
-        # MUST survive execv — Python sets close-on-exec by default (PEP 446)
-        os.set_inheritable(fd, True)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            # Another agent holds the lock
-            os.close(fd)
-            return (False, None)
-        # Lock acquired — write pid for debugging (but correctness never depends on it)
-        os.lseek(fd, 0, os.SEEK_SET)
-        os.ftruncate(fd, 0)
-        os.write(fd, str(os.getpid()).encode())
-        # DO NOT close fd, DO NOT delete the file — the lock must persist across execv
-        return (True, fd)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
+        # Another agent holds the lock
+        os.close(fd)
         return (False, None)
+    # Lock acquired — write pid for debugging (but correctness never depends on it)
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode())
+    # DO NOT close fd, DO NOT delete the file — the lock must persist across execv
+    return (True, fd)
 
 
 def main():
