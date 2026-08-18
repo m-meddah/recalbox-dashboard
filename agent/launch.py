@@ -7,6 +7,7 @@ mise à jour automatique et le retour arriere — de la logique qui doit etre te
 ce que du bash sur une box distante n'est pas.
 """
 
+import fcntl
 import os
 import sys
 
@@ -28,76 +29,48 @@ def lock_path():
     return os.path.join(HERE, "launch.lock")
 
 
-def is_process_alive(pid):
-    """Verifie si un processus avec ce pid existe encore.
-
-    Leve ProcessLookupError si le processus n'existe pas.
-    """
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-
-
 def acquire_lock():
-    """Acquiert le verrou d'exclusivite ou retourne False si un autre agent tourne.
+    """Acquiert le verrou d'exclusivite kernel-arbitre ou retourne (False, None).
 
-    Retourne True si le verrou a ete acquis, False si un autre processus le detient.
-    Leve une exception en cas d'erreur irreversible (permissions, disque plein).
+    Utilise fcntl.flock() pour une exclusivite sans race conditions de type TOCTOU.
+    Le verrou est automatiquement libere si le processus meurt (crash, kill, power cut).
+
+    Retourne (True, fd) si le verrou a ete acquis (fd doit rester ouvert pour que
+    le verrou persiste a travers execv). Retourne (False, None) si un autre processus
+    tient deja le verrou.
     """
     lockfile = lock_path()
-    pid_str = str(os.getpid())
-
-    while True:
+    try:
+        fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
+        # MUST survive execv — Python sets close-on-exec by default (PEP 446)
+        os.set_inheritable(fd, True)
         try:
-            # Tentative d'acquisition atomique du verrou
-            fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, pid_str.encode())
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            # Another agent holds the lock
             os.close(fd)
-            return True
-        except FileExistsError:
-            # Le verrou existe deja. Lire le pid qu'il contient.
-            try:
-                with open(lockfile, "r") as f:
-                    content = f.read().strip()
-                if not content:
-                    # Fichier vide, considere comme stale
-                    os.remove(lockfile)
-                    continue
-                try:
-                    locked_pid = int(content)
-                except ValueError:
-                    # Fichier corrompu, considere comme stale
-                    os.remove(lockfile)
-                    continue
-
-                # Verifier si le processus qui detient le verrou est encore vivant
-                if is_process_alive(locked_pid):
-                    # Un agent tourne deja, s'arreter sans erreur
-                    return False
-                else:
-                    # Le verrou est stale, le reprendre
-                    os.remove(lockfile)
-                    continue
-            except (IOError, OSError):
-                # Erreur a la lecture, considerer le verrou comme stale et recommencer
-                try:
-                    os.remove(lockfile)
-                except (IOError, OSError):
-                    pass
-                continue
+            return (False, None)
+        # Lock acquired — write pid for debugging (but correctness never depends on it)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        os.write(fd, str(os.getpid()).encode())
+        # DO NOT close fd, DO NOT delete the file — the lock must persist across execv
+        return (True, fd)
+    except OSError:
+        return (False, None)
 
 
 def main():
-    # Acqurir le verrou d'exclusivite avant de lancer l'agent
-    if not acquire_lock():
-        # Un autre agent tourne deja, se terminer sans erreur
+    acquired, lock_fd = acquire_lock()
+    if not acquired:
+        # Another agent holds the lock, exit quietly
         sys.exit(0)
 
     argv = build_argv()
-    # execv remplace le processus courant : pas de processus superviseur qui traine,
-    # et le pgrep du script shell continue de voir "agent.py" dans la ligne de commande.
+    # lock_fd is now inheritable and will survive execv.
+    # Keep lock_fd referenced so it is not garbage-collected before execv.
+    # execv replaces the process: no superviseur process lingers, and the shell's
+    # pgrep continues to see "agent.py" in the command line.
     os.execv(argv[0], argv)
 
 

@@ -3,6 +3,8 @@ import sys
 import unittest
 import tempfile
 import shutil
+import multiprocessing
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -33,71 +35,94 @@ class TestLocking(unittest.TestCase):
 
     def tearDown(self):
         """Nettoyer le repertoire temporaire et restaurer lock_path."""
-        shutil.rmtree(self.temp_dir)
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
         launch.lock_path = self.original_lock_path
 
     def test_free_lock_is_acquired(self):
         """Un verrou libre doit etre acquis avec succes."""
-        result = launch.acquire_lock()
-        self.assertTrue(result)
+        acquired, lock_fd = launch.acquire_lock()
+        self.assertTrue(acquired)
+        self.assertIsNotNone(lock_fd)
         # Verifier que le fichier de verrou existe
         self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "launch.lock")))
-        # Verifier qu'il contient le pid courant
+        # Verifier qu'il contient le pid courant (pour le debug)
         with open(os.path.join(self.temp_dir, "launch.lock"), "r") as f:
             content = f.read().strip()
         self.assertEqual(content, str(os.getpid()))
+        os.close(lock_fd)
 
-    def test_lock_held_by_live_pid_causes_quiet_exit(self):
-        """Un verrou detenu par un processus vivant doit causer une sortie silencieuse."""
-        # Creer un verrou avec le pid courant
-        lockfile = os.path.join(self.temp_dir, "launch.lock")
-        with open(lockfile, "w") as f:
-            f.write(str(os.getpid()))
+    def test_second_caller_while_first_holds_lock_gets_false(self):
+        """Un deuxieme appelant tandis que le premier tient le verrou doit obtenir False."""
+        acquired1, lock_fd1 = launch.acquire_lock()
+        self.assertTrue(acquired1)
+        self.assertIsNotNone(lock_fd1)
 
-        # Tenter d'acquerir le verrou avec la meme fonction
-        result = launch.acquire_lock()
-        self.assertFalse(result)
+        # Tenter d'acquerir le verrou alors qu'il est deja tenu
+        acquired2, lock_fd2 = launch.acquire_lock()
+        self.assertFalse(acquired2)
+        self.assertIsNone(lock_fd2)
 
-    def test_stale_lock_with_dead_pid_is_taken_over(self):
-        """Un verrou stale (processus mort) doit etre repris."""
-        # Creer un verrou avec un pid qui n'existe pas
-        # On utilise un pid tres eleve qui ne peut pas exister
-        dead_pid = 99999999
-        lockfile = os.path.join(self.temp_dir, "launch.lock")
-        with open(lockfile, "w") as f:
-            f.write(str(dead_pid))
+        os.close(lock_fd1)
 
-        # Tenter d'acquerir le verrou
-        result = launch.acquire_lock()
-        self.assertTrue(result)
-        # Verifier que le verrou contient maintenant le pid courant
-        with open(lockfile, "r") as f:
-            content = f.read().strip()
-        self.assertEqual(content, str(os.getpid()))
+    def test_lock_is_acquirable_again_after_holder_exits(self):
+        """Le verrou doit etre acquirable apres que le titulaire ait ferme le fd."""
+        acquired1, lock_fd1 = launch.acquire_lock()
+        self.assertTrue(acquired1)
+        self.assertIsNotNone(lock_fd1)
 
-    def test_empty_lock_file_is_taken_over(self):
-        """Un fichier de verrou vide doit etre considere comme stale et repris."""
-        lockfile = os.path.join(self.temp_dir, "launch.lock")
-        with open(lockfile, "w") as f:
-            f.write("")
+        # Fermer le fd (simule la mort du processus titulaire)
+        os.close(lock_fd1)
 
-        result = launch.acquire_lock()
-        self.assertTrue(result)
-        with open(lockfile, "r") as f:
-            content = f.read().strip()
-        self.assertEqual(content, str(os.getpid()))
+        # Tenter d'acquerir le verrou a nouveau — doit reussir car le noyau
+        # a automatiquement libere le verrou quand le fd a ete ferme
+        acquired2, lock_fd2 = launch.acquire_lock()
+        self.assertTrue(acquired2)
+        self.assertIsNotNone(lock_fd2)
 
-    def test_corrupt_lock_file_is_taken_over(self):
-        """Un fichier de verrou corrompu (non-entier) doit etre considere comme stale."""
-        lockfile = os.path.join(self.temp_dir, "launch.lock")
-        with open(lockfile, "w") as f:
-            f.write("not_a_number_at_all")
+        os.close(lock_fd2)
 
-        result = launch.acquire_lock()
-        self.assertTrue(result)
-        with open(lockfile, "r") as f:
-            content = f.read().strip()
-        self.assertEqual(content, str(os.getpid()))
+    @staticmethod
+    def _worker_acquire_lock(result_queue):
+        """Fonction worker pour test de concurrence: tente d'acquerir le verrou."""
+        acquired, lock_fd = launch.acquire_lock()
+        result_queue.put({"acquired": acquired, "pid": os.getpid()})
+        if acquired and lock_fd is not None:
+            # Garder le verrou pendant 0.2 secondes pour permettre a d'autres
+            # callers de tenter l'acquisition
+            time.sleep(0.2)
+            os.close(lock_fd)
+
+    def test_exactly_one_caller_among_many_gets_lock(self):
+        """Exactement un appelant parmi N doit acquerir le verrou."""
+        num_callers = 5
+        result_queue = multiprocessing.Queue()
+
+        # Lancer N processus qui tentent tous d'acquerir le verrou
+        processes = []
+        for _ in range(num_callers):
+            p = multiprocessing.Process(
+                target=TestLocking._worker_acquire_lock, args=(result_queue,)
+            )
+            p.start()
+            processes.append(p)
+
+        # Attendre que tous les processus se terminent
+        for p in processes:
+            p.join(timeout=5)
+
+        # Collecter les resultats
+        results = []
+        while not result_queue.empty():
+            results.append(result_queue.get())
+
+        # Verifier qu'exactement un processus a acquis le verrou
+        acquired_count = sum(1 for r in results if r["acquired"])
+        self.assertEqual(
+            acquired_count, 1, f"Expected 1 lock holder, got {acquired_count}"
+        )
+        # Verifier que tous les autres ont obtenu False
+        failed_count = sum(1 for r in results if not r["acquired"])
+        self.assertEqual(failed_count, num_callers - 1)
 
 
 if __name__ == "__main__":
