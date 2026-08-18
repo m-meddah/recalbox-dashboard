@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getUser = vi.fn()
+const addRecalbox = vi.fn()
 
 vi.mock('@/lib/auth/require-user', async () => {
 	const { NextResponse } = await import('next/server')
@@ -15,13 +16,14 @@ vi.mock('@/lib/config-store', () => ({
 			{ id: 'rb-1', name: 'A', sshPassword: 'x' },
 			{ id: 'rb-2', name: 'B', sshPassword: 'y' },
 		],
+		addRecalbox: (...a: unknown[]) => addRecalbox(...a),
 	},
 }))
 vi.mock('@/lib/auth/ownership', () => ({
 	getViewableRecalboxIds: () => ['rb-1'],
 }))
 
-import { GET } from '../route'
+import { GET, POST } from '../route'
 
 afterEach(() => getUser.mockReset())
 
@@ -43,5 +45,61 @@ describe('GET /api/recalboxes', () => {
 		const res = await GET()
 		const body = await res.json()
 		expect(body.map((r: { id: string }) => r.id)).toEqual(['rb-1'])
+	})
+})
+
+describe('POST /api/recalboxes', () => {
+	const body = (over: Record<string, unknown> = {}) => ({
+		name: 'Salon',
+		host: 'recalbox.local',
+		sshUser: 'root',
+		sshPassword: '',
+		sshPort: 22,
+		mqttPort: 1883,
+		...over,
+	})
+	const post = (b: unknown) =>
+		POST(
+			new Request('http://localhost/api/recalboxes', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(b),
+				// biome-ignore lint/suspicious/noExplicitAny: NextRequest shape not needed here
+			}) as any,
+		)
+
+	beforeEach(() => {
+		getUser.mockResolvedValue({ id: 'u1', email: 'a@b.c', role: 'member' })
+		addRecalbox.mockResolvedValue({ id: 'rb-new', name: 'Salon' })
+	})
+	afterEach(() => {
+		addRecalbox.mockReset()
+		vi.unstubAllEnvs()
+	})
+
+	it('accepts an empty SSH password in serverless mode', async () => {
+		// The cloud never SSHes into the box — the agent pushes outbound — so demanding a
+		// password would block enrollment on a credential nothing ever uses.
+		vi.stubEnv('AGENT_ONLY_MEDIA', '1')
+		const res = await post(body())
+		expect(res.status).toBe(201)
+	})
+
+	it('still requires an SSH password when self-hosted', async () => {
+		vi.stubEnv('AGENT_ONLY_MEDIA', '')
+		const res = await post(body())
+		expect(res.status).toBe(422)
+	})
+
+	it('reports why the payload was rejected', async () => {
+		vi.stubEnv('AGENT_ONLY_MEDIA', '')
+		const res = await post(body())
+		expect((await res.json()).error).toMatch(/sshPassword/)
+	})
+
+	it('accepts a filled SSH password when self-hosted', async () => {
+		vi.stubEnv('AGENT_ONLY_MEDIA', '')
+		const res = await post(body({ sshPassword: 'recalboxroot' }))
+		expect(res.status).toBe(201)
 	})
 })
