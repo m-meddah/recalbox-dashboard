@@ -70,8 +70,10 @@ def main():
     argv = build_argv()
     # lock_fd is now inheritable and will survive execv.
     # Keep lock_fd referenced so it is not garbage-collected before execv.
-    # execv replaces the process: no superviseur process lingers, and the shell's
-    # pgrep continues to see "agent.py" in the command line.
+    # os.execv replaces the process image entirely: no supervisor process lingers,
+    # and the flock is held by the replacement process (the agent) since the fd is
+    # marked inheritable. Other launchers trying to acquire the same lock will see
+    # it is held and exit immediately.
     os.execv(argv[0], argv)
 
 

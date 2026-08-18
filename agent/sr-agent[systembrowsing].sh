@@ -3,12 +3,11 @@
 #
 # Déposé dans /recalbox/share/userscripts/. EmulationStation exécute tout fichier
 # nommé *[systembrowsing].sh à chaque affichage de la liste des systèmes — donc au
-# démarrage (deux fois en une seconde, mesuré) et à chaque navigation. La garde
-# pgrep n'est donc pas un confort : sans elle, deux agents tournent en parallèle et
-# dédoublent les sessions de jeu.
-#
-# Ce déclenchement répété fait aussi office de chien de garde : un agent mort repart
-# au prochain passage au menu.
+# démarrage (deux fois en une seconde, mesuré) et à chaque navigation. Ce déclenchement
+# répété ne crée pas de race car mutual exclusion is enforced by fcntl.flock() in
+# launch.py — une seule tentative réussira, les autres sortiront immédiatement sans
+# erreur. Ce déclenchement répété fait aussi office de chien de garde : un agent mort
+# repart au prochain passage au menu.
 #
 # Le partage est monté en exfat (fmask=0133) : aucun bit d'exécution n'est possible,
 # ES lance donc via bash. Ne pas tenter de chmod +x, cela ne peut pas marcher.

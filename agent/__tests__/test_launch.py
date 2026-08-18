@@ -124,6 +124,29 @@ class TestLocking(unittest.TestCase):
         failed_count = sum(1 for r in results if not r["acquired"])
         self.assertEqual(failed_count, num_callers - 1)
 
+    def test_oserror_from_os_open_propagates_not_swallowed(self):
+        """Erreurs non-flock (e.g. os.open EACCES) doivent propager, pas etre avalees."""
+        # This is the regression test for Round 3 fix: narrow OSError catch to only
+        # fcntl.flock(). Errors from os.open/set_inheritable/ftruncate/write must
+        # propagate and appear in agent.log as tracebacks, not silently treated as
+        # "another agent holds the lock".
+
+        original_os_open = os.open
+
+        def failing_os_open(path, flags, mode=None):
+            # Simulate a filesystem permission error
+            raise PermissionError(f"[Errno 13] Permission denied: '{path}'")
+
+        # Monkeypatch os.open to fail
+        os.open = failing_os_open
+        try:
+            # acquire_lock should propagate the PermissionError, not return (False, None)
+            with self.assertRaises(PermissionError):
+                launch.acquire_lock()
+        finally:
+            # Restore original
+            os.open = original_os_open
+
 
 if __name__ == "__main__":
     unittest.main()
