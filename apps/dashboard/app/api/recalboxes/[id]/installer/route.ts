@@ -3,14 +3,18 @@ import { readAgentPayload } from '@/lib/agent/payload'
 import { canControlRecalbox } from '@/lib/auth/ownership'
 import { forbidden, getUser, unauthorized } from '@/lib/auth/require-user'
 import { configStore } from '@/lib/config-store'
-import { db } from '@/lib/db'
-import { createAgentToken } from '@/lib/db/agent-queries'
+import { type DB, db } from '@/lib/db'
+import { createAgentToken, listAgentTokens, revokeAgentToken } from '@/lib/db/agent-queries'
+import { logger } from '@/lib/logger'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 type Ctx = { params: Promise<{ id: string }> }
+
+/** Nom donné aux tokens mintés par cette route. */
+const INSTALLER_TOKEN_NAME = 'installeur'
 
 /** Nom de fichier sûr pour l'entête Content-Disposition. */
 function slug(name: string): string {
@@ -20,6 +24,30 @@ function slug(name: string): string {
 			.replace(/[^a-z0-9]+/g, '-')
 			.replace(/^-|-$/g, '') || 'recalbox'
 	)
+}
+
+/**
+ * Révoque les tokens `installeur` jamais utilisés d'un précédent téléchargement avant
+ * d'en minter un nouveau. Sans ça, chaque re-téléchargement (zip perdu, glisser-déposer
+ * raté, deuxième ordinateur) empile des identifiants valides indéfiniment, tous nommés
+ * pareil, indiscernables sauf par horodatage — un zip qui traîne dans un dossier
+ * Téléchargements reste une clé active vers la box pour toujours.
+ *
+ * Seuls les tokens JAMAIS UTILISÉS (`lastUsedAt` null) sont révoqués : un token avec un
+ * `lastUsedAt` appartient à un agent qui tourne réellement sur la box en ce moment —
+ * le révoquer casserait silencieusement une installation qui fonctionne, ce qui est
+ * pire que le problème qu'on règle ici.
+ */
+async function revokeStaleInstallerTokens(db: DB, recalboxId: string): Promise<void> {
+	const tokens = await listAgentTokens(db, recalboxId)
+	const stale = tokens.filter(
+		(t) =>
+			t.recalboxId === recalboxId &&
+			t.name === INSTALLER_TOKEN_NAME &&
+			t.lastUsedAt == null &&
+			t.revokedAt == null,
+	)
+	await Promise.all(stale.map((t) => revokeAgentToken(db, t.id)))
 }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
@@ -33,8 +61,23 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 	const rb = configStore.getRecalbox(id)
 	if (!rb) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-	const payload = await readAgentPayload()
-	const { token } = await createAgentToken(db, id, 'installeur')
+	let payload: Awaited<ReturnType<typeof readAgentPayload>>
+	let token: string
+	try {
+		payload = await readAgentPayload()
+		await revokeStaleInstallerTokens(db, id)
+		token = (await createAgentToken(db, id, INSTALLER_TOKEN_NAME)).token
+	} catch (err) {
+		// Ne jamais renvoyer le texte de l'exception : l'utilisateur est en plein
+		// onboarding, sans terminal pour en faire quoi que ce soit. Le détail va aux
+		// logs serveur ; la réponse reste un message stable et intelligible.
+		logger.error('[installer] failed to prepare installer zip', err)
+		return NextResponse.json(
+			{ error: "Impossible de préparer l'archive d'installation. Réessayez dans un instant." },
+			{ status: 500 },
+		)
+	}
+
 	const base = (process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, '')
 
 	const zip = buildInstallerZip({
