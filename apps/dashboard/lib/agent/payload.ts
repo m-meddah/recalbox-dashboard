@@ -25,15 +25,46 @@ export type AgentPayload = {
  * Turbopack ignore silencieusement les dossiers cachés (`.agent-payload`, testé,
  * ne trace jamais rien à l'intérieur) même avec `outputFileTracingRoot` élargi.
  */
-function agentDir(): string {
+function primaryAgentDir(): string {
 	return path.resolve(process.cwd(), 'agent-payload')
+}
+
+/**
+ * `agent/` à la racine du monorepo — la source, pas une copie. Toujours
+ * présent sur un clone frais, contrairement à `primaryAgentDir()` qui dépend
+ * du script `prebuild`.
+ *
+ * `prebuild` ne se déclenche que pour `pnpm run build` (ou l'alias `pnpm
+ * build`) : ni `pnpm dev` (le flux de premier démarrage documenté dans
+ * CLAUDE.md est `pnpm install` → `pnpm dev`, sans build), ni `pnpm exec
+ * vitest ...` (les hooks de cycle de vie pre/post de pnpm ne se déclenchent
+ * que pour `pnpm run <script>`, jamais pour `pnpm exec <bin>` — la commande
+ * que CLAUDE.md documente pour lancer un seul fichier de test). Sans ce
+ * repli, un clone frais suivant exactement le flux documenté échoue avec
+ * ENOENT avant même d'avoir touché à la route de téléchargement — soit
+ * exactement le piège que cette tâche existe pour éviter, déplacé du build
+ * de prod vers le dev/test.
+ */
+function fallbackAgentDir(): string {
+	return path.resolve(process.cwd(), '..', '..', 'agent')
+}
+
+async function readAgentFile(filename: string): Promise<string> {
+	try {
+		return await readFile(path.join(primaryAgentDir(), filename), 'utf-8')
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+			throw err
+		}
+		return readFile(path.join(fallbackAgentDir(), filename), 'utf-8')
+	}
 }
 
 export async function readAgentPayload(): Promise<AgentPayload> {
 	const [agentPy, scanRomsPy, version] = await Promise.all([
-		readFile(path.join(agentDir(), 'agent.py'), 'utf-8'),
-		readFile(path.join(agentDir(), 'scan_roms.py'), 'utf-8'),
-		readFile(path.join(agentDir(), 'VERSION'), 'utf-8'),
+		readAgentFile('agent.py'),
+		readAgentFile('scan_roms.py'),
+		readAgentFile('VERSION'),
 	])
 	return { agentPy, scanRomsPy, version: version.trim() }
 }
