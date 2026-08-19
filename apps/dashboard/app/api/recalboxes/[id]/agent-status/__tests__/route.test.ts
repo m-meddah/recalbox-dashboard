@@ -58,4 +58,30 @@ describe('GET /api/recalboxes/[id]/agent-status', () => {
 		canView.mockResolvedValue(false)
 		expect((await GET({} as never, ctx as never)).status).toBe(404)
 	})
+
+	it('picks the latest timestamp from multiple tokens', async () => {
+		const t1 = new Date('2026-08-18T10:00:00Z')
+		const t2 = new Date('2026-08-18T20:00:00Z')
+		const t3 = new Date('2026-08-18T15:00:00Z')
+		listAgentTokens.mockResolvedValue([
+			{ id: 'ta', lastUsedAt: t1, revokedAt: null },
+			{ id: 'tb', lastUsedAt: t2, revokedAt: null },
+			{ id: 'tc', lastUsedAt: t3, revokedAt: null },
+		])
+		const body = await (await GET({} as never, ctx as never)).json()
+		expect(body.seen).toBe(true)
+		expect(body.lastSeenAt).toBe(t2.toISOString())
+	})
+
+	it('ignores null lastUsedAt when comparing', async () => {
+		const realDate = new Date('2026-08-19T12:00:00Z')
+		listAgentTokens.mockResolvedValue([
+			{ id: 't1', lastUsedAt: null, revokedAt: null },
+			{ id: 't2', lastUsedAt: realDate, revokedAt: null },
+			{ id: 't3', lastUsedAt: null, revokedAt: null },
+		])
+		const body = await (await GET({} as never, ctx as never)).json()
+		expect(body.seen).toBe(true)
+		expect(body.lastSeenAt).toBe(realDate.toISOString())
+	})
 })
