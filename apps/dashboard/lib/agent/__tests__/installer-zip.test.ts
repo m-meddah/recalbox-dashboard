@@ -11,6 +11,18 @@ const input = {
 	config: { recalbox_id: 'rb-1', token: 'secret-token', cloud_url: 'https://x/api/agent/ingest' },
 }
 
+/**
+ * `unzipSync()` types indexed access as `Uint8Array | undefined` — a lookup by a
+ * literal path isn't proven to exist at the type level. A blanket `!` would silence
+ * that and, if a path in the zip ever regressed (renamed, dropped), the test would
+ * fail on a useless "undefined" message instead of naming the missing entry.
+ */
+function entry(files: Record<string, Uint8Array | undefined>, path: string): Uint8Array {
+	const found = files[path]
+	if (!found) throw new Error(`zip entry manquante: ${path}`)
+	return found
+}
+
 describe('buildInstallerZip', () => {
 	it('reproduit exactement l arborescence du partage Recalbox', () => {
 		const files = unzipSync(buildInstallerZip(input))
@@ -26,7 +38,7 @@ describe('buildInstallerZip', () => {
 
 	it('embarque le token et l URL dans un config.json valide', () => {
 		const files = unzipSync(buildInstallerZip(input))
-		const config = JSON.parse(strFromU8(files['system/sr-agent/config.json']))
+		const config = JSON.parse(strFromU8(entry(files, 'system/sr-agent/config.json')))
 		expect(config.token).toBe('secret-token')
 		expect(config.recalbox_id).toBe('rb-1')
 		expect(config.cloud_url).toBe('https://x/api/agent/ingest')
@@ -41,17 +53,17 @@ describe('buildInstallerZip', () => {
 
 	it('recopie le contenu de tous les fichiers sans le modifier', () => {
 		const files = unzipSync(buildInstallerZip(input))
-		expect(strFromU8(files['system/sr-agent/agent.py'])).toBe('# agent')
-		expect(strFromU8(files['system/sr-agent/scan_roms.py'])).toBe('# scan')
-		expect(strFromU8(files['system/sr-agent/launch.py'])).toBe('# launch')
-		expect(strFromU8(files['userscripts/sr-agent[systembrowsing].sh'])).toBe('#!/bin/bash\n')
-		expect(strFromU8(files['LISEZMOI.txt'])).toBe('Bonjour')
+		expect(strFromU8(entry(files, 'system/sr-agent/agent.py'))).toBe('# agent')
+		expect(strFromU8(entry(files, 'system/sr-agent/scan_roms.py'))).toBe('# scan')
+		expect(strFromU8(entry(files, 'system/sr-agent/launch.py'))).toBe('# launch')
+		expect(strFromU8(entry(files, 'userscripts/sr-agent[systembrowsing].sh'))).toBe('#!/bin/bash\n')
+		expect(strFromU8(entry(files, 'LISEZMOI.txt'))).toBe('Bonjour')
 	})
 
 	it('normalise les terminaisons CRLF du lanceur en LF', () => {
 		const inputWithCRLF = { ...input, launcherSh: '#!/bin/bash\r\necho hello\r\n' }
 		const files = unzipSync(buildInstallerZip(inputWithCRLF))
-		const content = strFromU8(files['userscripts/sr-agent[systembrowsing].sh'])
+		const content = strFromU8(entry(files, 'userscripts/sr-agent[systembrowsing].sh'))
 		expect(content).not.toContain('\r')
 		expect(content).toBe('#!/bin/bash\necho hello\n')
 	})

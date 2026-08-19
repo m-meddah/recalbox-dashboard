@@ -92,7 +92,12 @@ describe('GET /api/recalboxes/[id]/installer', () => {
 		const { unzipSync, strFromU8 } = await import('fflate')
 		const res = await GET(req(), ctx as never)
 		const files = unzipSync(new Uint8Array(await res.arrayBuffer()))
-		const config = JSON.parse(strFromU8(files['system/sr-agent/config.json']))
+		// Indexer un Unzipped donne `Uint8Array | undefined`. Un `!` tairait le
+		// compilateur mais transformerait un chemin disparu en « undefined » illisible ;
+		// cette garde nomme l'entrée manquante.
+		const configEntry = files['system/sr-agent/config.json']
+		if (!configEntry) throw new Error('zip entry manquante: system/sr-agent/config.json')
+		const config = JSON.parse(strFromU8(configEntry))
 		expect(config.token).toBe('raw-token')
 	})
 
