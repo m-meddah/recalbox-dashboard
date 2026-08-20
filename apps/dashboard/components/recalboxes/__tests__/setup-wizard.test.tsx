@@ -148,4 +148,31 @@ describe('SetupWizard', () => {
 		)
 		expect(screen.queryByText(messages.recalboxes.wizard.downloadError)).not.toBeInTheDocument()
 	})
+
+	it('révoque quand même l URL objet si le clic sur le lien échoue', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response('zip-bytes', {
+					status: 200,
+					headers: {
+						'Content-Disposition': 'attachment; filename="recalbox-dashboard-salon.zip"',
+					},
+				}),
+			),
+		)
+		// Override the default no-op stub from beforeEach: this run needs the
+		// anchor's click() to actually throw, to prove the object URL doesn't
+		// leak when the DOM steps fail partway through.
+		HTMLAnchorElement.prototype.click = vi.fn(() => {
+			throw new Error('click failed')
+		})
+		const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+		renderAt({ startAt: 'install', recalboxId: 'rb-1' })
+		fireEvent.click(screen.getByRole('button', { name: messages.recalboxes.wizard.download }))
+		await waitFor(() =>
+			expect(screen.getByText(messages.recalboxes.wizard.downloadError)).toBeInTheDocument(),
+		)
+		expect(revokeSpy).toHaveBeenCalledWith('blob:mock-url')
+	})
 })

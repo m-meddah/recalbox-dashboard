@@ -88,7 +88,7 @@ export function SetupWizard({
 				// nothing is indistinguishable from the app being broken for someone
 				// with no terminal to check. Fall back to the same generic message the
 				// network-failure branch below already uses.
-				setCreateError(typeof data.error === 'string' ? data.error : tc('error'))
+				setCreateError(data.error?.trim() ? data.error : tc('error'))
 				return
 			}
 			if (data.id) setRecalboxId(data.id)
@@ -123,13 +123,22 @@ export function SetupWizard({
 			const blob = await res.blob()
 			const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition'))
 			const url = URL.createObjectURL(blob)
-			const a = document.createElement('a')
-			a.href = url
-			a.download = filename ?? 'recalbox-dashboard-installer.zip'
-			document.body.appendChild(a)
-			a.click()
-			a.remove()
-			URL.revokeObjectURL(url)
+			// `url` pins the blob in memory until revoked. A plain statement at the
+			// end of the block only runs on the happy path — if appendChild/click/
+			// remove throws, control jumps straight to the outer catch and the
+			// revoke never happens. Scoping a try/finally around just the DOM steps
+			// guarantees the revoke runs either way, while the outer catch still
+			// gets the chance to surface the failure to the user.
+			try {
+				const a = document.createElement('a')
+				a.href = url
+				a.download = filename ?? 'recalbox-dashboard-installer.zip'
+				document.body.appendChild(a)
+				a.click()
+				a.remove()
+			} finally {
+				URL.revokeObjectURL(url)
+			}
 		} catch {
 			setDownloadError(t('downloadError'))
 		} finally {
