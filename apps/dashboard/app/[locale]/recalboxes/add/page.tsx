@@ -1,6 +1,7 @@
 'use client'
 
 import { RecalboxForm, type RecalboxFormValues } from '@/components/recalbox-form'
+import { SetupWizard } from '@/components/recalboxes/setup-wizard'
 import { useServerless } from '@/components/serverless-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from '@/i18n/navigation'
@@ -13,6 +14,17 @@ export default function AddRecalboxPage() {
 	const router = useRouter()
 	const serverless = useServerless()
 	const [loading, setLoading] = useState(false)
+
+	// Serverless enrollment has no SSH/MQTT to reach for — it's zip download +
+	// waiting for the box to phone home — so it gets its own guided flow.
+	// Self-hosted keeps the plain connection form below, unchanged.
+	if (serverless) {
+		return (
+			<div className="container max-w-lg mx-auto p-6">
+				<SetupWizard />
+			</div>
+		)
+	}
 
 	async function handleSubmit(values: RecalboxFormValues) {
 		setLoading(true)
