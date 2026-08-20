@@ -4,6 +4,20 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
 	test: {
 		environment: 'node',
+		// `next-intl`'s client navigation helpers (`createNavigation` → `Link`,
+		// `useRouter`, …) import bare `next/navigation` from inside their own
+		// package. `next`'s package.json has no `exports` map, so Node's native
+		// ESM resolver — which Vitest defers to for externalized deps — refuses
+		// the extensionless subpath ("Did you mean to import next/navigation.js?"),
+		// even though Next's own bundler resolves it fine. Reproduced with plain
+		// `node -e "import('next-intl/navigation')"`, so it's not Vitest-specific.
+		// Forcing next-intl through Vite's own transform (which *does* resolve
+		// extensionless subpaths, same as first-party source) sidesteps it.
+		server: {
+			deps: {
+				inline: [/next-intl/],
+			},
+		},
 	},
 	resolve: {
 		alias: {

@@ -6,22 +6,38 @@ import { useServerless } from '@/components/serverless-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
+
+/** Only a screen the wizard actually knows how to enter directly — anything else
+ * (a stray/garbled query string) falls back to the component's own default
+ * rather than handing it a value it doesn't recognise. */
+function parseWizardScreen(value: string | null): 'name' | 'install' | 'wait' | undefined {
+	return value === 'name' || value === 'install' || value === 'wait' ? value : undefined
+}
 
 export default function AddRecalboxPage() {
 	const t = useTranslations('recalboxes')
 	const router = useRouter()
 	const serverless = useServerless()
+	const searchParams = useSearchParams()
 	const [loading, setLoading] = useState(false)
 
 	// Serverless enrollment has no SSH/MQTT to reach for — it's zip download +
 	// waiting for the box to phone home — so it gets its own guided flow.
 	// Self-hosted keeps the plain connection form below, unchanged.
+	//
+	// `startAt`/`recalboxId` let the recalboxes list bring a box that was never
+	// installed straight back to the screen it left off on (the "resume" link),
+	// instead of restarting enrollment from a blank name field.
 	if (serverless) {
 		return (
 			<div className="container max-w-lg mx-auto p-6">
-				<SetupWizard />
+				<SetupWizard
+					startAt={parseWizardScreen(searchParams.get('startAt'))}
+					recalboxId={searchParams.get('recalboxId') ?? undefined}
+				/>
 			</div>
 		)
 	}
