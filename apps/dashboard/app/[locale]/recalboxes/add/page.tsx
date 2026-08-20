@@ -10,6 +10,14 @@ import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+// This route reads `useSearchParams()` without a `Suspense` boundary, which is
+// only safe because the parent locale layout already forces the whole subtree
+// dynamic by reading a cookie (see app/[locale]/layout.tsx). That's true today
+// but isn't visible from this file — state it explicitly so a future removal
+// of that cookie read fails loudly (a `next build` error) instead of this page
+// silently becoming the one that breaks.
+export const dynamic = 'force-dynamic'
+
 /** Only a screen the wizard actually knows how to enter directly — anything else
  * (a stray/garbled query string) falls back to the component's own default
  * rather than handing it a value it doesn't recognise. */

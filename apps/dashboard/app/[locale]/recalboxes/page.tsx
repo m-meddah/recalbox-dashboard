@@ -5,23 +5,11 @@ import { getViewableRecalboxIds } from '@/lib/auth/ownership'
 import { loadRecalboxes } from '@/lib/auth/recalbox-acl'
 import { getUser } from '@/lib/auth/require-user'
 import { db } from '@/lib/db'
-import { listAgentTokens } from '@/lib/db/agent-queries'
+import { getAgentLastSeen } from '@/lib/db/agent-liveness'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { isServerlessMode } from '@/lib/serverless'
 import { cn } from '@/lib/utils'
 import { getTranslations } from 'next-intl/server'
-
-/**
- * Has this box's on-box agent ever checked in? Mirrors the `seen` computation of
- * `GET /api/recalboxes/[id]/agent-status` (a non-revoked token with a
- * `lastUsedAt`) without a self-fetch round trip to its own route — this page
- * already reads recalboxes straight off the DB layer via `loadRecalboxes()`, so
- * this follows the same direct-query pattern rather than importing a new one.
- */
-async function hasAgentCheckedIn(recalboxId: string): Promise<boolean> {
-	const tokens = await listAgentTokens(db, recalboxId)
-	return tokens.some((token) => !token.revokedAt && token.lastUsedAt != null)
-}
 
 export default async function RecalboxesPage() {
 	const t = await getTranslations('recalboxes')
@@ -37,14 +25,14 @@ export default async function RecalboxesPage() {
 	// wizard): self-hosted boxes connect straight over SSH/MQTT and never
 	// install the on-box agent, so they'd otherwise show as permanently
 	// "awaiting setup" for a step they don't need.
+	//
+	// `getAgentLastSeen` is `cache()`-wrapped and already grouped over every
+	// box in one query; in serverless mode the layout's `buildSeedState` call
+	// already invoked it this request (see lib/sse/build-seed-state.ts), so
+	// this costs zero additional round trips rather than one query per box.
+	const lastSeen = serverless ? await getAgentLastSeen(db) : new Map<string, Date>()
 	const pendingIds = serverless
-		? new Set(
-				(
-					await Promise.all(
-						active.map(async (rb) => ((await hasAgentCheckedIn(rb.id)) ? null : rb.id)),
-					)
-				).filter((id): id is string => id !== null),
-			)
+		? new Set(active.filter((rb) => !lastSeen.has(rb.id)).map((rb) => rb.id))
 		: new Set<string>()
 
 	return (

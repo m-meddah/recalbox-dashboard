@@ -11,7 +11,7 @@ const getViewableRecalboxIds = vi.fn()
 const loadRecalboxes = vi.fn()
 const getActiveRecalboxId = vi.fn()
 const isServerlessMode = vi.fn()
-const listAgentTokens = vi.fn()
+const getAgentLastSeen = vi.fn()
 
 vi.mock('@/lib/auth/require-user', () => ({
 	getUser: () => getUser(),
@@ -31,8 +31,8 @@ vi.mock('@/lib/serverless', () => ({
 vi.mock('@/lib/db', () => ({
 	db: {},
 }))
-vi.mock('@/lib/db/agent-queries', () => ({
-	listAgentTokens: (...args: unknown[]) => listAgentTokens(...args),
+vi.mock('@/lib/db/agent-liveness', () => ({
+	getAgentLastSeen: (...args: unknown[]) => getAgentLastSeen(...args),
 }))
 
 // Server-only next-intl needs a live request context we don't have under
@@ -98,21 +98,18 @@ describe('RecalboxesPage — box en attente d’installation', () => {
 		loadRecalboxes.mockResolvedValue([rb1, rb2])
 		getViewableRecalboxIds.mockResolvedValue(['rb-1', 'rb-2'])
 		isServerlessMode.mockReturnValue(true)
-		listAgentTokens.mockImplementation((_db: unknown, recalboxId: string) =>
-			Promise.resolve(
-				recalboxId === 'rb-1'
-					? []
-					: [{ id: 't1', lastUsedAt: new Date('2026-08-18T20:00:00Z'), revokedAt: null }],
-			),
-		)
+		// rb-1 absent from the map — never seen; rb-2 present — seen.
+		getAgentLastSeen.mockResolvedValue(new Map([['rb-2', new Date('2026-08-18T20:00:00Z')]]))
 
 		await renderPage()
 
 		expect(screen.getByText(messages.recalboxes.wizard.pending)).toBeInTheDocument()
-		expect(screen.getByRole('link', { name: messages.recalboxes.wizard.resume })).toHaveAttribute(
-			'href',
-			expect.stringContaining('rb-1'),
-		)
+		const resumeLink = screen.getByRole('link', { name: messages.recalboxes.wizard.resume })
+		expect(resumeLink).toHaveAttribute('href', expect.stringContaining('rb-1'))
+		// Pinned to the install screen, not the wait screen: reaching the wait
+		// screen without ever downloading the installer is a silent dead end —
+		// exactly the trap this link exists to avoid.
+		expect(resumeLink).toHaveAttribute('href', expect.stringContaining('startAt=install'))
 	})
 
 	it('ne propose pas de reprise pour une box déjà vue', async () => {
@@ -121,13 +118,7 @@ describe('RecalboxesPage — box en attente d’installation', () => {
 		loadRecalboxes.mockResolvedValue([rb1, rb2])
 		getViewableRecalboxIds.mockResolvedValue(['rb-1', 'rb-2'])
 		isServerlessMode.mockReturnValue(true)
-		listAgentTokens.mockImplementation((_db: unknown, recalboxId: string) =>
-			Promise.resolve(
-				recalboxId === 'rb-1'
-					? []
-					: [{ id: 't1', lastUsedAt: new Date('2026-08-18T20:00:00Z'), revokedAt: null }],
-			),
-		)
+		getAgentLastSeen.mockResolvedValue(new Map([['rb-2', new Date('2026-08-18T20:00:00Z')]]))
 
 		await renderPage()
 
@@ -142,7 +133,7 @@ describe('RecalboxesPage — box en attente d’installation', () => {
 		loadRecalboxes.mockResolvedValue([rb1, rb2])
 		getViewableRecalboxIds.mockResolvedValue(['rb-1', 'rb-2'])
 		isServerlessMode.mockReturnValue(true)
-		listAgentTokens.mockResolvedValue([])
+		getAgentLastSeen.mockResolvedValue(new Map())
 
 		await renderPage()
 
@@ -163,7 +154,7 @@ describe('RecalboxesPage — box en attente d’installation', () => {
 		expect(
 			screen.queryByRole('link', { name: messages.recalboxes.wizard.resume }),
 		).not.toBeInTheDocument()
-		// Self-hosted never needs the agent-status lookup — no DB round trip per box.
-		expect(listAgentTokens).not.toHaveBeenCalled()
+		// Self-hosted never needs the agent-liveness lookup — no DB round trip.
+		expect(getAgentLastSeen).not.toHaveBeenCalled()
 	})
 })
