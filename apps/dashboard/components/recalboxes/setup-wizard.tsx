@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useLocale, useTranslations } from 'next-intl'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 const POLL_MS = 5_000
 const TROUBLE_AFTER_MS = 3 * 60 * 1000
@@ -19,6 +19,15 @@ const SCREEN_INDEX: Record<Screen, number> = { name: 1, install: 2, wait: 3 }
 function detectOs(): Os {
 	if (typeof navigator === 'undefined') return 'windows'
 	return navigator.userAgent.includes('Mac') ? 'mac' : 'windows'
+}
+
+/** Pulls the filename out of `Content-Disposition: attachment; filename="…"` —
+ * the installer route already builds a sanitised, per-box name; this just
+ * carries it through instead of inventing a generic one. */
+function filenameFromContentDisposition(header: string | null): string | undefined {
+	if (!header) return undefined
+	const match = /filename="?([^";]+)"?/i.exec(header)
+	return match?.[1]
 }
 
 export function SetupWizard({
@@ -43,6 +52,7 @@ export function SetupWizard({
 	// Screen 2 — install.
 	const [os, setOs] = useState<Os>('windows')
 	const [downloading, setDownloading] = useState(false)
+	const [downloadError, setDownloadError] = useState<string | null>(null)
 	useEffect(() => {
 		setOs(detectOs())
 	}, [])
@@ -71,7 +81,14 @@ export function SetupWizard({
 			})
 			const data: { id?: string; error?: string } = await res.json().catch(() => ({}))
 			if (!res.ok) {
-				setCreateError(data.error ?? null)
+				// The route's own JSON always carries a readable sentence, but a non-OK
+				// response can come from somewhere that never ran the route at all — an
+				// unhandled 500, a proxy error page, a gateway timeout. Its body parses
+				// to `{}` or something with no `error` string, and silently rendering
+				// nothing is indistinguishable from the app being broken for someone
+				// with no terminal to check. Fall back to the same generic message the
+				// network-failure branch below already uses.
+				setCreateError(typeof data.error === 'string' ? data.error : tc('error'))
 				return
 			}
 			if (data.id) setRecalboxId(data.id)
@@ -85,11 +102,39 @@ export function SetupWizard({
 		}
 	}
 
-	function handleDownload() {
-		if (!recalboxId) return
+	// The installer route can legitimately answer with a JSON 500 (payload
+	// missing, token minting failed, …). Navigating the tab there — the
+	// original approach — would throw the user out of the wizard mid-onboarding
+	// onto a raw JSON blob, with no way back. Fetching lets us tell success from
+	// failure before touching the page: on failure we show `downloadError` and
+	// leave the wizard exactly where it was; on success we save the blob via a
+	// temporary anchor, using the filename the server already sanitised rather
+	// than inventing one.
+	async function handleDownload() {
+		if (!recalboxId || downloading) return
 		setDownloading(true)
-		window.location.href = `/api/recalboxes/${recalboxId}/installer`
-		window.setTimeout(() => setDownloading(false), 1500)
+		setDownloadError(null)
+		try {
+			const res = await fetch(`/api/recalboxes/${recalboxId}/installer`)
+			if (!res.ok) {
+				setDownloadError(t('downloadError'))
+				return
+			}
+			const blob = await res.blob()
+			const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition'))
+			const url = URL.createObjectURL(blob)
+			const a = document.createElement('a')
+			a.href = url
+			a.download = filename ?? 'recalbox-dashboard-installer.zip'
+			document.body.appendChild(a)
+			a.click()
+			a.remove()
+			URL.revokeObjectURL(url)
+		} catch {
+			setDownloadError(t('downloadError'))
+		} finally {
+			setDownloading(false)
+		}
 	}
 
 	// Screen 3 — poll `agent-status` every POLL_MS and stop the moment `seen`
@@ -97,6 +142,14 @@ export function SetupWizard({
 	// A second, independent timer flips `trouble` after TROUBLE_AFTER_MS — it
 	// never stops the poll, it only adds the troubleshooting panel alongside
 	// the waiting state.
+	//
+	// The interval id lives in a ref, set *before* `check()` is ever invoked.
+	// `check` is async, so its continuation past the first `await` only runs on
+	// a later microtask — reading a `const` declared right after the call would
+	// also work today, but only because of that ordering, which is exactly the
+	// kind of thing a later refactor (an early guard, a reordered line) breaks
+	// silently. The ref removes the dependency on that ordering entirely.
+	const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 	useEffect(() => {
 		if (screen !== 'wait' || !recalboxId) return
 		let cancelled = false
@@ -109,22 +162,28 @@ export function SetupWizard({
 				if (cancelled) return
 				if (data.seen) {
 					setSeen(true)
-					clearInterval(intervalId)
+					if (pollIntervalRef.current !== null) {
+						clearInterval(pollIntervalRef.current)
+						pollIntervalRef.current = null
+					}
 				}
 			} catch {
 				// Network hiccup — the next tick will retry on its own.
 			}
 		}
 
+		pollIntervalRef.current = setInterval(check, POLL_MS)
 		check()
-		const intervalId = setInterval(check, POLL_MS)
 		const troubleTimeout = setTimeout(() => {
 			if (!cancelled) setTrouble(true)
 		}, TROUBLE_AFTER_MS)
 
 		return () => {
 			cancelled = true
-			clearInterval(intervalId)
+			if (pollIntervalRef.current !== null) {
+				clearInterval(pollIntervalRef.current)
+				pollIntervalRef.current = null
+			}
 			clearTimeout(troubleTimeout)
 		}
 	}, [screen, recalboxId])
@@ -182,6 +241,7 @@ export function SetupWizard({
 						<Button onClick={handleDownload} disabled={!recalboxId || downloading}>
 							{downloading ? t('downloading') : t('download')}
 						</Button>
+						{downloadError && <p className="text-sm text-destructive">{downloadError}</p>}
 						<ol className="list-decimal pl-5 space-y-2 text-sm">
 							<li>{t('stepOpen')}</li>
 							<li>{os === 'mac' ? t('stepShareMac') : t('stepShareWindows')}</li>
@@ -217,9 +277,14 @@ export function SetupWizard({
 											<li>{t('troubleRoot')}</li>
 											<li>{t('troubleNet')}</li>
 										</ul>
-										<Button variant="outline" onClick={handleDownload} disabled={!recalboxId}>
+										<Button
+											variant="outline"
+											onClick={handleDownload}
+											disabled={!recalboxId || downloading}
+										>
 											{t('troubleRetry')}
 										</Button>
+										{downloadError && <p className="text-sm text-destructive">{downloadError}</p>}
 									</div>
 								)}
 							</>
