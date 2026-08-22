@@ -95,6 +95,23 @@ describe('SetupWizard', () => {
 		expect(fetchMock.mock.calls.length).toBe(callsAfterConnect)
 	})
 
+	it('arrête de sonder après le délai maximum et l’indique clairement', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(new Response(JSON.stringify({ seen: false, lastSeenAt: null })))
+		vi.stubGlobal('fetch', fetchMock)
+		renderAt({ startAt: 'wait', recalboxId: 'rb-1' })
+		await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 1_000)
+		await waitFor(() =>
+			expect(screen.getByText(messages.recalboxes.wizard.troubleStopped)).toBeInTheDocument(),
+		)
+		const callsAtStop = fetchMock.mock.calls.length
+		await vi.advanceTimersByTimeAsync(60_000)
+		// The hard stop must actually tear the interval down, not just hide the
+		// UI — otherwise an abandoned tab keeps hammering the endpoint forever.
+		expect(fetchMock.mock.calls.length).toBe(callsAtStop)
+	})
+
 	it('affiche un message générique quand la création échoue avec un corps illisible', async () => {
 		// Non-OK response whose body isn't the route's own JSON (an unhandled
 		// 500 rendering an HTML error page, a proxy error, …) — `error` can't be

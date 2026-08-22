@@ -10,6 +10,11 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 const POLL_MS = 5_000
 const TROUBLE_AFTER_MS = 3 * 60 * 1000
+// Hard ceiling on the wait screen's auto-poll: an abandoned tab on a box that
+// never enrols would otherwise poll every POLL_MS forever (~720 requests/hour,
+// indefinitely). 30 minutes is generous for a slow first boot while still
+// bounding the worst case.
+const MAX_WAIT_MS = 30 * 60 * 1000
 
 type Screen = 'name' | 'install' | 'wait'
 type Os = 'windows' | 'mac'
@@ -60,6 +65,7 @@ export function SetupWizard({
 	// Screen 3 — wait.
 	const [seen, setSeen] = useState(false)
 	const [trouble, setTrouble] = useState(false)
+	const [stopped, setStopped] = useState(false)
 
 	async function handleCreate(e: FormEvent) {
 		e.preventDefault()
@@ -115,7 +121,9 @@ export function SetupWizard({
 		setDownloading(true)
 		setDownloadError(null)
 		try {
-			const res = await fetch(`/api/recalboxes/${recalboxId}/installer`)
+			const res = await fetch(
+				`/api/recalboxes/${recalboxId}/installer?locale=${encodeURIComponent(locale)}`,
+			)
 			if (!res.ok) {
 				setDownloadError(t('downloadError'))
 				return
@@ -186,6 +194,18 @@ export function SetupWizard({
 		const troubleTimeout = setTimeout(() => {
 			if (!cancelled) setTrouble(true)
 		}, TROUBLE_AFTER_MS)
+		// Hard stop: past MAX_WAIT_MS, give up polling entirely rather than hammer
+		// the endpoint forever on an abandoned tab. `trouble` is already true by
+		// then (MAX_WAIT_MS > TROUBLE_AFTER_MS), so the panel is already on screen —
+		// this just adds the "we stopped, here's how to come back" note to it.
+		const stopTimeout = setTimeout(() => {
+			if (cancelled) return
+			setStopped(true)
+			if (pollIntervalRef.current !== null) {
+				clearInterval(pollIntervalRef.current)
+				pollIntervalRef.current = null
+			}
+		}, MAX_WAIT_MS)
 
 		return () => {
 			cancelled = true
@@ -194,6 +214,7 @@ export function SetupWizard({
 				pollIntervalRef.current = null
 			}
 			clearTimeout(troubleTimeout)
+			clearTimeout(stopTimeout)
 		}
 	}, [screen, recalboxId])
 
@@ -286,14 +307,22 @@ export function SetupWizard({
 											<li>{t('troubleRoot')}</li>
 											<li>{t('troubleNet')}</li>
 										</ul>
-										<Button
-											variant="outline"
-											onClick={handleDownload}
-											disabled={!recalboxId || downloading}
-										>
-											{t('troubleRetry')}
-										</Button>
-										{downloadError && <p className="text-sm text-destructive">{downloadError}</p>}
+										{stopped ? (
+											<p className="text-sm text-muted-foreground">{t('troubleStopped')}</p>
+										) : (
+											<>
+												<Button
+													variant="outline"
+													onClick={handleDownload}
+													disabled={!recalboxId || downloading}
+												>
+													{t('troubleRetry')}
+												</Button>
+												{downloadError && (
+													<p className="text-sm text-destructive">{downloadError}</p>
+												)}
+											</>
+										)}
 									</div>
 								)}
 							</>

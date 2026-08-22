@@ -21,6 +21,12 @@ COPY apps/dashboard/ ./apps/dashboard/
 # Ensure public/ exists (Next.js standalone expects it even if empty)
 RUN mkdir -p apps/dashboard/public
 
+# On-box agent source: `pnpm --filter @recalbox/dashboard build` runs
+# scripts/copy-agent-payload.mjs as its `prebuild` step, which reads these
+# files from <repo>/agent and copies them into apps/dashboard/agent-payload/
+# for the installer zip route. Must land before the build step below.
+COPY agent/ ./agent/
+
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 

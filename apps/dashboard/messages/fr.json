@@ -840,6 +840,7 @@
 			"troubleRoot": "Les dossiers « system » et « userscripts » sont-ils bien à la racine de « share », et pas dans un sous-dossier ?",
 			"troubleNet": "La Recalbox a-t-elle accès à Internet ?",
 			"troubleRetry": "Retélécharger l'installeur",
+			"troubleStopped": "Nous avons arrêté de vérifier automatiquement. Reviens quand tu veux depuis la liste des Recalbox : tu la retrouveras dans « En attente d'installation ».",
 			"pending": "En attente d'installation",
 			"resume": "Terminer l'installation"
 		}

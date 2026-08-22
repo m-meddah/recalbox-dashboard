@@ -25,11 +25,22 @@ const nextConfig: NextConfig = {
 	// les autres casse la production sans casser le local.
 	outputFileTracingRoot: path.join(import.meta.dirname, '..', '..'),
 	outputFileTracingIncludes: {
+		// `[id]` here is the route's own dynamic-segment key, not a glob — Next
+		// matches this against route paths verbatim, unrelated to the include
+		// globs below.
 		'/api/recalboxes/[id]/installer': [
 			'agent-payload/agent.py',
 			'agent-payload/scan_roms.py',
 			'agent-payload/launch.py',
-			'agent-payload/sr-agent[systembrowsing].sh',
+			// The include values ARE globs (matched via picomatch/glob under the
+			// hood), so `[systembrowsing]` would otherwise parse as a bracket
+			// expression matching one character — not the literal 14-character
+			// filename. It happens to still match today (byproduct of how the
+			// current engine falls back), but that's glob-engine trivia a future
+			// Next upgrade could silently break: a tracing miss isn't a build
+			// error, it just omits the file and the route 500s in production.
+			// Escaping the brackets removes the dependency on that trivia.
+			'agent-payload/sr-agent\\[systembrowsing\\].sh',
 			'agent-payload/VERSION',
 		],
 	},

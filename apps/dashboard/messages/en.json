@@ -840,6 +840,7 @@
 			"troubleRoot": "Are \"system\" and \"userscripts\" at the root of \"share\", and not inside another folder?",
 			"troubleNet": "Is the Recalbox connected to the internet?",
 			"troubleRetry": "Download the installer again",
+			"troubleStopped": "We've stopped checking automatically. Come back anytime from the Recalboxes list — you'll find this one under \"Awaiting setup\".",
 			"pending": "Awaiting setup",
 			"resume": "Finish setup"
 		}

@@ -144,9 +144,12 @@ du Python si — l'agent a déjà 105 tests en `unittest` standard. La logique d
 arrière ne doit pas être le seul morceau du projet qu'aucun test ne couvre.
 
 `custom.sh` **sort du parcours d'installation** : on n'y touche plus du tout, ce qui
-supprime le risque d'écrasement. Les box déjà installées via `custom.sh` continuent de
-fonctionner ; l'agent détecte au démarrage qu'il a été lancé deux fois (ancien chemin
-+ nouveau lanceur) et neutralise proprement l'ancien.
+supprime le risque d'écrasement. Mais ça déplace la responsabilité sur l'utilisateur :
+une box déjà installée à l'ancienne (`custom.sh` ajouté à la main) doit avoir ce chemin
+retiré **avant** de glisser le nouveau zip. Rien ne détecte ni ne neutralise l'ancien
+lancement automatiquement — si les deux cohabitent, deux agents démarrent
+indépendamment et chaque session de jeu est enregistrée en double. Le `LISEZMOI.txt`
+livré dans le zip porte cet avertissement.
 
 ### C. L'assistant en 3 écrans
 
