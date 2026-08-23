@@ -27,6 +27,7 @@ import {
 	ShieldUser,
 	SlidersHorizontal,
 	Trophy,
+	Tv,
 	UserRound,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -41,6 +42,9 @@ const NAV_ITEMS = [
 	{ href: '/profile', labelKey: 'profile', icon: UserRound },
 	{ href: '/achievements', labelKey: 'achievements', icon: Trophy },
 	{ href: '/wrapped', labelKey: 'wrapped', icon: Gift },
+	// Manages machines, not content — kept next to /settings rather than
+	// among the content pages above.
+	{ href: '/recalboxes', labelKey: 'recalboxes', icon: Tv },
 	{ href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const
 

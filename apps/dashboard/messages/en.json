@@ -85,7 +85,8 @@
 		"playTonight": "Play Tonight",
 		"bios": "BIOS",
 		"admin": "Admin",
-		"configuration": "Configuration"
+		"configuration": "Configuration",
+		"recalboxes": "My Recalboxes"
 	},
 	"admin": {
 		"title": "Admin — All Users",
