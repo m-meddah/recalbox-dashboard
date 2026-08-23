@@ -18,6 +18,7 @@ phases. The parsing/pairing logic mirrors the existing TS implementation:
 """
 
 import base64
+import fcntl
 import glob
 import json
 import logging
@@ -40,6 +41,53 @@ ES_EVENT_TOPIC = "Recalbox/WebAPI/EmulationStation/Event"
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
+
+
+# ── Single-instance lock ──────────────────────────────────────────────────────
+# There are TWO ways an agent gets started on a box: the current launcher
+# (userscripts/*[systembrowsing].sh -> launch.py -> execv agent.py) and an older
+# install still in the field (custom.sh runs `python3 agent.py` directly, with
+# no launcher in between). Both must contend for the same lock, or a box with
+# both installs running doubles up every play session. The lock therefore lives
+# here — the one file every start path always runs — rather than in launch.py,
+# which the old custom.sh path never touches.
+def lock_path():
+    """Chemin du fichier de verrou, a cote de agent.py."""
+    return os.path.join(HERE, "launch.lock")
+
+
+def acquire_lock():
+    """Acquiert le verrou d'exclusivite kernel-arbitre ou retourne (False, None).
+
+    Utilise fcntl.flock() pour une exclusivite sans race conditions de type TOCTOU.
+    Le verrou est automatiquement libere si le processus meurt (crash, kill, power cut).
+
+    Retourne (True, fd) si le verrou a ete acquis (le fd doit rester ouvert tant que
+    le processus tourne). Retourne (False, None) si un autre processus tient deja
+    le verrou.
+
+    Erreurs lors de os.open, os.set_inheritable, os.lseek, os.ftruncate, ou os.write
+    propagent et sont loggees comme tracebacks ; seule l'erreur OSError de flock()
+    signifie qu'un autre processus tient le verrou.
+    """
+    lockfile = lock_path()
+    fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
+    # Survives execv, should this process itself ever be exec'd into — cheap to
+    # keep, costs nothing since this process no longer execs into anything else.
+    os.set_inheritable(fd, True)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        # Another agent holds the lock
+        os.close(fd)
+        return (False, None)
+    # Lock acquired — write pid for debugging (but correctness never depends on it)
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode())
+    # DO NOT close fd, DO NOT delete the file — the lock must persist for the
+    # lifetime of this process.
+    return (True, fd)
 
 FLUSH_INTERVAL_SEC = 15
 # Ceiling for every loop's retry backoff. Without one, a cloud outage costs the same
@@ -1106,6 +1154,15 @@ def main():
         stream=sys.stdout,
     )
     cfg = load_config()
+
+    # Must run before any MQTT connection, thread start, or other side effect:
+    # a box can have both the old custom.sh install and the current launcher
+    # running the agent at once, and only one may proceed.
+    acquired, _lock_fd = acquire_lock()
+    if not acquired:
+        log.info("Another agent instance already holds the lock, exiting")
+        sys.exit(0)
+
     log.info(
         "sr-agent starting (recalbox_id=%s, mqtt=%s:%s, cloud=%s)",
         cfg.get("recalbox_id"),

@@ -9,10 +9,13 @@ without installing anything. From the repo root:
 
 import io
 import json
+import multiprocessing
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 import urllib.error
@@ -371,6 +374,228 @@ class PostOutcomeTest(unittest.TestCase):
 		for status in (400, 401, 500):
 			with mock.patch.object(agent.urllib.request, "urlopen", _Urlopen(status)):
 				self.assertFalse(agent.http_post_json(*self.args))
+
+
+class LockingTest(unittest.TestCase):
+	"""The single-instance lock used to live in launch.py; it now lives here because
+	launch.py is not the only thing that starts the agent. An older install still in
+	the field (custom.sh) runs `python3 agent.py` directly, skipping launch.py
+	entirely — so the lock has to be owned by the one file every start path always
+	runs through: agent.py itself."""
+
+	def setUp(self):
+		"""Creer un repertoire temporaire pour les verrous de test."""
+		self.temp_dir = tempfile.mkdtemp()
+		self.original_lock_path = agent.lock_path
+		# Remplacer lock_path() par une version qui utilise le temp dir
+		agent.lock_path = lambda: os.path.join(self.temp_dir, "launch.lock")
+
+	def tearDown(self):
+		"""Nettoyer le repertoire temporaire et restaurer lock_path."""
+		shutil.rmtree(self.temp_dir, ignore_errors=True)
+		agent.lock_path = self.original_lock_path
+
+	def test_free_lock_is_acquired(self):
+		"""Un verrou libre doit etre acquis avec succes."""
+		acquired, lock_fd = agent.acquire_lock()
+		self.assertTrue(acquired)
+		self.assertIsNotNone(lock_fd)
+		# Verifier que le fichier de verrou existe
+		self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "launch.lock")))
+		# Verifier qu'il contient le pid courant (pour le debug)
+		with open(os.path.join(self.temp_dir, "launch.lock"), "r") as f:
+			content = f.read().strip()
+		self.assertEqual(content, str(os.getpid()))
+		os.close(lock_fd)
+
+	def test_second_caller_while_first_holds_lock_gets_false(self):
+		"""Un deuxieme appelant tandis que le premier tient le verrou doit obtenir False."""
+		acquired1, lock_fd1 = agent.acquire_lock()
+		self.assertTrue(acquired1)
+		self.assertIsNotNone(lock_fd1)
+
+		# Tenter d'acquerir le verrou alors qu'il est deja tenu
+		acquired2, lock_fd2 = agent.acquire_lock()
+		self.assertFalse(acquired2)
+		self.assertIsNone(lock_fd2)
+
+		os.close(lock_fd1)
+
+	def test_lock_is_acquirable_again_after_holder_exits(self):
+		"""Le verrou doit etre acquirable apres que le titulaire ait ferme le fd."""
+		acquired1, lock_fd1 = agent.acquire_lock()
+		self.assertTrue(acquired1)
+		self.assertIsNotNone(lock_fd1)
+
+		# Fermer le fd (simule la mort du processus titulaire)
+		os.close(lock_fd1)
+
+		# Tenter d'acquerir le verrou a nouveau — doit reussir car le noyau
+		# a automatiquement libere le verrou quand le fd a ete ferme
+		acquired2, lock_fd2 = agent.acquire_lock()
+		self.assertTrue(acquired2)
+		self.assertIsNotNone(lock_fd2)
+
+		os.close(lock_fd2)
+
+	@staticmethod
+	def _worker_acquire_lock(result_queue):
+		"""Fonction worker pour test de concurrence: tente d'acquerir le verrou."""
+		acquired, lock_fd = agent.acquire_lock()
+		result_queue.put({"acquired": acquired, "pid": os.getpid()})
+		if acquired and lock_fd is not None:
+			# Garder le verrou pendant 0.2 secondes pour permettre a d'autres
+			# callers de tenter l'acquisition
+			time.sleep(0.2)
+			os.close(lock_fd)
+
+	def test_exactly_one_caller_among_many_gets_lock(self):
+		"""Exactement un appelant parmi N doit acquerir le verrou."""
+		num_callers = 5
+		result_queue = multiprocessing.Queue()
+
+		# Lancer N processus qui tentent tous d'acquerir le verrou
+		processes = []
+		for _ in range(num_callers):
+			p = multiprocessing.Process(
+				target=LockingTest._worker_acquire_lock, args=(result_queue,)
+			)
+			p.start()
+			processes.append(p)
+
+		# Attendre que tous les processus se terminent
+		for p in processes:
+			p.join(timeout=5)
+
+		# Collecter les resultats
+		results = []
+		while not result_queue.empty():
+			results.append(result_queue.get())
+
+		# Verifier qu'exactement un processus a acquis le verrou
+		acquired_count = sum(1 for r in results if r["acquired"])
+		self.assertEqual(
+			acquired_count, 1, f"Expected 1 lock holder, got {acquired_count}"
+		)
+		# Verifier que tous les autres ont obtenu False
+		failed_count = sum(1 for r in results if not r["acquired"])
+		self.assertEqual(failed_count, num_callers - 1)
+
+	def test_oserror_from_os_open_propagates_not_swallowed(self):
+		"""Erreurs non-flock (e.g. os.open EACCES) doivent propager, pas etre avalees."""
+		# Regression test: narrow OSError catch to only fcntl.flock(). Errors from
+		# os.open/set_inheritable/ftruncate/write must propagate and appear in
+		# agent.log as tracebacks, not silently treated as "another agent holds
+		# the lock".
+
+		original_os_open = os.open
+
+		def failing_os_open(path, flags, mode=None):
+			# Simulate a filesystem permission error
+			raise PermissionError(f"[Errno 13] Permission denied: '{path}'")
+
+		# Monkeypatch os.open to fail
+		os.open = failing_os_open
+		try:
+			# acquire_lock should propagate the PermissionError, not return (False, None)
+			with self.assertRaises(PermissionError):
+				agent.acquire_lock()
+		finally:
+			# Restore original
+			os.open = original_os_open
+
+
+class DirectInvocationLockTest(unittest.TestCase):
+	"""The property this whole change exists to deliver: the OLD custom.sh install
+	starts the agent with `python3 agent.py` directly, never touching launch.py. It
+	must still contend for the exact same lock as a box started the current way
+	(python3 launch.py, which execv's into agent.py). Runs real subprocesses — not
+	monkeypatched in-process calls — so launch.py genuinely has zero lock code left
+	to exercise and the two entry points are exercised as they are on a real box."""
+
+	def setUp(self):
+		self.work = tempfile.mkdtemp()
+		agent_dir = os.path.dirname(os.path.abspath(__file__))
+		shutil.copy(os.path.join(agent_dir, "agent.py"), os.path.join(self.work, "agent.py"))
+		shutil.copy(os.path.join(agent_dir, "launch.py"), os.path.join(self.work, "launch.py"))
+
+		# agent.py imports paho at module level. The in-process sys.modules stub used
+		# by the rest of this file doesn't cross into a subprocess, so stub it on disk.
+		stub_root = os.path.join(self.work, "_stubs")
+		pkg_dir = os.path.join(stub_root, "paho", "mqtt")
+		os.makedirs(pkg_dir)
+		open(os.path.join(stub_root, "paho", "__init__.py"), "w").close()
+		open(os.path.join(pkg_dir, "__init__.py"), "w").close()
+		with open(os.path.join(pkg_dir, "client.py"), "w", encoding="utf-8") as f:
+			f.write(
+				"class CallbackAPIVersion:\n"
+				"    VERSION2 = 2\n"
+				"class Client:\n"
+				"    def __init__(self, *a, **k):\n"
+				"        self.on_connect = self.on_disconnect = self.on_message = None\n"
+				"    def subscribe(self, *a, **k):\n"
+				"        pass\n"
+				"    def reconnect_delay_set(self, *a, **k):\n"
+				"        pass\n"
+				"    def connect(self, *a, **k):\n"
+				"        raise OSError('stub: no real broker in tests')\n"
+				"    def loop_forever(self):\n"
+				"        pass\n"
+			)
+		self.env = dict(os.environ)
+		self.env["PYTHONPATH"] = stub_root + os.pathsep + self.env.get("PYTHONPATH", "")
+		self.procs = []
+
+	def tearDown(self):
+		for p in self.procs:
+			if p.poll() is None:
+				p.kill()
+				p.wait(timeout=5)
+		shutil.rmtree(self.work, ignore_errors=True)
+
+	def _spawn(self, script_name):
+		proc = subprocess.Popen(
+			[sys.executable, os.path.join(self.work, script_name)],
+			cwd=self.work,
+			env=self.env,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT,
+			text=True,
+		)
+		self.procs.append(proc)
+		return proc
+
+	def test_direct_invocation_and_launcher_contend_for_the_same_lock(self):
+		# No config.json: defaults leave cloud_url empty, so every network call in
+		# every background loop is a no-op (endpoint_for returns "" -> http calls
+		# short-circuit) and the lock decision at the top of main() is the only
+		# thing that matters for this test.
+		direct = self._spawn("agent.py")  # the old custom.sh path
+		via_launcher = self._spawn("launch.py")  # the current launcher path
+
+		loser = winner = None
+		deadline = time.time() + 5
+		while time.time() < deadline and loser is None:
+			if direct.poll() is not None:
+				loser, winner = direct, via_launcher
+			elif via_launcher.poll() is not None:
+				loser, winner = via_launcher, direct
+			else:
+				time.sleep(0.05)
+
+		self.assertIsNotNone(loser, "neither process exited within 5s; expected exactly one loser")
+		self.assertEqual(loser.returncode, 0, loser.stdout.read() if loser.stdout else "")
+
+		# The winner must still be holding the lock, not also exited. Only read its
+		# stdout in the failure branch: reading a still-alive process's pipe blocks
+		# until it closes, which would hang this test in the passing case.
+		time.sleep(0.2)
+		winner_exit = winner.poll()
+		if winner_exit is not None:
+			self.fail(
+				"the winner should still be running (holds the lock) but exited with %r: %s"
+				% (winner_exit, winner.stdout.read() if winner.stdout else "")
+			)
 
 
 if __name__ == "__main__":

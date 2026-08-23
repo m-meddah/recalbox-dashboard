@@ -5,9 +5,14 @@ Aujourd'hui il ne fait qu'une chose : lancer agent.py en remplaçant son propre
 processus. Il existe séparément du script shell parce que c'est ici qu'arriveront la
 mise à jour automatique et le retour arriere — de la logique qui doit etre testable,
 ce que du bash sur une box distante n'est pas.
+
+L'exclusion mutuelle (fcntl.flock()) vit dans agent.py, pas ici : l'ancien chemin
+d'installation (custom.sh) lance agent.py directement, sans jamais passer par ce
+superviseur, donc un verrou pose ici ne le verrait pas. agent.py est le seul fichier
+que tous les chemins de demarrage executent toujours ; c'est donc lui qui doit
+arbitrer l'exclusivite.
 """
 
-import fcntl
 import os
 import sys
 
@@ -24,56 +29,10 @@ def build_argv():
     return [sys.executable, agent_path()]
 
 
-def lock_path():
-    """Chemin du fichier de verrou, a cote de launch.py."""
-    return os.path.join(HERE, "launch.lock")
-
-
-def acquire_lock():
-    """Acquiert le verrou d'exclusivite kernel-arbitre ou retourne (False, None).
-
-    Utilise fcntl.flock() pour une exclusivite sans race conditions de type TOCTOU.
-    Le verrou est automatiquement libere si le processus meurt (crash, kill, power cut).
-
-    Retourne (True, fd) si le verrou a ete acquis (fd doit rester ouvert pour que
-    le verrou persiste a travers execv). Retourne (False, None) si un autre processus
-    tient deja le verrou.
-
-    Erreurs lors de os.open, os.set_inheritable, os.lseek, os.ftruncate, ou os.write
-    propagent et sont loggees comme tracebacks ; seule l'erreur OSError de flock()
-    signifie qu'un autre processus tient le verrou.
-    """
-    lockfile = lock_path()
-    fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
-    # MUST survive execv — Python sets close-on-exec by default (PEP 446)
-    os.set_inheritable(fd, True)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        # Another agent holds the lock
-        os.close(fd)
-        return (False, None)
-    # Lock acquired — write pid for debugging (but correctness never depends on it)
-    os.lseek(fd, 0, os.SEEK_SET)
-    os.ftruncate(fd, 0)
-    os.write(fd, str(os.getpid()).encode())
-    # DO NOT close fd, DO NOT delete the file — the lock must persist across execv
-    return (True, fd)
-
-
 def main():
-    acquired, lock_fd = acquire_lock()
-    if not acquired:
-        # Another agent holds the lock, exit quietly
-        sys.exit(0)
-
     argv = build_argv()
-    # lock_fd is now inheritable and will survive execv.
-    # Keep lock_fd referenced so it is not garbage-collected before execv.
-    # os.execv replaces the process image entirely: no supervisor process lingers,
-    # and the flock is held by the replacement process (the agent) since the fd is
-    # marked inheritable. Other launchers trying to acquire the same lock will see
-    # it is held and exit immediately.
+    # os.execv replaces the process image entirely: no supervisor process lingers.
+    # agent.py acquires the single-instance lock itself right after it starts.
     os.execv(argv[0], argv)
 
 
