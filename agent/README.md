@@ -33,7 +33,7 @@ disabled by setting its interval `<= 0`.
 
 - `agent.py` — the agent.
 - `scan_roms.py` — the ROM-audit scanner. **Required next to `agent.py`**: without it the agent refuses `scan` commands with an explicit message (it never crashes, but the audit cannot run).
-- `custom.sh` — boot hook. Deploy to `/recalbox/share/system/custom.sh`; RecalboxOS's `/etc/init.d/S99custom` runs it at boot (`$1`=start) and shutdown (`$1`=stop). The `/recalbox/share` partition survives OS upgrades.
+- `custom.sh` — boot hook. Deploy to `/recalbox/share/system/custom.sh`; RecalboxOS's `/etc/init.d/S99custom` runs it at boot (`$1`=start) and shutdown (`$1`=stop). The `/recalbox/share` partition survives OS upgrades. `agent.py` takes its single-instance lock itself, so any start path — this legacy `custom.sh` autostart, the current `launch.py`-based one, or both installed at once on the same box — contends for the same lock and can never end up running two agents that double-record play sessions.
 - `config.example.json` — copy to `config.json` next to `agent.py` and fill in (`cloud_url`, `token`, `recalbox_id`).
 
 ## Tests
