@@ -6,6 +6,11 @@ node_modules/
 apps/dashboard/.next/
 apps/dashboard/out/
 
+# Agent payload copy for the standalone build (see scripts/copy-agent-payload.mjs)
+# Must NOT start with a dot: Turbopack's output file tracer silently ignores
+# dot-directories, even when explicitly declared via outputFileTracingIncludes.
+apps/dashboard/agent-payload/
+
 # Build outputs
 dist/
 build/

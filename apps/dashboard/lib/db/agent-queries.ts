@@ -3,10 +3,13 @@ import { generateAgentToken, hashAgentToken } from '@/lib/agent/token'
 import type { DB } from '@/lib/db'
 import { agentTokens } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { after } from 'next/server'
 
 export type AgentTokenRow = typeof agentTokens.$inferSelect
+
+/** Name given to tokens minted by the installer zip route (`installer/route.ts`). */
+export const INSTALLER_TOKEN_NAME = 'installeur'
 
 /**
  * Mint a new agent token for a Recalbox. Returns the RAW token, which is shown
@@ -47,11 +50,18 @@ export async function resolveAgentToken(
 			id: agentTokens.id,
 			recalboxId: agentTokens.recalboxId,
 			revokedAt: agentTokens.revokedAt,
+			lastUsedAt: agentTokens.lastUsedAt,
 		})
 		.from(agentTokens)
 		.where(eq(agentTokens.tokenHash, hashAgentToken(rawToken)))
 		.get()
 	if (!row || row.revokedAt) return null
+
+	// A null `lastUsedAt` means this is the token's FIRST successful check-in — the
+	// only instant the server can know, with certainty, which minted token is the
+	// one actually deployed on the box. That is the safe & complete moment to clean
+	// up sibling installer tokens (see `cleanupOnFirstUse` below).
+	const isFirstCheckIn = row.lastUsedAt == null
 
 	// `lastUsedAt` is the box-liveness signal: buildSeedState derives online/offline
 	// from it, so a lost write makes a live box read as offline in the UI. It used to
@@ -59,15 +69,33 @@ export async function resolveAgentToken(
 	// response flushes. `after()` hands the write to the platform, which keeps the
 	// invocation alive until it settles — without delaying the response.
 	try {
-		after(() => touchLastUsed(db, row.id))
+		after(() => cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn))
 	} catch {
 		// `after()` throws outside a request scope (tests, one-shot scripts, the
 		// scrobbler). There is no platform to defer to there, so write inline rather
 		// than drop the touch. The callback form above means nothing ran yet.
-		await touchLastUsed(db, row.id)
+		await cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn)
 	}
 
 	return { recalboxId: row.recalboxId, tokenId: row.id }
+}
+
+/**
+ * Deferred work run on every check-in: always touches `lastUsedAt`, and on the
+ * FIRST check-in only, also revokes sibling unused installer tokens. Both steps
+ * are best-effort — this runs from `after()` (or inline as its fallback), never
+ * on the response path, and must never fail the agent's request.
+ */
+async function cleanupOnFirstUse(
+	db: DB,
+	tokenId: string,
+	recalboxId: string,
+	isFirstCheckIn: boolean,
+): Promise<void> {
+	await touchLastUsed(db, tokenId)
+	if (isFirstCheckIn) {
+		await revokeSiblingInstallerTokens(db, recalboxId, tokenId)
+	}
 }
 
 /** Best-effort liveness touch: never let a failed write break the caller's request. */
@@ -76,6 +104,41 @@ async function touchLastUsed(db: DB, tokenId: string): Promise<void> {
 		await db.update(agentTokens).set({ lastUsedAt: new Date() }).where(eq(agentTokens.id, tokenId))
 	} catch (err) {
 		logger.error('[agent] lastUsedAt touch failed', err)
+	}
+}
+
+/**
+ * Revoke every OTHER never-used `installeur` token for this Recalbox. Called only
+ * from a token's first check-in (see `resolveAgentToken`): at that instant the box
+ * that just talked to us is unambiguously the one running THIS token, so any other
+ * unused installer token for the same box is a stale artifact of an earlier
+ * download (lost zip, retried drag-and-drop, a second computer) — safe and
+ * complete to revoke now, unlike at download time, when the server cannot tell a
+ * token already deployed on the box from one that was merely minted.
+ */
+async function revokeSiblingInstallerTokens(
+	db: DB,
+	recalboxId: string,
+	exceptTokenId: string,
+): Promise<void> {
+	try {
+		const siblings = await db
+			.select({ id: agentTokens.id })
+			.from(agentTokens)
+			.where(
+				and(
+					eq(agentTokens.recalboxId, recalboxId),
+					eq(agentTokens.name, INSTALLER_TOKEN_NAME),
+					isNull(agentTokens.lastUsedAt),
+					isNull(agentTokens.revokedAt),
+				),
+			)
+			.all()
+		await Promise.all(
+			siblings.filter((s) => s.id !== exceptTokenId).map((s) => revokeAgentToken(db, s.id)),
+		)
+	} catch (err) {
+		logger.error('[agent] sibling installer token cleanup failed', err)
 	}
 }
 

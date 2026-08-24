@@ -35,11 +35,18 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(values),
 			})
-			if (!res.ok) throw new Error()
+			if (!res.ok) {
+				const reason = await res
+					.json()
+					.then((d: { error?: unknown }) => (typeof d.error === 'string' ? d.error : null))
+					.catch(() => null)
+				throw new Error(reason ?? '')
+			}
 			toast.success(t('edit.success'))
 			router.push('/recalboxes')
-		} catch {
-			toast.error(t('edit.error'))
+		} catch (err) {
+			const reason = err instanceof Error ? err.message : ''
+			toast.error(reason ? `${t('edit.error')} — ${reason}` : t('edit.error'))
 		} finally {
 			setLoading(false)
 		}

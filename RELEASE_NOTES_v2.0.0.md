@@ -132,6 +132,42 @@ with the Recalbox off, and **without keeping any extra device running at home**.
 
 Full runbook: [docs/serverless-deploy.md](docs/serverless-deploy.md).
 
+### Plug-and-play agent install — no terminal, no password 🔌
+
+The serverless edition above is only as good as enrolling a box into it. Before this, that
+meant SSH-ing into the console and hand-copying `agent.py`, writing a `config.json`, and
+cobbling together a `custom.sh`. In serverless mode, `/recalboxes/add` is now a guided
+3-screen wizard that does the whole job from the browser and the Recalbox's own network share
+(self-hosted keeps its existing technical form unchanged).
+
+- **Name it, download a zip, wait** — screen 1 asks only for a name, emoji and colour; screen 2
+  hands you a pre-configured `.zip`; screen 3 polls quietly and turns green the moment the
+  console first checks in. Close the tab and the box just shows as "awaiting setup" in the list,
+  with a link back into the wizard — the wait is a state, not a step you can lose. After about
+  three minutes with no sighting, the screen lists the likely causes instead of spinning forever,
+  and the polling itself stops after a bounded wait.
+- **One drag, no password** — the zip mirrors the Recalbox share's own layout (`system/` +
+  `userscripts/`), so installing is a single drag of two folders into `\\RECALBOX\share`
+  (Windows) or `smb://recalbox` (macOS/Linux), then a reboot. Samba is guest-writable on Recalbox
+  by default, so there's nothing to type. Windows merges the folders rather than replacing them,
+  and none of the shipped filenames collide with anything already on a console.
+- **Self-starting and self-watching** — the agent is started by a script dropped in
+  `userscripts/`, named for the EmulationStation event that fires when the system list appears —
+  so at boot, and again on every menu navigation, which makes the same script double as a
+  watchdog: a dead agent restarts the next time you open the menu.
+- **Exactly one agent, guaranteed** — a kernel-arbitrated `flock` taken inside `agent.py` itself
+  makes sure of it. That matters because the startup event fires twice within a second, and
+  because a console still carrying an old manual `custom.sh` install would otherwise run a
+  second agent and double-record every play session. The lock lives in the agent, so every start
+  path contends for it — old or new — and `custom.sh` itself is never read, edited, or
+  overwritten, so any customisations you've made there are safe.
+- **A token, scoped and self-cleaning** — the zip embeds a per-console enrolment token. It's
+  owner-only, never cached, and any unused sibling installer tokens are cleaned up the first time
+  a token is actually used — never at download time, since a token already sitting on a console
+  that hasn't finished booting must not be revoked out from under it.
+- **Reachable before you have a box** — a new sidebar entry for the Recalbox list, so the flow is
+  there even on a first visit.
+
 ### Edit your Recalbox config (`/configuration`) 🛠️
 
 A new configuration editor with Web Manager parity: read and write `recalbox.conf` settings
@@ -183,6 +219,12 @@ caching), feeding the existing collection touchpoints.
 - Scrobbler: the previous instance is stopped on `tsx` watch hot-reload to avoid duplicate
   daemons.
 - MQTT broker URLs now bracket IPv6 hosts correctly (tailnet addresses).
+- Recalboxes: adding a box no longer refuses a blank SSH password in serverless mode, where the
+  cloud never opens an SSH connection to begin with.
+- Recalboxes: saving an existing box no longer fails for everyone unless the SSH password is
+  retyped — the edit form never receives the stored secret to prefill, so a rename alone used to
+  return an error.
+- Recalboxes: add/edit failures now show the API's actual explanation instead of a generic toast.
 
 ---
 
@@ -205,6 +247,8 @@ caching), feeding the existing collection touchpoints.
 | `GET / POST /api/agent/artwork` | Agent pulls "wanted" artwork paths / uploads images to object storage |
 | `GET /api/agent/commands` · `POST /api/agent/commands/result` | Agent polls the remote-control queue and reports results |
 | `GET / POST / DELETE /api/recalboxes/:id/agent-tokens` | Mint / list / revoke a box's agent enrolment tokens (owner) |
+| `GET /api/recalboxes/:id/installer` | Download a pre-configured installer `.zip` for the box (agent + config + a fresh enrolment token; owner) |
+| `GET /api/recalboxes/:id/agent-status` | Whether the box's agent has ever checked in, for the setup wizard's wait screen (view) |
 | `POST / GET /api/recalboxes/:id/commands` | Enqueue / list remote-control commands (owner) |
 
 ### Connections
@@ -253,8 +297,9 @@ see [docs/mesh-vpn-setup.md](docs/mesh-vpn-setup.md).
 Run the dashboard on Vercel against a Turso/libSQL DB, with the Python agent on each Recalbox —
 no always-on host, no port-forwarding. Set `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`
 (plus `TURSO_DISABLE_REPLICA=1` for the build), `BLOB_READ_WRITE_TOKEN`, `AGENT_ONLY_MEDIA=1` and
-the `BETTER_AUTH_*` vars; bootstrap your admin account; then enrol each box's agent from its
-Recalbox edit page. Full step-by-step in [docs/serverless-deploy.md](docs/serverless-deploy.md).
+the `BETTER_AUTH_*` vars; bootstrap your admin account; then add each box through the guided
+setup wizard at `/recalboxes/add` — no more SSH-ing in and copying files by hand. Full
+step-by-step in [docs/serverless-deploy.md](docs/serverless-deploy.md).
 
 ### From source
 

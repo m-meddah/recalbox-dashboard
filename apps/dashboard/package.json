@@ -7,6 +7,7 @@
 		"dev:mobile": "next dev --turbopack --hostname 0.0.0.0",
 		"dev:all": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack\" \"tsx watch scripts/start-scrobbler.ts\"",
 		"dev:all:mobile": "concurrently -n next,scrobbler -c cyan,magenta \"next dev --turbopack --hostname 0.0.0.0\" \"tsx watch scripts/start-scrobbler.ts\"",
+		"prebuild": "node scripts/copy-agent-payload.mjs",
 		"build": "drizzle-kit migrate && TURSO_DISABLE_REPLICA=1 next build",
 		"start": "next start",
 		"scrobbler": "tsx scripts/start-scrobbler.ts",
@@ -39,6 +40,7 @@
 		"cron": "^4.4.0",
 		"drizzle-orm": "^0.45.2",
 		"fast-xml-parser": "^5.8.0",
+		"fflate": "^0.8.3",
 		"lucide-react": "^1.14.0",
 		"motion": "^12.38.0",
 		"mqtt": "^5.0.0",
@@ -58,6 +60,8 @@
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
+		"@testing-library/jest-dom": "^7.0.1",
+		"@testing-library/react": "^16.3.2",
 		"@types/better-sqlite3": "^7.0.0",
 		"@types/cron": "^2.4.3",
 		"@types/node": "^22.0.0",
@@ -67,6 +71,7 @@
 		"concurrently": "^9.2.1",
 		"drizzle-kit": "^0.31.10",
 		"esbuild": "^0.25.0",
+		"jsdom": "^30.0.1",
 		"sharp": "^0.33.5",
 		"tailwindcss": "^4.0.0",
 		"tsx": "^4.0.0",

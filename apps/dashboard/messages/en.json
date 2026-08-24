@@ -85,7 +85,8 @@
 		"playTonight": "Play Tonight",
 		"bios": "BIOS",
 		"admin": "Admin",
-		"configuration": "Configuration"
+		"configuration": "Configuration",
+		"recalboxes": "My Recalboxes"
 	},
 	"admin": {
 		"title": "Admin — All Users",
@@ -813,6 +814,36 @@
 			"archived": "Recalbox archived",
 			"delete": "Delete",
 			"loading": "Loading…"
+		},
+		"wizard": {
+			"step": "Step {current} of {total}",
+			"nameTitle": "What should we call your Recalbox?",
+			"nameHint": "You can change this later.",
+			"namePlaceholder": "Living room",
+			"next": "Continue",
+			"installTitle": "Install it on your Recalbox",
+			"download": "Download the installer",
+			"downloading": "Preparing…",
+			"downloadError": "Could not prepare the installer. Try again.",
+			"tabWindows": "Windows",
+			"tabMac": "macOS",
+			"stepOpen": "Open the file you just downloaded.",
+			"stepShareWindows": "In File Explorer, type \\\\RECALBOX in the address bar, then open the \"share\" folder.",
+			"stepShareMac": "In Finder, press Cmd+K, type smb://recalbox, then open the \"share\" folder.",
+			"stepDrag": "Drag the \"system\" and \"userscripts\" folders into \"share\". If asked to merge, say yes — nothing gets overwritten.",
+			"stepReboot": "Restart your Recalbox.",
+			"waitTitle": "Waiting for your Recalbox…",
+			"waitBody": "As soon as it starts up, it will connect on its own. You can close this page — you'll find it under \"Awaiting setup\".",
+			"connected": "Your Recalbox is connected!",
+			"goToDashboard": "Open the dashboard",
+			"troubleTitle": "Still nothing after a few minutes",
+			"troubleReboot": "Did the Recalbox actually restart? The agent only starts on boot.",
+			"troubleRoot": "Are \"system\" and \"userscripts\" at the root of \"share\", and not inside another folder?",
+			"troubleNet": "Is the Recalbox connected to the internet?",
+			"troubleRetry": "Download the installer again",
+			"troubleStopped": "We've stopped checking automatically. Come back anytime from the Recalboxes list — you'll find this one under \"Awaiting setup\".",
+			"pending": "Awaiting setup",
+			"resume": "Finish setup"
 		}
 	},
 	"health": {

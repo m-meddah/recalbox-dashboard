@@ -1,0 +1,105 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { readAgentPayload } from '@/lib/agent/payload'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+describe('readAgentPayload', () => {
+	it('lit les deux fichiers Python de l agent', async () => {
+		const payload = await readAgentPayload()
+		// Marqueurs stables : présents dans agent.py et scan_roms.py depuis leur création.
+		expect(payload.agentPy).toContain('CONFIG_PATH')
+		expect(payload.scanRomsPy.length).toBeGreaterThan(1000)
+	})
+
+	it('lit la version et la débarrasse des espaces', async () => {
+		const payload = await readAgentPayload()
+		expect(payload.version).toMatch(/^\d+\.\d+\.\d+$/)
+	})
+
+	describe('résolution source vs copie (répertoires injectés, jamais les vrais agent/ ou agent-payload/)', () => {
+		// Les deux tests ci-dessous pointent `readAgentPayload()` vers des
+		// répertoires temporaires qu'ils créent et détruisent eux-mêmes, plutôt
+		// que de renommer `agent/` (suivi par git) ou `agent-payload/` réels. Si
+		// le process de test est tué entre les deux étapes d'un rename (Ctrl-C,
+		// abort de l'IDE, OOM kill — réaliste sur une machine où `pnpm dev` et
+		// `vitest` tournent en parallèle), l'ancienne version laissait `agent/`
+		// disparu de l'arbre de travail avec une `agent.test-backup/` à côté.
+		// Cette version ne touche plus aucun chemin suivi par git.
+
+		const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+
+		async function makeAgentDir(prefix: string, agentPyContent: string) {
+			const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
+			await writeFile(path.join(dir, 'agent.py'), agentPyContent, 'utf-8')
+			for (const filename of requiredFiles) {
+				await writeFile(path.join(dir, filename), `# ${filename} placeholder\n`, 'utf-8')
+			}
+			// La version doit matcher /^\d+\.\d+\.\d+$/ une fois trim()ée.
+			await writeFile(path.join(dir, 'VERSION'), '9.9.9\n', 'utf-8')
+			return dir
+		}
+
+		describe('quand la source et la copie existent toutes les deux et diffèrent', () => {
+			// Le bug corrigé ici : `agent-payload/` n'est rafraîchi QUE par `prebuild`, donc
+			// sous `next dev` il peut contenir une copie arbitrairement ancienne pendant que
+			// `agent/` — la source, à la racine du monorepo — a continué d'évoluer. La
+			// priorité DOIT aller à la source : ce test place un contenu distinguable dans
+			// le répertoire "copie" et vérifie que `readAgentPayload()` renvoie quand même
+			// le contenu du répertoire "source". Si la priorité est inversée en arrière
+			// (copie avant source), ce test échoue.
+			let sourceDir: string
+			let payloadDir: string
+
+			beforeEach(async () => {
+				sourceDir = await makeAgentDir('agent-source-', '# SOURCE MARKER\nCONFIG_PATH = "/tmp"\n')
+				payloadDir = await makeAgentDir(
+					'agent-payload-',
+					'# STALE PAYLOAD MARKER — ne doit jamais être lu\n',
+				)
+			})
+
+			afterEach(async () => {
+				await rm(sourceDir, { recursive: true, force: true })
+				await rm(payloadDir, { recursive: true, force: true })
+			})
+
+			it('la source gagne, pas la copie', async () => {
+				const payload = await readAgentPayload({ sourceDir, payloadDir })
+				expect(payload.agentPy).not.toContain('STALE PAYLOAD MARKER')
+				expect(payload.agentPy).toContain('SOURCE MARKER')
+			})
+		})
+
+		describe('quand la source est absente — build standalone Vercel / runtime Docker', () => {
+			// `agent/` n'est jamais présent au runtime standalone (Turbopack ne trace pas en
+			// dehors de `apps/dashboard/`, et le stage runner du Dockerfile ne copie jamais
+			// `agent/`) : c'est le chemin de prod. Ce test pointe `sourceDir` vers un chemin
+			// qui n'existe pas, pour forcer le code applicatif à emprunter le repli ENOENT
+			// vers le répertoire "copie" — sans ce repli, `readAgentPayload()` rejette et le
+			// test échoue. C'est le chemin de production et il ne doit pas régresser.
+			let sourceDir: string
+			let payloadDir: string
+
+			beforeEach(async () => {
+				// Un chemin plausible mais jamais créé : garantit l'ENOENT sans toucher
+				// à un répertoire réel.
+				sourceDir = path.join(os.tmpdir(), `agent-source-absent-${process.pid}-${Date.now()}`)
+				payloadDir = await makeAgentDir(
+					'agent-payload-',
+					'# PAYLOAD MARKER\nCONFIG_PATH = "/tmp"\n',
+				)
+			})
+
+			afterEach(async () => {
+				await rm(payloadDir, { recursive: true, force: true })
+			})
+
+			it('retombe sur le répertoire copie', async () => {
+				const payload = await readAgentPayload({ sourceDir, payloadDir })
+				expect(payload.agentPy).toContain('PAYLOAD MARKER')
+				expect(payload.version).toMatch(/^\d+\.\d+\.\d+$/)
+			})
+		})
+	})
+})

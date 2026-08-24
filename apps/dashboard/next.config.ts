@@ -1,3 +1,4 @@
+import path from 'node:path'
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import { buildSecurityHeaders } from './lib/security/headers'
@@ -8,6 +9,41 @@ const nextConfig: NextConfig = {
 	allowedDevOrigins: ['192.168.1.76'],
 	output: 'standalone',
 	serverExternalPackages: ['better-sqlite3', 'node-ssh'],
+	// Le dossier `agent/` vit à la racine du monorepo, hors du périmètre que Next
+	// trace automatiquement. `outputFileTracingIncludes` avec un glob `../../agent/*`
+	// ne fonctionne PAS sous Turbopack (le bundler par défaut de `next build` en
+	// Next 16) : vérifié empiriquement — un fichier de test placé dans
+	// `apps/dashboard/` était bien copié dans `.next/standalone`, un fichier
+	// équivalent en dehors de `apps/dashboard/` (via `../../`) ne l'était jamais,
+	// et ce même avec `outputFileTracingRoot` élargi à la racine du monorepo.
+	// Repli : `scripts/copy-agent-payload.mjs` (lancé en `prebuild`) copie les
+	// fichiers de l'agent dans `apps/dashboard/agent-payload/` — DANS le
+	// périmètre tracé — avant que `next build` ne s'exécute. Le nom du dossier ne
+	// doit PAS commencer par un point : `.agent-payload/` (testé) n'est jamais
+	// tracé par Turbopack, même avec les mêmes globs. Toucher l'un de ces trois
+	// éléments (script, chemins ci-dessous, `agentDir()` dans payload.ts) sans
+	// les autres casse la production sans casser le local.
+	outputFileTracingRoot: path.join(import.meta.dirname, '..', '..'),
+	outputFileTracingIncludes: {
+		// `[id]` here is the route's own dynamic-segment key, not a glob — Next
+		// matches this against route paths verbatim, unrelated to the include
+		// globs below.
+		'/api/recalboxes/[id]/installer': [
+			'agent-payload/agent.py',
+			'agent-payload/scan_roms.py',
+			'agent-payload/launch.py',
+			// The include values ARE globs (matched via picomatch/glob under the
+			// hood), so `[systembrowsing]` would otherwise parse as a bracket
+			// expression matching one character — not the literal 14-character
+			// filename. It happens to still match today (byproduct of how the
+			// current engine falls back), but that's glob-engine trivia a future
+			// Next upgrade could silently break: a tracing miss isn't a build
+			// error, it just omits the file and the route 500s in production.
+			// Escaping the brackets removes the dependency on that trivia.
+			'agent-payload/sr-agent\\[systembrowsing\\].sh',
+			'agent-payload/VERSION',
+		],
+	},
 	experimental: {
 		staleTimes: {
 			dynamic: 0,

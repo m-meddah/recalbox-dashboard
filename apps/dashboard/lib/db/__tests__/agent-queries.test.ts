@@ -6,6 +6,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+	INSTALLER_TOKEN_NAME,
 	createAgentToken,
 	listAgentTokens,
 	resolveAgentToken,
@@ -59,5 +60,42 @@ describe('agent token queries', () => {
 		const { token, row } = await createAgentToken(db, 'rb1')
 		expect(row.tokenHash).not.toBe(token)
 		expect(row.tokenHash).toMatch(/^[0-9a-f]{64}$/)
+	})
+
+	describe('installer token cleanup on first check-in', () => {
+		it('a re-download does not revoke a previously minted unused token', async () => {
+			const first = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			// Simulates a second download minting a second token — nothing about
+			// minting a token should touch any other token.
+			await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === first.row.id)?.revokedAt).toBeNull()
+		})
+
+		it("a token's first check-in revokes sibling unused installer tokens for the same box", async () => {
+			const stale = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			const live = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			await resolveAgentToken(db, live.token) // first check-in of `live`
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === stale.row.id)?.revokedAt).not.toBeNull()
+			expect(list.find((t) => t.id === live.row.id)?.revokedAt).toBeNull()
+		})
+
+		it('a second check-in of the same token does not re-run the cleanup', async () => {
+			const live = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			await resolveAgentToken(db, live.token) // first check-in: cleanup runs
+			const later = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			await resolveAgentToken(db, live.token) // second check-in: must NOT revoke `later`
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === later.row.id)?.revokedAt).toBeNull()
+		})
+
+		it("never touches another Recalbox's tokens", async () => {
+			const otherBox = await createAgentToken(db, 'rb2', INSTALLER_TOKEN_NAME)
+			const live = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
+			await resolveAgentToken(db, live.token) // first check-in on rb1
+			const otherList = await listAgentTokens(db, 'rb2')
+			expect(otherList.find((t) => t.id === otherBox.row.id)?.revokedAt).toBeNull()
+		})
 	})
 })

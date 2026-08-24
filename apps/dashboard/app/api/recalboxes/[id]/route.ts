@@ -25,7 +25,7 @@ const updateSchema = z.object({
 	name: z.string().min(1).max(64).optional(),
 	host: z.string().min(1).regex(HOST_REGEX).optional(),
 	sshUser: z.string().min(1).max(32).optional(),
-	sshPassword: z.string().min(1).max(128).optional(),
+	sshPassword: z.string().max(128).optional(),
 	sshPort: z.number().int().min(1).max(65535).optional(),
 	mqttPort: z.number().int().min(1).max(65535).optional(),
 	color: z.string().nullable().optional(),
@@ -48,9 +48,12 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 	}
 	const parsed = updateSchema.safeParse(body)
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
-	// Strip the masked sentinel so a form save without re-entering the password doesn't overwrite it
+	// "Don't touch the password" arrives in two shapes, and BOTH must survive a save that
+	// only meant to rename the box: '***' is the mask GET hands back, '' is what the edit
+	// page sends (it blanks the field rather than prefilling a secret it never receives).
+	// Treating the blank as a value made min(1) reject every untouched save with a 422.
 	const patch = { ...parsed.data }
-	if (patch.sshPassword === '***') patch.sshPassword = undefined
+	if (patch.sshPassword === '***' || patch.sshPassword === '') patch.sshPassword = undefined
 	await configStore.updateRecalboxConfig(id, patch)
 	const updated = configStore.getRecalbox(id)
 	if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })

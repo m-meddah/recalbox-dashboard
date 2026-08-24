@@ -85,7 +85,8 @@
 		"playTonight": "Jouer ce soir",
 		"bios": "BIOS",
 		"admin": "Admin",
-		"configuration": "Configuration"
+		"configuration": "Configuration",
+		"recalboxes": "Mes Recalboxes"
 	},
 	"admin": {
 		"title": "Admin — Tous les utilisateurs",
@@ -813,6 +814,36 @@
 			"archived": "Recalbox archivée",
 			"delete": "Supprimer",
 			"loading": "Chargement…"
+		},
+		"wizard": {
+			"step": "Étape {current} sur {total}",
+			"nameTitle": "Comment s'appelle ta Recalbox ?",
+			"nameHint": "Tu pourras le changer plus tard.",
+			"namePlaceholder": "Salon",
+			"next": "Continuer",
+			"installTitle": "Installe-la sur ta Recalbox",
+			"download": "Télécharger l'installeur",
+			"downloading": "Préparation…",
+			"downloadError": "Impossible de préparer l'installeur. Réessaie.",
+			"tabWindows": "Windows",
+			"tabMac": "macOS",
+			"stepOpen": "Ouvre le fichier que tu viens de télécharger.",
+			"stepShareWindows": "Dans l'explorateur de fichiers, tape \\\\RECALBOX dans la barre d'adresse, puis ouvre le dossier « share ».",
+			"stepShareMac": "Dans le Finder, fais Cmd+K, tape smb://recalbox, puis ouvre le dossier « share ».",
+			"stepDrag": "Glisse les dossiers « system » et « userscripts » dans « share ». Si on te propose de fusionner, accepte : rien n'est écrasé.",
+			"stepReboot": "Redémarre ta Recalbox.",
+			"waitTitle": "En attente de ta Recalbox…",
+			"waitBody": "Dès qu'elle démarre, elle se connecte toute seule. Tu peux fermer cette page : tu la retrouveras dans « En attente d'installation ».",
+			"connected": "Ta Recalbox est connectée !",
+			"goToDashboard": "Ouvrir le dashboard",
+			"troubleTitle": "Toujours rien après quelques minutes",
+			"troubleReboot": "La Recalbox a-t-elle vraiment redémarré ? L'agent ne démarre qu'au démarrage.",
+			"troubleRoot": "Les dossiers « system » et « userscripts » sont-ils bien à la racine de « share », et pas dans un sous-dossier ?",
+			"troubleNet": "La Recalbox a-t-elle accès à Internet ?",
+			"troubleRetry": "Retélécharger l'installeur",
+			"troubleStopped": "Nous avons arrêté de vérifier automatiquement. Reviens quand tu veux depuis la liste des Recalbox : tu la retrouveras dans « En attente d'installation ».",
+			"pending": "En attente d'installation",
+			"resume": "Terminer l'installation"
 		}
 	},
 	"health": {
