@@ -110,6 +110,12 @@ Use both: the Web Manager for ops, this dashboard for analytics.
   command queue and artwork via object storage. No port-forwarding and **nothing always-on at
   home** — you can check in even when the Recalbox is off. Self-hosted (below) stays the simple
   default. See [Deployment models](#deployment-models) and [docs/serverless-deploy.md](docs/serverless-deploy.md).
+- **Plug-and-play agent install** — in serverless mode, `/recalboxes/add` is a guided 3-screen
+  wizard: name the box, download a ready-made `.zip`, drag two folders into `\\RECALBOX\share`
+  or `smb://recalbox` and reboot. No SSH, no terminal, no password to type — Samba on Recalbox is
+  guest-writable by default. The wait screen turns green on its own once the console checks in,
+  and a box you haven't finished installing stays visible in the list as "awaiting setup" with a
+  link back into the wizard. Self-hosted keeps its existing technical add-a-Recalbox form.
 
 > **Upgrading from 1.x:** your sessions, games and settings carry over. Two things are new in
 > 2.0 — the database gains a few tables (auth, invitations, per-machine ownership) applied
@@ -131,8 +137,9 @@ The dashboard supports two deployment models — pick one:
 
 **Self-hosted** is the simple default — follow [Installation](#installation) below. For the
 **serverless edition**, follow the runbook in [docs/serverless-deploy.md](docs/serverless-deploy.md)
-(Vercel + Turso + Vercel Blob; enrol each box's agent from its Recalbox edit page). The whole
-multi-user layer (accounts, ownership, encrypted credentials) works in both.
+(Vercel + Turso + Vercel Blob; then add each box through the guided setup wizard, which
+downloads a ready-to-drop installer `.zip` — no SSH needed). The whole multi-user layer
+(accounts, ownership, encrypted credentials) works in both.
 
 ## Installation
 
