@@ -18,12 +18,21 @@ export type AgentPayload = {
  * Sous `next dev`, `prebuild` ne tourne jamais (seul `pnpm run build`/`pnpm
  * build` le déclenche), donc `agent-payload/` peut dater d'un build précédent
  * — potentiellement très ancien — et rester silencieusement obsolète tant que
- * personne ne relance un build. Lire la source en premier élimine ce piège :
- * en dev comme sur un serveur classique où `agent/` est présent aux côtés de
- * `apps/dashboard/` (ex. l'image Docker, qui fait `COPY agent/ ./agent/`),
- * chaque lecture reflète le fichier réellement sur le disque.
+ * personne ne relance un build. Lire la source en premier élimine ce piège en
+ * dev comme sur un serveur classique où `agent/` reste présent à côté de
+ * `apps/dashboard/` au runtime.
+ *
+ * L'image Docker n'est PAS ce cas : `Dockerfile` fait `COPY agent/ ./agent/`
+ * dans le stage builder (pour que `prebuild` puisse générer `agent-payload/`
+ * pendant `pnpm build`), mais le stage runner qui tourne réellement ne copie
+ * jamais `agent/` — seul `.next/standalone` en sort. Au runtime Docker,
+ * `sourceAgentDir()` est donc toujours absent et chaque lecture retombe sur
+ * `payloadAgentDir()` ; sa fraîcheur vient de `prebuild` qui régénère cette
+ * copie à chaque build d'image, pas d'une lecture de la source en direct.
+ * Bind-monter ou éditer `agent/` dans un conteneur en cours d'exécution n'a
+ * donc aucun effet.
  */
-function sourceAgentDir(): string {
+export function sourceAgentDir(): string {
 	return path.resolve(process.cwd(), '..', '..', 'agent')
 }
 
@@ -48,8 +57,23 @@ function sourceAgentDir(): string {
  * Turbopack ignore silencieusement les dossiers cachés (`.agent-payload`, testé,
  * ne trace jamais rien à l'intérieur) même avec `outputFileTracingRoot` élargi.
  */
-function payloadAgentDir(): string {
+export function payloadAgentDir(): string {
 	return path.resolve(process.cwd(), 'agent-payload')
+}
+
+/**
+ * Dossiers à utiliser pour une lecture — les résolveurs réels par défaut.
+ * Injectable pour les tests : voir `__tests__/payload.test.ts`, qui pointe
+ * ces deux entrées vers des répertoires temporaires plutôt que de manipuler
+ * `agent/` (suivi par git) ou `agent-payload/` réels.
+ */
+export type AgentPayloadDirs = {
+	sourceDir: string
+	payloadDir: string
+}
+
+function defaultDirs(): AgentPayloadDirs {
+	return { sourceDir: sourceAgentDir(), payloadDir: payloadAgentDir() }
 }
 
 // Un seul warning par process, pas un par requête : le repli lui-même est
@@ -58,9 +82,9 @@ function payloadAgentDir(): string {
 // d'œil dans les logs un déploiement qui tournerait sur une copie figée.
 let loggedFallback = false
 
-async function readAgentFile(filename: string): Promise<string> {
+async function readAgentFile(filename: string, dirs: AgentPayloadDirs): Promise<string> {
 	try {
-		return await readFile(path.join(sourceAgentDir(), filename), 'utf-8')
+		return await readFile(path.join(dirs.sourceDir, filename), 'utf-8')
 	} catch (err) {
 		if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
 			throw err
@@ -68,20 +92,22 @@ async function readAgentFile(filename: string): Promise<string> {
 		if (!loggedFallback) {
 			loggedFallback = true
 			logger.warn(
-				`[agent-payload] ${sourceAgentDir()} absent, repli sur ${payloadAgentDir()} (copie figée au dernier build)`,
+				`[agent-payload] ${dirs.sourceDir} absent, repli sur ${dirs.payloadDir} (copie figée au dernier build)`,
 			)
 		}
-		return readFile(path.join(payloadAgentDir(), filename), 'utf-8')
+		return readFile(path.join(dirs.payloadDir, filename), 'utf-8')
 	}
 }
 
-export async function readAgentPayload(): Promise<AgentPayload> {
+export async function readAgentPayload(
+	dirs: AgentPayloadDirs = defaultDirs(),
+): Promise<AgentPayload> {
 	const [agentPy, scanRomsPy, launchPy, launcherSh, version] = await Promise.all([
-		readAgentFile('agent.py'),
-		readAgentFile('scan_roms.py'),
-		readAgentFile('launch.py'),
-		readAgentFile('sr-agent[systembrowsing].sh'),
-		readAgentFile('VERSION'),
+		readAgentFile('agent.py', dirs),
+		readAgentFile('scan_roms.py', dirs),
+		readAgentFile('launch.py', dirs),
+		readAgentFile('sr-agent[systembrowsing].sh', dirs),
+		readAgentFile('VERSION', dirs),
 	])
 	return { agentPy, scanRomsPy, launchPy, launcherSh, version: version.trim() }
 }
