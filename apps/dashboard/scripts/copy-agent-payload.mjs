@@ -25,7 +25,7 @@
  * lifecycle script in CI/Docker without pulling in the dev toolchain.
  */
 
-import { copyFile, mkdir } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -40,8 +40,20 @@ async function main() {
 	await Promise.all(
 		FILES.map((file) => copyFile(path.join(agentDir, file), path.join(targetDir, file))),
 	)
+	// Le seul moyen de repérer un payload devenu figé, c'est de savoir CE QUI a
+	// été copié à CE build : taille par fichier (un octet-count qui ne bouge
+	// jamais d'un build à l'autre malgré des commits sur `agent/` est le signal
+	// d'une source qui ne pointe plus au bon endroit) et la VERSION elle-même,
+	// puisqu'un payload figé fige aussi le numéro de version affiché aux users.
+	const sizes = await Promise.all(
+		FILES.map(async (file) => {
+			const { size } = await stat(path.join(targetDir, file))
+			return `${file} (${size}o)`
+		}),
+	)
+	const version = (await readFile(path.join(targetDir, 'VERSION'), 'utf-8')).trim()
 	console.log(
-		`copy-agent-payload: copied ${FILES.length} files to ${path.relative(process.cwd(), targetDir)}`,
+		`copy-agent-payload: copied ${FILES.length} files to ${path.relative(process.cwd(), targetDir)} — version ${version} — ${sizes.join(', ')}`,
 	)
 }
 
