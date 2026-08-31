@@ -156,9 +156,9 @@ courante :
 1. Une partie en cours, ou un scan de ROMs ?   → on repasse dans 60 s
 2. Télécharger dans sr-agent/.update/           (même système de fichiers → renommage atomique)
 3. py_compile sur chaque .py                    → échec : on efface, backoff, on retente
-4. Déplacer les fichiers actuels vers backup/   (avec leur VERSION)
-5. Renommer les neufs en place
-6. Écrire le témoin update.json                 {from, to, at, confirmed: false}
+4. Copier les fichiers actuels dans backup/      (avec leur VERSION)
+5. Écrire le témoin update.json                 {from, to, at, confirmed: false}
+6. Renommer les neufs en place                  (l'ordre 5-6 compte, voir plus bas)
 7. Fermer le descripteur du verrou, execv
 ```
 
@@ -224,6 +224,26 @@ utilisateur.
 
 `launch.py` importe `updater.py` dans un `try/except` qui, en cas d'échec, exécute
 `agent.py` quand même. Un `updater.py` cassé ne doit pas pouvoir empêcher le démarrage.
+
+#### Une version qui a échoué ne se retente pas
+
+Le retour arrière seul boucle. La box restaure la 1.0.0, repolle soixante secondes plus
+tard, retrouve la même cible 1.1.0, la retélécharge, rebascule, replante, et recommence —
+indéfiniment, en redémarrant l'agent à chaque tour.
+
+Le retour arrière inscrit donc la version fautive dans `failed.json`, à côté du témoin, et
+l'agent refuse toute cible qui y figure. La box reste sur sa version, continue de la
+déclarer, et `/admin` la montre en retrait du reste du parc — ce qui est exactement le
+signal qu'on veut voir. Le fichier se vide quand la cible change : une 1.1.1 corrigée
+n'a pas à payer pour la 1.1.0.
+
+#### L'ordre d'écriture protège une coupure de courant
+
+Le témoin s'écrit **avant** l'échange des fichiers, pas après. `os.replace` est atomique
+fichier par fichier, pas sur l'ensemble : une coupure au milieu laisse un mélange des deux
+versions. Témoin d'abord, ce mélange porte un témoin non confirmé et `launch.py` le
+répare. Témoin après, il n'en porte aucun et la box reste cassée sans que rien ne le
+sache.
 
 #### Deux garde-fous
 
