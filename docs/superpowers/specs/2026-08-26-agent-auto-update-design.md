@@ -234,8 +234,9 @@ indéfiniment, en redémarrant l'agent à chaque tour.
 Le retour arrière inscrit donc la version fautive dans `failed.json`, à côté du témoin, et
 l'agent refuse toute cible qui y figure. La box reste sur sa version, continue de la
 déclarer, et `/admin` la montre en retrait du reste du parc — ce qui est exactement le
-signal qu'on veut voir. Le fichier se vide quand la cible change : une 1.1.1 corrigée
-n'a pas à payer pour la 1.1.0.
+signal qu'on veut voir. Le journal ne retient que les versions ayant réellement échoué,
+donc une 1.1.1 corrigée n'a pas à payer pour la 1.1.0 — et une 1.1.0 qu'on redésignerait
+par erreur reste refusée.
 
 #### L'ordre d'écriture protège une coupure de courant
 
