@@ -19,6 +19,11 @@ export const recalboxes = sqliteTable(
 		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
 		lastConnectedAt: int('last_connected_at', { mode: 'timestamp' }),
 		ownerUserId: text('owner_user_id'),
+		// 'stable' | 'beta' — les box `beta` prennent la version cible immédiatement,
+		// quel que soit le pourcentage de déploiement. Le canal est explicite plutôt
+		// que tiré au sort : c'est ce qui permet de mettre SA box en première ligne
+		// et celle d'un utilisateur en retrait.
+		agentChannel: text('agent_channel').notNull().default('stable'),
 	},
 	(t) => ({
 		ownerIdx: index('idx_recalboxes_owner').on(t.ownerUserId),
@@ -577,6 +582,9 @@ export const agentTokens = sqliteTable(
 		name: text('name'),
 		createdAt: int('created_at', { mode: 'timestamp' }).notNull(),
 		lastUsedAt: int('last_used_at', { mode: 'timestamp' }),
+		// Version que l'agent déclare exécuter (en-tête `X-Agent-Version`), écrite
+		// par le même UPDATE que `lastUsedAt` : une colonne, pas une requête.
+		agentVersion: text('agent_version'),
 		revokedAt: int('revoked_at', { mode: 'timestamp' }),
 	},
 	(t) => [

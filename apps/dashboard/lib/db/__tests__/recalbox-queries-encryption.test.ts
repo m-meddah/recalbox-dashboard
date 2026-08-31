@@ -20,7 +20,8 @@ const { db, sqlite } = vi.hoisted(() => {
 			archived INTEGER DEFAULT 0,
 			created_at INTEGER NOT NULL,
 			last_connected_at INTEGER,
-			owner_user_id TEXT
+			owner_user_id TEXT,
+			agent_channel TEXT NOT NULL DEFAULT 'stable'
 		);
 	`)
 	return { db: drizzle(sqlite), sqlite }

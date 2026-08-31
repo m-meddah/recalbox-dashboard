@@ -225,6 +225,13 @@
       "when": 1786968217022,
       "tag": "0031_nosy_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1788194249488,
+      "tag": "0032_useful_swarm",
+      "breakpoints": true
     }
   ]
 }
