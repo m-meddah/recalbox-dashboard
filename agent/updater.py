@@ -120,8 +120,20 @@ def _backup_path(agent_dir):
 
 
 def _write_json(path, data):
-    with open(path, "w") as f:
+    """Ecrit un JSON de maniere atomique.
+
+    Un `open(path, "w")` en place laisserait un JSON tronque si l'ecriture est
+    coupee en plein milieu — precisement ce que le temoin existe pour
+    survivre. On ecrit donc dans un fichier temporaire a cote de la cible, on
+    force l'ecriture sur le disque (flush + fsync), puis on bascule avec
+    os.replace, atomique au niveau du systeme de fichiers.
+    """
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w") as f:
         json.dump(data, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, path)
 
 
 def read_witness(agent_dir):
@@ -217,9 +229,28 @@ def confirm_update(agent_dir):
 
 
 def pending_rollback(agent_dir, now=None, grace=GRACE_SEC):
-    """True quand une bascule n'a jamais fait ses preuves et a epuise son delai."""
+    """True quand une bascule n'a jamais fait ses preuves et a epuise son delai.
+
+    Un fichier temoin absent n'est pas la meme chose qu'un fichier temoin
+    present mais illisible. Le premier signifie qu'aucune bascule n'est en
+    cours : rien a restaurer. Le second est la trace la plus probable d'une
+    ecriture interrompue (coupure de courant en plein milieu du
+    open(path, "w").write de _write_json, sur un ancien temoin, ou en plein
+    milieu du remplacement atomique lui-meme) : c'est le signe d'une bascule
+    en cours, donc on restaure. read_witness ne distingue pas les deux (les
+    deux valent None), et son contrat ne doit pas changer : confirm_update et
+    rollback en dependent tel quel. On verifie donc ici, en plus, l'existence
+    du fichier.
+    """
+    path = _witness_path(agent_dir)
+    if not os.path.exists(path):
+        return False
     witness = read_witness(agent_dir)
-    if not witness or witness.get("confirmed"):
+    if witness is None:
+        # Present mais illisible : la trace d'une ecriture interrompue, pas
+        # l'absence de temoin. Restaurer est le choix sur.
+        return True
+    if witness.get("confirmed"):
         return False
     at = witness.get("at")
     if not isinstance(at, (int, float)):
@@ -230,9 +261,17 @@ def pending_rollback(agent_dir, now=None, grace=GRACE_SEC):
 
 
 def _copy_from_backup(agent_dir):
+    """Copie backup/ par-dessus les fichiers courants.
+
+    Trois issues, pas deux : None si aucune sauvegarde n'existe (rien a
+    copier), True si tout a ete restaure, False si la copie a echoue en
+    cours de route (carte SD pleine ou corrompue) — auquel cas certains
+    fichiers sont deja restaures et d'autres non, un NOUVEL etat mixte que
+    l'appelant doit savoir distinguer d'une absence de sauvegarde.
+    """
     backup = _backup_path(agent_dir)
     if not os.path.isdir(backup):
-        return False
+        return None
     try:
         for name in BUNDLE_FILES:
             src = os.path.join(backup, name)
@@ -250,21 +289,36 @@ def restore_backup(agent_dir):
     echoue, on la redescend volontairement. L'inscrire au journal des echecs
     ferait refuser a la box la version qu'on vient de lui demander d'executer.
     """
-    return _copy_from_backup(agent_dir)
+    return _copy_from_backup(agent_dir) is True
 
 
 def rollback(agent_dir):
     """Restaure la sauvegarde ET inscrit la version fautive au journal.
 
-    Le chemin d'une bascule qui n'a jamais parle au cloud.
+    Le chemin d'une bascule qui n'a jamais parle au cloud. Trois issues :
+
+    - pas de sauvegarde du tout -> on efface le temoin et on renvoie False.
+      Reessayer ne peut jamais aider, et garder le temoin redeclencherait un
+      rollback sans espoir a chaque demarrage.
+    - copie interrompue en cours de route -> on GARDE le temoin et on renvoie
+      False. La box est dans un nouvel etat mixte ; le prochain demarrage
+      doit reessayer. Effacer le temoin ici jetterait le seul signal qu'un
+      nouvel essai est necessaire.
+    - copie entierement reussie -> on inscrit la version fautive, on efface
+      le temoin, on renvoie True.
     """
     witness = read_witness(agent_dir) or {}
     failed_version = witness.get("to")
-    ok = _copy_from_backup(agent_dir)
-    if ok and failed_version:
+    result = _copy_from_backup(agent_dir)
+    if result is None:
+        clear_witness(agent_dir)
+        return False
+    if result is False:
+        return False
+    if failed_version:
         mark_failed(agent_dir, failed_version)
     clear_witness(agent_dir)
-    return ok
+    return True
 
 
 def read_failed(agent_dir):
@@ -279,7 +333,11 @@ def read_failed(agent_dir):
 
 def mark_failed(agent_dir, version):
     """Inscrit une version au journal des echecs. Sans ce journal, la box
-    restaure, repolle, retrouve la meme cible et replante — indefiniment."""
+    restaure, repolle, retrouve la meme cible et replante — indefiniment.
+
+    Le journal est borne aux 10 dernieres versions : les plus anciennes sont
+    silencieusement abandonnees plutot que de laisser le fichier grossir sans
+    limite."""
     versions = read_failed(agent_dir)
     if version not in versions:
         versions.append(version)

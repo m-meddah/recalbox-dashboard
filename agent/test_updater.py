@@ -139,7 +139,13 @@ class SwapTest(unittest.TestCase):
         real_replace = os.replace
 
         def spy(src, dst):
-            witness_seen.setdefault("at_first_replace", updater.read_witness(self.dir))
+            # _write_json is itself atomic (temp file + os.replace), so the
+            # very first os.replace call is now the witness's own rename, not
+            # a bundle file swap. What this test pins is that the witness is
+            # on disk before any BUNDLE_FILES entry is swapped — so only look
+            # at replace calls targeting one of those.
+            if os.path.basename(dst) in updater.BUNDLE_FILES:
+                witness_seen.setdefault("at_first_replace", updater.read_witness(self.dir))
             return real_replace(src, dst)
 
         with mock.patch.object(os, "replace", spy):
@@ -178,8 +184,17 @@ class WitnessTest(unittest.TestCase):
         self.assertFalse(updater.confirm_update(self.dir))
 
     def test_an_unreadable_witness_is_treated_as_failed(self):
+        # A witness file that exists but does not parse is the likely trace of
+        # a power cut mid-write, not the absence of a witness: restoring is
+        # the safe reading.
         with open(os.path.join(self.dir, updater.WITNESS_NAME), "w") as f:
             f.write("{ not json")
+        self.assertTrue(updater.pending_rollback(self.dir))
+
+    def test_a_genuinely_absent_witness_is_not_treated_as_unreadable(self):
+        # Pins the two cases apart: no file at all must stay a clean "nothing
+        # to do", distinct from a present-but-corrupt file (previous test).
+        self.assertFalse(os.path.exists(os.path.join(self.dir, updater.WITNESS_NAME)))
         self.assertFalse(updater.pending_rollback(self.dir))
 
 
@@ -233,6 +248,54 @@ class RollbackTest(unittest.TestCase):
         self.assertEqual(updater.read_failed(self.dir), [])
         updater.mark_failed(self.dir, "1.1.0")
         self.assertEqual(updater.read_failed(self.dir), ["1.1.0"])
+
+    def test_rollback_keeps_the_witness_when_the_backup_copy_fails_partway(self):
+        # A full or corrupt SD card can make shutil.copy2 fail partway through
+        # the restore, leaving some files back to their old version and some
+        # not: a NEW mixed state. Clearing the witness here would throw away
+        # the only signal that a retry is still needed.
+        updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+        self.assertIsNotNone(updater.read_witness(self.dir))
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def flaky_copy2(src, dst):
+            calls["n"] += 1
+            if calls["n"] > 1:
+                raise OSError("card full")
+            return real_copy2(src, dst)
+
+        with mock.patch.object(shutil, "copy2", side_effect=flaky_copy2):
+            self.assertFalse(updater.rollback(self.dir))
+        self.assertIsNotNone(updater.read_witness(self.dir))
+
+    def test_a_swap_interrupted_partway_is_repaired_by_pending_rollback_and_rollback(self):
+        # os.replace is used both for the witness's own atomic write and for
+        # each bundle file swap. Letting the first two calls through then
+        # failing lets the witness land but cuts the file swap short after
+        # only one file — exactly the mixed old/new state a power cut mid-swap
+        # would produce. The witness was already durable before any bundle
+        # file moved, so the recovery path below can find and use it.
+        real_replace = os.replace
+        calls = {"n": 0}
+
+        def flaky_replace(src, dst):
+            calls["n"] += 1
+            if calls["n"] > 2:
+                raise OSError("power cut")
+            return real_replace(src, dst)
+
+        with mock.patch.object(os, "replace", flaky_replace):
+            self.assertFalse(
+                updater.stage_and_swap(
+                    self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0", now=1000
+                )
+            )
+        self.assertTrue(updater.pending_rollback(self.dir, now=1000 + updater.GRACE_SEC))
+        self.assertTrue(updater.rollback(self.dir))
+        self.assertEqual(self.read("agent.py"), "# old\n")
+        self.assertEqual(self.read("VERSION"), "1.0.0\n")
+        self.assertIsNone(updater.read_witness(self.dir))
 
 
 if __name__ == "__main__":
