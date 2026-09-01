@@ -62,6 +62,25 @@ describe('agent token queries', () => {
 		expect(row.tokenHash).toMatch(/^[0-9a-f]{64}$/)
 	})
 
+	describe('agent-declared version', () => {
+		it('is recorded on a check-in that carries one', async () => {
+			const { token, row } = await createAgentToken(db, 'rb1')
+			await resolveAgentToken(db, token, '1.2.3')
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === row.id)?.agentVersion).toBe('1.2.3')
+		})
+
+		it('a header-less check-in does not erase a previously recorded version', async () => {
+			const { token, row } = await createAgentToken(db, 'rb1')
+			await resolveAgentToken(db, token, '1.2.3')
+			// Second check-in with no version (or a request that never sent the
+			// header): must not blank out what is already known.
+			await resolveAgentToken(db, token, null)
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === row.id)?.agentVersion).toBe('1.2.3')
+		})
+	})
+
 	describe('installer token cleanup on first check-in', () => {
 		it('a re-download does not revoke a previously minted unused token', async () => {
 			const first = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)
