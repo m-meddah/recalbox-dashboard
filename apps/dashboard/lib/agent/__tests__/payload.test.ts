@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, type readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { readAgentPayload } from '@/lib/agent/payload'
@@ -50,7 +50,7 @@ describe('readAgentVersion', () => {
 		memoisationTestActive = false
 	})
 
-	async function makeAgentDir(prefix: string): string {
+	async function makeAgentDir(prefix: string): Promise<string> {
 		const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
 		for (const filename of requiredFiles) {
 			await writeFile(path.join(dir, filename), `# ${filename} placeholder\n`, 'utf-8')
