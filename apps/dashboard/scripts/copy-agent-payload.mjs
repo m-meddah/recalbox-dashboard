@@ -33,7 +33,14 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const agentDir = path.resolve(here, '..', '..', '..', 'agent')
 const targetDir = path.resolve(here, '..', 'agent-payload')
 
-const FILES = ['agent.py', 'scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+const FILES = [
+	'agent.py',
+	'scan_roms.py',
+	'launch.py',
+	'updater.py',
+	'sr-agent[systembrowsing].sh',
+	'VERSION',
+]
 
 async function main() {
 	await mkdir(targetDir, { recursive: true })

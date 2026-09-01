@@ -4,9 +4,11 @@ export type InstallerInput = {
 	agentPy: string
 	scanRomsPy: string
 	launchPy: string
+	updaterPy: string
 	launcherSh: string
 	readme: string
 	config: { recalbox_id: string; token: string; cloud_url: string }
+	version: string
 }
 
 /** Dossier de l'agent sur la box, relatif à la racine du partage. */
@@ -32,6 +34,10 @@ export function buildInstallerZip(input: InstallerInput): Uint8Array {
 			[`${AGENT_DIR}/agent.py`]: strToU8(input.agentPy),
 			[`${AGENT_DIR}/scan_roms.py`]: strToU8(input.scanRomsPy),
 			[`${AGENT_DIR}/launch.py`]: strToU8(input.launchPy),
+			[`${AGENT_DIR}/updater.py`]: strToU8(input.updaterPy),
+			// La box doit savoir quelle version elle execute : c'est ce que le
+			// cloud compare a la cible qu'il lui annonce.
+			[`${AGENT_DIR}/VERSION`]: strToU8(`${input.version}\n`),
 			[`${AGENT_DIR}/config.json`]: strToU8(`${JSON.stringify(input.config, null, 2)}\n`),
 			[LAUNCHER]: strToU8(normalizedLauncherSh),
 			'LISEZMOI.txt': strToU8(input.readme),

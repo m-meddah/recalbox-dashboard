@@ -43,6 +43,7 @@ beforeEach(() => {
 		agentPy: '# agent',
 		scanRomsPy: '# scan',
 		launchPy: '# launch',
+		updaterPy: '# updater\n',
 		launcherSh: '#!/bin/bash\n',
 		version: '1.0.0',
 	})
@@ -175,6 +176,7 @@ describe('GET /api/recalboxes/[id]/installer', () => {
 			agentPy: '# agent',
 			scanRomsPy: '# scan',
 			launchPy: '# launch',
+			updaterPy: '# updater\n',
 			launcherSh: null,
 			version: '1.0.0',
 		})

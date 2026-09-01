@@ -32,6 +32,7 @@ const nextConfig: NextConfig = {
 			'agent-payload/agent.py',
 			'agent-payload/scan_roms.py',
 			'agent-payload/launch.py',
+			'agent-payload/updater.py',
 			// The include values ARE globs (matched via picomatch/glob under the
 			// hood), so `[systembrowsing]` would otherwise parse as a bracket
 			// expression matching one character — not the literal 14-character

@@ -6,6 +6,7 @@ export type AgentPayload = {
 	agentPy: string
 	scanRomsPy: string
 	launchPy: string
+	updaterPy: string
 	launcherSh: string
 	version: string
 }
@@ -102,14 +103,15 @@ async function readAgentFile(filename: string, dirs: AgentPayloadDirs): Promise<
 export async function readAgentPayload(
 	dirs: AgentPayloadDirs = defaultDirs(),
 ): Promise<AgentPayload> {
-	const [agentPy, scanRomsPy, launchPy, launcherSh, version] = await Promise.all([
+	const [agentPy, scanRomsPy, launchPy, updaterPy, launcherSh, version] = await Promise.all([
 		readAgentFile('agent.py', dirs),
 		readAgentFile('scan_roms.py', dirs),
 		readAgentFile('launch.py', dirs),
+		readAgentFile('updater.py', dirs),
 		readAgentFile('sr-agent[systembrowsing].sh', dirs),
 		readAgentFile('VERSION', dirs),
 	])
-	return { agentPy, scanRomsPy, launchPy, launcherSh, version: version.trim() }
+	return { agentPy, scanRomsPy, launchPy, updaterPy, launcherSh, version: version.trim() }
 }
 
 // La version du déploiement ne change pas d'une requête à l'autre au sein d'un

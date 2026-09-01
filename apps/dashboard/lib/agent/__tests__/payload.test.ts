@@ -113,7 +113,13 @@ describe('readAgentPayload (legacy tests)', () => {
 		// disparu de l'arbre de travail avec une `agent.test-backup/` à côté.
 		// Cette version ne touche plus aucun chemin suivi par git.
 
-		const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+		const requiredFiles = [
+			'scan_roms.py',
+			'launch.py',
+			'updater.py',
+			'sr-agent[systembrowsing].sh',
+			'VERSION',
+		]
 
 		async function makeAgentDir(prefix: string, agentPyContent: string) {
 			const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
