@@ -20,4 +20,10 @@ describe('compareVersions', () => {
 		expect(compareVersions('1.x.0', '1.0.0')).toBe(0)
 		expect(compareVersions('', '0.0.0')).toBe(0)
 	})
+
+	it('matches the agent-side rule', () => {
+		// The same table is asserted in agent/test_updater.py. Two
+		// implementations, one rule — they must not drift.
+		expect(compareVersions('1.10rc1.0', '1.10.0')).toBeLessThan(0)
+	})
 })

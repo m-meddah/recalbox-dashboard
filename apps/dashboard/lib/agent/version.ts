@@ -20,6 +20,6 @@ export function compareVersions(a: string, b: string): number {
 }
 
 function segment(raw: string | undefined): number {
-	const n = Number.parseInt(raw ?? '0', 10)
-	return Number.isNaN(n) ? 0 : n
+	if (raw === undefined || raw === '') return 0
+	return /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : 0
 }
