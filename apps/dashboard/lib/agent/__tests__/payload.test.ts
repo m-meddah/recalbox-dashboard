@@ -1,8 +1,8 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { readAgentPayload } from '@/lib/agent/payload'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { readAgentPayload, readAgentVersion } from '@/lib/agent/payload'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('readAgentPayload', () => {
 	it('lit les deux fichiers Python de l agent', async () => {
@@ -16,7 +16,64 @@ describe('readAgentPayload', () => {
 		const payload = await readAgentPayload()
 		expect(payload.version).toMatch(/^\d+\.\d+\.\d+$/)
 	})
+})
 
+describe('readAgentVersion', () => {
+	const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+
+	async function makeAgentDir(prefix: string): string {
+		const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
+		for (const filename of requiredFiles) {
+			await writeFile(path.join(dir, filename), `# ${filename} placeholder\n`, 'utf-8')
+		}
+		return dir
+	}
+
+	it('injected dirs bypass cache and return their own values', async () => {
+		const dirsA = await makeAgentDir('agent-version-a-')
+		const dirsB = await makeAgentDir('agent-version-b-')
+		try {
+			await writeFile(path.join(dirsA, 'VERSION'), '1.0.0\n', 'utf-8')
+			await writeFile(path.join(dirsB, 'VERSION'), '2.0.0\n', 'utf-8')
+
+			const versionA = await readAgentVersion({ sourceDir: dirsA, payloadDir: dirsA })
+			const versionB = await readAgentVersion({ sourceDir: dirsB, payloadDir: dirsB })
+
+			expect(versionA).toBe('1.0.0')
+			expect(versionB).toBe('2.0.0')
+		} finally {
+			await rm(dirsA, { recursive: true, force: true })
+			await rm(dirsB, { recursive: true, force: true })
+		}
+	})
+
+	it('no-argument calls memoise, ignoring file changes between calls', async () => {
+		// Reset modules to get a fresh cache for this test
+		vi.resetModules()
+		const { readAgentVersion: freshReadAgentVersion } = await import('@/lib/agent/payload')
+
+		const dir = await makeAgentDir('agent-version-memoise-')
+		try {
+			await writeFile(path.join(dir, 'VERSION'), '1.0.0\n', 'utf-8')
+
+			// First call: reads and caches
+			const version1 = await freshReadAgentVersion({ sourceDir: dir, payloadDir: dir })
+			expect(version1).toBe('1.0.0')
+
+			// Modify the file
+			await writeFile(path.join(dir, 'VERSION'), '2.0.0\n', 'utf-8')
+
+			// Second no-argument call should return cached value (1.0.0), not read from modified file
+			const version2 = await freshReadAgentVersion()
+
+			expect(version2).toBe('1.0.0')
+		} finally {
+			await rm(dir, { recursive: true, force: true })
+		}
+	})
+})
+
+describe('readAgentPayload (legacy tests)', () => {
 	describe('résolution source vs copie (répertoires injectés, jamais les vrais agent/ ou agent-payload/)', () => {
 		// Les deux tests ci-dessous pointent `readAgentPayload()` vers des
 		// répertoires temporaires qu'ils créent et détruisent eux-mêmes, plutôt

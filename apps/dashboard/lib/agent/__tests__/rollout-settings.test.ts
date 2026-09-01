@@ -52,4 +52,9 @@ describe('writeRolloutSettings', () => {
 		expect(upsertSetting).toHaveBeenCalledWith('agent.targetVersion', '1.0.0')
 		expect(upsertSetting).toHaveBeenCalledWith('agent.rolloutPercent', '100')
 	})
+
+	it('clamps out-of-range values on write', async () => {
+		await writeRolloutSettings({ rolloutPercent: 500 })
+		expect(upsertSetting).toHaveBeenCalledWith('agent.rolloutPercent', '100')
+	})
 })
