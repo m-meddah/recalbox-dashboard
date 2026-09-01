@@ -267,6 +267,7 @@ class ConfigStore extends EventEmitter {
 				color: config.color ?? null,
 				iconEmoji: config.iconEmoji ?? null,
 				lastConnectedAt: null,
+				agentChannel: 'stable',
 			},
 		)
 		this.emit('recalbox:added', { recalbox: instance })
