@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { readAgentPayload } from '@/lib/agent/payload'
@@ -8,11 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 let versionReadCountForMemoisationTest = 0
 let memoisationTestActive = false
 
+type ReadFileParams = Parameters<typeof readFile>
+
 vi.mock('node:fs/promises', async () => {
 	const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
 	return {
 		...actual,
-		readFile: vi.fn(async (filePath: any, encoding?: any) => {
+		readFile: vi.fn(async (filePath: ReadFileParams[0], encoding?: ReadFileParams[1]) => {
 			// Only apply special mock behavior when the memoisation test is active
 			if (memoisationTestActive && typeof filePath === 'string' && filePath.endsWith('VERSION')) {
 				versionReadCountForMemoisationTest++
