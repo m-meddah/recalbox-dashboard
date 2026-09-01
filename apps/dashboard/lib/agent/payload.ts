@@ -111,3 +111,21 @@ export async function readAgentPayload(
 	])
 	return { agentPy, scanRomsPy, launchPy, launcherSh, version: version.trim() }
 }
+
+// La version du déploiement ne change pas d'une requête à l'autre au sein d'un
+// même processus : elle est lue une fois. `readAgentPayload()` charge 80 Ko de
+// Python, ce qu'on ne veut pas faire à chaque interrogation de chaque box.
+let cachedVersion: string | null = null
+
+/**
+ * Version embarquée par ce déploiement. Passer `dirs` court-circuite le cache —
+ * réservé aux tests, qui pointent vers des dossiers temporaires et ne doivent
+ * pas se contaminer entre eux.
+ */
+export async function readAgentVersion(dirs?: AgentPayloadDirs): Promise<string> {
+	if (dirs) return (await readAgentFile('VERSION', dirs)).trim()
+	if (cachedVersion === null) {
+		cachedVersion = (await readAgentFile('VERSION', defaultDirs())).trim()
+	}
+	return cachedVersion
+}
