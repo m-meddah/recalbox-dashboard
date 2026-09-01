@@ -44,6 +44,7 @@ export async function createAgentToken(
 export async function resolveAgentToken(
 	db: DB,
 	rawToken: string,
+	agentVersion?: string | null,
 ): Promise<{ recalboxId: string; tokenId: string } | null> {
 	const row = await db
 		.select({
@@ -69,12 +70,12 @@ export async function resolveAgentToken(
 	// response flushes. `after()` hands the write to the platform, which keeps the
 	// invocation alive until it settles — without delaying the response.
 	try {
-		after(() => cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn))
+		after(() => cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn, agentVersion))
 	} catch {
 		// `after()` throws outside a request scope (tests, one-shot scripts, the
 		// scrobbler). There is no platform to defer to there, so write inline rather
 		// than drop the touch. The callback form above means nothing ran yet.
-		await cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn)
+		await cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn, agentVersion)
 	}
 
 	return { recalboxId: row.recalboxId, tokenId: row.id }
@@ -91,17 +92,24 @@ async function cleanupOnFirstUse(
 	tokenId: string,
 	recalboxId: string,
 	isFirstCheckIn: boolean,
+	agentVersion?: string | null,
 ): Promise<void> {
-	await touchLastUsed(db, tokenId)
+	await touchLastUsed(db, tokenId, agentVersion)
 	if (isFirstCheckIn) {
 		await revokeSiblingInstallerTokens(db, recalboxId, tokenId)
 	}
 }
 
 /** Best-effort liveness touch: never let a failed write break the caller's request. */
-async function touchLastUsed(db: DB, tokenId: string): Promise<void> {
+async function touchLastUsed(db: DB, tokenId: string, agentVersion?: string | null): Promise<void> {
 	try {
-		await db.update(agentTokens).set({ lastUsedAt: new Date() }).where(eq(agentTokens.id, tokenId))
+		// Une requête SANS en-tête n'efface pas une version déjà connue : un agent
+		// qui déclare sa version sur sa boucle de commandes ne la répète pas
+		// forcément partout, et écraser avec `null` ferait clignoter le tableau
+		// de déploiement.
+		const patch: { lastUsedAt: Date; agentVersion?: string } = { lastUsedAt: new Date() }
+		if (agentVersion) patch.agentVersion = agentVersion
+		await db.update(agentTokens).set(patch).where(eq(agentTokens.id, tokenId))
 	} catch (err) {
 		logger.error('[agent] lastUsedAt touch failed', err)
 	}
