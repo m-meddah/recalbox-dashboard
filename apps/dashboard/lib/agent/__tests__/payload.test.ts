@@ -1,8 +1,30 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { readAgentPayload, readAgentVersion } from '@/lib/agent/payload'
+import { readAgentPayload } from '@/lib/agent/payload'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Module-level counter for tracking VERSION file reads in the memoisation test
+let versionReadCountForMemoisationTest = 0
+let memoisationTestActive = false
+
+vi.mock('node:fs/promises', async () => {
+	const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+	return {
+		...actual,
+		readFile: vi.fn(async (filePath: any, encoding?: any) => {
+			// Only apply special mock behavior when the memoisation test is active
+			if (memoisationTestActive && typeof filePath === 'string' && filePath.endsWith('VERSION')) {
+				versionReadCountForMemoisationTest++
+				// Return 1.0.0 on first read, 9.9.9 on second (to prove second call doesn't read)
+				if (versionReadCountForMemoisationTest === 1) return '1.0.0\n'
+				return '9.9.9\n'
+			}
+			// For all other cases, use actual implementation
+			return actual.readFile(filePath, encoding)
+		}),
+	}
+})
 
 describe('readAgentPayload', () => {
 	it('lit les deux fichiers Python de l agent', async () => {
@@ -21,6 +43,11 @@ describe('readAgentPayload', () => {
 describe('readAgentVersion', () => {
 	const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
 
+	afterEach(() => {
+		versionReadCountForMemoisationTest = 0
+		memoisationTestActive = false
+	})
+
 	async function makeAgentDir(prefix: string): string {
 		const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
 		for (const filename of requiredFiles) {
@@ -36,6 +63,9 @@ describe('readAgentVersion', () => {
 			await writeFile(path.join(dirsA, 'VERSION'), '1.0.0\n', 'utf-8')
 			await writeFile(path.join(dirsB, 'VERSION'), '2.0.0\n', 'utf-8')
 
+			// Import freshly to avoid cache
+			const { readAgentVersion } = await import('@/lib/agent/payload')
+
 			const versionA = await readAgentVersion({ sourceDir: dirsA, payloadDir: dirsA })
 			const versionB = await readAgentVersion({ sourceDir: dirsB, payloadDir: dirsB })
 
@@ -47,29 +77,26 @@ describe('readAgentVersion', () => {
 		}
 	})
 
-	it('no-argument calls memoise, ignoring file changes between calls', async () => {
+	it('no-argument calls memoise and cache the version', async () => {
 		// Reset modules to get a fresh cache for this test
 		vi.resetModules()
+		versionReadCountForMemoisationTest = 0
+		memoisationTestActive = true
+
+		// Import the mocked fs/promises and the fresh payload module
+		await import('node:fs/promises')
 		const { readAgentVersion: freshReadAgentVersion } = await import('@/lib/agent/payload')
 
-		const dir = await makeAgentDir('agent-version-memoise-')
-		try {
-			await writeFile(path.join(dir, 'VERSION'), '1.0.0\n', 'utf-8')
+		// First call with no arguments: should read and cache 1.0.0
+		const version1 = await freshReadAgentVersion()
+		expect(version1).toBe('1.0.0')
+		expect(versionReadCountForMemoisationTest).toBe(1)
 
-			// First call: reads and caches
-			const version1 = await freshReadAgentVersion({ sourceDir: dir, payloadDir: dir })
-			expect(version1).toBe('1.0.0')
-
-			// Modify the file
-			await writeFile(path.join(dir, 'VERSION'), '2.0.0\n', 'utf-8')
-
-			// Second no-argument call should return cached value (1.0.0), not read from modified file
-			const version2 = await freshReadAgentVersion()
-
-			expect(version2).toBe('1.0.0')
-		} finally {
-			await rm(dir, { recursive: true, force: true })
-		}
+		// Second call with no arguments: should return cached 1.0.0, not read again
+		const version2 = await freshReadAgentVersion()
+		expect(version2).toBe('1.0.0')
+		// If memoisation works, versionReadCount should still be 1 (readFile was not called)
+		expect(versionReadCountForMemoisationTest).toBe(1)
 	})
 })
 
