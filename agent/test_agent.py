@@ -518,6 +518,7 @@ class DirectInvocationLockTest(unittest.TestCase):
 		agent_dir = os.path.dirname(os.path.abspath(__file__))
 		shutil.copy(os.path.join(agent_dir, "agent.py"), os.path.join(self.work, "agent.py"))
 		shutil.copy(os.path.join(agent_dir, "launch.py"), os.path.join(self.work, "launch.py"))
+		shutil.copy(os.path.join(agent_dir, "updater.py"), os.path.join(self.work, "updater.py"))
 
 		# agent.py imports paho at module level. The in-process sys.modules stub used
 		# by the rest of this file doesn't cross into a subprocess, so stub it on disk.

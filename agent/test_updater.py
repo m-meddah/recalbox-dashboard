@@ -8,12 +8,28 @@ Stdlib unittest only. From the repo root:
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
 
+# agent.py imports paho at module level. It ships with RecalboxOS but is not
+# needed to exercise the update logic, so stub it to keep the import cheap.
+if "paho" not in sys.modules:
+	_paho = types.ModuleType("paho")
+	_mqtt = types.ModuleType("paho.mqtt")
+	_client = types.ModuleType("paho.mqtt.client")
+	_client.Client = object
+	_paho.mqtt = _mqtt
+	_mqtt.client = _client
+	sys.modules["paho"] = _paho
+	sys.modules["paho.mqtt"] = _mqtt
+	sys.modules["paho.mqtt.client"] = _client
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agent  # noqa: E402
 import updater  # noqa: E402
 
 
@@ -296,6 +312,157 @@ class RollbackTest(unittest.TestCase):
         self.assertEqual(self.read("agent.py"), "# old\n")
         self.assertEqual(self.read("VERSION"), "1.0.0\n")
         self.assertIsNone(updater.read_witness(self.dir))
+
+
+LOCK_PROBE = '''
+import fcntl, os, sys
+lock = os.path.join(os.path.dirname(os.path.abspath(__file__)), "launch.lock")
+fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o644)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    sys.stdout.write("ACQUIRED")
+except OSError:
+    sys.stdout.write("BLOCKED")
+'''
+
+PARENT = '''
+import os, sys, types
+_paho = types.ModuleType("paho")
+_mqtt = types.ModuleType("paho.mqtt")
+_client = types.ModuleType("paho.mqtt.client")
+_client.Client = object
+_paho.mqtt = _mqtt
+_mqtt.client = _client
+sys.modules["paho"] = _paho
+sys.modules["paho.mqtt"] = _mqtt
+sys.modules["paho.mqtt.client"] = _client
+
+sys.path.insert(0, %(agent_dir)r)
+import agent
+agent.HERE = %(tmp)r
+acquired, fd = agent.acquire_lock()
+assert acquired, "the parent must own the lock before restarting"
+agent.LOCK_FD = fd
+%(extra)s
+agent.restart()
+'''
+
+
+class RestartLockTest(unittest.TestCase):
+    """Le piege que ce test existe pour attraper.
+
+    acquire_lock() rend le descripteur heritable : il survit a execv en tenant
+    toujours LOCK_EX. Le nouvel agent ouvre un descripteur NEUF sur le meme
+    fichier et flock() arbitre entre descriptions de fichier ouvert, pas entre
+    processus — il se refuserait donc le verrou a lui-meme. Sans le close()
+    dans restart(), TOUTES les mises a jour echoueraient.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-execv-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.agent_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(self.dir, "agent.py"), "w") as f:
+            f.write(LOCK_PROBE)
+
+    def run_parent(self, extra=""):
+        script = os.path.join(self.dir, "parent.py")
+        with open(script, "w") as f:
+            f.write(PARENT % {"agent_dir": self.agent_dir, "tmp": self.dir, "extra": extra})
+        out = subprocess.run(
+            [sys.executable, script], capture_output=True, text=True, timeout=30
+        )
+        return out.stdout.strip()
+
+    def test_the_restarted_agent_gets_the_lock(self):
+        self.assertEqual(self.run_parent(), "ACQUIRED")
+
+    def test_without_the_close_the_restarted_agent_would_be_locked_out(self):
+        # Negative control: proves the close() in restart() is load-bearing and
+        # not decoration. If this ever prints ACQUIRED, the lock is no longer
+        # inherited and the comment in restart() has gone stale.
+        self.assertEqual(self.run_parent(extra="agent.LOCK_FD = None"), "BLOCKED")
+
+
+class MaybeUpdateTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-decide-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        for name in updater.BUNDLE_FILES:
+            with open(os.path.join(self.dir, name), "w") as f:
+                f.write("# old\n")
+        with open(os.path.join(self.dir, "VERSION"), "w") as f:
+            f.write("1.0.0\n")
+        self.here = mock.patch.object(agent, "HERE", self.dir)
+        self.here.start()
+        self.addCleanup(self.here.stop)
+        self.version = mock.patch.object(agent, "AGENT_VERSION", "1.0.0")
+        self.version.start()
+        self.addCleanup(self.version.stop)
+        self.supervised = mock.patch.dict(
+            os.environ, {updater.SUPERVISED_ENV: "1"}
+        )
+        self.supervised.start()
+        self.addCleanup(self.supervised.stop)
+        self.restart = mock.patch.object(agent, "restart")
+        self.restart_mock = self.restart.start()
+        self.addCleanup(self.restart.stop)
+
+    def test_does_nothing_without_a_target(self):
+        agent.maybe_update({}, None, None)
+        self.restart_mock.assert_not_called()
+
+    def test_does_nothing_when_already_on_target(self):
+        agent.maybe_update({}, None, "1.0.0")
+        self.restart_mock.assert_not_called()
+
+    def test_refuses_to_update_without_a_supervisor(self):
+        # A box on the old custom.sh path has nothing that would repair it if
+        # the new version fails to start, so it must never update.
+        with mock.patch.dict(os.environ, {updater.SUPERVISED_ENV: ""}):
+            agent.maybe_update({}, None, "1.1.0")
+        self.restart_mock.assert_not_called()
+
+    def test_refuses_a_version_that_already_failed_here(self):
+        updater.mark_failed(self.dir, "1.1.0")
+        agent.maybe_update({}, None, "1.1.0")
+        self.restart_mock.assert_not_called()
+
+    def test_defers_while_a_session_is_open(self):
+        tracker = types.SimpleNamespace(open={"rom_path": "/x.zip"})
+        with mock.patch.object(agent, "download_bundle") as dl:
+            agent.maybe_update({}, tracker, "1.1.0")
+        dl.assert_not_called()
+        self.restart_mock.assert_not_called()
+
+    def test_descends_from_the_local_backup_without_downloading(self):
+        updater.stage_and_swap(self.dir, bundle(version="1.1.0\n"), "1.0.0", "1.1.0")
+        with mock.patch.object(agent, "AGENT_VERSION", "1.1.0"):
+            with mock.patch.object(agent, "download_bundle") as dl:
+                agent.maybe_update({}, None, "1.0.0")
+        dl.assert_not_called()
+        self.restart_mock.assert_called_once()
+
+    def test_stays_put_when_the_backup_is_not_the_target(self):
+        # The one-step limit made visible rather than silent.
+        with mock.patch.object(agent, "AGENT_VERSION", "1.2.0"):
+            agent.maybe_update({}, None, "0.9.0")
+        self.restart_mock.assert_not_called()
+
+    def test_swaps_and_restarts_on_a_valid_download(self):
+        with mock.patch.object(
+            agent, "download_bundle", return_value={"version": "1.1.0", "files": bundle()}
+        ):
+            agent.maybe_update({}, None, "1.1.0")
+        self.restart_mock.assert_called_once()
+        self.assertEqual(updater.read_version(self.dir), "1.1.0")
+
+    def test_refuses_a_download_that_does_not_compile(self):
+        broken = {"version": "1.1.0", "files": bundle(agent_src="def x(:\n")}
+        with mock.patch.object(agent, "download_bundle", return_value=broken):
+            agent.maybe_update({}, None, "1.1.0")
+        self.restart_mock.assert_not_called()
+        self.assertEqual(updater.read_version(self.dir), "1.0.0")
 
 
 if __name__ == "__main__":

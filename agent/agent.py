@@ -35,12 +35,20 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
+import updater
+
 # ── Topics (must match RecalboxOS WebAPI) ────────────────────────────────────
 ES_EVENT_TOPIC = "Recalbox/WebAPI/EmulationStation/Event"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
+
+AGENT_VERSION = updater.read_version(HERE)
+
+# Descripteur du verrou d'exclusivite, garde pour toute la vie du processus et
+# ferme AVANT tout execv (voir restart()).
+LOCK_FD = None
 
 
 # ── Single-instance lock ──────────────────────────────────────────────────────
@@ -72,8 +80,10 @@ def acquire_lock():
     """
     lockfile = lock_path()
     fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
-    # Survives execv, should this process itself ever be exec'd into — cheap to
-    # keep, costs nothing since this process no longer execs into anything else.
+    # Inheritable by default in case something ever exec's this process from the
+    # outside. It also means restart()'s own execv would inherit this fd still
+    # holding LOCK_EX unless it is closed first — restart() does that
+    # explicitly; see the comment there.
     os.set_inheritable(fd, True)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -251,6 +261,7 @@ def http_post_json_outcome(url, payload, token, timeout):
     req.add_header("Content-Type", "application/json")
     if token:
         req.add_header("Authorization", "Bearer " + token)
+    req.add_header("X-Agent-Version", AGENT_VERSION)
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
@@ -282,6 +293,7 @@ def http_get_json(url, token, timeout):
     req = urllib.request.Request(url, method="GET")
     if token:
         req.add_header("Authorization", "Bearer " + token)
+    req.add_header("X-Agent-Version", AGENT_VERSION)
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
@@ -1039,8 +1051,101 @@ def handle_command(cmd, result_url, token, timeout, cfg=None):
     report_result(result_url, token, timeout, cid, ok, output)
 
 
-def command_loop(cfg):
-    """Poll the cloud for pending commands, execute them locally, report back."""
+def download_bundle(cfg):
+    """Recupere le paquet servi par le cloud. None si indisponible ou malforme."""
+    data = http_get_json(
+        endpoint_for(cfg, "download"), cfg.get("token"), cfg.get("http_timeout_sec", 10)
+    )
+    if not isinstance(data, dict):
+        return None
+    files = data.get("files")
+    version = data.get("version")
+    if not isinstance(files, dict) or not isinstance(version, str):
+        return None
+    return {"version": version, "files": files}
+
+
+def is_busy(tracker):
+    """True tant qu'une partie ou un scan tourne.
+
+    Se relancer au milieu d'une partie perdrait l'appairage debut/fin, donc la
+    session que l'utilisateur est venu voir. Un execv au milieu d'un scan le
+    perdrait entierement.
+    """
+    if tracker is not None and tracker.open:
+        return True
+    with _scan_lock:
+        return _scan_running
+
+
+def restart():
+    """Se relance en place. Ne revient jamais.
+
+    Sans execv, l'agent resterait mort jusqu'a ce que l'utilisateur retourne au
+    menu — potentiellement des heures.
+    """
+    global LOCK_FD
+    if LOCK_FD is not None:
+        # OBLIGATOIRE. acquire_lock() rend le descripteur heritable : il
+        # survivrait a execv en tenant toujours LOCK_EX, et le nouvel agent —
+        # qui ouvre un descripteur NEUF sur le meme fichier — se refuserait le
+        # verrou a lui-meme, car flock() arbitre entre descriptions de fichier
+        # ouvert, pas entre processus. Toutes les mises a jour echoueraient.
+        # Ne PAS transmettre le descripteur a la place : ce serait coupler
+        # l'ancienne version et la nouvelle a une convention partagee, et une
+        # version qui ne la connait pas ne demarrerait plus.
+        try:
+            os.close(LOCK_FD)
+        except OSError:
+            pass
+        LOCK_FD = None
+    os.execv(sys.executable, [sys.executable, os.path.join(HERE, "agent.py")])
+
+
+def maybe_update(cfg, tracker, target):
+    """Fait converger la box vers `target`. Ne revient pas si la bascule a lieu."""
+    if not target or target == AGENT_VERSION:
+        return
+    if os.environ.get(updater.SUPERVISED_ENV) != "1":
+        log.info("Target %s announced but this agent has no supervisor; not updating", target)
+        return
+    if updater.has_failed(HERE, target):
+        log.info("Target %s already failed on this box; not retrying", target)
+        return
+    if is_busy(tracker):
+        log.info("Update to %s deferred: a session or a rom scan is running", target)
+        return
+
+    if updater.compare_versions(target, AGENT_VERSION) < 0:
+        # Le cloud ne dispose que de la version deployee, jamais des anciennes :
+        # la seule source d'une descente est la sauvegarde locale.
+        have = updater.backup_version(HERE)
+        if have != target:
+            log.warning("Cannot reach target %s: the local backup holds %s", target, have)
+            return
+        if updater.restore_backup(HERE):
+            log.info("Restored %s from the local backup, restarting", target)
+            restart()
+        return
+
+    bundle = download_bundle(cfg)
+    if not bundle or bundle["version"] != target:
+        log.warning("Download did not yield target %s", target)
+        return
+    if not updater.stage_and_swap(HERE, bundle["files"], AGENT_VERSION, target):
+        log.error("Update to %s refused: the bundle did not verify", target)
+        return
+    log.info("Updated %s -> %s, restarting", AGENT_VERSION, target)
+    restart()
+
+
+def command_loop(cfg, tracker=None):
+    """Poll the cloud for pending commands, execute them locally, report back.
+
+    The same round-trip carries the version this box must run: each poll is a
+    billed serverless invocation, so the update mechanism rides it rather than
+    opening a second loop.
+    """
     url = endpoint_for(cfg, "commands")
     result_url = (url + "/result") if url else ""
     interval = _int_cfg(cfg, "command_poll_interval_sec", 60)
@@ -1054,8 +1159,16 @@ def command_loop(cfg):
             # The GET is the cloud round-trip; a command that fails to execute locally
             # says nothing about the cloud, so it must not slow the poll down.
             ok = data is not None
+            if ok:
+                # A successful round-trip is the cheapest possible proof that
+                # this version talks to the cloud — which is exactly what the
+                # rollback witness is waiting for.
+                updater.confirm_update(HERE)
             for cmd in (data or {}).get("commands") or []:
                 handle_command(cmd, result_url, token, timeout, cfg)
+            if ok:
+                agent_block = (data or {}).get("agent") or {}
+                maybe_update(cfg, tracker, agent_block.get("target_version"))
         except Exception as e:  # never let the thread die
             log.error("command_loop error: %s", e)
         delay = next_retry_delay(delay, interval, ok)
@@ -1158,13 +1271,16 @@ def main():
     # Must run before any MQTT connection, thread start, or other side effect:
     # a box can have both the old custom.sh install and the current launcher
     # running the agent at once, and only one may proceed.
-    acquired, _lock_fd = acquire_lock()
+    acquired, lock_fd = acquire_lock()
     if not acquired:
         log.info("Another agent instance already holds the lock, exiting")
         sys.exit(0)
+    global LOCK_FD
+    LOCK_FD = lock_fd
 
     log.info(
-        "sr-agent starting (recalbox_id=%s, mqtt=%s:%s, cloud=%s)",
+        "sr-agent %s starting (recalbox_id=%s, mqtt=%s:%s, cloud=%s)",
+        AGENT_VERSION,
         cfg.get("recalbox_id"),
         cfg.get("mqtt_host"),
         cfg.get("mqtt_port"),
@@ -1185,7 +1301,7 @@ def main():
         log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
     else:
         log.info("Collection sync disabled")
-    threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
+    threading.Thread(target=command_loop, args=(cfg, tracker), daemon=True).start()
     log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 60))
     if int(cfg.get("artwork_poll_interval_sec", 60)) > 0:
         threading.Thread(target=artwork_loop, args=(cfg,), daemon=True).start()
