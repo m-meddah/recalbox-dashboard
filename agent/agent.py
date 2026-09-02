@@ -35,7 +35,18 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
-import updater
+# A missing or corrupt updater.py (hand-made install predating the bundle
+# system, or a swap/rollback interrupted partway through copying files) must
+# never take the whole agent down — MQTT, scrobbling, snapshots and command
+# polling do not depend on it. Only the auto-update path does, and it is
+# guarded to degrade to a no-op below (see maybe_update / command_loop).
+try:
+    import updater
+except Exception as _updater_import_error:  # noqa: F841 — reported once below
+    updater = None
+    logging.getLogger("sr-agent").error(
+        "updater.py unavailable (%s); auto-update disabled on this box", _updater_import_error
+    )
 
 # ── Topics (must match RecalboxOS WebAPI) ────────────────────────────────────
 ES_EVENT_TOPIC = "Recalbox/WebAPI/EmulationStation/Event"
@@ -44,7 +55,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
 
-AGENT_VERSION = updater.read_version(HERE)
+
+def _read_version_fallback(agent_dir):
+    """Meme lecture que updater.read_version(), sans dependre du module : le
+    numero de version doit rester visible (X-Agent-Version, log de demarrage)
+    meme quand updater.py est justement ce qui manque ou est corrompu — c'est
+    ce qui rend la box visible comme cassee dans l'admin plutot que silencieuse."""
+    try:
+        with open(os.path.join(agent_dir, "VERSION"), "r") as f:
+            return f.read().strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
+AGENT_VERSION = updater.read_version(HERE) if updater is not None else _read_version_fallback(HERE)
 
 # Descripteur du verrou d'exclusivite, garde pour toute la vie du processus et
 # ferme AVANT tout execv (voir restart()).
@@ -1099,11 +1123,24 @@ def restart():
         except OSError:
             pass
         LOCK_FD = None
-    os.execv(sys.executable, [sys.executable, os.path.join(HERE, "agent.py")])
+    try:
+        os.execv(sys.executable, [sys.executable, os.path.join(HERE, "agent.py")])
+    except OSError as e:
+        # The lock is already released above: continuing to run here would mean
+        # a second agent could start alongside this one, unlocked, doubling up
+        # every session. Dying is the safe outcome instead — the launcher fires
+        # on every menu navigation and will start a fresh agent, which takes the
+        # lock cleanly; the swap's witness is still unconfirmed, so a bad
+        # version still gets rolled back on that next start.
+        log.error("execv failed, exiting rather than run unlocked: %s", e)
+        os._exit(1)
 
 
 def maybe_update(cfg, tracker, target):
     """Fait converger la box vers `target`. Ne revient pas si la bascule a lieu."""
+    if updater is None:
+        # Nothing to converge with: see the import guard above.
+        return
     if not target or target == AGENT_VERSION:
         return
     if os.environ.get(updater.SUPERVISED_ENV) != "1":
@@ -1126,6 +1163,8 @@ def maybe_update(cfg, tracker, target):
         if updater.restore_backup(HERE):
             log.info("Restored %s from the local backup, restarting", target)
             restart()
+        else:
+            log.error("Restore of %s from the local backup failed", target)
         return
 
     bundle = download_bundle(cfg)
@@ -1159,10 +1198,11 @@ def command_loop(cfg, tracker=None):
             # The GET is the cloud round-trip; a command that fails to execute locally
             # says nothing about the cloud, so it must not slow the poll down.
             ok = data is not None
-            if ok:
+            if ok and updater is not None:
                 # A successful round-trip is the cheapest possible proof that
                 # this version talks to the cloud — which is exactly what the
-                # rollback witness is waiting for.
+                # rollback witness is waiting for. Skipped when updater.py is
+                # unavailable (see the import guard at the top of this file).
                 updater.confirm_update(HERE)
             for cmd in (data or {}).get("commands") or []:
                 handle_command(cmd, result_url, token, timeout, cfg)

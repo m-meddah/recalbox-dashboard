@@ -30,6 +30,7 @@ if "paho" not in sys.modules:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402
+import test_agent  # noqa: E402 — reuses its _SleepRecorder/_StopLoop/_JsonUrlopen loop-test helpers
 import updater  # noqa: E402
 
 
@@ -443,6 +444,18 @@ class MaybeUpdateTest(unittest.TestCase):
         dl.assert_not_called()
         self.restart_mock.assert_called_once()
 
+    def test_logs_when_the_backup_restore_fails(self):
+        # Review Minor 1: every other refusal path in maybe_update logs; a
+        # failed descent falling through silently would be invisible in
+        # agent.log, the only diagnostic on a real console.
+        updater.stage_and_swap(self.dir, bundle(version="1.1.0\n"), "1.0.0", "1.1.0")
+        with mock.patch.object(agent, "AGENT_VERSION", "1.1.0"):
+            with mock.patch.object(updater, "restore_backup", return_value=False):
+                with self.assertLogs(agent.log, level="ERROR") as logs:
+                    agent.maybe_update({}, None, "1.0.0")
+        self.restart_mock.assert_not_called()
+        self.assertTrue(any("1.0.0" in line for line in logs.output))
+
     def test_stays_put_when_the_backup_is_not_the_target(self):
         # The one-step limit made visible rather than silent.
         with mock.patch.object(agent, "AGENT_VERSION", "1.2.0"):
@@ -463,6 +476,98 @@ class MaybeUpdateTest(unittest.TestCase):
             agent.maybe_update({}, None, "1.1.0")
         self.restart_mock.assert_not_called()
         self.assertEqual(updater.read_version(self.dir), "1.0.0")
+
+
+class UpdaterUnavailableTest(unittest.TestCase):
+    """Review Important finding: `import updater` at module load was unguarded.
+
+    A hand-made install predating the bundle system (no updater.py at all), or
+    a swap/rollback interrupted partway through copying files (updater.py
+    missing or truncated), would take the WHOLE agent down one import later —
+    no MQTT, no scrobbling, no snapshots, no command polling — regardless of
+    how forgiving launch.py's own guard is upstream. These tests prove the
+    opposite: agent.py must still import and run with updater.py absent, and
+    the update path must degrade to a safe no-op rather than crash.
+    """
+
+    def test_agent_module_still_imports_without_updater_py(self):
+        # A real subprocess is required: the running test process has already
+        # cached `updater` in sys.modules, so an in-process reimport would
+        # never observe the ImportError a genuinely missing file produces.
+        d = tempfile.mkdtemp(prefix="sr-agent-no-updater-")
+        self.addCleanup(shutil.rmtree, d, True)
+        agent_dir = os.path.dirname(os.path.abspath(__file__))
+        shutil.copy(os.path.join(agent_dir, "agent.py"), os.path.join(d, "agent.py"))
+        # Deliberately no updater.py in d — this is the scenario itself.
+        with open(os.path.join(d, "VERSION"), "w") as f:
+            f.write("1.2.3\n")
+        script = (
+            "import sys, types\n"
+            "_paho = types.ModuleType('paho')\n"
+            "_mqtt = types.ModuleType('paho.mqtt')\n"
+            "_client = types.ModuleType('paho.mqtt.client')\n"
+            "_client.Client = object\n"
+            "_paho.mqtt = _mqtt\n"
+            "_mqtt.client = _client\n"
+            "sys.modules['paho'] = _paho\n"
+            "sys.modules['paho.mqtt'] = _mqtt\n"
+            "sys.modules['paho.mqtt.client'] = _client\n"
+            "sys.path.insert(0, %r)\n"
+            "import agent\n"
+            "assert agent.updater is None, 'updater should be None when unimportable'\n"
+            "assert agent.AGENT_VERSION == '1.2.3', agent.AGENT_VERSION\n"
+            "sys.stdout.write('OK')\n"
+        ) % d
+        out = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, timeout=30
+        )
+        self.assertEqual(out.stdout.strip(), "OK", out.stderr)
+
+    def test_maybe_update_is_a_noop_when_updater_is_unavailable(self):
+        with mock.patch.object(agent, "updater", None):
+            with mock.patch.object(agent, "restart") as restart_mock:
+                agent.maybe_update({}, None, "9.9.9")
+        restart_mock.assert_not_called()
+
+    def test_confirm_update_is_skipped_when_updater_is_unavailable(self):
+        # Without the `updater is not None` guard on the confirm_update call,
+        # this would raise AttributeError inside command_loop's try block and
+        # never reach the maybe_update call below it on the same iteration.
+        cfg = {
+            "cloud_url": "https://example.test/api/agent/ingest",
+            "token": "tok",
+            "http_timeout_sec": 1,
+            "command_poll_interval_sec": 60,
+        }
+        rec = test_agent._SleepRecorder(1)
+        with mock.patch.object(agent, "updater", None), mock.patch.object(
+            agent, "maybe_update"
+        ) as maybe_update_mock, mock.patch.object(
+            agent.time, "sleep", rec
+        ), mock.patch.object(
+            agent.urllib.request, "urlopen", test_agent._JsonUrlopen({"commands": []})
+        ):
+            try:
+                agent.command_loop(cfg)
+            except test_agent._StopLoop:
+                pass
+        maybe_update_mock.assert_called_once()
+
+
+class RestartExecvFailureTest(unittest.TestCase):
+    """Review Minor 2: restart() closes LOCK_FD unconditionally, then calls
+    execv outside any try/except. If execv itself raised, the exception would
+    propagate into command_loop's broad `except Exception`, the thread would
+    survive, and the process would keep running with the lock released — a
+    second agent could then start alongside this one. Dying is the only safe
+    outcome; the launcher restarts it cleanly on the next menu navigation."""
+
+    def test_execv_failure_exits_rather_than_run_unlocked(self):
+        with mock.patch.object(agent.os, "execv", side_effect=OSError("boom")):
+            with mock.patch.object(agent.os, "_exit") as exit_mock:
+                with self.assertLogs(agent.log, level="ERROR"):
+                    agent.restart()
+        exit_mock.assert_called_once_with(1)
 
 
 if __name__ == "__main__":
