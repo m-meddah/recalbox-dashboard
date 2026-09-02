@@ -44,6 +44,24 @@ const nextConfig: NextConfig = {
 			'agent-payload/sr-agent\\[systembrowsing\\].sh',
 			'agent-payload/VERSION',
 		],
+		// Même mécanisme que la route d'installation ci-dessus : sans cette
+		// déclaration, `agent-payload/` n'entre pas dans le build standalone et
+		// la route 500 en production sans avoir échoué au build.
+		//
+		// Le lanceur est présent ici même si cette route ne le sert JAMAIS dans sa
+		// réponse (voir route.ts) : `readAgentPayload()` lit inconditionnellement
+		// les 6 fichiers dans un seul `Promise.all` avant que la route n'en retienne
+		// que 4 — s'il manque au traçage, la lecture du lanceur échoue et fait
+		// échouer TOUT le paquet (donc 500 la route entière), pas seulement omettre
+		// un fichier qu'elle n'exposait pas de toute façon.
+		'/api/agent/download': [
+			'agent-payload/agent.py',
+			'agent-payload/scan_roms.py',
+			'agent-payload/launch.py',
+			'agent-payload/updater.py',
+			'agent-payload/sr-agent\\[systembrowsing\\].sh',
+			'agent-payload/VERSION',
+		],
 	},
 	experimental: {
 		staleTimes: {
