@@ -46,6 +46,15 @@ Fichiers remplacés : `agent.py`, `scan_roms.py`, `launch.py`, `updater.py`,
 `VERSION`. **Jamais** `config.json` (il porte le jeton) ni le lanceur
 `userscripts/` (sa corruption serait irrattrapable).
 
+**Une descente ne télécharge jamais.** Le cloud ne dispose que de la version
+déployée, donc la seule source d'une version antérieure est le `backup/` local :
+si la cible annoncée est plus basse que la version courante, la box restaure sa
+sauvegarde et se relance, sans le moindre aller-retour réseau. Une seule marche
+de recul, et elle est visible : si la sauvegarde ne porte pas exactement la
+version demandée — box en 1.2.0, sauvegarde en 1.1.0, cible en 1.0.0 — la box ne
+bouge pas, le journalise (`Cannot reach target … the local backup holds …`) et
+continue de déclarer sa version, donc `/admin` la montre en retrait.
+
 Deux garde-fous : l'agent ne se met à jour que lancé par `launch.py`, qui pose
 `SR_AGENT_SUPERVISED=1` — une box encore sur l'ancien `custom.sh` n'aurait
 personne pour la réparer. Et une bascule attend qu'aucune partie ni aucun scan
@@ -61,6 +70,10 @@ ou `beta`, sur la page d'édition de la Recalbox).
 - `agent.py` — the agent.
 - `scan_roms.py` — the ROM-audit scanner. **Required next to `agent.py`**: without it the agent refuses `scan` commands with an explicit message (it never crashes, but the audit cannot run).
 - `custom.sh` — boot hook. Deploy to `/recalbox/share/system/custom.sh`; RecalboxOS's `/etc/init.d/S99custom` runs it at boot (`$1`=start) and shutdown (`$1`=stop). The `/recalbox/share` partition survives OS upgrades. `agent.py` takes its single-instance lock itself, so any start path — this legacy `custom.sh` autostart, the current `launch.py`-based one, or both installed at once on the same box — contends for the same lock and can never end up running two agents that double-record play sessions.
+- `launch.py` — the supervisor, and what the launcher actually starts. Repairs an update that never proved itself (restores `backup/`, records the failed version) and then `execv`s `agent.py`, setting `SR_AGENT_SUPERVISED=1` so the agent knows someone can repair it. Its `import updater` is guarded: a broken `updater.py` must never stop the agent from starting.
+- `updater.py` — all the update logic, in pure testable functions: version compare, bundle verification (`py_compile`), the swap, the `update.json` witness, restore, and the `failed.json` ledger. Imported by both `agent.py` (forward path) and `launch.py` (repair path).
+- `sr-agent[systembrowsing].sh` — the current launcher. Deploy to `/recalbox/share/userscripts/`; EmulationStation runs any `*[systembrowsing].sh` every time it shows the systems list — at boot and on every menu navigation — which makes it the watchdog too. **Never updated by the auto-update mechanism**: it is the one file whose corruption is unrecoverable, so it stays frozen and all the replaceable logic lives in Python.
+- `VERSION` — the version this directory holds, one line. Read at import and stamped on every request as `X-Agent-Version`; it is what the cloud compares against the target it announces. A directory without it reads as `0.0.0`.
 - `config.example.json` — copy to `config.json` next to `agent.py` and fill in (`cloud_url`, `token`, `recalbox_id`).
 
 ## Tests
@@ -72,7 +85,7 @@ From the repo root:
 python3 -m unittest discover -s agent -v
 ```
 
-That runs all 105 tests: the four `test_*.py` files at the top level and inside
+That runs all 187 tests: the `test_*.py` files at the top level and inside
 `__tests__/`. The `__tests__/__init__.py` is what lets discovery recurse into that
 subdirectory — without it, `discover` silently skips it and reports only the top-level
 tests, which is easy to mistake for a green run.
@@ -117,6 +130,13 @@ image after a quiet spell, because any wanted image drops the loop straight back
 `artwork_poll_interval_sec` for the ones that follow.
 
 ## Deploy
+
+> **For end users this is the wrong path** — they get the installer zip from
+> `/recalboxes/add` (see [docs/serverless-deploy.md](../docs/serverless-deploy.md#enroll-each-recalbox-agent)).
+> The `custom.sh` layout below lays down neither `VERSION`, nor `launch.py`, nor
+> `updater.py`: the box reports `0.0.0`, logs an import error at every start, has
+> no supervisor to repair a failed swap, and therefore never auto-updates. Use it
+> only to push a working copy onto a dev box, and prefer the zip even then.
 
 ```bash
 RB=192.168.1.194   # or recalbox.local
