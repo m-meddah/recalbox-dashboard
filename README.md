@@ -108,7 +108,9 @@ Use both: the Web Manager for ops, this dashboard for analytics.
   cloud DB, with a dependency-free **Python agent on each Recalbox** that *pushes* data out over
   HTTPS (sessions, monitoring, collection, now-playing) and handles remote control via a polled
   command queue and artwork via object storage. No port-forwarding and **nothing always-on at
-  home** — you can check in even when the Recalbox is off. Self-hosted (below) stays the simple
+  home** — you can check in even when the Recalbox is off. The agent also **updates itself**: it
+  converges to whatever version `/admin` designates, verifying the new build before switching and
+  rolling back automatically if it never checks back in. Self-hosted (below) stays the simple
   default. See [Deployment models](#deployment-models) and [docs/serverless-deploy.md](docs/serverless-deploy.md).
 - **Plug-and-play agent install** — in serverless mode, `/recalboxes/add` is a guided 3-screen
   wizard: name the box, download a ready-made `.zip`, drag two folders into `\\RECALBOX\share`

@@ -168,6 +168,12 @@ reachable — if Turso is down, the build fails (which is the right time to not 
   `AGENT_ONLY_MEDIA=1` (`isServerlessMode()`); the config pages also 404. *(4ab210e)*
 - **Large gamelists (> ~4.5 MB)** are split into `<gameList>` chunks under
   `collection_max_xml_bytes` (server upserts per romPath, so chunks accumulate). *(441cc49)*
+- **The agent updates itself**: it converges to the version `/admin` designates
+  (target version + rollout percentage, plus a `stable`/`beta` channel per box on
+  the edit page), verifying the downloaded package before switching and rolling
+  back from its local backup if the new version never checks back in. Nothing to
+  do here beyond bumping `agent/VERSION` and redeploying — see
+  [`agent/README.md`](../agent/README.md#mise-à-jour-automatique). *(feat/agent-auto-update)*
 
 ## Known limitations
 

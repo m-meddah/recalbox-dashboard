@@ -29,6 +29,33 @@ page or `scripts/create-agent-token.ts`). The cloud resolves the token to a `rec
 Each loop runs in its own daemon thread and never lets an exception kill it. Any loop can be
 disabled by setting its interval `<= 0`.
 
+## Mise à jour automatique
+
+L'agent converge vers la version que le cloud lui annonce dans la réponse de sa
+boucle de commandes (`agent.target_version`), et déclare la sienne dans l'en-tête
+`X-Agent-Version` de chaque requête.
+
+Une bascule télécharge le paquet (`GET /api/agent/download`), le vérifie par
+`py_compile`, copie l'ancien dans `backup/`, pose le témoin `update.json`, échange
+les fichiers et se relance par `execv`. Le témoin passe à `confirmed` au premier
+aller-retour réussi avec le cloud ; s'il ne l'est toujours pas dix minutes plus
+tard, `launch.py` restaure `backup/` au lancement suivant et inscrit la version
+fautive dans `failed.json`, qui empêche de la retenter.
+
+Fichiers remplacés : `agent.py`, `scan_roms.py`, `launch.py`, `updater.py`,
+`VERSION`. **Jamais** `config.json` (il porte le jeton) ni le lanceur
+`userscripts/` (sa corruption serait irrattrapable).
+
+Deux garde-fous : l'agent ne se met à jour que lancé par `launch.py`, qui pose
+`SR_AGENT_SUPERVISED=1` — une box encore sur l'ancien `custom.sh` n'aurait
+personne pour la réparer. Et une bascule attend qu'aucune partie ni aucun scan
+ne soit en cours, sans délai maximal : un `execv` au milieu d'une partie
+perdrait la session.
+
+Le déploiement se pilote depuis `/admin` : version cible (choisie dans une liste,
+jamais saisie), part des box `stable` qui basculent, et canal par box (`stable`
+ou `beta`, sur la page d'édition de la Recalbox).
+
 ## Files
 
 - `agent.py` — the agent.
