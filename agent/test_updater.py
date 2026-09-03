@@ -519,7 +519,16 @@ class UpdaterUnavailableTest(unittest.TestCase):
             "sys.stdout.write('OK')\n"
         ) % d
         out = subprocess.run(
-            [sys.executable, "-c", script], capture_output=True, text=True, timeout=30
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            # -c puts '' (i.e. the inherited cwd, resolved dynamically at
+            # import time) ahead of nothing at all in sys.path. Without
+            # pinning cwd here, running this suite from inside agent/ (which
+            # holds the real updater.py) would let the import succeed against
+            # that real file, defeating the whole point of the test.
+            cwd=d,
         )
         self.assertEqual(out.stdout.strip(), "OK", out.stderr)
 
