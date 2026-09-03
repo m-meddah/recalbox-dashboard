@@ -101,6 +101,19 @@
 		"noActivity": "No activity yet.",
 		"archived": "archived"
 	},
+	"agentRollout": {
+		"heading": "Agent rollout",
+		"deployed": "Deployed version: {version}",
+		"target": "Target version",
+		"percent": "Share of stable boxes that move",
+		"colVersion": "Version",
+		"colBoxes": "Boxes",
+		"colSeen": "Seen in the last hour",
+		"empty": "No box has declared its version yet.",
+		"loadError": "Could not read the rollout state.",
+		"saveError": "Could not save.",
+		"saved": "Saved."
+	},
 	"dashboard": {
 		"nowPlaying": {
 			"title": "Now Playing"

@@ -101,6 +101,19 @@
 		"noActivity": "Aucune activité pour l'instant.",
 		"archived": "archivée"
 	},
+	"agentRollout": {
+		"heading": "Déploiement de l'agent",
+		"deployed": "Version déployée : {version}",
+		"target": "Version cible",
+		"percent": "Part des box « stable » qui basculent",
+		"colVersion": "Version",
+		"colBoxes": "Box",
+		"colSeen": "Vues dans l'heure",
+		"empty": "Aucune box n'a encore déclaré sa version.",
+		"loadError": "Impossible de lire l'état du déploiement.",
+		"saveError": "Impossible d'enregistrer.",
+		"saved": "Enregistré."
+	},
 	"dashboard": {
 		"nowPlaying": {
 			"title": "En cours"
