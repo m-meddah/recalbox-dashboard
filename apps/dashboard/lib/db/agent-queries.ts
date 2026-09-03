@@ -103,12 +103,19 @@ async function cleanupOnFirstUse(
 /** Best-effort liveness touch: never let a failed write break the caller's request. */
 async function touchLastUsed(db: DB, tokenId: string, agentVersion?: string | null): Promise<void> {
 	try {
-		// Une requête SANS en-tête n'efface pas une version déjà connue : un agent
-		// qui déclare sa version sur sa boucle de commandes ne la répète pas
-		// forcément partout, et écraser avec `null` ferait clignoter le tableau
-		// de déploiement.
-		const patch: { lastUsedAt: Date; agentVersion?: string } = { lastUsedAt: new Date() }
-		if (agentVersion) patch.agentVersion = agentVersion
+		// Une requête SANS en-tête EFFACE la version connue. L'agent livré
+		// estampille `X-Agent-Version` sur TOUS ses chemins HTTP : une requête
+		// sans en-tête ne vient donc pas d'un agent bavard qui se tait, elle
+		// vient d'un agent trop ancien pour la déclarer — typiquement une box
+		// redescendue en 1.0.0 par un retour arrière. Garder l'ancienne valeur
+		// afficherait cette box comme saine sur la version qu'elle vient
+		// justement de quitter, dans le cas précis que tout ce mécanisme existe
+		// pour rendre visible. « Version inconnue » est honnête ; « toujours en
+		// 1.1.0 » est un mensonge.
+		const patch: { lastUsedAt: Date; agentVersion: string | null } = {
+			lastUsedAt: new Date(),
+			agentVersion: agentVersion ?? null,
+		}
 		await db.update(agentTokens).set(patch).where(eq(agentTokens.id, tokenId))
 	} catch (err) {
 		logger.error('[agent] lastUsedAt touch failed', err)

@@ -45,8 +45,17 @@ export async function PUT(req: NextRequest) {
 		// converger vers une version qui n'existe nulle part : personne n'y
 		// arriverait, donc rien ne bougerait — une panne parfaitement silencieuse.
 		// L'ensemble autorisé se construit tout seul à partir de la télémétrie.
-		const [deployed, fleet] = await Promise.all([readAgentVersion(), readFleetVersions(db)])
+		// La cible précédente en fait partie même si plus aucune box ne la
+		// déclare : c'est précisément le cas d'un déploiement arrivé à 100 %, et
+		// c'est là que le bouton de rapatriement doit encore fonctionner. Les box
+		// la gardent dans leur `backup/` local, donc la demander a un sens.
+		const [deployed, fleet, settings] = await Promise.all([
+			readAgentVersion(),
+			readFleetVersions(db),
+			readRolloutSettings(),
+		])
 		const allowed = new Set([deployed, ...fleet.map((v) => v.version)])
+		if (settings.previousTargetVersion) allowed.add(settings.previousTargetVersion)
 		if (!allowed.has(parsed.data.targetVersion)) {
 			return NextResponse.json(
 				{ error: `Unknown target version: ${parsed.data.targetVersion}` },

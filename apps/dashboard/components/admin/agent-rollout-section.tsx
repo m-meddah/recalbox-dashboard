@@ -10,6 +10,7 @@ type Rollout = {
 	deployedVersion: string
 	targetVersion: string
 	rolloutPercent: number
+	previousTargetVersion: string | null
 	versions: FleetVersion[]
 }
 
@@ -75,15 +76,21 @@ export function AgentRolloutSection() {
 
 	// La liste des cibles se construit à partir de ce qui existe réellement :
 	// la version déployée, la cible déjà enregistrée (même si plus aucune box
-	// ne la déclare), plus toute version qu'au moins une box déclare. Sans la
-	// cible déjà enregistrée, le select pourrait afficher une valeur qu'il
-	// n'offre pas — exactement le mensonge qu'il existe pour empêcher.
+	// ne la déclare), la cible PRÉCÉDENTE — le bouton de rapatriement, qui doit
+	// rester offert une fois le déploiement à 100 %, quand plus aucune box ne
+	// déclare la version d'avant — plus toute version qu'au moins une box
+	// déclare. Sans la cible déjà enregistrée, le select pourrait afficher une
+	// valeur qu'il n'offre pas — exactement le mensonge qu'il existe pour
+	// empêcher.
 	const targets = [
-		...new Set([
-			state.deployedVersion,
-			state.targetVersion,
-			...state.versions.map((v) => v.version),
-		]),
+		...new Set(
+			[
+				state.deployedVersion,
+				state.targetVersion,
+				state.previousTargetVersion,
+				...state.versions.map((v) => v.version),
+			].filter((v): v is string => Boolean(v)),
+		),
 	]
 
 	return (

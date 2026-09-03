@@ -28,6 +28,15 @@ export type FleetVersionRow = {
 const LIVENESS_WINDOW_MS = 60 * 60 * 1000
 
 /**
+ * Ce que `read_version()` rend quand il n'arrive pas à lire `VERSION` — un
+ * dossier incomplet, pas une version. Elle passe la validation de l'en-tête et
+ * atterrirait donc dans le tableau, puis dans la liste des cibles ; et comme
+ * elle se compare plus bas que tout, la choisir annoncerait une DESCENTE à
+ * toutes les box, qu'elles refuseraient faute d'une sauvegarde correspondante.
+ */
+const UNKNOWN_VERSION = '0.0.0'
+
+/**
  * Répartition des versions dans le parc — la seule vue qui compte pendant un
  * déploiement : une version dont le taux de présence s'effondre est une version
  * à rapatrier.
@@ -59,6 +68,10 @@ export async function readFleetVersions(db: DB): Promise<FleetVersionRow[]> {
 	const cutoff = Date.now() - LIVENESS_WINDOW_MS
 	const byVersion = new Map<string, { boxes: number; seenLastHour: number }>()
 	for (const { version, at } of latest.values()) {
+		// Filtré ici et non à la lecture des lignes : une box dont le jeton le
+		// plus frais dit `0.0.0` doit disparaître du tableau, pas être recomptée
+		// sur une version plus ancienne qu'elle n'exécute plus.
+		if (version === UNKNOWN_VERSION) continue
 		const acc = byVersion.get(version) ?? { boxes: 0, seenLastHour: 0 }
 		acc.boxes += 1
 		if (at >= cutoff) acc.seenLastHour += 1

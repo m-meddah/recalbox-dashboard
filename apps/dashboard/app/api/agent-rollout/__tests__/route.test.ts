@@ -46,7 +46,11 @@ function asAdmin() {
 	getUser.mockResolvedValue({ id: 'u1' })
 	isAdmin.mockReturnValue(true)
 	readAgentVersion.mockResolvedValue('1.1.0')
-	readRolloutSettings.mockResolvedValue({ targetVersion: '1.1.0', rolloutPercent: 0 })
+	readRolloutSettings.mockResolvedValue({
+		targetVersion: '1.1.0',
+		rolloutPercent: 0,
+		previousTargetVersion: null,
+	})
 	readFleetVersions.mockResolvedValue([{ version: '1.0.0', boxes: 2, seenLastHour: 2 }])
 }
 
@@ -69,6 +73,7 @@ describe('GET /api/agent-rollout', () => {
 			deployedVersion: '1.1.0',
 			targetVersion: '1.1.0',
 			rolloutPercent: 0,
+			previousTargetVersion: null,
 			versions: [{ version: '1.0.0', boxes: 2, seenLastHour: 2 }],
 		})
 	})
@@ -95,6 +100,35 @@ describe('PUT /api/agent-rollout', () => {
 	it('accepts a version some box actually reports', async () => {
 		asAdmin()
 		expect((await PUT(put({ targetVersion: '1.0.0' }))).status).toBe(200)
+	})
+
+	it('accepts the previous target after a rollout has reached every box', async () => {
+		// The lever that must not disappear. At 100% nobody declares 1.0.0 any
+		// more, so the telemetry-built allow-list no longer holds it — while
+		// every console still keeps it in backup/ and could restore it in
+		// seconds.
+		asAdmin()
+		readRolloutSettings.mockResolvedValue({
+			targetVersion: '1.1.0',
+			rolloutPercent: 100,
+			previousTargetVersion: '1.0.0',
+		})
+		readFleetVersions.mockResolvedValue([{ version: '1.1.0', boxes: 3, seenLastHour: 3 }])
+		expect((await PUT(put({ targetVersion: '1.0.0' }))).status).toBe(200)
+		expect(writeRolloutSettings).toHaveBeenCalledWith({ targetVersion: '1.0.0' })
+	})
+
+	it('still refuses a version that was never a target and nobody runs', async () => {
+		asAdmin()
+		readRolloutSettings.mockResolvedValue({
+			targetVersion: '1.1.0',
+			rolloutPercent: 100,
+			previousTargetVersion: '1.0.0',
+		})
+		readFleetVersions.mockResolvedValue([{ version: '1.1.0', boxes: 3, seenLastHour: 3 }])
+		const res = await PUT(put({ targetVersion: '0.9.0' }))
+		expect(res.status).toBe(422)
+		expect(writeRolloutSettings).not.toHaveBeenCalled()
 	})
 
 	it('refuses a version that exists nowhere', async () => {
