@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 from unittest import mock
@@ -313,6 +314,59 @@ class RollbackTest(unittest.TestCase):
         self.assertEqual(self.read("agent.py"), "# old\n")
         self.assertEqual(self.read("VERSION"), "1.0.0\n")
         self.assertIsNone(updater.read_witness(self.dir))
+
+
+class SuperviseTest(unittest.TestCase):
+    def setUp(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import launch
+
+        self.launch = launch
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-supervise-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        for name in updater.BUNDLE_FILES:
+            with open(os.path.join(self.dir, name), "w") as f:
+                f.write("# old\n")
+        with open(os.path.join(self.dir, "VERSION"), "w") as f:
+            f.write("1.0.0\n")
+
+    def test_does_nothing_without_a_witness(self):
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# old\n")
+
+    def test_leaves_a_fresh_witness_alone(self):
+        # The launcher fires on EVERY menu navigation. Without the grace period
+        # a navigation ten seconds after the swap would cancel a perfectly
+        # healthy update, while it is running.
+        updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# new\n")
+
+    def test_restores_after_an_unconfirmed_update_expires(self):
+        updater.stage_and_swap(
+            self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0", now=time.time() - 4000
+        )
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# old\n")
+        self.assertTrue(updater.has_failed(self.dir, "1.1.0"))
+
+    def test_clears_a_confirmed_witness(self):
+        updater.stage_and_swap(self.dir, bundle(), "1.0.0", "1.1.0")
+        updater.confirm_update(self.dir)
+        self.launch.supervise(self.dir)
+        self.assertIsNone(updater.read_witness(self.dir))
+
+    def test_never_raises_even_on_a_nonexistent_directory(self):
+        # A broken updater must not be able to stop the agent from starting.
+        self.launch.supervise("/nonexistent/sr-agent")
+
+    def test_the_env_name_matches_the_launcher(self):
+        # launch.py hard-codes the string so it stays correct even when the
+        # updater import fails; this asserts the two never drift.
+        self.assertEqual(updater.SUPERVISED_ENV, "SR_AGENT_SUPERVISED")
 
 
 LOCK_PROBE = '''
