@@ -829,6 +829,13 @@
 			"delete": "Delete",
 			"loading": "Loading…"
 		},
+		"channel": {
+			"heading": "Update channel",
+			"stable": "Stable",
+			"beta": "Beta — this box goes first",
+			"hint": "A beta box takes each new version immediately, without waiting for the progressive rollout.",
+			"error": "Could not change the channel."
+		},
 		"wizard": {
 			"step": "Step {current} of {total}",
 			"nameTitle": "What should we call your Recalbox?",

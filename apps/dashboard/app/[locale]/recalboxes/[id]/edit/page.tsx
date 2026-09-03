@@ -1,5 +1,6 @@
 'use client'
 
+import { AgentChannelSection } from '@/components/agent-channel-section'
 import { AgentCommandsSection } from '@/components/agent-commands-section'
 import { AgentTokensSection } from '@/components/agent-tokens-section'
 import { RecalboxForm, type RecalboxFormValues } from '@/components/recalbox-form'
@@ -108,6 +109,7 @@ export default function EditRecalboxPage({ params }: { params: Promise<{ id: str
 					{t('edit.delete')}
 				</Button>
 			</div>
+			<AgentChannelSection recalboxId={id} />
 			<AgentTokensSection recalboxId={id} />
 			<AgentCommandsSection recalboxId={id} />
 		</div>

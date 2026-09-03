@@ -829,6 +829,13 @@
 			"delete": "Supprimer",
 			"loading": "Chargement…"
 		},
+		"channel": {
+			"heading": "Canal de mise à jour",
+			"stable": "Stable",
+			"beta": "Bêta — cette box essuie les plâtres",
+			"hint": "Une box en bêta prend chaque nouvelle version immédiatement, sans attendre le déploiement progressif.",
+			"error": "Impossible de changer le canal."
+		},
 		"wizard": {
 			"step": "Étape {current} sur {total}",
 			"nameTitle": "Comment s'appelle ta Recalbox ?",

@@ -92,6 +92,10 @@ const recalboxInstanceSchema = z.object({
 	ownerUserId: z.string().nullable().default(null),
 	isDefault: z.boolean(),
 	archived: z.boolean(),
+	// 'stable' | 'beta' — see lib/agent/rollout.ts. Explicit per-box choice, not
+	// derived: it's what lets an owner put their own box in the blast radius
+	// first, and someone else's out of it.
+	agentChannel: z.enum(['stable', 'beta']),
 })
 
 export type RecalboxInstance = z.infer<typeof recalboxInstanceSchema>

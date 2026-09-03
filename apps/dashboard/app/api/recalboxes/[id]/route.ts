@@ -31,6 +31,10 @@ const updateSchema = z.object({
 	color: z.string().nullable().optional(),
 	iconEmoji: z.string().nullable().optional(),
 	archived: z.boolean().optional(),
+	// 'beta' fait basculer cette box dès qu'une version est déployée, sans
+	// attendre le pourcentage. Explicite plutôt que tiré au sort : c'est ce qui
+	// permet de choisir QUI essuie les plâtres.
+	agentChannel: z.enum(['stable', 'beta']).optional(),
 })
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
