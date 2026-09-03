@@ -10,6 +10,7 @@ du bash sur une box distante n'est pas testable — et parce que le lanceur, lui
 n'est jamais mis a jour : sa corruption serait le seul echec irrattrapable.
 """
 
+import fcntl
 import json
 import os
 import py_compile
@@ -22,6 +23,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Les fichiers remplaces par une mise a jour. Jamais config.json : il porte le
 # jeton de la box. Jamais le lanceur userscripts/ : il reste gele.
 BUNDLE_FILES = ("agent.py", "scan_roms.py", "launch.py", "updater.py", "VERSION")
+
+# Le fichier de verrou d'instance unique, pose par agent.py (voir lock_path()
+# la-bas) et SONDE par launch.py avant tout retour arriere. Le nom vit ici, dans
+# le seul module que les deux importent, pour qu'il ne puisse pas deriver entre
+# celui qui pose le verrou et celui qui le teste : deux noms differents feraient
+# croire au lanceur qu'aucun agent ne tourne, et il restaurerait par-dessus un
+# agent parfaitement sain.
+LOCK_NAME = "launch.lock"
 
 UPDATE_DIR = ".update"
 BACKUP_DIR = "backup"
@@ -168,6 +177,20 @@ def stage_and_swap(agent_dir, files, from_version, to_version, now=None):
     Retourne True si la bascule a eu lieu. Aucun effet visible en cas d'echec de
     la verification : rien n'est touche tant que le paquet n'a pas compile.
     """
+    # Une bascule non prouvee doit etre tranchee par le lanceur AVANT qu'une
+    # autre soit tentee. Ce n'est pas une optimisation : backup/ est efface puis
+    # refait a partir du dossier COURANT a chaque tentative. Si une bascule a
+    # echoue en cours d'os.replace, ce dossier courant est un melange des deux
+    # versions ; maybe_update reessaie toutes les 60 s, donc quelques tentatives
+    # a l'interieur meme du delai de grace suffisent a remplacer la derniere
+    # sauvegarde saine par ce melange. Le retour arriere restaurerait alors une
+    # sauvegarde empoisonnee ET blacklisterait la cible : box mixte, irreparable,
+    # et exclue du correctif. Refuser ici est la seule facon de garder la
+    # sauvegarde qui, elle, a demarre.
+    pending = read_witness(agent_dir)
+    if pending and not pending.get("confirmed"):
+        return False
+
     if not verify_bundle(files):
         return False
 
@@ -258,6 +281,52 @@ def pending_rollback(agent_dir, now=None, grace=GRACE_SEC):
         # ne peut pas lui accorder de delai. Restaurer est le choix sur.
         return True
     return (now if now is not None else time.time()) - at >= grace
+
+
+def agent_is_running(agent_dir):
+    """True si un agent tient deja le verrou d'instance unique.
+
+    Sonde non bloquante du verrou pose par agent.py. Le lanceur s'en sert pour
+    ne pas annuler une mise a jour saine dont seul le CLOUD est injoignable :
+    confirm_update exige un aller-retour reseau, donc une box privee de reseau
+    dix minutes apres une bascule serait rapatriee, et mark_failed inscrirait
+    une version pourtant parfaitement valide dans failed.json — que rien
+    n'efface jamais et qu'aucune commande d'admin n'atteint. La box refuserait
+    cette version pour toujours, meme le reseau revenu.
+
+    L'ordre rend la lecture fiable : le lanceur se declenche a chaque navigation
+    dans les menus, donc un agent sain tient normalement ce verrou a cet
+    instant ; une version qui plante au demarrage n'en tient aucun et le verrou
+    est libre. Ne leve jamais : dans le doute (fichier illisible), on repond
+    False, ce qui rend la main au comportement d'origine.
+    """
+    path = os.path.join(agent_dir, LOCK_NAME)
+    if not os.path.exists(path):
+        # Pas de fichier de verrou du tout : aucun agent n'a jamais demarre ici.
+        # On ne le CREE pas — sonder ne doit rien laisser derriere soi.
+        return False
+    fd = None
+    try:
+        fd = os.open(path, os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            # Quelqu'un tient le verrou : un agent tourne, donc la version
+            # basculee a demontre qu'elle demarre.
+            return True
+        # On vient de le prendre : personne ne le tenait. On le relache
+        # immediatement — sonder ne doit jamais empecher l'agent de demarrer
+        # juste apres, dans le execv du lanceur.
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    except OSError:
+        return False
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 def _copy_from_backup(agent_dir):

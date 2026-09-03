@@ -6,6 +6,7 @@ Stdlib unittest only. From the repo root:
     python3 -m unittest discover -s agent -v
 """
 
+import fcntl
 import os
 import shutil
 import subprocess
@@ -148,6 +149,45 @@ class SwapTest(unittest.TestCase):
     def test_leaves_no_staging_directory_behind(self):
         updater.stage_and_swap(self.dir, bundle(), "1.0.0", "1.1.0")
         self.assertFalse(os.path.exists(os.path.join(self.dir, updater.UPDATE_DIR)))
+
+    def test_a_retry_after_a_failed_swap_keeps_the_last_good_backup(self):
+        # backup/ is wiped and refilled from the CURRENT directory on every
+        # attempt. After a swap that died mid-os.replace, that current
+        # directory is a MIX of both versions — and maybe_update retries every
+        # 60s, so a handful of retries inside the 600s grace window would
+        # replace the last known-good backup with that mix. The eventual
+        # rollback would then restore a poisoned backup AND blacklist the
+        # target: a box left mixed, unrepairable, and excluded from the fix.
+        real_replace = os.replace
+        calls = {"n": 0}
+
+        def flaky_replace(src, dst):
+            calls["n"] += 1
+            if calls["n"] > 2:
+                raise OSError("read-only remount")
+            return real_replace(src, dst)
+
+        with mock.patch.object(os, "replace", flaky_replace):
+            self.assertFalse(
+                updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+            )
+        # The mixed state: agent.py already swapped, the rest still old.
+        self.assertEqual(self.read("agent.py"), "# new\n")
+        self.assertEqual(self.read(updater.BACKUP_DIR, "agent.py"), "# old\n")
+
+        # The retry a minute later must refuse rather than re-snapshot the mix.
+        self.assertFalse(
+            updater.stage_and_swap(self.dir, bundle(agent_src="# newer\n"), "1.0.0", "1.1.0")
+        )
+        self.assertEqual(self.read(updater.BACKUP_DIR, "agent.py"), "# old\n")
+        self.assertEqual(updater.backup_version(self.dir), "1.0.0")
+
+    def test_refuses_to_stage_while_an_unproven_swap_is_outstanding(self):
+        self.assertTrue(updater.stage_and_swap(self.dir, bundle(), "1.0.0", "1.1.0"))
+        self.assertFalse(updater.stage_and_swap(self.dir, bundle(), "1.1.0", "1.2.0"))
+        # Confirmed, the door reopens: the launcher no longer owes a repair.
+        updater.confirm_update(self.dir)
+        self.assertTrue(updater.stage_and_swap(self.dir, bundle(), "1.1.0", "1.2.0"))
 
     def test_writes_the_witness_before_swapping(self):
         # os.replace is atomic per file, not across the set: a power cut mid-swap
@@ -358,6 +398,51 @@ class SuperviseTest(unittest.TestCase):
         updater.confirm_update(self.dir)
         self.launch.supervise(self.dir)
         self.assertIsNone(updater.read_witness(self.dir))
+
+    def test_restores_when_the_witness_is_present_but_corrupt(self):
+        # pending_rollback deliberately tells "no file" apart from "file there
+        # but unparseable" and restores on the second — an interrupted write is
+        # the trace of a swap in flight. supervise used to return early on
+        # read_witness() is None, which is the SAME value for both cases, so
+        # from the only production caller that branch was dead code.
+        updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+        with open(os.path.join(self.dir, updater.WITNESS_NAME), "w") as f:
+            f.write("{ truncated mid-writ")
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# old\n")
+
+    def test_leaves_a_stale_witness_alone_while_an_agent_holds_the_lock(self):
+        # confirm_update needs a cloud round-trip. A box whose connectivity
+        # drops for ten minutes after a swap would otherwise be rolled back on
+        # the next menu navigation, and mark_failed would write a perfectly
+        # healthy version into failed.json — which nothing ever clears and no
+        # admin command can reach. A held lock proves the swapped version
+        # booted; only the cloud is unreachable.
+        updater.stage_and_swap(
+            self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0", now=time.time() - 4000
+        )
+        lock = os.path.join(self.dir, updater.LOCK_NAME)
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o644)
+        self.addCleanup(os.close, fd)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# new\n")
+        self.assertFalse(updater.has_failed(self.dir, "1.1.0"))
+        self.assertIsNotNone(updater.read_witness(self.dir))
+
+    def test_a_free_lock_still_rolls_back(self):
+        # The other half of the probe: a version that crashes at startup holds
+        # nothing, so the lock file can be there and still be free.
+        updater.stage_and_swap(
+            self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0", now=time.time() - 4000
+        )
+        with open(os.path.join(self.dir, updater.LOCK_NAME), "w") as f:
+            f.write("4242")
+        self.launch.supervise(self.dir)
+        with open(os.path.join(self.dir, "agent.py")) as f:
+            self.assertEqual(f.read(), "# old\n")
 
     def test_never_raises_even_on_a_nonexistent_directory(self):
         # A broken updater must not be able to stop the agent from starting.
@@ -631,6 +716,144 @@ class RestartExecvFailureTest(unittest.TestCase):
                 with self.assertLogs(agent.log, level="ERROR"):
                     agent.restart()
         exit_mock.assert_called_once_with(1)
+
+
+class AgentIsRunningTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-lockprobe-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+
+    def test_no_lock_file_means_no_agent(self):
+        self.assertFalse(updater.agent_is_running(self.dir))
+
+    def test_probing_does_not_create_the_lock_file(self):
+        # A probe that created the file would leave a stray artefact in the
+        # share on every menu navigation of a box that never ran an agent.
+        updater.agent_is_running(self.dir)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, updater.LOCK_NAME)))
+
+    def test_a_free_lock_reads_as_not_running(self):
+        with open(os.path.join(self.dir, updater.LOCK_NAME), "w") as f:
+            f.write("1")
+        self.assertFalse(updater.agent_is_running(self.dir))
+
+    def test_a_held_lock_reads_as_running(self):
+        # flock arbitrates between OPEN FILE DESCRIPTIONS, not processes, so a
+        # second descriptor opened here is refused exactly as another process
+        # would be.
+        fd = os.open(os.path.join(self.dir, updater.LOCK_NAME), os.O_CREAT | os.O_RDWR, 0o644)
+        self.addCleanup(os.close, fd)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assertTrue(updater.agent_is_running(self.dir))
+
+    def test_the_probe_releases_the_lock_it_took(self):
+        # The launcher exec's agent.py microseconds later; a probe that kept
+        # the lock would make every start fail with "another agent holds it".
+        with open(os.path.join(self.dir, updater.LOCK_NAME), "w") as f:
+            f.write("1")
+        updater.agent_is_running(self.dir)
+        fd = os.open(os.path.join(self.dir, updater.LOCK_NAME), os.O_RDWR)
+        self.addCleanup(os.close, fd)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def test_the_lock_name_matches_the_one_agent_py_uses(self):
+        # agent.py hard-codes a fallback so it can still take its lock when
+        # updater.py is missing or corrupt (same reason as
+        # _read_version_fallback). This asserts the two never drift — a
+        # launcher probing the wrong file would believe no agent is running
+        # and restore over a healthy one.
+        self.assertEqual(agent._LOCK_NAME_FALLBACK, updater.LOCK_NAME)
+        self.assertEqual(os.path.basename(agent.lock_path()), updater.LOCK_NAME)
+
+
+def _drive_one_successful_poll(agent_dir, agent_version):
+    """Fait tourner command_loop sur exactement une interrogation reussie."""
+    cfg = {
+        "cloud_url": "https://example.test/api/agent/ingest",
+        "token": "tok",
+        "http_timeout_sec": 1,
+        "command_poll_interval_sec": 60,
+    }
+    rec = test_agent._SleepRecorder(1)
+    with mock.patch.object(agent, "HERE", agent_dir), mock.patch.object(
+        agent, "AGENT_VERSION", agent_version
+    ), mock.patch.object(agent, "maybe_update"), mock.patch.object(
+        agent.time, "sleep", rec
+    ), mock.patch.object(
+        agent.urllib.request, "urlopen", test_agent._JsonUrlopen({"commands": []})
+    ):
+        try:
+            agent.command_loop(cfg)
+        except test_agent._StopLoop:
+            pass
+
+
+class ConfirmOnlyOwnVersionTest(unittest.TestCase):
+    """command_loop confirmait le temoin a CHAQUE interrogation reussie, sans
+    verifier qu'il decrit la version de ce processus-ci. Deux sequences
+    atteignent cette ligne avec un temoin qui parle d'autre chose, et le
+    confirmer detruit le seul signal qui reclame une reparation."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-confirm-")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        for name in updater.BUNDLE_FILES:
+            with open(os.path.join(self.dir, name), "w") as f:
+                f.write("# old\n")
+        with open(os.path.join(self.dir, "VERSION"), "w") as f:
+            f.write("1.0.0\n")
+
+    def test_a_partial_swap_is_not_confirmed_by_the_old_process(self):
+        # stage_and_swap writes the witness, then dies inside the os.replace
+        # loop. It returns False, maybe_update logs and returns WITHOUT
+        # restarting — so this very process, still on 1.0.0, keeps polling.
+        real_replace = os.replace
+        calls = {"n": 0}
+
+        def flaky_replace(src, dst):
+            calls["n"] += 1
+            if calls["n"] > 2:
+                raise OSError("EIO")
+            return real_replace(src, dst)
+
+        with mock.patch.object(os, "replace", flaky_replace):
+            self.assertFalse(
+                updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+            )
+        _drive_one_successful_poll(self.dir, "1.0.0")
+        witness = updater.read_witness(self.dir)
+        self.assertIsNotNone(witness)
+        self.assertFalse(witness.get("confirmed"))
+
+    def test_a_kept_witness_survives_a_poll_after_an_interrupted_rollback(self):
+        # rollback KEEPS the witness when _copy_from_backup fails partway, so
+        # the next boot retries. launch.py exec's the agent anyway, and its
+        # first successful poll used to confirm that witness — destroying the
+        # retry signal.
+        updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def flaky_copy2(src, dst):
+            calls["n"] += 1
+            if calls["n"] > 1:
+                raise OSError("card full")
+            return real_copy2(src, dst)
+
+        with mock.patch.object(shutil, "copy2", side_effect=flaky_copy2):
+            self.assertFalse(updater.rollback(self.dir))
+        self.assertIsNotNone(updater.read_witness(self.dir))
+        _drive_one_successful_poll(self.dir, "1.0.0")
+        witness = updater.read_witness(self.dir)
+        self.assertIsNotNone(witness)
+        self.assertFalse(witness.get("confirmed"))
+
+    def test_the_swapped_version_still_confirms_its_own_witness(self):
+        # The guard must not break the mechanism it protects: after a clean
+        # swap-and-execv, AGENT_VERSION equals the witness's `to`.
+        updater.stage_and_swap(self.dir, bundle(), "1.0.0", "1.1.0")
+        _drive_one_successful_poll(self.dir, "1.1.0")
+        self.assertTrue(updater.read_witness(self.dir).get("confirmed"))
 
 
 if __name__ == "__main__":

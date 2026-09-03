@@ -45,14 +45,28 @@ def supervise(agent_dir):
         sys.path.insert(0, agent_dir)
         import updater
 
+        # Pas de pre-verification sur read_witness ici. Elle rend le meme None
+        # pour « aucun fichier » et pour « fichier present mais illisible »,
+        # alors que pending_rollback distingue justement les deux et restaure
+        # dans le second cas : un temoin corrompu est la trace d'une ecriture
+        # interrompue, donc d'une bascule en cours. Filtrer sur read_witness
+        # rendait cette branche-la inatteignable depuis le seul appelant reel.
         witness = updater.read_witness(agent_dir)
-        if witness is None:
-            return
-        if witness.get("confirmed"):
+        if witness and witness.get("confirmed"):
             updater.clear_witness(agent_dir)
             return
-        if updater.pending_rollback(agent_dir):
-            updater.rollback(agent_dir)
+        if not updater.pending_rollback(agent_dir):
+            return
+        if updater.agent_is_running(agent_dir):
+            # Le temoin n'a jamais ete confirme, mais un agent tient le verrou :
+            # la version basculee demarre, c'est le CLOUD qui est injoignable.
+            # Restaurer ici rapatrierait une version saine et l'inscrirait dans
+            # failed.json, que rien n'efface jamais — la box la refuserait pour
+            # toujours, meme le reseau revenu. On laisse tourner ; le temoin
+            # reste, et la premiere interrogation reussie le confirmera.
+            sys.stderr.write("supervise: unproven update but an agent holds the lock; leaving it\n")
+            return
+        updater.rollback(agent_dir)
     except Exception as e:  # noqa: BLE001 — starting the agent outranks everything
         sys.stderr.write("supervise: skipped (%s)\n" % e)
 

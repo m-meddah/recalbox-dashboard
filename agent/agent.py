@@ -70,6 +70,15 @@ def _read_version_fallback(agent_dir):
 
 AGENT_VERSION = updater.read_version(HERE) if updater is not None else _read_version_fallback(HERE)
 
+# Le nom du fichier de verrou est defini UNE fois, dans updater.py, parce que
+# launch.py le sonde avant tout retour arriere : deux definitions pourraient
+# deriver, et un lanceur qui sonde le mauvais fichier croirait qu'aucun agent ne
+# tourne. Le repli existe pour la meme raison que _read_version_fallback : un
+# updater.py absent ou corrompu ne doit pas empecher l'agent de prendre son
+# verrou et de demarrer. Un test verrouille les deux valeurs ensemble.
+_LOCK_NAME_FALLBACK = "launch.lock"
+LOCK_NAME = updater.LOCK_NAME if updater is not None else _LOCK_NAME_FALLBACK
+
 # Descripteur du verrou d'exclusivite, garde pour toute la vie du processus et
 # ferme AVANT tout execv (voir restart()).
 LOCK_FD = None
@@ -85,7 +94,7 @@ LOCK_FD = None
 # which the old custom.sh path never touches.
 def lock_path():
     """Chemin du fichier de verrou, a cote de agent.py."""
-    return os.path.join(HERE, "launch.lock")
+    return os.path.join(HERE, LOCK_NAME)
 
 
 def acquire_lock():
@@ -1203,7 +1212,28 @@ def command_loop(cfg, tracker=None):
                 # this version talks to the cloud — which is exactly what the
                 # rollback witness is waiting for. Skipped when updater.py is
                 # unavailable (see the import guard at the top of this file).
-                updater.confirm_update(HERE)
+                #
+                # Only ever confirm a witness that names the version THIS
+                # process is running. Two sequences reach this line with a
+                # witness that describes something else, and confirming either
+                # one destroys the very signal that says the box still needs
+                # repairing — launch.py then deletes the witness outright:
+                #
+                #  - a swap whose os.replace loop died partway (read-only
+                #    remount, EIO, SD card pulled). stage_and_swap returns
+                #    False, maybe_update logs and returns WITHOUT restarting,
+                #    so this same old process keeps polling with a witness on
+                #    disk for a swap that never completed;
+                #  - a rollback whose restore was cut short. rollback keeps the
+                #    witness on purpose so the next boot retries, but launch.py
+                #    exec's the agent anyway.
+                #
+                # AGENT_VERSION is read once at import, so after a successful
+                # swap-and-execv it equals `to`; in both failure sequences it
+                # does not.
+                witness = updater.read_witness(HERE)
+                if witness and witness.get("to") == AGENT_VERSION:
+                    updater.confirm_update(HERE)
             for cmd in (data or {}).get("commands") or []:
                 handle_command(cmd, result_url, token, timeout, cfg)
             if ok:
