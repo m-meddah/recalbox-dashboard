@@ -20,6 +20,7 @@ const STEPS = [0, 10, 25, 50, 100]
 export function AgentRolloutSection() {
 	const t = useTranslations('agentRollout')
 	const [state, setState] = useState<Rollout | null>(null)
+	const [loadError, setLoadError] = useState(false)
 	const [saving, setSaving] = useState(false)
 
 	const load = useCallback(async () => {
@@ -27,7 +28,9 @@ export function AgentRolloutSection() {
 			const res = await fetch('/api/agent-rollout')
 			if (!res.ok) throw new Error()
 			setState(await res.json())
+			setLoadError(false)
 		} catch {
+			setLoadError(true)
 			toast.error(t('loadError'))
 		}
 	}, [t])
@@ -54,11 +57,34 @@ export function AgentRolloutSection() {
 		}
 	}
 
-	if (!state) return null
+	if (!state) {
+		if (!loadError) return null
+		// Un panneau vide ne dit rien : pendant un incident, l'absence de
+		// signal est indiscernable d'un "rien à signaler". Une erreur explicite
+		// avec une reprise en un clic reste lisible et opérable.
+		return (
+			<section className="space-y-4 border rounded-lg p-4">
+				<h2 className="font-medium">{t('heading')}</h2>
+				<p className="text-sm text-destructive">{t('loadError')}</p>
+				<Button type="button" size="sm" variant="outline" onClick={() => void load()}>
+					{t('retry')}
+				</Button>
+			</section>
+		)
+	}
 
 	// La liste des cibles se construit à partir de ce qui existe réellement :
-	// la version déployée, plus toute version qu'au moins une box déclare.
-	const targets = [...new Set([state.deployedVersion, ...state.versions.map((v) => v.version)])]
+	// la version déployée, la cible déjà enregistrée (même si plus aucune box
+	// ne la déclare), plus toute version qu'au moins une box déclare. Sans la
+	// cible déjà enregistrée, le select pourrait afficher une valeur qu'il
+	// n'offre pas — exactement le mensonge qu'il existe pour empêcher.
+	const targets = [
+		...new Set([
+			state.deployedVersion,
+			state.targetVersion,
+			...state.versions.map((v) => v.version),
+		]),
+	]
 
 	return (
 		<section className="space-y-4 border rounded-lg p-4">
@@ -88,20 +114,21 @@ export function AgentRolloutSection() {
 
 			<div className="space-y-1">
 				<span className="block text-xs text-muted-foreground">{t('percent')}</span>
-				<div className="flex gap-2">
+				<fieldset className="m-0 flex gap-2 border-0 p-0" aria-label={t('percent')}>
 					{STEPS.map((step) => (
 						<Button
 							key={step}
 							type="button"
 							size="sm"
 							variant={state.rolloutPercent === step ? 'default' : 'outline'}
+							aria-pressed={state.rolloutPercent === step}
 							disabled={saving}
 							onClick={() => void save({ rolloutPercent: step })}
 						>
 							{step}
 						</Button>
 					))}
-				</div>
+				</fieldset>
 			</div>
 
 			{state.versions.length === 0 ? (

@@ -112,7 +112,8 @@
 		"empty": "Aucune box n'a encore déclaré sa version.",
 		"loadError": "Impossible de lire l'état du déploiement.",
 		"saveError": "Impossible d'enregistrer.",
-		"saved": "Enregistré."
+		"saved": "Enregistré.",
+		"retry": "Réessayer"
 	},
 	"dashboard": {
 		"nowPlaying": {

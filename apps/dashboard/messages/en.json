@@ -112,7 +112,8 @@
 		"empty": "No box has declared its version yet.",
 		"loadError": "Could not read the rollout state.",
 		"saveError": "Could not save.",
-		"saved": "Saved."
+		"saved": "Saved.",
+		"retry": "Retry"
 	},
 	"dashboard": {
 		"nowPlaying": {
