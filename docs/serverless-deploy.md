@@ -130,19 +130,40 @@ reachable — if Turso is down, the build fails (which is the right time to not 
 
 ## Enroll each Recalbox agent
 
-1. In the app, open the Recalbox's **edit page → Agent tokens → Generate**. Copy
-   the one-time `config.json` snippet (it embeds the token + ingest URL).
-2. On the box, drop the snippet into `/recalbox/share/system/sr-agent/config.json`
-   and point `cloud_url` at `https://<app>/api/agent/ingest`. Tune intervals as
-   needed (`command_poll_interval_sec`, `collection_interval_sec`; set the last to
-   `0` to disable the gamelist sweep). `snapshot_interval_sec` defaults to `0` —
-   system snapshots have no reader in serverless mode and are discarded server-side.
-3. Copy `agent/agent.py` **and `agent/scan_roms.py`** to the box, side by side,
-   and autostart the agent via `/recalbox/share/system/custom.sh` (run with
-   `python3`, see Phase 0 notes). `scan_roms.py` is what the ROM audit runs; an
-   agent deployed without it refuses `scan` commands with an explicit message.
+The supported path is the **installer zip** — no terminal, no SSH, no
+hand-copied files.
+
+1. In the app, go to **Recalboxes → Add** (`/recalboxes/add`). Name the box, then
+   download the zip the wizard offers. It is built for **that** box: it embeds a
+   freshly minted token, the cloud URL, and the deployed `VERSION`.
+2. Open the zip and drag its `system` and `userscripts` folders into
+   `\\RECALBOX\share` (Windows) or `smb://recalbox/share` (macOS). Accept the
+   merge — none of the files collide with anything already there.
+3. Restart the Recalbox. The wizard's wait screen flips to done on the agent's
+   first check-in.
 4. Verify in the app: the Recalbox shows **online**, the collection imports, and
    now-playing shows the running game.
+
+The zip lays down `agent.py`, `scan_roms.py`, `launch.py`, `updater.py`,
+`VERSION` and `config.json` under `share/system/sr-agent/`, plus the launcher
+`share/userscripts/sr-agent[systembrowsing].sh` that EmulationStation runs on
+every menu navigation. All six matter: `scan_roms.py` is what the ROM audit runs,
+and `launch.py` + `updater.py` + `VERSION` are what make the box updatable and
+repairable.
+
+> **Do not hand-copy `agent.py` + `scan_roms.py` and autostart them from
+> `custom.sh`.** That was the pre-installer path and it is retired. A box
+> installed that way has no `VERSION` (so it reports `0.0.0`), no `launch.py`
+> (so nothing can repair a failed update — and the agent, seeing no
+> `SR_AGENT_SUPERVISED`, deliberately refuses to update at all), and no
+> `updater.py` (so it logs an import error at every start). If a box in the field
+> still runs that layout, remove its `custom.sh` and re-install from the zip.
+> Only `config.json` is worth keeping — or just mint a new token.
+
+Tune intervals in `config.json` if needed (`command_poll_interval_sec`,
+`collection_interval_sec`; set the latter to `0` to disable the gamelist sweep).
+`snapshot_interval_sec` defaults to `0` — system snapshots have no reader in
+serverless mode and are discarded server-side.
 
 ## Retire the old path
 
@@ -168,6 +189,31 @@ reachable — if Turso is down, the build fails (which is the right time to not 
   `AGENT_ONLY_MEDIA=1` (`isServerlessMode()`); the config pages also 404. *(4ab210e)*
 - **Large gamelists (> ~4.5 MB)** are split into `<gameList>` chunks under
   `collection_max_xml_bytes` (server upserts per romPath, so chunks accumulate). *(441cc49)*
+- **The agent updates itself**: it converges to the version `/admin` designates
+  (target version + rollout percentage, plus a `stable`/`beta` channel per box on
+  the edit page), verifying the downloaded package before switching and rolling
+  back from its local backup if the new version never checks back in — see
+  [`agent/README.md`](../agent/README.md#mise-à-jour-automatique).
+  *(feat/agent-auto-update)*
+
+  **Bumping `agent/VERSION` and redeploying is not enough.** Two things stand
+  between a deploy and a fleet that moves:
+
+  1. **`agent.rolloutPercent` defaults to `0`**, so a fresh deploy moves nobody.
+     Nothing happens until an operator raises the percentage in `/admin` →
+     *Agent rollout*, or puts a box on the `beta` channel (edit page), which
+     always takes the target regardless of the percentage. That default is
+     deliberate: a deploy should not push itself to every console unattended.
+  2. **Every console installed before 1.1.0 is stuck until it is re-installed by
+     hand, once.** The 1.0.0 agent sends no `X-Agent-Version` header, and
+     `resolveTargetVersion` returns `null` when it cannot read the current
+     version — without a starting point it cannot tell an upgrade from a
+     downgrade. So those boxes are announced nothing, forever, and no rollout
+     percentage reaches them. They also have no `launch.py` to repair a failed
+     swap, which is the same reason. Re-download the installer zip from
+     `/recalboxes/add` (built at the deployed version, so 1.1.0 or later) and
+     redo the drag-and-drop on each box. This is a **one-time** cost per
+     console: from 1.1.0 onwards the fleet converges on its own.
 
 ## Known limitations
 
@@ -180,7 +226,9 @@ reachable — if Turso is down, the build fails (which is the right time to not 
 ## Post-deploy smoke checks
 
 1. Log in at the public URL (invitation/admin works).
-2. Agent box: `agent.log` shows `POST … -> 201` for snapshots/sessions.
+2. Agent box: `agent.log` shows `sr-agent.session Delivered session for …` after a
+   played game. Successful pushes are otherwise silent — only failures and
+   recoveries are logged, and each is logged once, not once per retry.
 3. A played game appears in now-playing; its cover loads (Blob URL) after the
    first request queues + the agent uploads it.
 4. Queue a `conf`/`reboot` from the edit page → the box executes it (command queue).

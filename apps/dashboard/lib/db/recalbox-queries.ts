@@ -34,6 +34,7 @@ export function rowToInstance(row: RecalboxRow): RecalboxInstance {
 		ownerUserId: row.ownerUserId ?? null,
 		isDefault: row.isDefault ?? false,
 		archived: row.archived ?? false,
+		agentChannel: row.agentChannel === 'beta' ? 'beta' : 'stable',
 	}
 }
 

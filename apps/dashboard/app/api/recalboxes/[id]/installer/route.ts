@@ -55,9 +55,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 			agentPy: payload.agentPy,
 			scanRomsPy: payload.scanRomsPy,
 			launchPy: payload.launchPy,
+			updaterPy: payload.updaterPy,
 			launcherSh: payload.launcherSh,
 			readme: installerReadme(locale, rb.name, payload.version),
 			config: { recalbox_id: id, token, cloud_url: `${base}/api/agent/ingest` },
+			version: payload.version,
 		})
 
 		return new NextResponse(zip as unknown as BodyInit, {

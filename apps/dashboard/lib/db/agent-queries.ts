@@ -44,6 +44,7 @@ export async function createAgentToken(
 export async function resolveAgentToken(
 	db: DB,
 	rawToken: string,
+	agentVersion?: string | null,
 ): Promise<{ recalboxId: string; tokenId: string } | null> {
 	const row = await db
 		.select({
@@ -69,12 +70,12 @@ export async function resolveAgentToken(
 	// response flushes. `after()` hands the write to the platform, which keeps the
 	// invocation alive until it settles — without delaying the response.
 	try {
-		after(() => cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn))
+		after(() => cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn, agentVersion))
 	} catch {
 		// `after()` throws outside a request scope (tests, one-shot scripts, the
 		// scrobbler). There is no platform to defer to there, so write inline rather
 		// than drop the touch. The callback form above means nothing ran yet.
-		await cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn)
+		await cleanupOnFirstUse(db, row.id, row.recalboxId, isFirstCheckIn, agentVersion)
 	}
 
 	return { recalboxId: row.recalboxId, tokenId: row.id }
@@ -91,17 +92,31 @@ async function cleanupOnFirstUse(
 	tokenId: string,
 	recalboxId: string,
 	isFirstCheckIn: boolean,
+	agentVersion?: string | null,
 ): Promise<void> {
-	await touchLastUsed(db, tokenId)
+	await touchLastUsed(db, tokenId, agentVersion)
 	if (isFirstCheckIn) {
 		await revokeSiblingInstallerTokens(db, recalboxId, tokenId)
 	}
 }
 
 /** Best-effort liveness touch: never let a failed write break the caller's request. */
-async function touchLastUsed(db: DB, tokenId: string): Promise<void> {
+async function touchLastUsed(db: DB, tokenId: string, agentVersion?: string | null): Promise<void> {
 	try {
-		await db.update(agentTokens).set({ lastUsedAt: new Date() }).where(eq(agentTokens.id, tokenId))
+		// Une requête SANS en-tête EFFACE la version connue. L'agent livré
+		// estampille `X-Agent-Version` sur TOUS ses chemins HTTP : une requête
+		// sans en-tête ne vient donc pas d'un agent bavard qui se tait, elle
+		// vient d'un agent trop ancien pour la déclarer — typiquement une box
+		// redescendue en 1.0.0 par un retour arrière. Garder l'ancienne valeur
+		// afficherait cette box comme saine sur la version qu'elle vient
+		// justement de quitter, dans le cas précis que tout ce mécanisme existe
+		// pour rendre visible. « Version inconnue » est honnête ; « toujours en
+		// 1.1.0 » est un mensonge.
+		const patch: { lastUsedAt: Date; agentVersion: string | null } = {
+			lastUsedAt: new Date(),
+			agentVersion: agentVersion ?? null,
+		}
+		await db.update(agentTokens).set(patch).where(eq(agentTokens.id, tokenId))
 	} catch (err) {
 		logger.error('[agent] lastUsedAt touch failed', err)
 	}

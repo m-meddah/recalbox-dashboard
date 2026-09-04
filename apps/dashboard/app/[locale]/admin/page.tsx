@@ -1,3 +1,4 @@
+import { AgentRolloutSection } from '@/components/admin/agent-rollout-section'
 import { InvitationsSection } from '@/components/admin/invitations-section'
 import { isAdmin } from '@/lib/auth/ownership'
 import { getUser } from '@/lib/auth/require-user'
@@ -44,6 +45,7 @@ export default async function AdminPage() {
 			</header>
 
 			<InvitationsSection />
+			<AgentRolloutSection />
 
 			{cards.length === 0 && <p className="text-sm text-muted-foreground">{t('noUsers')}</p>}
 

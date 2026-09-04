@@ -35,12 +35,60 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
+# A missing or corrupt updater.py (hand-made install predating the bundle
+# system, or a swap/rollback interrupted partway through copying files) must
+# never take the whole agent down — MQTT, scrobbling, snapshots and command
+# polling do not depend on it. Only the auto-update path does, and it is
+# guarded to degrade to a no-op below (see maybe_update / command_loop).
+try:
+    import updater
+except Exception as _updater_import_error:  # noqa: F841 — reported once below
+    updater = None
+    logging.getLogger("sr-agent").error(
+        "updater.py unavailable (%s); auto-update disabled on this box", _updater_import_error
+    )
+
 # ── Topics (must match RecalboxOS WebAPI) ────────────────────────────────────
 ES_EVENT_TOPIC = "Recalbox/WebAPI/EmulationStation/Event"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
 BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
+
+
+def _read_version_fallback(agent_dir):
+    """Meme lecture que updater.read_version(), sans dependre du module : le
+    numero de version doit rester visible (X-Agent-Version, log de demarrage)
+    meme quand updater.py est justement ce qui manque ou est corrompu — c'est
+    ce qui rend la box visible comme cassee dans l'admin plutot que silencieuse."""
+    try:
+        with open(os.path.join(agent_dir, "VERSION"), "r") as f:
+            return f.read().strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
+AGENT_VERSION = updater.read_version(HERE) if updater is not None else _read_version_fallback(HERE)
+
+# Le nom du fichier de verrou est defini UNE fois, dans updater.py, parce que
+# launch.py le sonde avant tout retour arriere : deux definitions pourraient
+# deriver, et un lanceur qui sonde le mauvais fichier croirait qu'aucun agent ne
+# tourne. Le repli existe pour la meme raison que _read_version_fallback : un
+# updater.py absent ou corrompu ne doit pas empecher l'agent de prendre son
+# verrou et de demarrer. Un test verrouille les deux valeurs ensemble.
+_LOCK_NAME_FALLBACK = "launch.lock"
+LOCK_NAME = updater.LOCK_NAME if updater is not None else _LOCK_NAME_FALLBACK
+
+# Le logger des lignes de jeu. C'est ce nom qui les rend reconnaissables a
+# l'elagage du journal, qui les conserve sans limite de duree — meme repli que
+# LOCK_NAME, et pour la meme raison : un updater.py absent ne doit pas empecher
+# l'agent de journaliser.
+_SESSION_LOGGER_FALLBACK = "sr-agent.session"
+SESSION_LOGGER = updater.LOG_SESSION_LOGGER if updater is not None else _SESSION_LOGGER_FALLBACK
+
+# Descripteur du verrou d'exclusivite, garde pour toute la vie du processus et
+# ferme AVANT tout execv (voir restart()).
+LOCK_FD = None
 
 
 # ── Single-instance lock ──────────────────────────────────────────────────────
@@ -53,7 +101,7 @@ BUFFER_PATH = os.path.join(HERE, "buffer.jsonl")
 # which the old custom.sh path never touches.
 def lock_path():
     """Chemin du fichier de verrou, a cote de agent.py."""
-    return os.path.join(HERE, "launch.lock")
+    return os.path.join(HERE, LOCK_NAME)
 
 
 def acquire_lock():
@@ -72,8 +120,10 @@ def acquire_lock():
     """
     lockfile = lock_path()
     fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
-    # Survives execv, should this process itself ever be exec'd into — cheap to
-    # keep, costs nothing since this process no longer execs into anything else.
+    # Inheritable by default in case something ever exec's this process from the
+    # outside. It also means restart()'s own execv would inherit this fd still
+    # holding LOCK_EX unless it is closed first — restart() does that
+    # explicitly; see the comment there.
     os.set_inheritable(fd, True)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -131,6 +181,70 @@ def _int_cfg(cfg, key, default):
         return default
 
 log = logging.getLogger("sr-agent")
+# Tout ce qui raconte une partie passe par ici. Une ligne technique perdue ne
+# coute rien ; une ligne de jeu perdue est un morceau d'historique perdu.
+log_session = logging.getLogger(SESSION_LOGGER)
+
+
+# ── Pannes repetees ──────────────────────────────────────────────────────────
+# Une panne du cloud n'est pas un evenement par tentative, c'est un etat. La
+# journaliser a chaque essai a produit cent-soixante-dix mille lignes pendant la
+# seule panne de juillet. On garde la premiere occurrence, un resume periodique
+# tant qu'elle dure, puis la reprise avec ce qu'elle a coute.
+REPEAT_SUMMARY_SEC = 300
+
+_repeat_lock = threading.Lock()
+_repeats = {}
+
+
+def log_repeating(channel, reason, msg, *args):
+    """Journalise une panne persistante sans la repeter a chaque tentative.
+
+    `channel` designe ce qui est en panne et sert de cle ; `reason` designe la
+    cause du moment. Un changement de cause sur le meme canal — un 402 qui
+    devient un 500 — est une autre panne, et reprend la parole immediatement :
+    c'est precisement le changement que l'on veut voir.
+    """
+    detail = msg % args if args else msg
+    now = time.monotonic()
+    emit_first = False
+    summary = None
+    with _repeat_lock:
+        state = _repeats.get(channel)
+        if state is None or state["reason"] != reason:
+            _repeats[channel] = {
+                "reason": reason,
+                "count": 1,
+                "since": time.time(),
+                "last_summary": now,
+            }
+            emit_first = True
+        else:
+            state["count"] += 1
+            if now - state["last_summary"] >= REPEAT_SUMMARY_SEC:
+                state["last_summary"] = now
+                summary = (state["count"], state["since"])
+    if emit_first:
+        log.warning("%s", detail)
+    elif summary is not None:
+        count, since = summary
+        log.warning(
+            "%s — still failing: %d attempts since %s",
+            detail,
+            count,
+            time.strftime("%H:%M:%S", time.localtime(since)),
+        )
+
+
+def log_recovered(channel, msg, *args):
+    """Signale la fin d'une panne, avec ce qu'elle a coute. Muet si rien n'etait
+    en panne sur ce canal — de loin le cas le plus frequent."""
+    with _repeat_lock:
+        state = _repeats.pop(channel, None)
+    if state is None:
+        return
+    detail = msg % args if args else msg
+    log.info("%s — recovered after %d failed attempt(s)", detail, state["count"])
 
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -251,18 +365,22 @@ def http_post_json_outcome(url, payload, token, timeout):
     req.add_header("Content-Type", "application/json")
     if token:
         req.add_header("Authorization", "Bearer " + token)
+    req.add_header("X-Agent-Version", AGENT_VERSION)
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-            return POST_OK if 200 <= resp.status < 300 else POST_TRANSIENT
+            if not (200 <= resp.status < 300):
+                return POST_TRANSIENT
+            log_recovered(("POST", url), "POST %s", url)
+            return POST_OK
     except urllib.error.HTTPError as e:  # subclass of URLError — must come first
         if e.code in PERMANENT_POST_STATUSES:
             log.error("POST %s rejected the payload (HTTP %s); not retrying it", url, e.code)
             return POST_PERMANENT
-        log.warning("POST %s failed: HTTP %s", url, e.code)
+        log_repeating(("POST", url), "HTTP %s" % e.code, "POST %s failed: HTTP %s", url, e.code)
         return POST_TRANSIENT
     except (urllib.error.URLError, OSError, ValueError) as e:
-        log.warning("POST %s failed: %s", url, e)
+        log_repeating(("POST", url), type(e).__name__, "POST %s failed: %s", url, e)
         return POST_TRANSIENT
 
 
@@ -282,14 +400,19 @@ def http_get_json(url, token, timeout):
     req = urllib.request.Request(url, method="GET")
     if token:
         req.add_header("Authorization", "Bearer " + token)
+    req.add_header("X-Agent-Version", AGENT_VERSION)
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             if not (200 <= resp.status < 300):
                 return None
+            log_recovered(("GET", url), "GET %s", url)
             return json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, ValueError) as e:
-        log.warning("GET %s failed: %s", url, e)
+        # HTTPError derive de URLError : sans ce test, tous les codes se
+        # confondraient en une seule panne et un 402 devenu 500 passerait inapercu.
+        reason = "HTTP %s" % e.code if isinstance(e, urllib.error.HTTPError) else type(e).__name__
+        log_repeating(("GET", url), reason, "GET %s failed: %s", url, e)
         return None
 
 
@@ -332,16 +455,21 @@ class Deliverer:
         if not url:
             log.error("No cloud_url configured; cannot push")
             return POST_TRANSIENT
-        outcome = http_post_json_outcome(
+        # Volontairement muet. Une panne fait rejouer TOUT le tampon a chaque
+        # cycle : une ligne par session et par tentative, c'est ce qui a produit
+        # cinquante-sept mille lignes en juillet. Les appelants resument.
+        return http_post_json_outcome(
             url, session, self.cfg.get("token"), self.cfg.get("http_timeout_sec", 10)
         )
-        log.info("POST %s -> %s for %s", url, outcome, session.get("rom_path"))
-        return outcome
 
     def deliver(self, session: dict):
         outcome = self._post(session)
-        if outcome == POST_PERMANENT:
-            log.error("Discarding session for %s: the cloud rejected it as invalid", session.get("rom_path"))
+        if outcome == POST_OK:
+            log_session.info("Delivered session for %s", session.get("rom_path"))
+        elif outcome == POST_PERMANENT:
+            log_session.error(
+                "Discarding session for %s: the cloud rejected it as invalid", session.get("rom_path")
+            )
         elif outcome == POST_TRANSIENT:
             self._buffer_append(session)
         # Draining the backlog is left to flush_loop (its own thread). Doing it here would
@@ -356,7 +484,7 @@ class Deliverer:
                 f.flush()
                 os.fsync(f.fileno())  # survive a hard power-off (plug yank)
             self._trim()
-        log.info("Buffered session for %s (pending=%d)", session.get("rom_path"), self._count())
+        log_session.info("Buffered session for %s (pending=%d)", session.get("rom_path"), self._count())
 
     def _trim(self):
         """Cap the buffer to MAX_BUFFER_LINES, keeping the newest. Caller holds self.lock."""
@@ -396,6 +524,8 @@ class Deliverer:
             if not lines:
                 return True
             remaining = []
+            delivered = 0
+            discarded = 0
             for ln in lines:
                 try:
                     session = json.loads(ln)
@@ -405,10 +535,13 @@ class Deliverer:
                 if outcome == POST_TRANSIENT:
                     remaining.append(ln)
                 elif outcome == POST_PERMANENT:
-                    log.error(
+                    discarded += 1
+                    log_session.error(
                         "Discarding buffered session for %s: the cloud rejected it as invalid",
                         session.get("rom_path"),
                     )
+                else:
+                    delivered += 1
             progressed = len(remaining) < len(lines)
             if remaining:
                 # Atomic rewrite: write a temp file then rename over the buffer, so a
@@ -421,7 +554,15 @@ class Deliverer:
                 os.replace(tmp, BUFFER_PATH)
             else:
                 os.remove(BUFFER_PATH)
-                log.info("Buffer drained")
+            # Rien a dire quand rien n'a bouge : c'est le cas d'une panne en
+            # cours, et la couche HTTP en rend deja compte une fois pour toutes.
+            if delivered or discarded:
+                log.info(
+                    "Buffer flush: %d delivered, %d discarded, %d still pending",
+                    delivered,
+                    discarded,
+                    len(remaining),
+                )
             return progressed
 
     def flush_loop(self):
@@ -455,7 +596,7 @@ class SessionTracker:
         else:
             duration = round(ended - started)
         if duration < self.cfg.get("min_duration_sec", 10):
-            log.info("Dropping short session (%ds) for %s", duration, ev.get("rom_path"))
+            log_session.info("Dropping short session (%ds) for %s", duration, ev.get("rom_path"))
             return
         session = {
             "recalbox_id": self.cfg.get("recalbox_id"),
@@ -469,7 +610,7 @@ class SessionTracker:
             "auto_closed": auto_closed,
             "closed_reason": reason,
         }
-        log.info("Session %ds for %s (%s)", duration, ev.get("rom_path"), ev.get("system"))
+        log_session.info("Session %ds for %s (%s)", duration, ev.get("rom_path"), ev.get("system"))
         self.deliverer.deliver(session)
 
     def on_start(self, ev: dict):
@@ -486,7 +627,7 @@ class SessionTracker:
             "rom_path": ev["rom_path"],
             "game_name": ev["game_name"],
         }
-        log.info("Opened session for %s on %s", ev["rom_path"], ev["system"])
+        log_session.info("Opened session for %s on %s", ev["rom_path"], ev["system"])
 
     def on_stop(self, ev: dict):
         now = time.time()
@@ -495,7 +636,7 @@ class SessionTracker:
             self._emit(self.open, now, now_mono, False, None)
             self.open = None
         else:
-            log.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
+            log_session.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
 
 
 # ── System snapshots (CPU / RAM / temp / uptime, pushed periodically) ─────────
@@ -1039,8 +1180,116 @@ def handle_command(cmd, result_url, token, timeout, cfg=None):
     report_result(result_url, token, timeout, cid, ok, output)
 
 
-def command_loop(cfg):
-    """Poll the cloud for pending commands, execute them locally, report back."""
+def download_bundle(cfg):
+    """Recupere le paquet servi par le cloud. None si indisponible ou malforme."""
+    data = http_get_json(
+        endpoint_for(cfg, "download"), cfg.get("token"), cfg.get("http_timeout_sec", 10)
+    )
+    if not isinstance(data, dict):
+        return None
+    files = data.get("files")
+    version = data.get("version")
+    if not isinstance(files, dict) or not isinstance(version, str):
+        return None
+    return {"version": version, "files": files}
+
+
+def is_busy(tracker):
+    """True tant qu'une partie ou un scan tourne.
+
+    Se relancer au milieu d'une partie perdrait l'appairage debut/fin, donc la
+    session que l'utilisateur est venu voir. Un execv au milieu d'un scan le
+    perdrait entierement.
+    """
+    if tracker is not None and tracker.open:
+        return True
+    with _scan_lock:
+        return _scan_running
+
+
+def restart():
+    """Se relance en place. Ne revient jamais.
+
+    Sans execv, l'agent resterait mort jusqu'a ce que l'utilisateur retourne au
+    menu — potentiellement des heures.
+    """
+    global LOCK_FD
+    if LOCK_FD is not None:
+        # OBLIGATOIRE. acquire_lock() rend le descripteur heritable : il
+        # survivrait a execv en tenant toujours LOCK_EX, et le nouvel agent —
+        # qui ouvre un descripteur NEUF sur le meme fichier — se refuserait le
+        # verrou a lui-meme, car flock() arbitre entre descriptions de fichier
+        # ouvert, pas entre processus. Toutes les mises a jour echoueraient.
+        # Ne PAS transmettre le descripteur a la place : ce serait coupler
+        # l'ancienne version et la nouvelle a une convention partagee, et une
+        # version qui ne la connait pas ne demarrerait plus.
+        try:
+            os.close(LOCK_FD)
+        except OSError:
+            pass
+        LOCK_FD = None
+    try:
+        os.execv(sys.executable, [sys.executable, os.path.join(HERE, "agent.py")])
+    except OSError as e:
+        # The lock is already released above: continuing to run here would mean
+        # a second agent could start alongside this one, unlocked, doubling up
+        # every session. Dying is the safe outcome instead — the launcher fires
+        # on every menu navigation and will start a fresh agent, which takes the
+        # lock cleanly; the swap's witness is still unconfirmed, so a bad
+        # version still gets rolled back on that next start.
+        log.error("execv failed, exiting rather than run unlocked: %s", e)
+        os._exit(1)
+
+
+def maybe_update(cfg, tracker, target):
+    """Fait converger la box vers `target`. Ne revient pas si la bascule a lieu."""
+    if updater is None:
+        # Nothing to converge with: see the import guard above.
+        return
+    if not target or target == AGENT_VERSION:
+        return
+    if os.environ.get(updater.SUPERVISED_ENV) != "1":
+        log.info("Target %s announced but this agent has no supervisor; not updating", target)
+        return
+    if updater.has_failed(HERE, target):
+        log.info("Target %s already failed on this box; not retrying", target)
+        return
+    if is_busy(tracker):
+        log.info("Update to %s deferred: a session or a rom scan is running", target)
+        return
+
+    if updater.compare_versions(target, AGENT_VERSION) < 0:
+        # Le cloud ne dispose que de la version deployee, jamais des anciennes :
+        # la seule source d'une descente est la sauvegarde locale.
+        have = updater.backup_version(HERE)
+        if have != target:
+            log.warning("Cannot reach target %s: the local backup holds %s", target, have)
+            return
+        if updater.restore_backup(HERE):
+            log.info("Restored %s from the local backup, restarting", target)
+            restart()
+        else:
+            log.error("Restore of %s from the local backup failed", target)
+        return
+
+    bundle = download_bundle(cfg)
+    if not bundle or bundle["version"] != target:
+        log.warning("Download did not yield target %s", target)
+        return
+    if not updater.stage_and_swap(HERE, bundle["files"], AGENT_VERSION, target):
+        log.error("Update to %s refused: the bundle did not verify", target)
+        return
+    log.info("Updated %s -> %s, restarting", AGENT_VERSION, target)
+    restart()
+
+
+def command_loop(cfg, tracker=None):
+    """Poll the cloud for pending commands, execute them locally, report back.
+
+    The same round-trip carries the version this box must run: each poll is a
+    billed serverless invocation, so the update mechanism rides it rather than
+    opening a second loop.
+    """
     url = endpoint_for(cfg, "commands")
     result_url = (url + "/result") if url else ""
     interval = _int_cfg(cfg, "command_poll_interval_sec", 60)
@@ -1054,8 +1303,38 @@ def command_loop(cfg):
             # The GET is the cloud round-trip; a command that fails to execute locally
             # says nothing about the cloud, so it must not slow the poll down.
             ok = data is not None
+            if ok and updater is not None:
+                # A successful round-trip is the cheapest possible proof that
+                # this version talks to the cloud — which is exactly what the
+                # rollback witness is waiting for. Skipped when updater.py is
+                # unavailable (see the import guard at the top of this file).
+                #
+                # Only ever confirm a witness that names the version THIS
+                # process is running. Two sequences reach this line with a
+                # witness that describes something else, and confirming either
+                # one destroys the very signal that says the box still needs
+                # repairing — launch.py then deletes the witness outright:
+                #
+                #  - a swap whose os.replace loop died partway (read-only
+                #    remount, EIO, SD card pulled). stage_and_swap returns
+                #    False, maybe_update logs and returns WITHOUT restarting,
+                #    so this same old process keeps polling with a witness on
+                #    disk for a swap that never completed;
+                #  - a rollback whose restore was cut short. rollback keeps the
+                #    witness on purpose so the next boot retries, but launch.py
+                #    exec's the agent anyway.
+                #
+                # AGENT_VERSION is read once at import, so after a successful
+                # swap-and-execv it equals `to`; in both failure sequences it
+                # does not.
+                witness = updater.read_witness(HERE)
+                if witness and witness.get("to") == AGENT_VERSION:
+                    updater.confirm_update(HERE)
             for cmd in (data or {}).get("commands") or []:
                 handle_command(cmd, result_url, token, timeout, cfg)
+            if ok:
+                agent_block = (data or {}).get("agent") or {}
+                maybe_update(cfg, tracker, agent_block.get("target_version"))
         except Exception as e:  # never let the thread die
             log.error("command_loop error: %s", e)
         delay = next_retry_delay(delay, interval, ok)
@@ -1150,7 +1429,7 @@ def build_client():
 def main():
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
         stream=sys.stdout,
     )
     cfg = load_config()
@@ -1158,13 +1437,16 @@ def main():
     # Must run before any MQTT connection, thread start, or other side effect:
     # a box can have both the old custom.sh install and the current launcher
     # running the agent at once, and only one may proceed.
-    acquired, _lock_fd = acquire_lock()
+    acquired, lock_fd = acquire_lock()
     if not acquired:
         log.info("Another agent instance already holds the lock, exiting")
         sys.exit(0)
+    global LOCK_FD
+    LOCK_FD = lock_fd
 
     log.info(
-        "sr-agent starting (recalbox_id=%s, mqtt=%s:%s, cloud=%s)",
+        "sr-agent %s starting (recalbox_id=%s, mqtt=%s:%s, cloud=%s)",
+        AGENT_VERSION,
         cfg.get("recalbox_id"),
         cfg.get("mqtt_host"),
         cfg.get("mqtt_port"),
@@ -1185,7 +1467,7 @@ def main():
         log.info("Collection sync every %ss", cfg.get("collection_interval_sec", 21600))
     else:
         log.info("Collection sync disabled")
-    threading.Thread(target=command_loop, args=(cfg,), daemon=True).start()
+    threading.Thread(target=command_loop, args=(cfg, tracker), daemon=True).start()
     log.info("Command poll every %ss", cfg.get("command_poll_interval_sec", 60))
     if int(cfg.get("artwork_poll_interval_sec", 60)) > 0:
         threading.Thread(target=artwork_loop, args=(cfg,), daemon=True).start()

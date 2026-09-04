@@ -6,6 +6,7 @@ export type AgentPayload = {
 	agentPy: string
 	scanRomsPy: string
 	launchPy: string
+	updaterPy: string
 	launcherSh: string
 	version: string
 }
@@ -102,12 +103,31 @@ async function readAgentFile(filename: string, dirs: AgentPayloadDirs): Promise<
 export async function readAgentPayload(
 	dirs: AgentPayloadDirs = defaultDirs(),
 ): Promise<AgentPayload> {
-	const [agentPy, scanRomsPy, launchPy, launcherSh, version] = await Promise.all([
+	const [agentPy, scanRomsPy, launchPy, updaterPy, launcherSh, version] = await Promise.all([
 		readAgentFile('agent.py', dirs),
 		readAgentFile('scan_roms.py', dirs),
 		readAgentFile('launch.py', dirs),
+		readAgentFile('updater.py', dirs),
 		readAgentFile('sr-agent[systembrowsing].sh', dirs),
 		readAgentFile('VERSION', dirs),
 	])
-	return { agentPy, scanRomsPy, launchPy, launcherSh, version: version.trim() }
+	return { agentPy, scanRomsPy, launchPy, updaterPy, launcherSh, version: version.trim() }
+}
+
+// La version du déploiement ne change pas d'une requête à l'autre au sein d'un
+// même processus : elle est lue une fois. `readAgentPayload()` charge 80 Ko de
+// Python, ce qu'on ne veut pas faire à chaque interrogation de chaque box.
+let cachedVersion: string | null = null
+
+/**
+ * Version embarquée par ce déploiement. Passer `dirs` court-circuite le cache —
+ * réservé aux tests, qui pointent vers des dossiers temporaires et ne doivent
+ * pas se contaminer entre eux.
+ */
+export async function readAgentVersion(dirs?: AgentPayloadDirs): Promise<string> {
+	if (dirs) return (await readAgentFile('VERSION', dirs)).trim()
+	if (cachedVersion === null) {
+		cachedVersion = (await readAgentFile('VERSION', defaultDirs())).trim()
+	}
+	return cachedVersion
 }

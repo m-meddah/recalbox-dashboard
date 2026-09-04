@@ -1,8 +1,32 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, type readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { readAgentPayload } from '@/lib/agent/payload'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Module-level counter for tracking VERSION file reads in the memoisation test
+let versionReadCountForMemoisationTest = 0
+let memoisationTestActive = false
+
+type ReadFileParams = Parameters<typeof readFile>
+
+vi.mock('node:fs/promises', async () => {
+	const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+	return {
+		...actual,
+		readFile: vi.fn(async (filePath: ReadFileParams[0], encoding?: ReadFileParams[1]) => {
+			// Only apply special mock behavior when the memoisation test is active
+			if (memoisationTestActive && typeof filePath === 'string' && filePath.endsWith('VERSION')) {
+				versionReadCountForMemoisationTest++
+				// Return 1.0.0 on first read, 9.9.9 on second (to prove second call doesn't read)
+				if (versionReadCountForMemoisationTest === 1) return '1.0.0\n'
+				return '9.9.9\n'
+			}
+			// For all other cases, use actual implementation
+			return actual.readFile(filePath, encoding)
+		}),
+	}
+})
 
 describe('readAgentPayload', () => {
 	it('lit les deux fichiers Python de l agent', async () => {
@@ -16,7 +40,69 @@ describe('readAgentPayload', () => {
 		const payload = await readAgentPayload()
 		expect(payload.version).toMatch(/^\d+\.\d+\.\d+$/)
 	})
+})
 
+describe('readAgentVersion', () => {
+	const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+
+	afterEach(() => {
+		versionReadCountForMemoisationTest = 0
+		memoisationTestActive = false
+	})
+
+	async function makeAgentDir(prefix: string): Promise<string> {
+		const dir = await mkdtemp(path.join(os.tmpdir(), prefix))
+		for (const filename of requiredFiles) {
+			await writeFile(path.join(dir, filename), `# ${filename} placeholder\n`, 'utf-8')
+		}
+		return dir
+	}
+
+	it('injected dirs bypass cache and return their own values', async () => {
+		const dirsA = await makeAgentDir('agent-version-a-')
+		const dirsB = await makeAgentDir('agent-version-b-')
+		try {
+			await writeFile(path.join(dirsA, 'VERSION'), '1.0.0\n', 'utf-8')
+			await writeFile(path.join(dirsB, 'VERSION'), '2.0.0\n', 'utf-8')
+
+			// Import freshly to avoid cache
+			const { readAgentVersion } = await import('@/lib/agent/payload')
+
+			const versionA = await readAgentVersion({ sourceDir: dirsA, payloadDir: dirsA })
+			const versionB = await readAgentVersion({ sourceDir: dirsB, payloadDir: dirsB })
+
+			expect(versionA).toBe('1.0.0')
+			expect(versionB).toBe('2.0.0')
+		} finally {
+			await rm(dirsA, { recursive: true, force: true })
+			await rm(dirsB, { recursive: true, force: true })
+		}
+	})
+
+	it('no-argument calls memoise and cache the version', async () => {
+		// Reset modules to get a fresh cache for this test
+		vi.resetModules()
+		versionReadCountForMemoisationTest = 0
+		memoisationTestActive = true
+
+		// Import the mocked fs/promises and the fresh payload module
+		await import('node:fs/promises')
+		const { readAgentVersion: freshReadAgentVersion } = await import('@/lib/agent/payload')
+
+		// First call with no arguments: should read and cache 1.0.0
+		const version1 = await freshReadAgentVersion()
+		expect(version1).toBe('1.0.0')
+		expect(versionReadCountForMemoisationTest).toBe(1)
+
+		// Second call with no arguments: should return cached 1.0.0, not read again
+		const version2 = await freshReadAgentVersion()
+		expect(version2).toBe('1.0.0')
+		// If memoisation works, versionReadCount should still be 1 (readFile was not called)
+		expect(versionReadCountForMemoisationTest).toBe(1)
+	})
+})
+
+describe('readAgentPayload (legacy tests)', () => {
 	describe('résolution source vs copie (répertoires injectés, jamais les vrais agent/ ou agent-payload/)', () => {
 		// Les deux tests ci-dessous pointent `readAgentPayload()` vers des
 		// répertoires temporaires qu'ils créent et détruisent eux-mêmes, plutôt
@@ -27,7 +113,13 @@ describe('readAgentPayload', () => {
 		// disparu de l'arbre de travail avec une `agent.test-backup/` à côté.
 		// Cette version ne touche plus aucun chemin suivi par git.
 
-		const requiredFiles = ['scan_roms.py', 'launch.py', 'sr-agent[systembrowsing].sh', 'VERSION']
+		const requiredFiles = [
+			'scan_roms.py',
+			'launch.py',
+			'updater.py',
+			'sr-agent[systembrowsing].sh',
+			'VERSION',
+		]
 
 		async function makeAgentDir(prefix: string, agentPyContent: string) {
 			const dir = await mkdtemp(path.join(os.tmpdir(), prefix))

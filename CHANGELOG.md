@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Automatic agent updates** — each box converges to the version the cloud designates, verifies
+  the package before switching, and restores the previous one if the new version never talks
+  back to the cloud.
+- **Progressive rollout** — target version and rollout percentage adjustable from `/admin`, a
+  per-Recalbox `stable`/`beta` channel, and a fleet version-split table.
 - **ROM collection audit** (`/collection/audit`) — compares what is actually on the box, support by support, against the No-Intro, Redump, MAME and FBNeo reference catalogues, and lists the **games** that are missing. Strictly read-only: nothing is downloaded and nothing on the Recalbox is modified.
   - **On-box scanning** — a dependency-free Python scanner walks every `/roms` directory of **every support, SD card included** (the previous system listing only ever looked at the USB disks), and identifies files by five strategies: zip central-directory CRC, CHD header, RVZ/ISO disc header, 7z entry listing, and full hashing. Nothing is written to the box: the script travels on the SSH exec's stdin.
   - **Four confidence levels** — ✅ verified (hash), ◆ identified by serial (RVZ/ISO game code), ~ identified by name, ? unknown. CHDs top out at `named` by construction: they merge the tracks Redump hashes separately.

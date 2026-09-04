@@ -1,4 +1,4 @@
-import { getBearerToken } from '@/lib/agent/bearer'
+import { getAgentVersion, getBearerToken } from '@/lib/agent/bearer'
 import { db } from '@/lib/db'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
 import { listWanted, saveArtwork } from '@/lib/db/artwork'
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
 	const token = getBearerToken(req)
 	if (!token) return NextResponse.json({ error: 'missing_token' }, { status: 401 })
-	const resolved = await resolveAgentToken(db, token)
+	const resolved = await resolveAgentToken(db, token, getAgentVersion(req))
 	if (!resolved) return NextResponse.json({ error: 'invalid_token' }, { status: 401 })
 
 	const wanted = await listWanted(db, resolved.recalboxId)
@@ -35,7 +35,7 @@ const Payload = z.object({
 export async function POST(req: NextRequest) {
 	const token = getBearerToken(req)
 	if (!token) return NextResponse.json({ error: 'missing_token' }, { status: 401 })
-	const resolved = await resolveAgentToken(db, token)
+	const resolved = await resolveAgentToken(db, token, getAgentVersion(req))
 	if (!resolved) return NextResponse.json({ error: 'invalid_token' }, { status: 401 })
 
 	let json: unknown

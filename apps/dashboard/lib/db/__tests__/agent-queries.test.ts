@@ -62,6 +62,42 @@ describe('agent token queries', () => {
 		expect(row.tokenHash).toMatch(/^[0-9a-f]{64}$/)
 	})
 
+	describe('agent-declared version', () => {
+		it('is recorded on a check-in that carries one', async () => {
+			const { token, row } = await createAgentToken(db, 'rb1')
+			await resolveAgentToken(db, token, '1.2.3')
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === row.id)?.agentVersion).toBe('1.2.3')
+		})
+
+		it('a header-less check-in clears a previously recorded version', async () => {
+			// Inverted from the rule this test used to pin. The shipped agent
+			// stamps X-Agent-Version on EVERY HTTP path, so a header-less request
+			// is not a talkative agent going quiet — it is an agent too old to
+			// declare a version, typically a box rolled back to 1.0.0. Keeping
+			// the old value would show that box as healthy on the very version
+			// it just left, in exactly the case this mechanism exists to
+			// surface. "Unknown" is honest; "still on 1.2.3" is a lie.
+			const { token, row } = await createAgentToken(db, 'rb1')
+			await resolveAgentToken(db, token, '1.2.3')
+			await resolveAgentToken(db, token, null)
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === row.id)?.agentVersion).toBeNull()
+		})
+
+		it('a later check-in that carries a header writes it again', async () => {
+			// The other half: clearing on a header-less request must not make the
+			// column write-once. A box re-installed on a recent agent has to come
+			// back into the fleet table.
+			const { token, row } = await createAgentToken(db, 'rb1')
+			await resolveAgentToken(db, token, '1.2.3')
+			await resolveAgentToken(db, token, null)
+			await resolveAgentToken(db, token, '1.3.0')
+			const list = await listAgentTokens(db, 'rb1')
+			expect(list.find((t) => t.id === row.id)?.agentVersion).toBe('1.3.0')
+		})
+	})
+
 	describe('installer token cleanup on first check-in', () => {
 		it('a re-download does not revoke a previously minted unused token', async () => {
 			const first = await createAgentToken(db, 'rb1', INSTALLER_TOKEN_NAME)

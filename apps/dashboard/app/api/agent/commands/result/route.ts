@@ -1,4 +1,4 @@
-import { getBearerToken } from '@/lib/agent/bearer'
+import { getAgentVersion, getBearerToken } from '@/lib/agent/bearer'
 import { db } from '@/lib/db'
 import { completeCommand } from '@/lib/db/agent-commands'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 	const token = getBearerToken(req)
 	if (!token) return NextResponse.json({ error: 'missing_token' }, { status: 401 })
 
-	const resolved = await resolveAgentToken(db, token)
+	const resolved = await resolveAgentToken(db, token, getAgentVersion(req))
 	if (!resolved) return NextResponse.json({ error: 'invalid_token' }, { status: 401 })
 
 	let json: unknown

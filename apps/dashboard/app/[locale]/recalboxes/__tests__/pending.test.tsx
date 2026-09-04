@@ -68,6 +68,7 @@ function makeRecalbox(overrides: Partial<RecalboxInstance> & { id: string }): Re
 		ownerUserId: 'u1',
 		isDefault: false,
 		archived: false,
+		agentChannel: 'stable',
 		...overrides,
 	}
 }

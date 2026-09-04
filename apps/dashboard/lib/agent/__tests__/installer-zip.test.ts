@@ -6,9 +6,11 @@ const input = {
 	agentPy: '# agent',
 	scanRomsPy: '# scan',
 	launchPy: '# launch',
+	updaterPy: '# updater\n',
 	launcherSh: '#!/bin/bash\n',
 	readme: 'Bonjour',
 	config: { recalbox_id: 'rb-1', token: 'secret-token', cloud_url: 'https://x/api/agent/ingest' },
+	version: '1.1.0',
 }
 
 /**
@@ -28,12 +30,22 @@ describe('buildInstallerZip', () => {
 		const files = unzipSync(buildInstallerZip(input))
 		expect(Object.keys(files).sort()).toEqual([
 			'LISEZMOI.txt',
+			'system/sr-agent/VERSION',
 			'system/sr-agent/agent.py',
 			'system/sr-agent/config.json',
 			'system/sr-agent/launch.py',
 			'system/sr-agent/scan_roms.py',
+			'system/sr-agent/updater.py',
 			'userscripts/sr-agent[systembrowsing].sh',
 		])
+	})
+
+	it('ships the updater and the version file next to the agent', () => {
+		// Without these two, a freshly installed box knows neither which version
+		// it runs nor how to move to another one — auto-update never starts.
+		const files = unzipSync(buildInstallerZip(input))
+		expect(strFromU8(entry(files, 'system/sr-agent/updater.py'))).toBe('# updater\n')
+		expect(strFromU8(entry(files, 'system/sr-agent/VERSION'))).toBe('1.1.0\n')
 	})
 
 	it('embarque le token et l URL dans un config.json valide', () => {

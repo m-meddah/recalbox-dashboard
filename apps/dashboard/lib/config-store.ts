@@ -246,7 +246,14 @@ class ConfigStore extends EventEmitter {
 	}
 
 	async addRecalbox(
-		config: Omit<RecalboxInstance, 'id' | 'isDefault' | 'archived' | 'ownerUserId'>,
+		// agentChannel is excluded here on purpose: a box that doesn't exist yet has
+		// no agent to give a channel to. It starts on the DB default ('stable') and
+		// is only ever set from the edit page (see AgentChannelSection), never at
+		// creation time.
+		config: Omit<
+			RecalboxInstance,
+			'id' | 'isDefault' | 'archived' | 'ownerUserId' | 'agentChannel'
+		>,
 		ownerUserId: string | null = null,
 	): Promise<RecalboxInstance> {
 		const id = randomUUID()
@@ -267,6 +274,7 @@ class ConfigStore extends EventEmitter {
 				color: config.color ?? null,
 				iconEmoji: config.iconEmoji ?? null,
 				lastConnectedAt: null,
+				agentChannel: 'stable',
 			},
 		)
 		this.emit('recalbox:added', { recalbox: instance })
@@ -291,6 +299,7 @@ class ConfigStore extends EventEmitter {
 			...(patch.color !== undefined && { color: patch.color }),
 			...(patch.iconEmoji !== undefined && { iconEmoji: patch.iconEmoji }),
 			...(patch.archived !== undefined && { archived: patch.archived }),
+			...(patch.agentChannel !== undefined && { agentChannel: patch.agentChannel }),
 		})
 		const updated = await getRecalbox(id)
 		if (!updated) return
