@@ -79,6 +79,13 @@ AGENT_VERSION = updater.read_version(HERE) if updater is not None else _read_ver
 _LOCK_NAME_FALLBACK = "launch.lock"
 LOCK_NAME = updater.LOCK_NAME if updater is not None else _LOCK_NAME_FALLBACK
 
+# Le logger des lignes de jeu. C'est ce nom qui les rend reconnaissables a
+# l'elagage du journal, qui les conserve sans limite de duree — meme repli que
+# LOCK_NAME, et pour la meme raison : un updater.py absent ne doit pas empecher
+# l'agent de journaliser.
+_SESSION_LOGGER_FALLBACK = "sr-agent.session"
+SESSION_LOGGER = updater.LOG_SESSION_LOGGER if updater is not None else _SESSION_LOGGER_FALLBACK
+
 # Descripteur du verrou d'exclusivite, garde pour toute la vie du processus et
 # ferme AVANT tout execv (voir restart()).
 LOCK_FD = None
@@ -174,6 +181,70 @@ def _int_cfg(cfg, key, default):
         return default
 
 log = logging.getLogger("sr-agent")
+# Tout ce qui raconte une partie passe par ici. Une ligne technique perdue ne
+# coute rien ; une ligne de jeu perdue est un morceau d'historique perdu.
+log_session = logging.getLogger(SESSION_LOGGER)
+
+
+# ── Pannes repetees ──────────────────────────────────────────────────────────
+# Une panne du cloud n'est pas un evenement par tentative, c'est un etat. La
+# journaliser a chaque essai a produit cent-soixante-dix mille lignes pendant la
+# seule panne de juillet. On garde la premiere occurrence, un resume periodique
+# tant qu'elle dure, puis la reprise avec ce qu'elle a coute.
+REPEAT_SUMMARY_SEC = 300
+
+_repeat_lock = threading.Lock()
+_repeats = {}
+
+
+def log_repeating(channel, reason, msg, *args):
+    """Journalise une panne persistante sans la repeter a chaque tentative.
+
+    `channel` designe ce qui est en panne et sert de cle ; `reason` designe la
+    cause du moment. Un changement de cause sur le meme canal — un 402 qui
+    devient un 500 — est une autre panne, et reprend la parole immediatement :
+    c'est precisement le changement que l'on veut voir.
+    """
+    detail = msg % args if args else msg
+    now = time.monotonic()
+    emit_first = False
+    summary = None
+    with _repeat_lock:
+        state = _repeats.get(channel)
+        if state is None or state["reason"] != reason:
+            _repeats[channel] = {
+                "reason": reason,
+                "count": 1,
+                "since": time.time(),
+                "last_summary": now,
+            }
+            emit_first = True
+        else:
+            state["count"] += 1
+            if now - state["last_summary"] >= REPEAT_SUMMARY_SEC:
+                state["last_summary"] = now
+                summary = (state["count"], state["since"])
+    if emit_first:
+        log.warning("%s", detail)
+    elif summary is not None:
+        count, since = summary
+        log.warning(
+            "%s — still failing: %d attempts since %s",
+            detail,
+            count,
+            time.strftime("%H:%M:%S", time.localtime(since)),
+        )
+
+
+def log_recovered(channel, msg, *args):
+    """Signale la fin d'une panne, avec ce qu'elle a coute. Muet si rien n'etait
+    en panne sur ce canal — de loin le cas le plus frequent."""
+    with _repeat_lock:
+        state = _repeats.pop(channel, None)
+    if state is None:
+        return
+    detail = msg % args if args else msg
+    log.info("%s — recovered after %d failed attempt(s)", detail, state["count"])
 
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -298,15 +369,18 @@ def http_post_json_outcome(url, payload, token, timeout):
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-            return POST_OK if 200 <= resp.status < 300 else POST_TRANSIENT
+            if not (200 <= resp.status < 300):
+                return POST_TRANSIENT
+            log_recovered(("POST", url), "POST %s", url)
+            return POST_OK
     except urllib.error.HTTPError as e:  # subclass of URLError — must come first
         if e.code in PERMANENT_POST_STATUSES:
             log.error("POST %s rejected the payload (HTTP %s); not retrying it", url, e.code)
             return POST_PERMANENT
-        log.warning("POST %s failed: HTTP %s", url, e.code)
+        log_repeating(("POST", url), "HTTP %s" % e.code, "POST %s failed: HTTP %s", url, e.code)
         return POST_TRANSIENT
     except (urllib.error.URLError, OSError, ValueError) as e:
-        log.warning("POST %s failed: %s", url, e)
+        log_repeating(("POST", url), type(e).__name__, "POST %s failed: %s", url, e)
         return POST_TRANSIENT
 
 
@@ -332,9 +406,13 @@ def http_get_json(url, token, timeout):
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             if not (200 <= resp.status < 300):
                 return None
+            log_recovered(("GET", url), "GET %s", url)
             return json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, ValueError) as e:
-        log.warning("GET %s failed: %s", url, e)
+        # HTTPError derive de URLError : sans ce test, tous les codes se
+        # confondraient en une seule panne et un 402 devenu 500 passerait inapercu.
+        reason = "HTTP %s" % e.code if isinstance(e, urllib.error.HTTPError) else type(e).__name__
+        log_repeating(("GET", url), reason, "GET %s failed: %s", url, e)
         return None
 
 
@@ -377,16 +455,21 @@ class Deliverer:
         if not url:
             log.error("No cloud_url configured; cannot push")
             return POST_TRANSIENT
-        outcome = http_post_json_outcome(
+        # Volontairement muet. Une panne fait rejouer TOUT le tampon a chaque
+        # cycle : une ligne par session et par tentative, c'est ce qui a produit
+        # cinquante-sept mille lignes en juillet. Les appelants resument.
+        return http_post_json_outcome(
             url, session, self.cfg.get("token"), self.cfg.get("http_timeout_sec", 10)
         )
-        log.info("POST %s -> %s for %s", url, outcome, session.get("rom_path"))
-        return outcome
 
     def deliver(self, session: dict):
         outcome = self._post(session)
-        if outcome == POST_PERMANENT:
-            log.error("Discarding session for %s: the cloud rejected it as invalid", session.get("rom_path"))
+        if outcome == POST_OK:
+            log_session.info("Delivered session for %s", session.get("rom_path"))
+        elif outcome == POST_PERMANENT:
+            log_session.error(
+                "Discarding session for %s: the cloud rejected it as invalid", session.get("rom_path")
+            )
         elif outcome == POST_TRANSIENT:
             self._buffer_append(session)
         # Draining the backlog is left to flush_loop (its own thread). Doing it here would
@@ -401,7 +484,7 @@ class Deliverer:
                 f.flush()
                 os.fsync(f.fileno())  # survive a hard power-off (plug yank)
             self._trim()
-        log.info("Buffered session for %s (pending=%d)", session.get("rom_path"), self._count())
+        log_session.info("Buffered session for %s (pending=%d)", session.get("rom_path"), self._count())
 
     def _trim(self):
         """Cap the buffer to MAX_BUFFER_LINES, keeping the newest. Caller holds self.lock."""
@@ -441,6 +524,8 @@ class Deliverer:
             if not lines:
                 return True
             remaining = []
+            delivered = 0
+            discarded = 0
             for ln in lines:
                 try:
                     session = json.loads(ln)
@@ -450,10 +535,13 @@ class Deliverer:
                 if outcome == POST_TRANSIENT:
                     remaining.append(ln)
                 elif outcome == POST_PERMANENT:
-                    log.error(
+                    discarded += 1
+                    log_session.error(
                         "Discarding buffered session for %s: the cloud rejected it as invalid",
                         session.get("rom_path"),
                     )
+                else:
+                    delivered += 1
             progressed = len(remaining) < len(lines)
             if remaining:
                 # Atomic rewrite: write a temp file then rename over the buffer, so a
@@ -466,7 +554,15 @@ class Deliverer:
                 os.replace(tmp, BUFFER_PATH)
             else:
                 os.remove(BUFFER_PATH)
-                log.info("Buffer drained")
+            # Rien a dire quand rien n'a bouge : c'est le cas d'une panne en
+            # cours, et la couche HTTP en rend deja compte une fois pour toutes.
+            if delivered or discarded:
+                log.info(
+                    "Buffer flush: %d delivered, %d discarded, %d still pending",
+                    delivered,
+                    discarded,
+                    len(remaining),
+                )
             return progressed
 
     def flush_loop(self):
@@ -500,7 +596,7 @@ class SessionTracker:
         else:
             duration = round(ended - started)
         if duration < self.cfg.get("min_duration_sec", 10):
-            log.info("Dropping short session (%ds) for %s", duration, ev.get("rom_path"))
+            log_session.info("Dropping short session (%ds) for %s", duration, ev.get("rom_path"))
             return
         session = {
             "recalbox_id": self.cfg.get("recalbox_id"),
@@ -514,7 +610,7 @@ class SessionTracker:
             "auto_closed": auto_closed,
             "closed_reason": reason,
         }
-        log.info("Session %ds for %s (%s)", duration, ev.get("rom_path"), ev.get("system"))
+        log_session.info("Session %ds for %s (%s)", duration, ev.get("rom_path"), ev.get("system"))
         self.deliverer.deliver(session)
 
     def on_start(self, ev: dict):
@@ -531,7 +627,7 @@ class SessionTracker:
             "rom_path": ev["rom_path"],
             "game_name": ev["game_name"],
         }
-        log.info("Opened session for %s on %s", ev["rom_path"], ev["system"])
+        log_session.info("Opened session for %s on %s", ev["rom_path"], ev["system"])
 
     def on_stop(self, ev: dict):
         now = time.time()
@@ -540,7 +636,7 @@ class SessionTracker:
             self._emit(self.open, now, now_mono, False, None)
             self.open = None
         else:
-            log.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
+            log_session.info("No matching open session for %s, ignoring stop", ev.get("rom_path"))
 
 
 # ── System snapshots (CPU / RAM / temp / uptime, pushed periodically) ─────────
@@ -1333,7 +1429,7 @@ def build_client():
 def main():
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
         stream=sys.stdout,
     )
     cfg = load_config()

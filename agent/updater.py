@@ -10,6 +10,7 @@ du bash sur une box distante n'est pas testable — et parce que le lanceur, lui
 n'est jamais mis a jour : sa corruption serait le seul echec irrattrapable.
 """
 
+import collections
 import fcntl
 import json
 import os
@@ -46,6 +47,40 @@ GRACE_SEC = 600
 # voit : une box lancee par l'ancien custom.sh, sans superviseur, n'a personne
 # pour la reparer si la nouvelle version ne demarre pas.
 SUPERVISED_ENV = "SR_AGENT_SUPERVISED"
+
+LOG_NAME = "agent.log"
+
+# Le journal n'appartient pas a Python : c'est le `>>agent.log` du script du
+# lanceur qui le tient ouvert. Un RotatingFileHandler ne peut donc rien faire
+# ici, et renommer le fichier laisserait le demon ecrire indefiniment dans un
+# inode devenu invisible, sans que le fichier visible ne bouge plus jamais. On
+# tronque SUR PLACE, ce qui n'est sur que parce que `>>` ouvre en O_APPEND :
+# l'ecriture suivante repart de la nouvelle fin de fichier, au lieu de creuser
+# un trou de la taille de l'ancien.
+LOG_MAX_BYTES = 5 * 1024 * 1024
+LOG_KEEP_LINES = 2000
+
+# Les lignes de jeu vont sur ce logger-la, et ne sont jamais elaguees : elles
+# sont l'historique que l'on relit, et elles ne pesent rien — deux cents lignes
+# pour deux mois de jeu, quand une seule panne du cloud en a produit
+# cent-soixante-dix mille. Le nom vit ici, dans le module que le producteur
+# (agent.py) et l'elagueur importent tous les deux, pour la meme raison que
+# LOCK_NAME : deux noms divergents feraient silencieusement disparaitre
+# l'historique au lieu de le proteger.
+LOG_SESSION_LOGGER = "sr-agent.session"
+
+# Les journaux ecrits avant l'apparition du logger dedie ne portent aucun nom de
+# logger. Sans ces motifs, la toute premiere troncature — celle qui ramene un
+# journal de trente megaoctets sous le plafond — emporterait l'historique de jeu
+# deja accumule. A retirer quand plus aucune box ne porte de journal anterieur.
+_LEGACY_SESSION_MARKERS = (
+    "Opened session for ",
+    "No matching open session for ",
+    "Buffered session for ",
+    "Discarding session for ",
+    "Dropping short session ",
+    " INFO Session ",
+)
 
 
 def _segment(raw):
@@ -425,3 +460,63 @@ def mark_failed(agent_dir, version):
 
 def has_failed(agent_dir, version):
     return version in read_failed(agent_dir)
+
+
+# ── Elagage du journal ───────────────────────────────────────────────────────
+def _log_path(agent_dir):
+    return os.path.join(agent_dir, LOG_NAME)
+
+
+def is_session_line(line):
+    """Vrai si la ligne raconte une partie — le seul contenu conserve sans limite."""
+    if LOG_SESSION_LOGGER in line:
+        return True
+    return any(marker in line for marker in _LEGACY_SESSION_MARKERS)
+
+
+def trim_log(agent_dir, max_bytes=LOG_MAX_BYTES, keep_lines=LOG_KEEP_LINES):
+    """Ramene agent.log sous son plafond. Rend True s'il a ete tronque.
+
+    Conserve toutes les lignes de jeu, ou qu'elles soient, plus les `keep_lines`
+    dernieres lignes quelle que soit leur nature. Ne leve jamais : un journal
+    absent, illisible ou verrouille n'est pas une raison de ne pas demarrer.
+    """
+    path = _log_path(agent_dir)
+    try:
+        if os.path.getsize(path) <= max_bytes:
+            return False
+    except OSError:
+        return False
+    try:
+        # Deux passes plutot qu'un read() : le journal qui declenche cet elagage
+        # peut peser trente megaoctets, et la box n'a pas la memoire pour le
+        # tenir en entier sous forme de liste de lignes.
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            total = sum(1 for _ in f)
+        cutoff = max(total - keep_lines, 0)
+        head = []
+        tail = collections.deque(maxlen=keep_lines)
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            for i, line in enumerate(f):
+                if i >= cutoff:
+                    tail.append(line)
+                elif is_session_line(line):
+                    head.append(line)
+        # Redige au format du journal pour ne pas trancher a la lecture.
+        notice = "%s INFO sr-agent log trimmed: %d line(s) dropped, %d session line(s) kept\n" % (
+            time.strftime("%Y-%m-%d %H:%M:%S"),
+            cutoff - len(head),
+            len(head),
+        )
+        # Troncature sur place, jamais os.replace : le demon ecrit dans CE
+        # descripteur-la (voir le commentaire de LOG_MAX_BYTES).
+        with open(path, "r+", encoding="utf-8") as f:
+            f.truncate(0)
+            f.write("".join(head))
+            f.write(notice)
+            f.write("".join(tail))
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError:
+        return False
+    return True

@@ -226,7 +226,9 @@ serverless mode and are discarded server-side.
 ## Post-deploy smoke checks
 
 1. Log in at the public URL (invitation/admin works).
-2. Agent box: `agent.log` shows `POST … -> 201` for snapshots/sessions.
+2. Agent box: `agent.log` shows `sr-agent.session Delivered session for …` after a
+   played game. Successful pushes are otherwise silent — only failures and
+   recoveries are logged, and each is logged once, not once per retry.
 3. A played game appears in now-playing; its cover loads (Blob URL) after the
    first request queues + the agent uploads it.
 4. Queue a `conf`/`reboot` from the edit page → the box executes it (command queue).

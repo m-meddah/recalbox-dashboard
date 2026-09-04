@@ -165,3 +165,22 @@ ssh root@$RB 'mosquitto_pub -h 127.0.0.1 -t Recalbox/WebAPI/EmulationStation/Eve
 > trick). A plain `grep "[p]ython3"` is **not** enough because the shell's cmdline also contains
 > "python3"; and `pkill -f "next dev…"`-style patterns self-kill. BusyBox `ps w` doesn't show
 > `python3` greppably — use `pgrep`.
+
+## The log
+
+`agent.log` is written by the launcher's `>>` redirect, not by Python — so no
+`RotatingFileHandler` is involved, and renaming the file would leave the running
+daemon appending to an invisible inode forever. `updater.trim_log()` therefore
+truncates it **in place**, which is safe only because `>>` opens with `O_APPEND`.
+
+It runs from `launch.py`, i.e. on every menu navigation. Past 5 MB the file is
+cut back to its last 2000 lines — **plus every game line, kept without any time
+limit**. Game lines are the ones on the `sr-agent.session` logger (sessions
+opened, closed, delivered, buffered, discarded); they cost about 200 lines per
+two months of play.
+
+Failures are logged as a *state*, not once per attempt: the first occurrence,
+then a summary every 5 minutes while it lasts, then a recovery line reporting
+how many attempts it took. A change of cause (a 402 that becomes a 500) speaks
+up immediately. Before this, a two-week cloud outage produced 170 000 lines —
+91% of a 29 MB log — because every buffered session was logged on every retry.

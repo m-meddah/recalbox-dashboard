@@ -601,3 +601,99 @@ class DirectInvocationLockTest(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class RepeatedFailureLogTest(unittest.TestCase):
+	"""Une panne du cloud est un etat, pas un evenement par tentative."""
+
+	def setUp(self):
+		agent._repeats.clear()
+
+	def tearDown(self):
+		agent._repeats.clear()
+
+	def test_the_first_failure_speaks_and_the_repeats_stay_silent(self):
+		with self.assertLogs("sr-agent", level="WARNING") as cm:
+			for _ in range(50):
+				agent.log_repeating(("POST", "u"), "HTTP 402", "POST %s failed: HTTP %s", "u", 402)
+		self.assertEqual(len(cm.output), 1, "50 tentatives identiques = une seule ligne")
+
+	def test_a_different_cause_takes_the_floor_again(self):
+		"""Un 402 devenu 500, c'est une autre panne : la voir est tout l'interet."""
+		with self.assertLogs("sr-agent", level="WARNING") as cm:
+			agent.log_repeating(("POST", "u"), "HTTP 402", "cloud unpaid")
+			agent.log_repeating(("POST", "u"), "HTTP 500", "cloud broken")
+		self.assertEqual(len(cm.output), 2)
+
+	def test_a_lasting_failure_gets_a_periodic_summary(self):
+		agent.log_repeating(("POST", "u"), "HTTP 402", "boom")
+		agent._repeats[("POST", "u")]["last_summary"] -= agent.REPEAT_SUMMARY_SEC + 1
+		with self.assertLogs("sr-agent", level="WARNING") as cm:
+			agent.log_repeating(("POST", "u"), "HTTP 402", "boom")
+		self.assertIn("still failing: 2 attempts", cm.output[0])
+
+	def test_recovery_reports_what_the_outage_cost_then_stays_quiet(self):
+		for _ in range(4):
+			agent.log_repeating(("POST", "u"), "HTTP 402", "boom")
+		with self.assertLogs("sr-agent", level="INFO") as cm:
+			agent.log_recovered(("POST", "u"), "POST %s", "u")
+		self.assertIn("recovered after 4", cm.output[0])
+		# assertLogs echoue quand rien n'est journalise : c'est ainsi que l'on
+		# affirme un silence sans exiger un Python 3.10 (assertNoLogs).
+		with self.assertRaises(AssertionError):
+			with self.assertLogs("sr-agent", level="INFO"):
+				agent.log_recovered(("POST", "u"), "POST %s", "u")
+
+
+class LogVolumeTest(unittest.TestCase):
+	"""Le journal ne doit plus grossir avec le nombre de sessions en attente.
+	C'est cette amplification — une ligne par session ET par tentative — qui a
+	produit 170 000 lignes pendant la seule panne de juillet."""
+
+	def setUp(self):
+		self.tmp = tempfile.mkdtemp()
+		self._orig = agent.BUFFER_PATH
+		agent.BUFFER_PATH = os.path.join(self.tmp, "buffer.jsonl")
+		agent._repeats.clear()
+		self.cfg = {
+			"cloud_url": "https://example.test/api/agent/ingest",
+			"token": "tok",
+			"http_timeout_sec": 1,
+		}
+
+	def tearDown(self):
+		agent.BUFFER_PATH = self._orig
+		agent._repeats.clear()
+		shutil.rmtree(self.tmp, ignore_errors=True)
+
+	def test_a_stuck_buffer_does_not_log_once_per_session_per_attempt(self):
+		fake = _Urlopen(503)
+		d = agent.Deliverer(self.cfg)
+		with mock.patch.object(agent.urllib.request, "urlopen", fake):
+			with self.assertLogs("sr-agent", level="INFO") as cm:
+				for i in range(20):
+					d.deliver(_session("/roms/snes/g%d.zip" % i))
+				for _ in range(5):
+					d.flush()
+		self.assertEqual(fake.calls, 120, "le tampon est bien rejoue a chaque cycle")
+		technical = [r for r in cm.records if r.name == "sr-agent"]
+		played = [r for r in cm.records if r.name == agent.SESSION_LOGGER]
+		self.assertEqual(len(played), 20, "une ligne de jeu par session, jamais par tentative")
+		self.assertEqual(len(technical), 1, "120 echecs sur la meme cause = une seule ligne")
+
+	def test_a_flush_that_works_reports_one_summary_line(self):
+		d = agent.Deliverer(self.cfg)
+		with mock.patch.object(agent.urllib.request, "urlopen", _Urlopen(503)):
+			for i in range(20):
+				d.deliver(_session("/roms/snes/g%d.zip" % i))
+		with mock.patch.object(agent.urllib.request, "urlopen", _Urlopen(200)):
+			with self.assertLogs("sr-agent", level="INFO") as cm:
+				d.flush()
+		summaries = [
+			r.getMessage()
+			for r in cm.records
+			if r.name == "sr-agent" and "Buffer flush" in r.getMessage()
+		]
+		self.assertEqual(len(summaries), 1)
+		self.assertIn("20 delivered", summaries[0])
+		self.assertIn("0 still pending", summaries[0])

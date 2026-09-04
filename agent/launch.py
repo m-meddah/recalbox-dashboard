@@ -71,8 +71,27 @@ def supervise(agent_dir):
         sys.stderr.write("supervise: skipped (%s)\n" % e)
 
 
+def trim_log(agent_dir):
+    """Ramene agent.log sous son plafond. Ne leve jamais.
+
+    Appele ici parce que le lanceur se declenche a chaque navigation dans les
+    menus : c'est la minuterie naturelle de la box, et elle ne coute rien. La
+    logique, elle, vit dans updater.py et non ici, pour pouvoir etre corrigee
+    par une mise a jour — le lanceur, lui, n'est jamais remplace.
+    """
+    try:
+        sys.path.insert(0, agent_dir)
+        import updater
+
+        updater.trim_log(agent_dir)
+    except Exception as e:  # noqa: BLE001 — un journal recalcitrant n'empeche pas de demarrer
+        sys.stderr.write("trim_log: skipped (%s)\n" % e)
+
+
 def main():
     supervise(HERE)
+    # Apres supervise() : une reparation en attente prime sur l'entretien du journal.
+    trim_log(HERE)
     # Marque cette execution comme supervisee : agent.py ne se met a jour que
     # s'il voit cette variable, parce qu'une box lancee par l'ancien custom.sh
     # n'a personne pour la reparer si la nouvelle version ne demarre pas.

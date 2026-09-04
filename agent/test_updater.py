@@ -874,3 +874,110 @@ class ConfirmOnlyOwnVersionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrimLogTest(unittest.TestCase):
+    """agent.log n'appartient pas a Python : c'est le `>>agent.log` du script du
+    lanceur qui le tient ouvert. D'ou la troncature sur place — et d'ou ces
+    tests, qui verifient surtout que le descripteur du demon y survit."""
+
+    NOISE = "2026-07-01 00:00:00,000 WARNING sr-agent POST failed: HTTP 402"
+    PLAYED = "2026-07-01 00:00:00,000 INFO sr-agent.session Opened session for /roms/a.zip on snes"
+    LEGACY = "2026-07-01 00:00:00,000 INFO Opened session for /roms/legacy.zip on snes"
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sr-agent-log-")
+        self.path = os.path.join(self.dir, updater.LOG_NAME)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _write(self, lines):
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("".join(ln + "\n" for ln in lines))
+
+    def _lines(self):
+        with open(self.path, encoding="utf-8") as f:
+            return f.read().splitlines()
+
+    def test_a_log_under_the_cap_is_left_alone(self):
+        self._write([self.NOISE] * 3)
+        self.assertFalse(updater.trim_log(self.dir))
+        self.assertEqual(len(self._lines()), 3)
+
+    def test_a_missing_log_is_not_an_error(self):
+        self.assertFalse(updater.trim_log(self.dir))
+
+    def test_every_game_line_survives_wherever_it_sits(self):
+        lines = [self.NOISE] * 500
+        lines[10] = self.PLAYED
+        self._write(lines)
+        self.assertTrue(updater.trim_log(self.dir, max_bytes=0, keep_lines=5))
+        kept = self._lines()
+        self.assertIn(self.PLAYED, kept)
+        self.assertEqual(kept[-5:], lines[-5:], "les dernieres lignes sont gardees telles quelles")
+        self.assertLess(len(kept), 20)
+
+    def test_game_lines_written_before_the_dedicated_logger_survive_too(self):
+        """Le tout premier elagage sur une vraie box porte sur un journal ecrit
+        a l'ancien format. Sans les motifs de repli, il emporterait l'historique
+        de jeu deja accumule — soit exactement ce qu'il doit proteger."""
+        lines = [self.NOISE] * 500
+        lines[3] = self.LEGACY
+        self._write(lines)
+        updater.trim_log(self.dir, max_bytes=0, keep_lines=5)
+        self.assertIn(self.LEGACY, self._lines())
+
+    def test_the_daemon_handle_survives_the_truncation(self):
+        """Le demon ecrit dans un descripteur ouvert en O_APPEND, exactement ce
+        que fait le `>>` du lanceur. Apres troncature, sa prochaine ligne doit
+        atterrir dans le fichier visible, sans trou de la taille de l'ancien."""
+        self._write([self.NOISE] * 1000)
+        with open(self.path, "a", encoding="utf-8") as daemon:
+            self.assertTrue(updater.trim_log(self.dir, max_bytes=0, keep_lines=3))
+            daemon.write("apres troncature\n")
+            daemon.flush()
+        self.assertEqual(self._lines()[-1], "apres troncature")
+        self.assertLess(os.path.getsize(self.path), 1000, "aucun trou laisse par la troncature")
+
+    def test_a_rename_based_rotation_would_have_lost_those_writes(self):
+        """Controle negatif : montre que tronquer sur place est porteur. Un
+        rotateur classique renomme le fichier ; le demon continuerait alors
+        d'ecrire dans l'inode renomme, et le journal visible ne bougerait plus
+        jamais. Si ce test cessait d'echouer a sa maniere, la justification de
+        trim_log aurait disparu."""
+        self._write([self.NOISE] * 10)
+        with open(self.path, "a", encoding="utf-8") as daemon:
+            os.rename(self.path, self.path + ".1")  # ce que trim_log ne fait jamais
+            with open(self.path, "w", encoding="utf-8"):
+                pass
+            daemon.write("perdu\n")
+            daemon.flush()
+        self.assertEqual(self._lines(), [], "le journal visible ne recoit plus rien")
+        with open(self.path + ".1", encoding="utf-8") as f:
+            self.assertIn("perdu", f.read(), "la ligne est partie dans l'inode invisible")
+
+
+class TrimLogGuardTest(unittest.TestCase):
+    """Le lanceur est le seul fichier que rien ne remplace jamais : rien de ce
+    qu'il appelle ne doit pouvoir empecher l'agent de demarrer."""
+
+    def setUp(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import launch
+
+        self.launch = launch
+
+    def test_a_failing_trim_cannot_stop_the_launcher(self):
+        with mock.patch.object(updater, "trim_log", side_effect=OSError("disk on fire")):
+            self.launch.trim_log(os.path.dirname(os.path.abspath(updater.__file__)))
+
+    def test_an_updater_without_trim_log_cannot_stop_the_launcher(self):
+        """Un retour arriere peut restaurer un updater.py anterieur a cette
+        fonction. L'AttributeError doit mourir dans la garde, pas dans main()."""
+        saved = updater.trim_log
+        del updater.trim_log
+        try:
+            self.launch.trim_log(os.path.dirname(os.path.abspath(updater.__file__)))
+        finally:
+            updater.trim_log = saved
