@@ -187,9 +187,16 @@ def stage_and_swap(agent_dir, files, from_version, to_version, now=None):
     # sauvegarde empoisonnee ET blacklisterait la cible : box mixte, irreparable,
     # et exclue du correctif. Refuser ici est la seule facon de garder la
     # sauvegarde qui, elle, a demarre.
-    pending = read_witness(agent_dir)
-    if pending and not pending.get("confirmed"):
-        return False
+    # read_witness() returns None for both "no file at all" and "file present
+    # but unreadable" — gating on it alone would let a corrupt witness through
+    # as if nothing were outstanding. A witness that exists but does not parse
+    # is the likely trace of a power cut mid-write on a PREVIOUS swap, not the
+    # absence of one (see pending_rollback, which draws the same line). So we
+    # check existence separately: present-and-unparseable still blocks.
+    if os.path.exists(_witness_path(agent_dir)):
+        pending = read_witness(agent_dir) or {}
+        if not pending.get("confirmed"):
+            return False
 
     if not verify_bundle(files):
         return False

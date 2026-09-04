@@ -211,6 +211,22 @@ class SwapTest(unittest.TestCase):
         self.assertIsNotNone(witness_seen["at_first_replace"])
         self.assertFalse(witness_seen["at_first_replace"]["confirmed"])
 
+    def test_refuses_to_stage_when_the_witness_is_present_but_corrupt(self):
+        # read_witness() returns None for both "no file at all" and "file
+        # present but unreadable" — collapsing that distinction here would let
+        # a corrupt witness sail through the guard as if nothing were
+        # outstanding, then rmtree the last good backup/ and refill it from a
+        # directory that may already be mixed by the interrupted swap that
+        # produced the corruption in the first place. pending_rollback()
+        # already treats present-but-unreadable as a swap in flight; this
+        # guard must agree.
+        with open(os.path.join(self.dir, updater.WITNESS_NAME), "w") as f:
+            f.write("{ not json")
+        self.assertFalse(
+            updater.stage_and_swap(self.dir, bundle(agent_src="# new\n"), "1.0.0", "1.1.0")
+        )
+        self.assertFalse(os.path.exists(os.path.join(self.dir, updater.BACKUP_DIR)))
+
 
 class WitnessTest(unittest.TestCase):
     def setUp(self):
