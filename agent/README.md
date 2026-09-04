@@ -154,17 +154,25 @@ See [docs/serverless-deploy.md](../docs/serverless-deploy.md) for the full cloud
 ## Verify
 
 ```bash
-ssh root@$RB 'pgrep -f "python3 [a]gent.py"'                  # agent running (bracket avoids self-match)
+ssh root@$RB 'pgrep -f "sr-agent/[a]gent.py"'                 # agent running (bracket avoids self-match)
 ssh root@$RB 'tail -f /recalbox/share/system/sr-agent/agent.log'
 # simulate a game event without playing:
 ssh root@$RB 'mosquitto_pub -h 127.0.0.1 -t Recalbox/WebAPI/EmulationStation/Event -m "{\"event\":\"rungame\",\"system\":{\"name\":\"snes\",\"fullname\":\"SNES\"},\"game\":{\"romPath\":\"/x.smc\",\"name\":\"Demo\"},\"media\":{\"image\":\"\"}}"'
 ```
 
 > **Gotchas learned the hard way:** to stop/find the agent over SSH, use a pattern that can't
-> match the SSH shell's own command line — `pgrep -f "python3 [a]gent.py"` (the `[a]` bracket
-> trick). A plain `grep "[p]ython3"` is **not** enough because the shell's cmdline also contains
-> "python3"; and `pkill -f "next dev…"`-style patterns self-kill. BusyBox `ps w` doesn't show
-> `python3` greppably — use `pgrep`.
+> match the SSH shell's own command line — hence the `[a]` bracket trick. A plain
+> `grep "[p]ython3"` is **not** enough because the shell's cmdline also contains "python3"; and
+> `pkill -f "next dev…"`-style patterns self-kill. BusyBox `ps w` doesn't show `python3`
+> greppably — use `pgrep`.
+>
+> Match on `sr-agent/[a]gent.py`, **never** on `python3 [a]gent.py`. `launch.py` execs
+> `[sys.executable, agent_path()]`, so the real cmdline is
+> `/usr/bin/python3 /recalbox/share/system/sr-agent/agent.py` — an absolute path sits between the
+> interpreter and the script, and the two are never adjacent. The wrong pattern fails **silently
+> and in the worst direction**: it reports no agent while a perfectly healthy one is running, so
+> the reflex it triggers is to start a second one. Verified on a live box: the documented pattern
+> returned nothing for pid 620, `sr-agent/[a]gent.py` returned 620.
 
 ## The log
 
