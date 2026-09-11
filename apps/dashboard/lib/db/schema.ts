@@ -652,6 +652,12 @@ export const artwork = sqliteTable(
 		contentType: text('content_type'),
 		wantedAt: int('wanted_at', { mode: 'timestamp' }),
 		uploadedAt: int('uploaded_at', { mode: 'timestamp' }),
+		// Tentatives de téléversement déjà servies à l'agent pour ce chemin. Sans ce
+		// compteur, un fichier que le cloud refuse reste « voulu » pour toujours et
+		// l'agent le renvoie en entier à chaque interrogation : c'est l'incident du
+		// 2026-09-07, 30 Go de vidéos réémises en trois jours. Un plafond borne le
+		// coût de TOUT échec, y compris ceux qu'aucun garde d'extension n'anticipe.
+		attempts: int('attempts').notNull().default(0),
 	},
 	(t) => ({
 		pk: primaryKey({ columns: [t.recalboxId, t.boxPath] }),

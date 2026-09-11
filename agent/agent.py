@@ -140,6 +140,48 @@ def acquire_lock():
     return (True, fd)
 
 FLUSH_INTERVAL_SEC = 15
+
+# Les extensions que le stockage objet accepte. MIROIR EXACT de artworkContentType()
+# cote cloud : c'est leur desaccord qui a produit l'incident du 2026-09-07, ou la box
+# a reexpedie trois videos 2919 fois chacune pour se faire refuser a chaque fois.
+ARTWORK_EXTENSIONS = ("png", "jpg", "jpeg", "webp", "gif", "bmp")
+
+# Plafond du corps HTTP accepte par le cloud, marge comprise (la plateforme coupe a
+# ~4,5 Mo). Ce refus-la tombe a l'edge : les octets sont factures sans qu'aucune
+# fonction ne s'execute, donc sans que rien, la-bas, ne puisse noter qu'il ne faut
+# pas recommencer. Le seul endroit ou la boucle peut etre coupee est donc ici.
+CLOUD_BODY_LIMIT_BYTES = 4000000
+
+
+def encoded_size(n):
+    """Taille du corps une fois encode en base64 : 4 octets pour 3, arrondis au bloc."""
+    return ((n + 2) // 3) * 4
+
+
+def is_storable_artwork(box_path):
+    """Vrai si le cloud accepte cette extension."""
+    ext = os.path.splitext(os.path.basename(box_path))[1].lstrip(".").lower()
+    return ext in ARTWORK_EXTENSIONS
+
+
+def artwork_skip_reason(box_path, size, max_bytes, body_limit=CLOUD_BODY_LIMIT_BYTES):
+    """Pourquoi ce fichier ne PEUT PAS etre televerse, ou None s'il le peut.
+
+    Rendu ici, sur la box, avant le moindre octet emis : cote cloud, un refus a deja
+    coute le fichier entier. `size` est la taille BRUTE ; la comparaison finale porte
+    sur la taille encodee, un tiers plus grosse — c'est cette difference qui faisait
+    passer un fichier sous le plafond configure et le faisait rejeter en 413.
+    """
+    if not is_storable_artwork(box_path):
+        return "not an image the cloud stores"
+    if size == 0:
+        return "empty file"
+    if size > max_bytes:
+        return "%d bytes, over the configured cap of %d" % (size, max_bytes)
+    body = encoded_size(size)
+    if body > body_limit:
+        return "%d bytes encode to %d, over the cloud body limit of %d" % (size, body, body_limit)
+    return None
 # Ceiling for every loop's retry backoff. Without one, a cloud outage costs the same
 # traffic forever: a frozen DB once had the box push ~3.4k failed requests/day for 10
 # days straight, which is what exhausted the hosting quota — the outage itself was
@@ -1358,6 +1400,11 @@ def push_now_playing(cfg, payload):
 def upload_artwork(cfg, box_path):
     """Read one box image file and upload its bytes to the cloud, which stores it
     in object storage. Bounded by artwork_max_bytes (respects the cloud body limit)."""
+    # Verdict d'extension AVANT toute lecture : inutile de toucher le disque pour un
+    # fichier dont on sait deja que le cloud le refusera.
+    if not is_storable_artwork(box_path):
+        log.info("artwork skip %s: not an image the cloud stores", box_path)
+        return
     # defense-in-depth: only ever read files that really live under /recalbox/ after
     # resolving symlinks and ".." — a prefix check alone is bypassable
     # ("/recalbox/../etc/shadow" literally startswith "/recalbox/").
@@ -1371,9 +1418,9 @@ def upload_artwork(cfg, box_path):
     except OSError as e:
         log.warning("artwork read failed %s: %s", box_path, e)
         return
-    max_bytes = int(cfg.get("artwork_max_bytes", 4000000))
-    if len(raw) == 0 or len(raw) > max_bytes:
-        log.info("artwork skip %s (%d bytes)", box_path, len(raw))
+    reason = artwork_skip_reason(box_path, len(raw), int(cfg.get("artwork_max_bytes", 4000000)))
+    if reason:
+        log.info("artwork skip %s: %s", box_path, reason)
         return
     payload = {"box_path": box_path, "data": base64.b64encode(raw).decode("ascii")}
     url = endpoint_for(cfg, "artwork")

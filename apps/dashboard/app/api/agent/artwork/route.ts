@@ -1,7 +1,7 @@
 import { getAgentVersion, getBearerToken } from '@/lib/agent/bearer'
 import { db } from '@/lib/db'
 import { resolveAgentToken } from '@/lib/db/agent-queries'
-import { listWanted, saveArtwork } from '@/lib/db/artwork'
+import { giveUpWanted, listWanted, noteWantedAttempts, saveArtwork } from '@/lib/db/artwork'
 import { logger } from '@/lib/logger'
 import { artworkContentType, artworkKey, looksLikeImage, putObject } from '@/lib/storage'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -19,7 +19,12 @@ export async function GET(req: NextRequest) {
 	if (!resolved) return NextResponse.json({ error: 'invalid_token' }, { status: 401 })
 
 	const wanted = await listWanted(db, resolved.recalboxId)
-	return NextResponse.json({ wanted: wanted.map((w) => w.boxPath) })
+	const paths = wanted.map((w) => w.boxPath)
+	// Décompté ICI, à la remise. Un échec qui n'atteint jamais cette fonction — corps
+	// rejeté par l'edge, agent qui renonce, box débranchée — ne peut rien signaler, et
+	// c'est exactement celui qui a tourné en boucle trois jours durant.
+	if (paths.length > 0) await noteWantedAttempts(db, resolved.recalboxId, paths)
+	return NextResponse.json({ wanted: paths })
 }
 
 const Payload = z.object({
@@ -62,16 +67,33 @@ export async function POST(req: NextRequest) {
 	// own security headers do not reach. The type is derived from the file extension
 	// against a fixed image allowlist instead, and an upload we cannot type as an image
 	// is refused, so no .html key is ever created either.
+	/**
+	 * Un refus porte sur le FOND : le même fichier réessayé donnera le même verdict.
+	 * Le chemin sort donc de la file immédiatement, sans y consommer ses tentatives —
+	 * sans quoi l'agent réexpédie le fichier entier à chaque interrogation, ce qui a
+	 * coûté 30 Go et la mise en pause du projet le 2026-09-07.
+	 */
+	const refuse = async () => {
+		try {
+			await giveUpWanted(db, resolved.recalboxId, p.box_path)
+		} catch (e) {
+			// Le refus prime : ne pas réussir à vider la file ne doit pas transformer
+			// un 415 en 500, l'agent serait alors fondé à réessayer.
+			logger.error('[agent/artwork] could not drop the refused path', e)
+		}
+		return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+	}
+
 	const contentType = artworkContentType(p.box_path)
 	if (!contentType) {
 		logger.warn(`[agent/artwork] refused non-image path: ${p.box_path}`)
-		return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+		return refuse()
 	}
 	// …and the bytes must actually be an image, or a correct Content-Type would just be
 	// a label on arbitrary content.
 	if (!looksLikeImage(bytes)) {
 		logger.warn(`[agent/artwork] refused non-image bytes for: ${p.box_path}`)
-		return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+		return refuse()
 	}
 
 	try {

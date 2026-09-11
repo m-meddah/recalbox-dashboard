@@ -232,6 +232,13 @@
       "when": 1788194249488,
       "tag": "0032_useful_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1789156532361,
+      "tag": "0033_youthful_leo",
+      "breakpoints": true
     }
   ]
 }

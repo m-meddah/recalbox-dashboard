@@ -4,6 +4,7 @@ import { getArtwork, markWanted } from '@/lib/db/artwork'
 import { getActiveRecalboxId } from '@/lib/recalbox/active'
 import { shellQuote } from '@/lib/recalbox/shell'
 import { getSshClient } from '@/lib/recalbox/ssh-client'
+import { artworkContentType } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -42,6 +43,19 @@ export async function GET(request: Request) {
 	const recalboxId = await getActiveRecalboxId()
 	if (!recalboxId) {
 		return new Response('No Recalbox configured', { status: 503 })
+	}
+
+	// Le stockage objet n'accepte que des images. Demander autre chose par ce proxy —
+	// l'UI de recommandations demande la VIDÉO du jeu — ne peut aboutir ni maintenant
+	// ni après un passage de l'agent : le dire tout de suite, et de façon cachable,
+	// évite les quatre réessais de `media-retry` à chaque rendu. En auto-hébergé, au
+	// contraire, le proxy SSH sert le fichier tel quel, vidéo comprise : ce garde ne
+	// vaut donc que là où un stockage objet décide.
+	if (process.env.AGENT_ONLY_MEDIA === '1' && !artworkContentType(filePath)) {
+		return new Response('Unsupported media type', {
+			status: 415,
+			headers: { 'Cache-Control': 'public, max-age=86400' },
+		})
 	}
 
 	// Serverless path: artwork is mirrored to object storage by the agent. If we
