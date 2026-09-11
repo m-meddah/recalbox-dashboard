@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const resolveAgentToken = vi.fn()
 const listWanted = vi.fn()
 const saveArtwork = vi.fn()
+const noteWantedAttempts = vi.fn()
+const giveUpWanted = vi.fn()
 const putObject = vi.fn()
 
 vi.mock('@/lib/db', () => ({ db: {} }))
@@ -12,6 +14,8 @@ vi.mock('@/lib/db/agent-queries', () => ({
 vi.mock('@/lib/db/artwork', () => ({
 	listWanted: (...a: unknown[]) => listWanted(...a),
 	saveArtwork: (...a: unknown[]) => saveArtwork(...a),
+	noteWantedAttempts: (...a: unknown[]) => noteWantedAttempts(...a),
+	giveUpWanted: (...a: unknown[]) => giveUpWanted(...a),
 }))
 // Storage type/sniff helpers are NOT mocked: their behaviour is the security
 // boundary this route relies on, so the real ones run here.
@@ -39,6 +43,8 @@ afterEach(() => {
 	listWanted.mockReset()
 	saveArtwork.mockReset()
 	putObject.mockReset()
+	noteWantedAttempts.mockReset()
+	giveUpWanted.mockReset()
 })
 
 describe('GET /api/agent/artwork (wanted list)', () => {
@@ -150,5 +156,45 @@ describe('POST /api/agent/artwork (upload)', () => {
 		)
 
 		expect(res.status).toBe(201)
+	})
+})
+
+/**
+ * Incident du 2026-09-07 : la file ne se vidait que sur un succès, donc un chemin
+ * que cette route refuse revenait indéfiniment — l'agent réexpédiait le fichier
+ * entier toutes les 60 s. Les deux sorties de secours sont testées ici.
+ */
+describe('artwork queue does not trap a path forever', () => {
+	it('counts an attempt against every path it hands out', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		listWanted.mockResolvedValue([{ boxPath: '/a.png' }, { boxPath: '/b.png' }])
+		await GET(req('Bearer x') as never)
+		expect(noteWantedAttempts).toHaveBeenCalledWith({}, 'rb1', ['/a.png', '/b.png'])
+	})
+
+	it('does not count an attempt when the queue is empty', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		listWanted.mockResolvedValue([])
+		await GET(req('Bearer x') as never)
+		expect(noteWantedAttempts).not.toHaveBeenCalled()
+	})
+
+	it('gives up on a path refused for its type', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		const res = await POST(req('Bearer x', { box_path: '/videos/snap.mp4', data: 'AAAA' }) as never)
+		expect(res.status).toBe(415)
+		expect(giveUpWanted).toHaveBeenCalledWith({}, 'rb1', '/videos/snap.mp4')
+	})
+
+	it('gives up on bytes that are not an image', async () => {
+		resolveAgentToken.mockResolvedValue({ recalboxId: 'rb1', tokenId: 't1' })
+		const res = await POST(
+			req('Bearer x', {
+				box_path: '/covers/a.png',
+				data: Buffer.from('not an image at all').toString('base64'),
+			}) as never,
+		)
+		expect(res.status).toBe(415)
+		expect(giveUpWanted).toHaveBeenCalledWith({}, 'rb1', '/covers/a.png')
 	})
 })

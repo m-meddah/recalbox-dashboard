@@ -7,6 +7,7 @@ without installing anything. From the repo root:
     python3 -m unittest discover -s agent -v
 """
 
+import base64
 import io
 import json
 import multiprocessing
@@ -599,8 +600,6 @@ class DirectInvocationLockTest(unittest.TestCase):
 			)
 
 
-if __name__ == "__main__":
-	unittest.main()
 
 
 class RepeatedFailureLogTest(unittest.TestCase):
@@ -697,3 +696,77 @@ class LogVolumeTest(unittest.TestCase):
 		self.assertEqual(len(summaries), 1)
 		self.assertIn("20 delivered", summaries[0])
 		self.assertIn("0 still pending", summaries[0])
+
+
+class ArtworkSkipReasonTest(unittest.TestCase):
+	"""Incident du 2026-09-07 : trois `.mp4` demandés par le tableau de bord ont été
+	réexpédiés en entier toutes les 60 s pendant trois jours — 30 Go, 8756 POST, zéro
+	octet stocké. Deux verdicts manquaient ici : le cloud ne stocke que des images, et
+	il compte le corps APRÈS encodage base64, qui ajoute un tiers."""
+
+	def test_an_image_under_the_limit_goes(self):
+		self.assertIsNone(agent.artwork_skip_reason("/recalbox/share/a/cover.png", 500000, 4000000))
+
+	def test_extensions_are_matched_without_regard_to_case(self):
+		self.assertIsNone(agent.artwork_skip_reason("/recalbox/share/a/COVER.JPG", 1000, 4000000))
+
+	def test_a_video_never_leaves_the_box(self):
+		reason = agent.artwork_skip_reason("/recalbox/share/a/Magician Lord.mp4", 1572560, 4000000)
+		self.assertIsNotNone(reason)
+		self.assertIn("image", reason)
+
+	def test_an_extensionless_path_never_leaves_the_box(self):
+		self.assertIsNotNone(agent.artwork_skip_reason("/recalbox/share/a/snap", 1000, 4000000))
+
+	def test_an_empty_file_is_skipped(self):
+		self.assertIsNotNone(agent.artwork_skip_reason("/recalbox/share/a/cover.png", 0, 4000000))
+
+	def test_the_configured_raw_cap_still_applies(self):
+		self.assertIsNotNone(agent.artwork_skip_reason("/recalbox/share/a/cover.png", 9, 8))
+
+	def test_a_file_under_the_raw_cap_can_still_be_too_big_once_encoded(self):
+		"""LE défaut qui a produit les 413. `artwork_max_bytes` valait 4 000 000 sur la
+		box : sous le plafond brut, mais 5,33 Mo une fois encodé — au-dessus de la limite
+		de corps de la plateforme, donc rejeté avant même d'atteindre la fonction."""
+		size = 3961160  # Marvel vs. Capcom 2, la vidéo qui a pris 2919 × HTTP 413
+		# Le plafond brut seul — le seul garde qui existait — laisse passer.
+		self.assertIsNone(
+			agent.artwork_skip_reason(
+				"/recalbox/share/a/big.png", size, 4000000, body_limit=10**9
+			)
+		)
+		self.assertIsNotNone(
+			agent.artwork_skip_reason(
+				"/recalbox/share/a/big.png", size, 4000000, body_limit=agent.CLOUD_BODY_LIMIT_BYTES
+			)
+		)
+
+	def test_the_encoded_ceiling_is_the_default(self):
+		"""Le garde ne doit pas dépendre d'un argument que l'appelant peut oublier."""
+		self.assertIsNotNone(
+			agent.artwork_skip_reason("/recalbox/share/a/big.png", 3961160, 4000000)
+		)
+
+	def test_encoded_size_matches_base64(self):
+		for n in (0, 1, 2, 3, 4, 1000, 3961160):
+			self.assertEqual(
+				agent.encoded_size(n), len(base64.b64encode(b"x" * n)), "taille pour %d" % n
+			)
+
+
+class UploadArtworkRefusesHopelessFilesTest(unittest.TestCase):
+	"""Le garde doit couper AVANT le POST : un refus du cloud coûte déjà tous les octets."""
+
+	def test_a_video_is_never_posted(self):
+		posted = []
+		cfg = {"cloud_url": "https://example.test/api/agent/ingest", "token": "t"}
+		with mock.patch.object(agent, "http_post_json", lambda *a, **k: posted.append(a)):
+			with self.assertLogs("sr-agent", level="INFO") as cm:
+				agent.upload_artwork(cfg, "/recalbox/share/roms/psx/media/videos/Quack.mp4")
+		self.assertEqual(posted, [])
+		self.assertTrue(any("skip" in r.getMessage() for r in cm.records))
+
+
+
+if __name__ == "__main__":
+	unittest.main()
